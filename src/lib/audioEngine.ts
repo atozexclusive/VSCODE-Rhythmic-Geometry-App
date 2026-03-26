@@ -10,6 +10,45 @@ let triggerCount = 0;
 let triggerWindowStart = 0;
 let currentTriggerRate = 0; // triggers per second
 
+export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+
+export const SCALE_PRESETS = {
+  majorPentatonic: { label: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9] },
+  minorPentatonic: { label: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10] },
+  dorian: { label: 'Dorian', intervals: [0, 2, 3, 5, 7, 9, 10] },
+  aeolian: { label: 'Aeolian', intervals: [0, 2, 3, 5, 7, 8, 10] },
+  lydian: { label: 'Lydian', intervals: [0, 2, 4, 6, 7, 9, 11] },
+  wholeTone: { label: 'Whole Tone', intervals: [0, 2, 4, 6, 8, 10] },
+  diminished: { label: 'Diminished', intervals: [0, 2, 3, 5, 6, 8, 9, 11] },
+  chromatic: { label: 'Chromatic', intervals: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+} as const;
+
+export type RootNote = typeof NOTE_NAMES[number];
+export type ScaleName = keyof typeof SCALE_PRESETS;
+export type HarmonyMappingMode = 'orbit-index' | 'pulse-count' | 'radius' | 'color-hue';
+export type TonePreset = 'original' | 'scale-quantized';
+
+export interface HarmonySettings {
+  tonePreset: TonePreset;
+  rootNote: RootNote;
+  scaleName: ScaleName;
+  mappingMode: HarmonyMappingMode;
+}
+
+export interface ResonanceVoice {
+  orbitIndex: number;
+  pulseCount: number;
+  radius: number;
+  color: string;
+}
+
+export const DEFAULT_HARMONY_SETTINGS: HarmonySettings = {
+  tonePreset: 'original',
+  rootNote: 'C',
+  scaleName: 'majorPentatonic',
+  mappingMode: 'color-hue',
+};
+
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
@@ -28,11 +67,7 @@ function getMasterGain(): GainNode {
   return masterGain!;
 }
 
-/**
- * Map hex color to a musical frequency.
- * Uses hue to select from a pentatonic scale across 3 octaves.
- */
-function colorToFrequency(hex: string): number {
+function colorToHue(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
@@ -45,14 +80,57 @@ function colorToFrequency(hex: string): number {
     else if (max === g) h = ((b - r) / d + 2) / 6;
     else h = ((r - g) / d + 4) / 6;
   }
-  // Pentatonic scale notes: C, D, E, G, A across 3 octaves
+  return h;
+}
+
+function midiToFrequency(midi: number): number {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function originalColorFrequency(hex: string): number {
   const pentatonic = [
-    261.63, 293.66, 329.63, 392.00, 440.00,
-    523.25, 587.33, 659.25, 783.99, 880.00,
-    1046.50, 1174.66, 1318.51, 1567.98, 1760.00,
+    261.63, 293.66, 329.63, 392.0, 440.0,
+    523.25, 587.33, 659.25, 783.99, 880.0,
+    1046.5, 1174.66, 1318.51, 1567.98, 1760.0,
   ];
-  const idx = Math.floor(h * (pentatonic.length - 1));
+  const idx = Math.floor(colorToHue(hex) * (pentatonic.length - 1));
   return pentatonic[Math.min(idx, pentatonic.length - 1)];
+}
+
+function quantizedFrequency(
+  voice: ResonanceVoice,
+  harmony: HarmonySettings,
+): number {
+  const scale = SCALE_PRESETS[harmony.scaleName];
+  const rootSemitone = NOTE_NAMES.indexOf(harmony.rootNote);
+  const baseMidi = 48 + rootSemitone;
+
+  let degreeSource = 0;
+  if (harmony.mappingMode === 'orbit-index') {
+    degreeSource = voice.orbitIndex;
+  } else if (harmony.mappingMode === 'pulse-count') {
+    degreeSource = Math.max(0, voice.pulseCount - 2);
+  } else if (harmony.mappingMode === 'radius') {
+    degreeSource = Math.max(0, Math.round((voice.radius - 40) / 30));
+  } else {
+    degreeSource = Math.floor(colorToHue(voice.color) * scale.intervals.length * 3);
+  }
+
+  const degree = degreeSource % scale.intervals.length;
+  const octave = Math.floor(degreeSource / scale.intervals.length);
+  const midi = Math.min(96, baseMidi + octave * 12 + scale.intervals[degree]);
+  return midiToFrequency(midi);
+}
+
+function voiceToFrequency(
+  voice: ResonanceVoice,
+  harmony: HarmonySettings,
+): number {
+  if (harmony.tonePreset === 'original') {
+    return originalColorFrequency(voice.color);
+  }
+
+  return quantizedFrequency(voice, harmony);
 }
 
 /**
@@ -75,7 +153,8 @@ function updateTriggerRate(): void {
  * - Very fast (> 6x): Sustained tone that fades, like a chord
  */
 export function playResonanceBeep(
-  color: string,
+  voice: ResonanceVoice,
+  harmony: HarmonySettings = DEFAULT_HARMONY_SETTINGS,
   volume: number = 0.15,
   speedMultiplier: number = 1.0,
 ): void {
@@ -83,7 +162,7 @@ export function playResonanceBeep(
     const ctx = getAudioContext();
     const master = getMasterGain();
     const now = ctx.currentTime;
-    const freq = colorToFrequency(color);
+    const freq = voiceToFrequency(voice, harmony);
 
     updateTriggerRate();
 

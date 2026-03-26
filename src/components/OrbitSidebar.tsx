@@ -7,15 +7,26 @@ import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import type { Orbit } from '../lib/orbitalEngine';
 import { PRESET_RATIOS } from '../lib/orbitalEngine';
+import {
+  NOTE_NAMES,
+  SCALE_PRESETS,
+  type HarmonySettings,
+  type RootNote,
+  type ScaleName,
+  type HarmonyMappingMode,
+  type TonePreset,
+} from '../lib/audioEngine';
 
 interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
+  harmonySettings: HarmonySettings;
   onClose: () => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
   onDeleteOrbit: (id: string) => void;
   onAddOrbit: () => void;
   onLoadPreset: (preset: number[]) => void;
+  onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
 }
 
 const COLORS = [
@@ -27,13 +38,15 @@ const COLORS = [
 export default function OrbitSidebar({
   orbits,
   isOpen,
+  harmonySettings,
   onClose,
   onUpdateOrbit,
   onDeleteOrbit,
   onAddOrbit,
   onLoadPreset,
+  onHarmonyChange,
 }: OrbitSidebarProps) {
-  const [activeTab, setActiveTab] = useState<'orbits' | 'presets' | 'view'>('orbits');
+  const [activeTab, setActiveTab] = useState<'orbits' | 'presets' | 'sound' | 'view'>('orbits');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
 
   return (
@@ -74,7 +87,7 @@ export default function OrbitSidebar({
 
         {/* Tabs */}
         <div className="flex gap-1 px-4 pt-4 border-b border-white/5">
-          {(['orbits', 'presets', 'view'] as const).map((tab) => (
+          {(['orbits', 'presets', 'sound', 'view'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -301,6 +314,99 @@ export default function OrbitSidebar({
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* SOUND TAB */}
+          {activeTab === 'sound' && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Harmony
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  The original tone set stays as the main preset. Scale quantization is optional.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Tone Preset
+                </label>
+                <select
+                  value={harmonySettings.tonePreset}
+                  onChange={(e) => onHarmonyChange({ tonePreset: e.target.value as TonePreset })}
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                >
+                  <option value="original" style={{ background: '#181820' }}>Original</option>
+                  <option value="scale-quantized" style={{ background: '#181820' }}>Scale Quantized</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Root Note
+                </label>
+                <select
+                  value={harmonySettings.rootNote}
+                  onChange={(e) => onHarmonyChange({ rootNote: e.target.value as RootNote })}
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                >
+                  {NOTE_NAMES.map((note) => (
+                    <option key={note} value={note} style={{ background: '#181820' }}>
+                      {note}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Scale
+                </label>
+                <select
+                  value={harmonySettings.scaleName}
+                  onChange={(e) => onHarmonyChange({ scaleName: e.target.value as ScaleName })}
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                >
+                  {Object.entries(SCALE_PRESETS).map(([scaleName, scale]) => (
+                    <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
+                      {scale.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Mapping Mode
+                </label>
+                <select
+                  value={harmonySettings.mappingMode}
+                  onChange={(e) => onHarmonyChange({ mappingMode: e.target.value as HarmonyMappingMode })}
+                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                >
+                  <option value="color-hue" style={{ background: '#181820' }}>Color Hue</option>
+                  <option value="orbit-index" style={{ background: '#181820' }}>Orbit Index</option>
+                  <option value="pulse-count" style={{ background: '#181820' }}>Pulse Count</option>
+                  <option value="radius" style={{ background: '#181820' }}>Radius</option>
+                </select>
+              </div>
+
+              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Current Mode
+                </div>
+                <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
+                  {harmonySettings.tonePreset === 'original'
+                    ? 'Original hue-based pentatonic voicing.'
+                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}, mapped by ${harmonySettings.mappingMode.replace('-', ' ')}.`}
+                </p>
+              </div>
             </div>
           )}
 

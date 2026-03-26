@@ -9,7 +9,12 @@ import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
 import RadialMenu from '../components/RadialMenu';
-import { resumeAudio, stopAllAudio } from '../lib/audioEngine';
+import {
+  DEFAULT_HARMONY_SETTINGS,
+  type HarmonySettings,
+  resumeAudio,
+  stopAllAudio,
+} from '../lib/audioEngine';
 import {
   type Orbit,
   type EngineState,
@@ -31,6 +36,7 @@ function OrbitalPolymeter() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [traceMode, setTraceMode] = useState(false);
+  const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
     x: number;
@@ -58,6 +64,10 @@ function OrbitalPolymeter() {
 
   const handleToggleTrace = useCallback(() => {
     setTraceMode((t) => !t);
+  }, []);
+
+  const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
+    setHarmonySettings((current) => ({ ...current, ...updates }));
   }, []);
 
   const handleReset = useCallback(() => {
@@ -154,6 +164,7 @@ function OrbitalPolymeter() {
         ref={canvasRef}
         engineState={engineState}
         traceMode={traceMode}
+        harmonySettings={harmonySettings}
         onOrbitLongPress={handleOrbitLongPress}
       />
 
@@ -201,11 +212,13 @@ function OrbitalPolymeter() {
       <OrbitSidebar
         orbits={engineState.orbits}
         isOpen={sidebarOpen}
+        harmonySettings={harmonySettings}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
         onDeleteOrbit={handleDeleteOrbit}
         onAddOrbit={handleAddOrbit}
         onLoadPreset={handleLoadPreset}
+        onHarmonyChange={handleHarmonyChange}
       />
 
       {/* Radial Menu */}

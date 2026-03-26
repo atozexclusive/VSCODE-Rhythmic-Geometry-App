@@ -12,7 +12,7 @@ import {
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { playResonanceBeep } from '../lib/audioEngine';
+import { playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
 
 const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
@@ -31,11 +31,12 @@ interface Bloom {
 interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
+  harmonySettings: HarmonySettings;
   onOrbitLongPress?: (orbitId: string, x: number, y: number) => void;
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, onOrbitLongPress }, ref) => {
+  ({ engineState, traceMode, harmonySettings, onOrbitLongPress }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
     const bloomsRef = useRef<Bloom[]>([]);
@@ -43,6 +44,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const traceSegmentCountRef = useRef(0);
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
+    const harmonySettingsRef = useRef(harmonySettings);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
     const [, forceUpdate] = useState(0);
@@ -50,6 +52,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     // Keep refs in sync
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
+    harmonySettingsRef.current = harmonySettings;
 
     // Clear traces externally
     const clearTraces = useCallback(() => {
@@ -235,6 +238,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         // Process triggers — every single one gets audio + bloom
         for (const trig of triggers) {
+          const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === trig.orbitId);
+          const orbit = orbitIndex >= 0 ? state.orbits[orbitIndex] : null;
           bloomsRef.current.push({
             x: trig.x,
             y: trig.y,
@@ -243,7 +248,19 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             birth: timestamp,
             orbitRadius: trig.radius,
           });
-          playResonanceBeep(trig.color, 0.12, state.speedMultiplier);
+          if (orbit) {
+            playResonanceBeep(
+              {
+                orbitIndex,
+                pulseCount: orbit.pulseCount,
+                radius: orbit.radius,
+                color: orbit.color,
+              },
+              harmonySettingsRef.current,
+              0.12,
+              state.speedMultiplier,
+            );
+          }
         }
 
         // ---- Clear ----
