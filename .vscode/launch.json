@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Open Vite app in Chrome",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:4175",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Start dev server"
+    }
+  ]
+}
