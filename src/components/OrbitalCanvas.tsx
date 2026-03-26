@@ -28,16 +28,6 @@ interface Bloom {
   orbitRadius: number;
 }
 
-interface TracePoint {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  color: string;
-  opacity: number;
-  age: number;
-}
-
 interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
@@ -49,7 +39,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
     const bloomsRef = useRef<Bloom[]>([]);
-    const traceBufferRef = useRef<TracePoint[]>([]);
+    const traceCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const traceSegmentCountRef = useRef(0);
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,7 +53,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
     // Clear traces externally
     const clearTraces = useCallback(() => {
-      traceBufferRef.current = [];
+      const traceCanvas = traceCanvasRef.current;
+      const traceCtx = traceCanvas?.getContext('2d');
+      if (traceCanvas && traceCtx) {
+        traceCtx.setTransform(1, 0, 0, 1, 0, 0);
+        traceCtx.clearRect(0, 0, traceCanvas.width, traceCanvas.height);
+        const dpr = window.devicePixelRatio || 1;
+        traceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      traceSegmentCountRef.current = 0;
     }, []);
 
     const getAdaptiveTraceSteps = useCallback(
@@ -198,6 +197,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
       const ctx = canvas.getContext('2d', { alpha: false })!;
       const dpr = window.devicePixelRatio || 1;
+      const traceCanvas = document.createElement('canvas');
+      const traceCtx = traceCanvas.getContext('2d', { alpha: true })!;
+      traceCanvasRef.current = traceCanvas;
 
       const resize = () => {
         const w = window.innerWidth;
@@ -207,13 +209,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         canvas.style.width = `${w}px`;
         canvas.style.height = `${h}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        traceCanvas.width = w * dpr;
+        traceCanvas.height = h * dpr;
+        traceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        clearTraces();
       };
 
       resize();
       window.addEventListener('resize', resize);
 
       const BLOOM_DURATION = 500;
-      const MAX_TRACES = 5000;
 
       const renderFrame = (timestamp: number) => {
         const now = timestamp;
@@ -322,41 +328,26 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
               for (let i = 0; i < samplePoints.length; i++) {
                 for (let j = i + 1; j < samplePoints.length; j++) {
-                  traceBufferRef.current.push({
-                    x1: samplePoints[i].x,
-                    y1: samplePoints[i].y,
-                    x2: samplePoints[j].x,
-                    y2: samplePoints[j].y,
-                    color: samplePoints[i].color,
-                    opacity: 0.15 / substeps,
-                    age: timestamp,
-                  });
+                  traceCtx.save();
+                  traceCtx.lineCap = 'round';
+                  traceCtx.globalAlpha = 0.15 / substeps;
+                  traceCtx.strokeStyle = samplePoints[i].color;
+                  traceCtx.lineWidth = 0.6;
+                  traceCtx.beginPath();
+                  traceCtx.moveTo(samplePoints[i].x, samplePoints[i].y);
+                  traceCtx.lineTo(samplePoints[j].x, samplePoints[j].y);
+                  traceCtx.stroke();
+                  traceCtx.restore();
+                  traceSegmentCountRef.current += 1;
                 }
               }
             }
-
-            // Cap buffer
-            if (traceBufferRef.current.length > MAX_TRACES) {
-              traceBufferRef.current = traceBufferRef.current.slice(-MAX_TRACES);
-            }
           }
 
-          // Render traces — simple, clean lines that build up into geometry
+          // Render the accumulated trace layer in one pass so history persists.
           ctx.save();
-          ctx.lineCap = 'round';
-          for (const trace of traceBufferRef.current) {
-            const traceAge = now - trace.age;
-            // No fade — traces persist until cleared (like the original)
-            // But very old ones get slightly dimmer
-            const fadeFactor = traceAge > 30000 ? Math.max(0.3, 1 - (traceAge - 30000) / 60000) : 1;
-            ctx.globalAlpha = trace.opacity * fadeFactor;
-            ctx.strokeStyle = trace.color;
-            ctx.lineWidth = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(trace.x1, trace.y1);
-            ctx.lineTo(trace.x2, trace.y2);
-            ctx.stroke();
-          }
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.drawImage(traceCanvas, 0, 0);
           ctx.restore();
         }
 
@@ -495,7 +486,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
         if (traceModeRef.current) {
           ctx.fillStyle = '#00FFAA';
-          ctx.fillText(`TRACE \u25cf  ${traceBufferRef.current.length}`, 16, h - 18);
+          ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 18);
         }
         ctx.restore();
 
@@ -508,6 +499,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       return () => {
         cancelAnimationFrame(rafRef.current);
         window.removeEventListener('resize', resize);
+        traceCanvasRef.current = null;
       };
     }, []);
 
