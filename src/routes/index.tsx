@@ -24,6 +24,50 @@ import {
   DEFAULT_ORBITS,
 } from '../lib/orbitalEngine';
 
+const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
+
+type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
+
+interface SceneSnapshot {
+  orbits: SceneOrbitSnapshot[];
+  speedMultiplier: number;
+  traceMode: boolean;
+  harmonySettings: HarmonySettings;
+}
+
+interface SavedScene {
+  id: string;
+  name: string;
+  updatedAt: string;
+  snapshot: SceneSnapshot;
+}
+
+function loadSavedScenes(): SavedScene[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SCENES_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as SavedScene[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSavedScenes(scenes: SavedScene[]): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(SCENES_STORAGE_KEY, JSON.stringify(scenes));
+}
+
 function OrbitalPolymeter() {
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
@@ -37,6 +81,7 @@ function OrbitalPolymeter() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [traceMode, setTraceMode] = useState(false);
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
+  const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
     x: number;
@@ -157,6 +202,101 @@ function OrbitalPolymeter() {
     [handleUpdateOrbit],
   );
 
+  const handleSaveScene = useCallback(() => {
+    const now = new Date().toISOString();
+    const defaultName = `Scene ${savedScenes.length + 1}`;
+    const snapshot: SceneSnapshot = {
+      orbits: engineState.orbits.map(({ pulseCount, radius, direction, color }) => ({
+        pulseCount,
+        radius,
+        direction,
+        color,
+      })),
+      speedMultiplier: engineState.speedMultiplier,
+      traceMode,
+      harmonySettings,
+    };
+
+    const newScene: SavedScene = {
+      id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
+      name: defaultName,
+      updatedAt: now,
+      snapshot,
+    };
+
+    setSavedScenes((current) => {
+      const next = [newScene, ...current];
+      persistSavedScenes(next);
+      return next;
+    });
+  }, [engineState.orbits, engineState.speedMultiplier, harmonySettings, savedScenes.length, traceMode]);
+
+  const handleSaveSceneAs = useCallback(
+    (name: string) => {
+      const trimmedName = name.trim();
+      const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
+      const now = new Date().toISOString();
+      const snapshot: SceneSnapshot = {
+        orbits: engineState.orbits.map(({ pulseCount, radius, direction, color }) => ({
+          pulseCount,
+          radius,
+          direction,
+          color,
+        })),
+        speedMultiplier: engineState.speedMultiplier,
+        traceMode,
+        harmonySettings,
+      };
+
+      const newScene: SavedScene = {
+        id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
+        name: sceneName,
+        updatedAt: now,
+        snapshot,
+      };
+
+      setSavedScenes((current) => {
+        const next = [newScene, ...current];
+        persistSavedScenes(next);
+        return next;
+      });
+    },
+    [engineState.orbits, engineState.speedMultiplier, harmonySettings, savedScenes.length, traceMode],
+  );
+
+  const handleLoadScene = useCallback(
+    (sceneId: string) => {
+      const scene = savedScenes.find((entry) => entry.id === sceneId);
+      if (!scene) {
+        return;
+      }
+
+      stopAllAudio();
+      engineState.playing = false;
+      engineState.speedMultiplier = scene.snapshot.speedMultiplier;
+      engineState.orbits = scene.snapshot.orbits.map((orbit) => createOrbit(orbit));
+      resetEngine(engineState);
+      setTraceMode(scene.snapshot.traceMode);
+      setHarmonySettings(scene.snapshot.harmonySettings);
+
+      const canvasEl = document.querySelector('canvas');
+      if (canvasEl && (canvasEl as any).__clearTraces) {
+        (canvasEl as any).__clearTraces();
+      }
+
+      rerender();
+    },
+    [engineState, rerender, savedScenes],
+  );
+
+  const handleDeleteScene = useCallback((sceneId: string) => {
+    setSavedScenes((current) => {
+      const next = current.filter((scene) => scene.id !== sceneId);
+      persistSavedScenes(next);
+      return next;
+    });
+  }, []);
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#111116] select-none">
       {/* Canvas */}
@@ -213,12 +353,17 @@ function OrbitalPolymeter() {
         orbits={engineState.orbits}
         isOpen={sidebarOpen}
         harmonySettings={harmonySettings}
+        savedScenes={savedScenes}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
         onDeleteOrbit={handleDeleteOrbit}
         onAddOrbit={handleAddOrbit}
         onLoadPreset={handleLoadPreset}
         onHarmonyChange={handleHarmonyChange}
+        onSaveScene={handleSaveScene}
+        onSaveSceneAs={handleSaveSceneAs}
+        onLoadScene={handleLoadScene}
+        onDeleteScene={handleDeleteScene}
       />
 
       {/* Radial Menu */}

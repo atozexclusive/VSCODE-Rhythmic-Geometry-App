@@ -21,12 +21,21 @@ interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
   harmonySettings: HarmonySettings;
+  savedScenes: Array<{
+    id: string;
+    name: string;
+    updatedAt: string;
+  }>;
   onClose: () => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
   onDeleteOrbit: (id: string) => void;
   onAddOrbit: () => void;
   onLoadPreset: (preset: number[]) => void;
   onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
+  onSaveScene: () => void;
+  onSaveSceneAs: (name: string) => void;
+  onLoadScene: (sceneId: string) => void;
+  onDeleteScene: (sceneId: string) => void;
 }
 
 const COLORS = [
@@ -39,15 +48,21 @@ export default function OrbitSidebar({
   orbits,
   isOpen,
   harmonySettings,
+  savedScenes,
   onClose,
   onUpdateOrbit,
   onDeleteOrbit,
   onAddOrbit,
   onLoadPreset,
   onHarmonyChange,
+  onSaveScene,
+  onSaveSceneAs,
+  onLoadScene,
+  onDeleteScene,
 }: OrbitSidebarProps) {
-  const [activeTab, setActiveTab] = useState<'orbits' | 'presets' | 'sound' | 'view'>('orbits');
+  const [activeTab, setActiveTab] = useState<'orbits' | 'scenes' | 'presets' | 'sound' | 'view'>('orbits');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
+  const [sceneName, setSceneName] = useState('');
 
   return (
     <>
@@ -87,7 +102,7 @@ export default function OrbitSidebar({
 
         {/* Tabs */}
         <div className="flex gap-1 px-4 pt-4 border-b border-white/5">
-          {(['orbits', 'presets', 'sound', 'view'] as const).map((tab) => (
+          {(['orbits', 'scenes', 'presets', 'sound', 'view'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -314,6 +329,107 @@ export default function OrbitSidebar({
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* SCENES TAB */}
+          {activeTab === 'scenes' && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Saved Scenes
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Save the full current state locally in this browser: orbits, speed, trace mode, and harmony.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={sceneName}
+                  onChange={(e) => setSceneName(e.target.value)}
+                  placeholder="Scene name"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onSaveSceneAs(sceneName);
+                      setSceneName('');
+                    }}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                    style={{
+                      background: 'rgba(0, 255, 170, 0.12)',
+                      border: '1px solid rgba(0, 255, 170, 0.3)',
+                      color: '#00FFAA',
+                    }}
+                  >
+                    Save Named Scene
+                  </button>
+                  <button
+                    onClick={onSaveScene}
+                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  >
+                    Quick Save
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {savedScenes.length === 0 ? (
+                  <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                    No saved scenes yet.
+                  </p>
+                ) : (
+                  savedScenes.map((scene) => (
+                    <div
+                      key={scene.id}
+                      className="rounded-lg border p-3"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                            {scene.name}
+                          </div>
+                          <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                            {new Date(scene.updatedAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => onDeleteScene(scene.id)}
+                          className="p-1 rounded transition-colors hover:bg-red-500/10"
+                          style={{ color: 'rgba(255, 99, 132, 0.8)' }}
+                          title="Delete scene"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => onLoadScene(scene.id)}
+                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: 'rgba(255, 255, 255, 0.7)',
+                        }}
+                      >
+                        Load Scene
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
 
