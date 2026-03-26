@@ -12,6 +12,8 @@ export interface Orbit {
   radius: number;           // px from center
   direction: 1 | -1;        // 1 = CW, -1 = CCW
   color: string;            // hex color
+  harmonyDegree?: number;   // optional manual scale degree
+  harmonyRegister?: -1 | 0 | 1; // optional register offset for scale mode
   phase: number;            // current angle in radians [0, 2π)
   lastTriggerBeat: number;  // last beat index that fired (prevents double-trigger)
 }
@@ -250,10 +252,10 @@ export const PRESET_RATIOS: Record<string, number[]> = {
  * Default orbit presets for initial demo.
  */
 export const DEFAULT_ORBITS: Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>[] = [
-  { pulseCount: 3,  radius: 90,  direction: 1,  color: '#00FFAA' },
-  { pulseCount: 4,  radius: 150, direction: -1, color: '#FF3366' },
-  { pulseCount: 5,  radius: 210, direction: 1,  color: '#3388FF' },
-  { pulseCount: 7,  radius: 270, direction: -1, color: '#FFAA00' },
+  { pulseCount: 3,  radius: 90,  direction: 1,  color: '#00FFAA', harmonyDegree: 0, harmonyRegister: 0 },
+  { pulseCount: 4,  radius: 150, direction: -1, color: '#FF3366', harmonyDegree: 2, harmonyRegister: 0 },
+  { pulseCount: 5,  radius: 210, direction: 1,  color: '#3388FF', harmonyDegree: 4, harmonyRegister: 0 },
+  { pulseCount: 7,  radius: 270, direction: -1, color: '#FFAA00', harmonyDegree: 1, harmonyRegister: 1 },
 ];
 
 /**

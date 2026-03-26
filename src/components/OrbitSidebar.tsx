@@ -47,6 +47,12 @@ const COLORS = [
   '#44FF88', '#FF4488', '#88CCFF', '#FFCC00',
 ];
 
+const REGISTER_OPTIONS: Array<{ label: string; value: -1 | 0 | 1 }> = [
+  { label: 'Low', value: -1 },
+  { label: 'Mid', value: 0 },
+  { label: 'High', value: 1 },
+];
+
 export default function OrbitSidebar({
   orbits,
   isOpen,
@@ -287,6 +293,62 @@ export default function OrbitSidebar({
                           </div>
                         </div>
 
+                        {harmonySettings.tonePreset === 'scale-quantized' && harmonySettings.manualOrbitRoles && (
+                          <>
+                            <div>
+                              <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                                Scale Degree
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="7"
+                                step="1"
+                                value={orbit.harmonyDegree ?? 0}
+                                onChange={(e) =>
+                                  onUpdateOrbit(orbit.id, { harmonyDegree: parseInt(e.target.value) })
+                                }
+                                className="w-full h-1 rounded-full mt-2 appearance-none cursor-pointer"
+                                style={{
+                                  background: `linear-gradient(to right, ${orbit.color}30, ${orbit.color}70)`,
+                                  WebkitAppearance: 'none',
+                                }}
+                              />
+                              <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                                Degree {(orbit.harmonyDegree ?? 0) + 1}
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                                Register
+                              </label>
+                              <div className="flex gap-2 mt-2">
+                                {REGISTER_OPTIONS.map((option) => (
+                                  <button
+                                    key={option.label}
+                                    onClick={() => onUpdateOrbit(orbit.id, { harmonyRegister: option.value })}
+                                    className="flex-1 px-2 py-1 rounded text-xs font-mono transition-all duration-200"
+                                    style={{
+                                      background: (orbit.harmonyRegister ?? 0) === option.value
+                                        ? orbit.color + '30'
+                                        : 'rgba(255, 255, 255, 0.05)',
+                                      border: `1px solid ${(orbit.harmonyRegister ?? 0) === option.value
+                                        ? orbit.color + '60'
+                                        : 'rgba(255, 255, 255, 0.1)'}`,
+                                      color: (orbit.harmonyRegister ?? 0) === option.value
+                                        ? orbit.color
+                                        : 'rgba(255, 255, 255, 0.4)',
+                                    }}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
                         {/* Delete Button */}
                         <button
                           onClick={() => onDeleteOrbit(orbit.id)}
@@ -513,6 +575,9 @@ export default function OrbitSidebar({
                   <option value="original" style={{ background: '#181820' }}>Original</option>
                   <option value="scale-quantized" style={{ background: '#181820' }}>Scale Quantized</option>
                 </select>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  `Original` keeps the old sound behavior. `Scale Quantized` snaps notes into a musical scale so the system sounds more intentionally harmonic.
+                </p>
               </div>
 
               <div>
@@ -531,6 +596,9 @@ export default function OrbitSidebar({
                     </option>
                   ))}
                 </select>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  The root note is the tonal home base. Changing it shifts the whole mood up or down without changing the rhythm.
+                </p>
               </div>
 
               <div>
@@ -549,6 +617,9 @@ export default function OrbitSidebar({
                     </option>
                   ))}
                 </select>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  The scale chooses which notes are allowed. Think of it as the emotional color palette for the sound.
+                </p>
               </div>
 
               <div>
@@ -566,7 +637,35 @@ export default function OrbitSidebar({
                   <option value="pulse-count" style={{ background: '#181820' }}>Pulse Count</option>
                   <option value="radius" style={{ background: '#181820' }}>Radius</option>
                 </select>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  This decides how pitches are chosen automatically:
+                  <br />
+                  `Color Hue` uses orbit color.
+                  <br />
+                  `Orbit Index` uses orbit order.
+                  <br />
+                  `Pulse Count` uses rhythm complexity.
+                  <br />
+                  `Radius` uses distance from center.
+                </p>
               </div>
+
+              <button
+                onClick={() => onHarmonyChange({ manualOrbitRoles: !harmonySettings.manualOrbitRoles })}
+                className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                style={{
+                  background: harmonySettings.manualOrbitRoles
+                    ? 'rgba(0, 255, 170, 0.12)'
+                    : 'rgba(255, 255, 255, 0.06)',
+                  border: `1px solid ${harmonySettings.manualOrbitRoles ? 'rgba(0, 255, 170, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+                  color: harmonySettings.manualOrbitRoles ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
+                }}
+              >
+                {harmonySettings.manualOrbitRoles ? 'Manual Orbit Roles On' : 'Manual Orbit Roles Off'}
+              </button>
+              <p className="text-[10px] -mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                When this is on, each orbit can be given its own note role and register in the `ORBITS` tab. When it is off, pitch is chosen automatically by the mapping mode above.
+              </p>
 
               <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
@@ -575,7 +674,11 @@ export default function OrbitSidebar({
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
                   {harmonySettings.tonePreset === 'original'
                     ? 'Original hue-based pentatonic voicing.'
-                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}, mapped by ${harmonySettings.mappingMode.replace('-', ' ')}.`}
+                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}, ${
+                        harmonySettings.manualOrbitRoles
+                          ? 'using manual orbit roles.'
+                          : `mapped by ${harmonySettings.mappingMode.replace('-', ' ')}.`
+                      }`}
                 </p>
               </div>
             </div>

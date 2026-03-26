@@ -228,7 +228,7 @@ function OrbitalPolymeter() {
   const handleUpdateOrbit = useCallback(
     (
       id: string,
-      updates: Partial<Pick<Orbit, 'pulseCount' | 'radius' | 'direction' | 'color'>>,
+      updates: Partial<Pick<Orbit, 'pulseCount' | 'radius' | 'direction' | 'color' | 'harmonyDegree' | 'harmonyRegister'>>,
     ) => {
       const orbit = engineState.orbits.find((o) => o.id === id);
       if (orbit) {
@@ -262,6 +262,8 @@ function OrbitalPolymeter() {
       radius: Math.min(newRadius, 500),
       direction: Math.random() > 0.5 ? 1 : -1,
       color: colors[engineState.orbits.length % colors.length],
+      harmonyDegree: engineState.orbits.length % 5,
+      harmonyRegister: 0,
     });
     engineState.orbits.push(newOrbit);
     rerender();
@@ -279,6 +281,8 @@ function OrbitalPolymeter() {
           radius: 80 + idx * 60,
           direction: idx % 2 === 0 ? 1 : -1,
           color: colors[idx % colors.length],
+          harmonyDegree: idx % 5,
+          harmonyRegister: idx > 2 ? 1 : 0,
         }),
       );
       rerender();
@@ -304,11 +308,13 @@ function OrbitalPolymeter() {
     const now = new Date().toISOString();
     const defaultName = `Scene ${savedScenes.length + 1}`;
     const snapshot: SceneSnapshot = {
-      orbits: engineState.orbits.map(({ pulseCount, radius, direction, color }) => ({
+      orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
         pulseCount,
         radius,
         direction,
         color,
+        harmonyDegree,
+        harmonyRegister,
       })),
       speedMultiplier: engineState.speedMultiplier,
       traceMode,
@@ -335,11 +341,13 @@ function OrbitalPolymeter() {
       const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
       const now = new Date().toISOString();
       const snapshot: SceneSnapshot = {
-        orbits: engineState.orbits.map(({ pulseCount, radius, direction, color }) => ({
+        orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
           pulseCount,
           radius,
           direction,
           color,
+          harmonyDegree,
+          harmonyRegister,
         })),
         speedMultiplier: engineState.speedMultiplier,
         traceMode,

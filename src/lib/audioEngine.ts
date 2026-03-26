@@ -33,6 +33,7 @@ export interface HarmonySettings {
   rootNote: RootNote;
   scaleName: ScaleName;
   mappingMode: HarmonyMappingMode;
+  manualOrbitRoles: boolean;
 }
 
 export interface ResonanceVoice {
@@ -40,6 +41,8 @@ export interface ResonanceVoice {
   pulseCount: number;
   radius: number;
   color: string;
+  harmonyDegree?: number;
+  harmonyRegister?: -1 | 0 | 1;
 }
 
 export const DEFAULT_HARMONY_SETTINGS: HarmonySettings = {
@@ -47,6 +50,7 @@ export const DEFAULT_HARMONY_SETTINGS: HarmonySettings = {
   rootNote: 'C',
   scaleName: 'majorPentatonic',
   mappingMode: 'color-hue',
+  manualOrbitRoles: false,
 };
 
 function getAudioContext(): AudioContext {
@@ -103,10 +107,13 @@ function quantizedFrequency(
 ): number {
   const scale = SCALE_PRESETS[harmony.scaleName];
   const rootSemitone = NOTE_NAMES.indexOf(harmony.rootNote);
-  const baseMidi = 48 + rootSemitone;
+  const baseMidi = 60 + rootSemitone;
 
   let degreeSource = 0;
-  if (harmony.mappingMode === 'orbit-index') {
+  if (harmony.manualOrbitRoles && typeof voice.harmonyDegree === 'number') {
+    const register = voice.harmonyRegister ?? 0;
+    degreeSource = Math.max(0, voice.harmonyDegree) + register * scale.intervals.length;
+  } else if (harmony.mappingMode === 'orbit-index') {
     degreeSource = voice.orbitIndex;
   } else if (harmony.mappingMode === 'pulse-count') {
     degreeSource = Math.max(0, voice.pulseCount - 2);

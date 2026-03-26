@@ -266,6 +266,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 pulseCount: orbit.pulseCount,
                 radius: orbit.radius,
                 color: orbit.color,
+                harmonyDegree: orbit.harmonyDegree,
+                harmonyRegister: orbit.harmonyRegister,
               },
               harmonySettingsRef.current,
               0.12,
