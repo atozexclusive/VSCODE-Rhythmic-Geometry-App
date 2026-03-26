@@ -348,6 +348,18 @@ function applySceneSnapshot(
   clearTraces();
 }
 
+function launchLoadedState(
+  engineState: EngineState,
+  closeSidebar: () => void,
+  rerender: () => void,
+): void {
+  resumeAudio();
+  engineState.playing = true;
+  engineState.lastTimestamp = -1;
+  closeSidebar();
+  rerender();
+}
+
 function OrbitalPolymeter() {
   const isMobile = useIsMobile();
   const [engineState] = useState<EngineState>(() => {
@@ -488,9 +500,14 @@ function OrbitalPolymeter() {
           harmonyRegister: idx > 2 ? 1 : 0,
         }),
       );
+      handleClearTraces();
+      resumeAudio();
+      engineState.playing = true;
+      engineState.lastTimestamp = -1;
+      setSidebarOpen(false);
       rerender();
     },
-    [engineState, rerender],
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleOrbitLongPress = useCallback(
@@ -580,7 +597,7 @@ function OrbitalPolymeter() {
         return;
       }
       applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
-      rerender();
+      launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
     },
     [engineState, handleClearTraces, rerender, savedScenes],
   );
@@ -592,7 +609,7 @@ function OrbitalPolymeter() {
         return;
       }
       applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
-      rerender();
+      launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
     },
     [engineState, handleClearTraces, rerender],
   );
