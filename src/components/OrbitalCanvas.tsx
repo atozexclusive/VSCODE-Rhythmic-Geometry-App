@@ -94,6 +94,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const canvas = canvasRef.current;
       if (canvas) {
         (canvas as any).__clearTraces = clearTraces;
+        (canvas as any).__exportPng = () => {
+          const link = document.createElement('a');
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          link.href = canvas.toDataURL('image/png');
+          link.download = `orbital-polymeter-${timestamp}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
       }
     }, [clearTraces]);
 

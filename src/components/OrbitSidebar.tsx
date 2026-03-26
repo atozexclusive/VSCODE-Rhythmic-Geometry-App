@@ -4,7 +4,7 @@
 // ============================================================
 
 import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Orbit } from '../lib/orbitalEngine';
 import { PRESET_RATIOS } from '../lib/orbitalEngine';
 import {
@@ -36,6 +36,9 @@ interface OrbitSidebarProps {
   onSaveSceneAs: (name: string) => void;
   onLoadScene: (sceneId: string) => void;
   onDeleteScene: (sceneId: string) => void;
+  onExportScene: (sceneId: string) => void;
+  onImportScene: (file: File) => void;
+  onExportPng: () => void;
 }
 
 const COLORS = [
@@ -59,10 +62,14 @@ export default function OrbitSidebar({
   onSaveSceneAs,
   onLoadScene,
   onDeleteScene,
+  onExportScene,
+  onImportScene,
+  onExportPng,
 }: OrbitSidebarProps) {
   const [activeTab, setActiveTab] = useState<'orbits' | 'scenes' | 'presets' | 'sound' | 'view'>('orbits');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <>
@@ -345,6 +352,17 @@ export default function OrbitSidebar({
               </div>
 
               <div className="space-y-2">
+                <button
+                  onClick={onExportPng}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(0, 255, 170, 0.08)',
+                    border: '1px solid rgba(0, 255, 170, 0.2)',
+                    color: '#00FFAA',
+                  }}
+                >
+                  Export Current View PNG
+                </button>
                 <input
                   type="text"
                   value={sceneName}
@@ -380,6 +398,30 @@ export default function OrbitSidebar({
                     Quick Save
                   </button>
                 </div>
+                <button
+                  onClick={() => importInputRef.current?.click()}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  }}
+                >
+                  Import Scene JSON
+                </button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      onImportScene(file);
+                    }
+                    e.target.value = '';
+                  }}
+                />
               </div>
 
               <div className="space-y-2">
@@ -406,26 +448,39 @@ export default function OrbitSidebar({
                             {new Date(scene.updatedAt).toLocaleString()}
                           </div>
                         </div>
-                        <button
-                          onClick={() => onDeleteScene(scene.id)}
-                          className="p-1 rounded transition-colors hover:bg-red-500/10"
+                      <button
+                        onClick={() => onDeleteScene(scene.id)}
+                        className="p-1 rounded transition-colors hover:bg-red-500/10"
                           style={{ color: 'rgba(255, 99, 132, 0.8)' }}
                           title="Delete scene"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
-                      <button
-                        onClick={() => onLoadScene(scene.id)}
-                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          color: 'rgba(255, 255, 255, 0.7)',
-                        }}
-                      >
-                        Load Scene
-                      </button>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => onLoadScene(scene.id)}
+                          className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'rgba(255, 255, 255, 0.7)',
+                          }}
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => onExportScene(scene.id)}
+                          className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                          style={{
+                            background: 'rgba(0, 255, 170, 0.08)',
+                            border: '1px solid rgba(0, 255, 170, 0.2)',
+                            color: '#00FFAA',
+                          }}
+                        >
+                          Export
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}

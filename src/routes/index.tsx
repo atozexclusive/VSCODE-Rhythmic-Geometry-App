@@ -42,6 +42,12 @@ interface SavedScene {
   snapshot: SceneSnapshot;
 }
 
+interface ImportedSceneFile {
+  version: 1;
+  exportedAt: string;
+  scene: SavedScene;
+}
+
 function loadSavedScenes(): SavedScene[] {
   if (typeof window === 'undefined') {
     return [];
@@ -66,6 +72,76 @@ function persistSavedScenes(scenes: SavedScene[]): void {
   }
 
   window.localStorage.setItem(SCENES_STORAGE_KEY, JSON.stringify(scenes));
+}
+
+function downloadSceneFile(scene: SavedScene): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload: ImportedSceneFile = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    scene,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  const safeName = scene.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  anchor.href = url;
+  anchor.download = `${safeName || 'orbital-scene'}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
+}
+
+function normalizeImportedScene(value: unknown): SavedScene | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const maybeWrapper = value as Partial<ImportedSceneFile>;
+  const scene = maybeWrapper.scene ?? value;
+  if (!scene || typeof scene !== 'object') {
+    return null;
+  }
+
+  const candidate = scene as Partial<SavedScene>;
+  if (
+    typeof candidate.name !== 'string' ||
+    typeof candidate.updatedAt !== 'string' ||
+    !candidate.snapshot ||
+    typeof candidate.snapshot !== 'object'
+  ) {
+    return null;
+  }
+
+  const snapshot = candidate.snapshot as Partial<SceneSnapshot>;
+  if (
+    !Array.isArray(snapshot.orbits) ||
+    typeof snapshot.speedMultiplier !== 'number' ||
+    typeof snapshot.traceMode !== 'boolean' ||
+    !snapshot.harmonySettings ||
+    typeof snapshot.harmonySettings !== 'object'
+  ) {
+    return null;
+  }
+
+  return {
+    id: typeof candidate.id === 'string' ? candidate.id : globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
+    name: candidate.name,
+    updatedAt: candidate.updatedAt,
+    snapshot: {
+      orbits: snapshot.orbits as SceneOrbitSnapshot[],
+      speedMultiplier: snapshot.speedMultiplier,
+      traceMode: snapshot.traceMode,
+      harmonySettings: snapshot.harmonySettings as HarmonySettings,
+    },
+  };
 }
 
 function OrbitalPolymeter() {
@@ -297,6 +373,50 @@ function OrbitalPolymeter() {
     });
   }, []);
 
+  const handleExportPng = useCallback(() => {
+    const canvasEl = canvasRef.current;
+    if (canvasEl && (canvasEl as any).__exportPng) {
+      (canvasEl as any).__exportPng();
+    }
+  }, []);
+
+  const handleExportScene = useCallback(
+    (sceneId: string) => {
+      const scene = savedScenes.find((entry) => entry.id === sceneId);
+      if (!scene) {
+        return;
+      }
+
+      downloadSceneFile(scene);
+    },
+    [savedScenes],
+  );
+
+  const handleImportScene = useCallback(async (file: File) => {
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      const importedScene = normalizeImportedScene(parsed);
+      if (!importedScene) {
+        return;
+      }
+
+      const sceneWithFreshId: SavedScene = {
+        ...importedScene,
+        id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setSavedScenes((current) => {
+        const next = [sceneWithFreshId, ...current];
+        persistSavedScenes(next);
+        return next;
+      });
+    } catch {
+      // Ignore invalid import files for now.
+    }
+  }, []);
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#111116] select-none">
       {/* Canvas */}
@@ -364,6 +484,9 @@ function OrbitalPolymeter() {
         onSaveSceneAs={handleSaveSceneAs}
         onLoadScene={handleLoadScene}
         onDeleteScene={handleDeleteScene}
+        onExportScene={handleExportScene}
+        onImportScene={handleImportScene}
+        onExportPng={handleExportPng}
       />
 
       {/* Radial Menu */}
