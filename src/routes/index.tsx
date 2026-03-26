@@ -50,6 +50,190 @@ interface ImportedSceneFile {
   scene: SavedScene;
 }
 
+interface BuiltInScene {
+  id: string;
+  name: string;
+  description: string;
+  snapshot: SceneSnapshot;
+}
+
+const BUILT_IN_SCENES: BuiltInScene[] = [
+  {
+    id: 'glass_cathedral',
+    name: 'Glass Cathedral',
+    description: 'Bright, crystalline symmetry with open pentatonic voicing.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 3, radius: 96, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 4, radius: 156, direction: -1, color: '#FF3366', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 5, radius: 216, direction: 1, color: '#3388FF', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 7, radius: 276, direction: -1, color: '#FFAA00', harmonyDegree: 1, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 8,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'C',
+        scaleName: 'majorPentatonic',
+        mappingMode: 'orbit-index',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'prime_ritual',
+    name: 'Prime Ritual',
+    description: 'Prime pulse counts and darker modal tension for denser lattices.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 2, radius: 90, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 3, radius: 150, direction: -1, color: '#AA44FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 5, radius: 210, direction: 1, color: '#FF3366', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 7, radius: 270, direction: -1, color: '#3388FF', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 10,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'D',
+        scaleName: 'dorian',
+        mappingMode: 'pulse-count',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'rose_engine',
+    name: 'Rose Engine',
+    description: 'Floral interference with soft chromatic tension and layered radii.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 4, radius: 84, direction: 1, color: '#44FF88', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 6, radius: 138, direction: -1, color: '#FF4488', harmonyDegree: 3, harmonyRegister: 0 },
+        { pulseCount: 9, radius: 198, direction: 1, color: '#88CCFF', harmonyDegree: 5, harmonyRegister: 1 },
+        { pulseCount: 12, radius: 258, direction: -1, color: '#FFCC00', harmonyDegree: 7, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 6,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'A',
+        scaleName: 'lydian',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'blue_mandala',
+    name: 'Blue Mandala',
+    description: 'A contemplative, slower field tuned for dense circular memory.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 5, radius: 108, direction: 1, color: '#00CCFF', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 8, radius: 176, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 13, radius: 244, direction: 1, color: '#88CCFF', harmonyDegree: 4, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 4,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'original',
+        rootNote: 'C',
+        scaleName: 'majorPentatonic',
+        mappingMode: 'color-hue',
+        manualOrbitRoles: false,
+      },
+    },
+  },
+  {
+    id: 'dorian_bloom',
+    name: 'Dorian Bloom',
+    description: 'Balanced floral motion with a lifted minor color and gentle expansion.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 3, radius: 92, direction: 1, color: '#44FF88', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 5, radius: 152, direction: -1, color: '#00CCFF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 8, radius: 212, direction: 1, color: '#FF4488', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 13, radius: 272, direction: -1, color: '#FFCC00', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 5.5,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'G',
+        scaleName: 'dorian',
+        mappingMode: 'orbit-index',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'silent_cosmology',
+    name: 'Silent Cosmology',
+    description: 'Wide radii and restrained motion for spacious, observatory-like geometry.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 4, radius: 118, direction: 1, color: '#88CCFF', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 7, radius: 196, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 11, radius: 274, direction: 1, color: '#00FFAA', harmonyDegree: 4, harmonyRegister: 0 },
+      ],
+      speedMultiplier: 3.2,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'F',
+        scaleName: 'lydian',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'metallic_whorl',
+    name: 'Metallic Whorl',
+    description: 'Sharper rotational density with whole-tone shimmer and bright outer spokes.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 6, radius: 86, direction: 1, color: '#FFAA00', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 8, radius: 142, direction: -1, color: '#FF6600', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 10, radius: 198, direction: 1, color: '#AA44FF', harmonyDegree: 4, harmonyRegister: 1 },
+        { pulseCount: 15, radius: 254, direction: -1, color: '#00CCFF', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 9,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'E',
+        scaleName: 'wholeTone',
+        mappingMode: 'pulse-count',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+  {
+    id: 'aeolian_tide',
+    name: 'Aeolian Tide',
+    description: 'A darker rolling field that feels tidal, cyclical, and slightly melancholic.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 5, radius: 102, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 7, radius: 162, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 9, radius: 222, direction: 1, color: '#FF3366', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 14, radius: 282, direction: -1, color: '#AA44FF', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 6.8,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'E',
+        scaleName: 'aeolian',
+        mappingMode: 'color-hue',
+        manualOrbitRoles: true,
+      },
+    },
+  },
+];
+
 function loadSavedScenes(): SavedScene[] {
   if (typeof window === 'undefined') {
     return [];
@@ -144,6 +328,23 @@ function normalizeImportedScene(value: unknown): SavedScene | null {
       harmonySettings: snapshot.harmonySettings as HarmonySettings,
     },
   };
+}
+
+function applySceneSnapshot(
+  engineState: EngineState,
+  snapshot: SceneSnapshot,
+  setTraceMode: (traceMode: boolean) => void,
+  setHarmonySettings: (settings: HarmonySettings) => void,
+  clearTraces: () => void,
+): void {
+  stopAllAudio();
+  engineState.playing = false;
+  engineState.speedMultiplier = snapshot.speedMultiplier;
+  engineState.orbits = snapshot.orbits.map((orbit) => createOrbit(orbit));
+  resetEngine(engineState);
+  setTraceMode(snapshot.traceMode);
+  setHarmonySettings(snapshot.harmonySettings);
+  clearTraces();
 }
 
 function OrbitalPolymeter() {
@@ -376,23 +577,22 @@ function OrbitalPolymeter() {
       if (!scene) {
         return;
       }
-
-      stopAllAudio();
-      engineState.playing = false;
-      engineState.speedMultiplier = scene.snapshot.speedMultiplier;
-      engineState.orbits = scene.snapshot.orbits.map((orbit) => createOrbit(orbit));
-      resetEngine(engineState);
-      setTraceMode(scene.snapshot.traceMode);
-      setHarmonySettings(scene.snapshot.harmonySettings);
-
-      const canvasEl = canvasRef.current;
-      if (canvasEl && (canvasEl as any).__clearTraces) {
-        (canvasEl as any).__clearTraces();
-      }
-
+      applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
       rerender();
     },
-    [engineState, rerender, savedScenes],
+    [engineState, handleClearTraces, rerender, savedScenes],
+  );
+
+  const handleLoadBuiltInScene = useCallback(
+    (sceneId: string) => {
+      const scene = BUILT_IN_SCENES.find((entry) => entry.id === sceneId);
+      if (!scene) {
+        return;
+      }
+      applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
+      rerender();
+    },
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleDeleteScene = useCallback((sceneId: string) => {
@@ -505,6 +705,7 @@ function OrbitalPolymeter() {
         orbits={engineState.orbits}
         isOpen={sidebarOpen}
         harmonySettings={harmonySettings}
+        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description }) => ({ id, name, description }))}
         savedScenes={savedScenes}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
@@ -515,6 +716,7 @@ function OrbitalPolymeter() {
         onSaveScene={handleSaveScene}
         onSaveSceneAs={handleSaveSceneAs}
         onLoadScene={handleLoadScene}
+        onLoadBuiltInScene={handleLoadBuiltInScene}
         onDeleteScene={handleDeleteScene}
         onExportScene={handleExportScene}
         onImportScene={handleImportScene}

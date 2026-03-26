@@ -21,6 +21,11 @@ interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
   harmonySettings: HarmonySettings;
+  builtInScenes: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
   savedScenes: Array<{
     id: string;
     name: string;
@@ -35,6 +40,7 @@ interface OrbitSidebarProps {
   onSaveScene: () => void;
   onSaveSceneAs: (name: string) => void;
   onLoadScene: (sceneId: string) => void;
+  onLoadBuiltInScene: (sceneId: string) => void;
   onDeleteScene: (sceneId: string) => void;
   onExportScene: (sceneId: string) => void;
   onImportScene: (file: File) => void;
@@ -57,6 +63,7 @@ export default function OrbitSidebar({
   orbits,
   isOpen,
   harmonySettings,
+  builtInScenes,
   savedScenes,
   onClose,
   onUpdateOrbit,
@@ -67,6 +74,7 @@ export default function OrbitSidebar({
   onSaveScene,
   onSaveSceneAs,
   onLoadScene,
+  onLoadBuiltInScene,
   onDeleteScene,
   onExportScene,
   onImportScene,
@@ -414,6 +422,40 @@ export default function OrbitSidebar({
               </div>
 
               <div className="space-y-2">
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Built-In Library
+                </div>
+                {builtInScenes.map((scene) => (
+                  <div
+                    key={scene.id}
+                    className="rounded-lg border p-3"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                    }}
+                  >
+                    <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.82)' }}>
+                      {scene.name}
+                    </div>
+                    <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                      {scene.description}
+                    </div>
+                    <button
+                      onClick={() => onLoadBuiltInScene(scene.id)}
+                      className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                      style={{
+                        background: 'rgba(0, 255, 170, 0.08)',
+                        border: '1px solid rgba(0, 255, 170, 0.2)',
+                        color: '#00FFAA',
+                      }}
+                    >
+                      Load Built-In Scene
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
                 <button
                   onClick={onExportPng}
                   className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
@@ -487,6 +529,9 @@ export default function OrbitSidebar({
               </div>
 
               <div className="space-y-2">
+                <div className="text-[10px] font-mono uppercase tracking-widest pt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Your Saved Scenes
+                </div>
                 {savedScenes.length === 0 ? (
                   <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
                     No saved scenes yet.
