@@ -19,7 +19,7 @@ export interface Orbit {
 export interface EngineState {
   orbits: Orbit[];
   playing: boolean;
-  speedMultiplier: number;  // 0.1 – 10.0
+  speedMultiplier: number;  // 0.1 – 50.0
   elapsedBeats: number;     // master beat counter (double-precision)
   lastTimestamp: number;     // last RAF timestamp in ms
   baseBPM: number;          // reference tempo
@@ -108,7 +108,7 @@ export interface TriggerEvent {
 /**
  * Advance the engine by one frame.
  * Returns a list of trigger events (resonance points crossing 12-o'clock).
- * Uses deterministic beat counting — EVERY rotation triggers, even at 10x speed.
+ * Uses deterministic beat counting — EVERY rotation triggers, even at extreme speed.
  */
 export function tick(
   state: EngineState,

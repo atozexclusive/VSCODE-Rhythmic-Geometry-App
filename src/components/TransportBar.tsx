@@ -83,7 +83,7 @@ export default function TransportBar({
           <input
             type="range"
             min="0.1"
-            max="10.0"
+            max="50.0"
             step="0.1"
             value={speedMultiplier}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
@@ -92,13 +92,13 @@ export default function TransportBar({
               background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
               WebkitAppearance: 'none',
             }}
-            title="Speed multiplier (0.1x to 10.0x)"
+            title="Speed multiplier (0.1x to 50.0x)"
           />
           <span
             className="text-xs font-mono font-light"
             style={{ color: 'rgba(255, 255, 255, 0.5)' }}
           >
-            10.0×
+            50.0×
           </span>
         </div>
 
