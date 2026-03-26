@@ -21,10 +21,12 @@ import {
   createEngineState,
   createOrbit,
   resetEngine,
+  stepEngineByBeats,
   DEFAULT_ORBITS,
 } from '../lib/orbitalEngine';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
+const MANUAL_STEP_BEATS = 0.25;
 
 type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 
@@ -155,7 +157,7 @@ function OrbitalPolymeter() {
   const rerender = useCallback(() => setTick((t) => t + 1), []);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [traceMode, setTraceMode] = useState(false);
+  const [traceMode, setTraceMode] = useState(true);
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
   const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
   const [radialMenu, setRadialMenu] = useState<{
@@ -187,6 +189,14 @@ function OrbitalPolymeter() {
     setTraceMode((t) => !t);
   }, []);
 
+  const handleClearTraces = useCallback(() => {
+    const canvasEl = canvasRef.current;
+    if (canvasEl && (canvasEl as any).__clearTraces) {
+      (canvasEl as any).__clearTraces();
+    }
+    rerender();
+  }, [rerender]);
+
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
     setHarmonySettings((current) => ({ ...current, ...updates }));
   }, []);
@@ -195,11 +205,23 @@ function OrbitalPolymeter() {
     stopAllAudio();
     engineState.playing = false;
     resetEngine(engineState);
-    // Clear traces
-    const canvasEl = document.querySelector('canvas');
-    if (canvasEl && (canvasEl as any).__clearTraces) {
-      (canvasEl as any).__clearTraces();
+    handleClearTraces();
+    rerender();
+  }, [engineState, handleClearTraces, rerender]);
+
+  const handleStepForward = useCallback(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) {
+      return;
     }
+
+    resumeAudio();
+    engineState.playing = false;
+
+    const dpr = window.devicePixelRatio || 1;
+    const centerX = canvasEl.width / dpr / 2;
+    const centerY = canvasEl.height / dpr / 2;
+    stepEngineByBeats(engineState, MANUAL_STEP_BEATS, centerX, centerY);
     rerender();
   }, [engineState, rerender]);
 
@@ -355,7 +377,7 @@ function OrbitalPolymeter() {
       setTraceMode(scene.snapshot.traceMode);
       setHarmonySettings(scene.snapshot.harmonySettings);
 
-      const canvasEl = document.querySelector('canvas');
+      const canvasEl = canvasRef.current;
       if (canvasEl && (canvasEl as any).__clearTraces) {
         (canvasEl as any).__clearTraces();
       }
@@ -462,6 +484,8 @@ function OrbitalPolymeter() {
         speedMultiplier={engineState.speedMultiplier}
         traceMode={traceMode}
         onTogglePlay={handleTogglePlay}
+        onStepForward={handleStepForward}
+        onClearTraces={handleClearTraces}
         onSpeedChange={handleSpeedChange}
         onToggleTrace={handleToggleTrace}
         onReset={handleReset}

@@ -3,13 +3,15 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { Play, Pause, RotateCcw, Menu, Zap } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser } from 'lucide-react';
 
 interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
   traceMode: boolean;
   onTogglePlay: () => void;
+  onStepForward: () => void;
+  onClearTraces: () => void;
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
   onReset: () => void;
@@ -21,11 +23,15 @@ export default function TransportBar({
   speedMultiplier,
   traceMode,
   onTogglePlay,
+  onStepForward,
+  onClearTraces,
   onSpeedChange,
   onToggleTrace,
   onReset,
   onOpenSidebar,
 }: TransportBarProps) {
+  const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
+
   return (
     <div
       className="fixed bottom-0 left-0 right-0 h-20 z-30 pointer-events-none"
@@ -36,12 +42,12 @@ export default function TransportBar({
       }}
     >
       <div className="h-full flex items-center justify-between px-6 pointer-events-auto">
-        {/* Left: Play/Pause + Reset */}
+        {/* Left: Playback + Step + Clear + Reset */}
         <div className="flex items-center gap-3">
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
+            className={iconButtonStyle}
             style={{
               background: playing
                 ? 'rgba(255, 51, 102, 0.2)'
@@ -49,23 +55,61 @@ export default function TransportBar({
               border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.4)' : 'rgba(0, 255, 170, 0.4)'}`,
               color: playing ? '#FF3366' : '#00FFAA',
             }}
-            title={playing ? 'Pause' : 'Play'}
+            title={playing ? 'Pause motion and freeze the current state' : 'Start playback and let the system run continuously'}
           >
             {playing ? <Pause size={20} /> : <Play size={20} />}
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              {playing ? 'Pause' : 'Play'}
+            </span>
+          </button>
+
+          <button
+            onClick={onStepForward}
+            className={iconButtonStyle}
+            style={{
+              background: 'rgba(51, 136, 255, 0.16)',
+              border: '1px solid rgba(51, 136, 255, 0.32)',
+              color: '#3388FF',
+            }}
+            title="Advance the geometry by one small step while paused"
+          >
+            <SkipForward size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Step
+            </span>
+          </button>
+
+          <button
+            onClick={onClearTraces}
+            className={iconButtonStyle}
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              color: 'rgba(255, 255, 255, 0.75)',
+            }}
+            title="Clear trace history only. Keep the current orbits, speed, and motion state."
+          >
+            <Eraser size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Clear
+            </span>
           </button>
 
           {/* Reset */}
           <button
             onClick={onReset}
-            className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
+            className={iconButtonStyle}
             style={{
               background: 'rgba(255, 170, 0, 0.15)',
               border: '1px solid rgba(255, 170, 0, 0.3)',
               color: '#FFAA00',
             }}
-            title="Reset all orbits and traces"
+            title="Reset motion back to the beginning and clear all traces"
           >
             <RotateCcw size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Reset
+            </span>
           </button>
         </div>
 

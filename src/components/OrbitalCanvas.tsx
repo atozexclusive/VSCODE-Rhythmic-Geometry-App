@@ -18,6 +18,8 @@ const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
 const TRACE_SAMPLE_PHASE_RAD = 0.14;
 const MAX_TRACE_SUBSTEPS = 12;
+const TRACE_PLAYBACK_OPACITY = 0.15;
+const TRACE_STEP_OPACITY = 0.3;
 
 interface Bloom {
   x: number;
@@ -333,6 +335,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         // ---- Trace lines (the sweep geometry Mark loves) ----
         if (traceModeRef.current && state.orbits.length >= 2) {
+          const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
           const resPoints: { x: number; y: number; color: string }[] = [];
           for (const orbit of state.orbits) {
             const pos = resonancePosition(orbit, cx, cy);
@@ -340,9 +343,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           }
 
           // Add new trace lines between all resonance point pairs
-          if (state.playing && resPoints.length >= 2) {
-            const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
+          if (deltaBeats > 0 && resPoints.length >= 2) {
             const substeps = getAdaptiveTraceSteps(state.orbits, deltaBeats);
+            const traceOpacityBudget = state.playing ? TRACE_PLAYBACK_OPACITY : TRACE_STEP_OPACITY;
 
             for (let step = 1; step <= substeps; step++) {
               const t = step / substeps;
@@ -356,7 +359,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 for (let j = i + 1; j < samplePoints.length; j++) {
                   traceCtx.save();
                   traceCtx.lineCap = 'round';
-                  traceCtx.globalAlpha = 0.15 / substeps;
+                  traceCtx.globalAlpha = traceOpacityBudget / substeps;
                   traceCtx.strokeStyle = samplePoints[i].color;
                   traceCtx.lineWidth = 0.6;
                   traceCtx.beginPath();

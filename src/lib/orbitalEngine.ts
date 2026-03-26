@@ -105,6 +105,56 @@ export interface TriggerEvent {
   radius: number;
 }
 
+function advanceEngineByDeltaBeats(
+  state: EngineState,
+  deltaBeats: number,
+  centerX: number,
+  centerY: number,
+): TriggerEvent[] {
+  if (deltaBeats <= 0) {
+    return [];
+  }
+
+  state.elapsedBeats += deltaBeats;
+
+  const triggers: TriggerEvent[] = [];
+
+  for (const orbit of state.orbits) {
+    orbit.phase = computePhase(
+      state.elapsedBeats,
+      orbit.pulseCount,
+      orbit.direction,
+    );
+
+    const totalRotations = state.elapsedBeats / orbit.pulseCount;
+    const currentBeatIndex = Math.floor(totalRotations);
+
+    if (currentBeatIndex > orbit.lastTriggerBeat) {
+      const pos = resonancePosition(orbit, centerX, centerY);
+      triggers.push({
+        orbitId: orbit.id,
+        color: orbit.color,
+        x: pos.x,
+        y: pos.y,
+        radius: orbit.radius,
+      });
+      orbit.lastTriggerBeat = currentBeatIndex;
+    }
+  }
+
+  return triggers;
+}
+
+export function stepEngineByBeats(
+  state: EngineState,
+  deltaBeats: number,
+  centerX: number,
+  centerY: number,
+): TriggerEvent[] {
+  state.lastTimestamp = -1.0;
+  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY);
+}
+
 /**
  * Advance the engine by one frame.
  * Returns a list of trigger events (resonance points crossing 12-o'clock).
@@ -136,40 +186,7 @@ export function tick(
   // Beats elapsed this frame
   const beatsPerSecond: number = (state.baseBPM / 60.0) * state.speedMultiplier;
   const deltaBeats: number = cappedDt * beatsPerSecond;
-  state.elapsedBeats += deltaBeats;
-
-  const triggers: TriggerEvent[] = [];
-
-  for (const orbit of state.orbits) {
-    // Compute new deterministic phase
-    orbit.phase = computePhase(
-      state.elapsedBeats,
-      orbit.pulseCount,
-      orbit.direction,
-    );
-
-    // --- Bulletproof 12-o'clock trigger detection ---
-    // Count total completed rotations for this orbit
-    const totalRotations = state.elapsedBeats / orbit.pulseCount;
-    const currentBeatIndex = Math.floor(totalRotations);
-
-    // Fire for EVERY missed beat (handles skipping at extreme speeds)
-    if (currentBeatIndex > orbit.lastTriggerBeat) {
-      // At very high speeds we might skip multiple beats per frame
-      // Fire once per frame but count them all
-      const pos = resonancePosition(orbit, centerX, centerY);
-      triggers.push({
-        orbitId: orbit.id,
-        color: orbit.color,
-        x: pos.x,
-        y: pos.y,
-        radius: orbit.radius,
-      });
-      orbit.lastTriggerBeat = currentBeatIndex;
-    }
-  }
-
-  return triggers;
+  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY);
 }
 
 /**
