@@ -79,6 +79,24 @@ export function resonancePosition(
   };
 }
 
+/**
+ * Deterministic resonance position for an orbit at an arbitrary beat time.
+ * This lets the renderer sub-sample motion without depending on RAF cadence.
+ */
+export function resonancePositionAtBeats(
+  orbit: Orbit,
+  elapsedBeats: number,
+  centerX: number,
+  centerY: number,
+): { x: number; y: number } {
+  const phase = computePhase(elapsedBeats, orbit.pulseCount, orbit.direction);
+  const angle: number = -Math.PI / 2.0 + phase;
+  return {
+    x: centerX + orbit.radius * Math.cos(angle),
+    y: centerY + orbit.radius * Math.sin(angle),
+  };
+}
+
 export interface TriggerEvent {
   orbitId: string;
   color: string;

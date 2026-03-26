@@ -10,10 +10,14 @@ import {
   type EngineState,
   tick,
   resonancePosition,
+  resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
 import { playResonanceBeep } from '../lib/audioEngine';
 
 const TAU = 2.0 * Math.PI;
+const TRACE_SAMPLE_ARC_PX = 8;
+const TRACE_SAMPLE_PHASE_RAD = 0.14;
+const MAX_TRACE_SUBSTEPS = 12;
 
 interface Bloom {
   x: number;
@@ -49,6 +53,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
     const [, forceUpdate] = useState(0);
 
     // Keep refs in sync
@@ -59,6 +64,28 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const clearTraces = useCallback(() => {
       traceBufferRef.current = [];
     }, []);
+
+    const getAdaptiveTraceSteps = useCallback(
+      (orbits: Orbit[], deltaBeats: number) => {
+        if (deltaBeats <= 0 || orbits.length < 2) {
+          return 1;
+        }
+
+        let maxArcDistance = 0;
+        let maxPhaseDelta = 0;
+
+        for (const orbit of orbits) {
+          const phaseDelta = Math.abs((deltaBeats / orbit.pulseCount) * TAU);
+          maxPhaseDelta = Math.max(maxPhaseDelta, phaseDelta);
+          maxArcDistance = Math.max(maxArcDistance, orbit.radius * phaseDelta);
+        }
+
+        const arcSteps = Math.ceil(maxArcDistance / TRACE_SAMPLE_ARC_PX);
+        const phaseSteps = Math.ceil(maxPhaseDelta / TRACE_SAMPLE_PHASE_RAD);
+        return Math.max(1, Math.min(MAX_TRACE_SUBSTEPS, Math.max(arcSteps, phaseSteps)));
+      },
+      [],
+    );
 
     // Expose clearTraces via canvas property
     useEffect(() => {
@@ -191,6 +218,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const renderFrame = (timestamp: number) => {
         const now = timestamp;
         const state = engineRef.current;
+        const previousElapsedBeats = previousElapsedBeatsRef.current;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         const cx = w / 2;
@@ -281,19 +309,32 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           // Add new trace lines between all resonance point pairs
           if (state.playing && resPoints.length >= 2) {
-            for (let i = 0; i < resPoints.length; i++) {
-              for (let j = i + 1; j < resPoints.length; j++) {
-                traceBufferRef.current.push({
-                  x1: resPoints[i].x,
-                  y1: resPoints[i].y,
-                  x2: resPoints[j].x,
-                  y2: resPoints[j].y,
-                  color: resPoints[i].color,
-                  opacity: 0.15,
-                  age: timestamp,
-                });
+            const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
+            const substeps = getAdaptiveTraceSteps(state.orbits, deltaBeats);
+
+            for (let step = 1; step <= substeps; step++) {
+              const t = step / substeps;
+              const sampleBeats = previousElapsedBeats + deltaBeats * t;
+              const samplePoints = state.orbits.map((orbit) => {
+                const pos = resonancePositionAtBeats(orbit, sampleBeats, cx, cy);
+                return { ...pos, color: orbit.color };
+              });
+
+              for (let i = 0; i < samplePoints.length; i++) {
+                for (let j = i + 1; j < samplePoints.length; j++) {
+                  traceBufferRef.current.push({
+                    x1: samplePoints[i].x,
+                    y1: samplePoints[i].y,
+                    x2: samplePoints[j].x,
+                    y2: samplePoints[j].y,
+                    color: samplePoints[i].color,
+                    opacity: 0.15 / substeps,
+                    age: timestamp,
+                  });
+                }
               }
             }
+
             // Cap buffer
             if (traceBufferRef.current.length > MAX_TRACES) {
               traceBufferRef.current = traceBufferRef.current.slice(-MAX_TRACES);
@@ -458,6 +499,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
         ctx.restore();
 
+        previousElapsedBeatsRef.current = state.elapsedBeats;
         rafRef.current = requestAnimationFrame(renderFrame);
       };
 
