@@ -4,6 +4,7 @@
 // ============================================================
 
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser } from 'lucide-react';
+import { useIsMobile } from '../hooks/use-mobile';
 
 interface TransportBarProps {
   playing: boolean;
@@ -30,24 +31,26 @@ export default function TransportBar({
   onReset,
   onOpenSidebar,
 }: TransportBarProps) {
+  const isMobile = useIsMobile();
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
+  const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 h-20 z-30 pointer-events-none"
+      className={`fixed bottom-0 left-0 right-0 z-30 pointer-events-none ${isMobile ? 'h-auto' : 'h-20'}`}
       style={{
         background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
         backdropFilter: 'blur(12px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
-      <div className="h-full flex items-center justify-between px-6 pointer-events-auto">
+      <div className={`${isMobile ? 'flex flex-col gap-3 px-3 py-3' : 'h-full flex items-center justify-between px-6'} pointer-events-auto`}>
         {/* Left: Playback + Step + Clear + Reset */}
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className={iconButtonStyle}
+            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
             style={{
               background: playing
                 ? 'rgba(255, 51, 102, 0.2)'
@@ -65,7 +68,7 @@ export default function TransportBar({
 
           <button
             onClick={onStepForward}
-            className={iconButtonStyle}
+            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
             style={{
               background: 'rgba(51, 136, 255, 0.16)',
               border: '1px solid rgba(51, 136, 255, 0.32)',
@@ -81,7 +84,7 @@ export default function TransportBar({
 
           <button
             onClick={onClearTraces}
-            className={iconButtonStyle}
+            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.14)',
@@ -98,7 +101,7 @@ export default function TransportBar({
           {/* Reset */}
           <button
             onClick={onReset}
-            className={iconButtonStyle}
+            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
             style={{
               background: 'rgba(255, 170, 0, 0.15)',
               border: '1px solid rgba(255, 170, 0, 0.3)',
@@ -114,7 +117,7 @@ export default function TransportBar({
         </div>
 
         {/* Center: Speed Multiplier */}
-        <div className="flex items-center gap-4 flex-1 mx-8">
+        <div className={`flex items-center gap-4 ${isMobile ? 'w-full' : 'flex-1 mx-8'}`}>
           <div className="flex items-center gap-2">
             <Zap size={16} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
             <span
@@ -147,11 +150,11 @@ export default function TransportBar({
         </div>
 
         {/* Right: Trace Toggle + Sidebar Menu */}
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
           {/* Trace Toggle */}
           <button
             onClick={onToggleTrace}
-            className="px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            className={`${isMobile ? 'flex-1' : ''} px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95`}
             style={{
               background: traceMode
                 ? 'rgba(0, 255, 170, 0.2)'
@@ -167,7 +170,7 @@ export default function TransportBar({
           {/* Sidebar Menu */}
           <button
             onClick={onOpenSidebar}
-            className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
+            className={`${isMobile ? 'px-4 py-2' : 'p-3'} rounded-lg transition-all duration-200 hover:scale-110 active:scale-95`}
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -175,7 +178,11 @@ export default function TransportBar({
             }}
             title="Open sidebar"
           >
-            <Menu size={20} />
+            {isMobile ? (
+              <span className="text-xs font-mono uppercase tracking-wider">Menu</span>
+            ) : (
+              <Menu size={20} />
+            )}
           </button>
         </div>
       </div>

@@ -16,6 +16,7 @@ import {
   type HarmonyMappingMode,
   type TonePreset,
 } from '../lib/audioEngine';
+import { useIsMobile } from '../hooks/use-mobile';
 
 interface OrbitSidebarProps {
   orbits: Orbit[];
@@ -80,6 +81,7 @@ export default function OrbitSidebar({
   onImportScene,
   onExportPng,
 }: OrbitSidebarProps) {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<'orbits' | 'scenes' | 'presets' | 'sound' | 'view'>('orbits');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
@@ -98,36 +100,39 @@ export default function OrbitSidebar({
 
       {/* Sidebar */}
       <div
-        className="fixed right-0 top-0 bottom-0 w-80 z-50 flex flex-col overflow-hidden"
+        className={`fixed z-50 flex flex-col overflow-hidden ${isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-80'}`}
         style={{
           background: 'linear-gradient(135deg, rgba(20, 20, 28, 0.95), rgba(30, 30, 40, 0.95))',
           backdropFilter: 'blur(20px)',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-          transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
+          borderLeft: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'p-6'}`}>
           <h2 className="text-sm font-light tracking-widest uppercase" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
             Orbital Control
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className={`rounded-lg transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
             style={{ color: 'rgba(255, 255, 255, 0.5)' }}
+            title="Close controls"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-4 pt-4 border-b border-white/5">
+        <div className={`flex gap-1 border-b border-white/5 ${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4'}`}>
           {(['orbits', 'scenes', 'presets', 'sound', 'view'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className="px-3 py-2 text-xs font-mono font-light rounded-t-lg transition-all duration-200"
+              className={`shrink-0 text-xs font-mono font-light rounded-t-lg transition-all duration-200 ${isMobile ? 'px-4 py-3' : 'px-3 py-2'}`}
               style={{
                 color: activeTab === tab ? '#00FFAA' : 'rgba(255, 255, 255, 0.4)',
                 borderBottom: activeTab === tab ? '2px solid #00FFAA' : 'none',
@@ -140,7 +145,7 @@ export default function OrbitSidebar({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-4'}`}>
           {/* ORBITS TAB */}
           {activeTab === 'orbits' && (
             <div className="space-y-3">

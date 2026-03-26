@@ -9,6 +9,7 @@ import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
 import RadialMenu from '../components/RadialMenu';
+import { useIsMobile } from '../hooks/use-mobile';
 import {
   DEFAULT_HARMONY_SETTINGS,
   type HarmonySettings,
@@ -348,6 +349,7 @@ function applySceneSnapshot(
 }
 
 function OrbitalPolymeter() {
+  const isMobile = useIsMobile();
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
     state.orbits = DEFAULT_ORBITS.map((def) => createOrbit(def));
@@ -659,15 +661,15 @@ function OrbitalPolymeter() {
       />
 
       {/* Title */}
-      <div className="fixed top-4 left-5 z-20 pointer-events-none">
+      <div className={`fixed z-20 pointer-events-none ${isMobile ? 'top-3 left-1/2 -translate-x-1/2 text-center' : 'top-4 left-5'}`}>
         <h1
-          className="text-sm font-light tracking-[0.3em] uppercase"
+          className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase`}
           style={{ color: 'rgba(255, 255, 255, 0.25)' }}
         >
           Orbital Polymeter
         </h1>
         <p
-          className="text-[10px] font-mono mt-1"
+          className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} font-mono mt-1`}
           style={{ color: 'rgba(255, 255, 255, 0.12)' }}
         >
           Polyrhythmic Geometry Explorer
@@ -675,14 +677,20 @@ function OrbitalPolymeter() {
       </div>
 
       {/* Help hint */}
-      <div className="fixed top-4 right-5 z-20 pointer-events-none">
+      <div className={`fixed z-20 pointer-events-none ${isMobile ? 'top-16 left-1/2 -translate-x-1/2' : 'top-4 right-5'}`}>
         <p
-          className="text-[10px] font-mono text-right leading-relaxed"
+          className={`font-mono leading-relaxed ${isMobile ? 'text-[9px] text-center' : 'text-[10px] text-right'}`}
           style={{ color: 'rgba(255, 255, 255, 0.15)' }}
         >
-          long-press orbit for options
-          <br />
-          use sidebar to manage orbits
+          {isMobile ? (
+            'Hold an orbit to edit it. Use Menu for scenes, sound, and presets.'
+          ) : (
+            <>
+              long-press orbit for options
+              <br />
+              use sidebar to manage orbits
+            </>
+          )}
         </p>
       </div>
 

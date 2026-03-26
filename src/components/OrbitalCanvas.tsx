@@ -48,6 +48,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const traceModeRef = useRef(traceMode);
     const harmonySettingsRef = useRef(harmonySettings);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const touchStartRef = useRef<{ x: number; y: number } | null>(null);
     const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
     const [, forceUpdate] = useState(0);
 
@@ -142,14 +143,24 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const rect = canvas.getBoundingClientRect();
           const tx = touch.clientX - rect.left;
           const ty = touch.clientY - rect.top;
+          touchStartRef.current = { x: tx, y: ty };
           longPressTimerRef.current = setTimeout(() => {
             handleLongPress(tx, ty);
-          }, 600);
+          }, 450);
         }
       };
 
-      const handleTouchMove = () => {
-        if (longPressTimerRef.current) {
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!longPressTimerRef.current || !touchStartRef.current || e.touches.length !== 1) {
+          return;
+        }
+
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const tx = touch.clientX - rect.left;
+        const ty = touch.clientY - rect.top;
+        const moved = Math.hypot(tx - touchStartRef.current.x, ty - touchStartRef.current.y);
+        if (moved > 10) {
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
@@ -160,6 +171,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
+        touchStartRef.current = null;
       };
 
       const handleLongPress = (canvasX: number, canvasY: number) => {
@@ -171,16 +183,19 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const cy = h / 2;
 
         const state = engineRef.current;
+        const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+        const pointHitRadius = isCoarsePointer ? 28 : 20;
+        const ringHitRadius = isCoarsePointer ? 18 : 12;
         for (const orbit of state.orbits) {
           const pos = resonancePosition(orbit, cx, cy);
           const dist = Math.hypot(canvasX - pos.x, canvasY - pos.y);
-          if (dist < 20) {
+          if (dist < pointHitRadius) {
             onOrbitLongPress(orbit.id, canvasX, canvasY);
             return;
           }
           const distFromCenter = Math.hypot(canvasX - cx, canvasY - cy);
           const ringDist = Math.abs(distFromCenter - orbit.radius);
-          if (ringDist < 12) {
+          if (ringDist < ringHitRadius) {
             onOrbitLongPress(orbit.id, canvasX, canvasY);
             return;
           }
@@ -193,6 +208,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
       canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
       canvas.addEventListener('touchend', handleTouchEnd);
+      canvas.addEventListener('touchcancel', handleTouchEnd);
 
       return () => {
         canvas.removeEventListener('mousedown', handleMouseDown);
@@ -201,6 +217,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         canvas.removeEventListener('touchstart', handleTouchStart);
         canvas.removeEventListener('touchmove', handleTouchMove);
         canvas.removeEventListener('touchend', handleTouchEnd);
+        canvas.removeEventListener('touchcancel', handleTouchEnd);
       };
     }, [onOrbitLongPress]);
 
