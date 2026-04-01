@@ -13,6 +13,11 @@ import {
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
 import { playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
+import {
+  normalizeInterferenceSettings,
+  type GeometryMode,
+  type InterferenceSettings,
+} from '../lib/geometry';
 
 const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
@@ -20,6 +25,9 @@ const TRACE_SAMPLE_PHASE_RAD = 0.14;
 const MAX_TRACE_SUBSTEPS = 12;
 const TRACE_PLAYBACK_OPACITY = 0.15;
 const TRACE_STEP_OPACITY = 0.3;
+const INTERFERENCE_TRACE_COLOR = '#32CD32';
+const INTERFERENCE_PLAYBACK_OPACITY = 0.78;
+const INTERFERENCE_STEP_OPACITY = 1.05;
 
 interface Bloom {
   x: number;
@@ -34,11 +42,13 @@ interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
   harmonySettings: HarmonySettings;
+  geometryMode: GeometryMode;
+  interferenceSettings: InterferenceSettings;
   onOrbitLongPress?: (orbitId: string, x: number, y: number) => void;
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, harmonySettings, onOrbitLongPress }, ref) => {
+  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, onOrbitLongPress }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
     const bloomsRef = useRef<Bloom[]>([]);
@@ -47,6 +57,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
     const harmonySettingsRef = useRef(harmonySettings);
+    const geometryModeRef = useRef(geometryMode);
+    const interferenceSettingsRef = useRef(interferenceSettings);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
     const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
@@ -56,6 +68,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
     harmonySettingsRef.current = harmonySettings;
+    geometryModeRef.current = geometryMode;
+    interferenceSettingsRef.current = interferenceSettings;
 
     // Clear traces externally
     const clearTraces = useCallback(() => {
@@ -89,6 +103,19 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const phaseSteps = Math.ceil(maxPhaseDelta / TRACE_SAMPLE_PHASE_RAD);
         return Math.max(1, Math.min(MAX_TRACE_SUBSTEPS, Math.max(arcSteps, phaseSteps)));
       },
+      [],
+    );
+
+    const getInterferencePoint = useCallback(
+      (
+        innerPoint: { x: number; y: number },
+        outerPoint: { x: number; y: number },
+        centerX: number,
+        centerY: number,
+      ) => ({
+        x: centerX + (outerPoint.x - centerX) - (innerPoint.x - centerX),
+        y: centerY + (outerPoint.y - centerY) - (innerPoint.y - centerY),
+      }),
       [],
     );
 
@@ -355,38 +382,75 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         // ---- Trace lines (the sweep geometry Mark loves) ----
         if (traceModeRef.current && state.orbits.length >= 2) {
           const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
-          const resPoints: { x: number; y: number; color: string }[] = [];
-          for (const orbit of state.orbits) {
-            const pos = resonancePosition(orbit, cx, cy);
-            resPoints.push({ ...pos, color: orbit.color });
-          }
+          if (deltaBeats > 0) {
+            if (geometryModeRef.current === 'interference-trace') {
+              const normalized = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
+              const innerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitAId);
+              const outerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitBId);
 
-          // Add new trace lines between all resonance point pairs
-          if (deltaBeats > 0 && resPoints.length >= 2) {
-            const substeps = getAdaptiveTraceSteps(state.orbits, deltaBeats);
-            const traceOpacityBudget = state.playing ? TRACE_PLAYBACK_OPACITY : TRACE_STEP_OPACITY;
+              if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+                const substeps = getAdaptiveTraceSteps([innerOrbit, outerOrbit], deltaBeats);
+                const traceOpacityBudget = state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY;
+                const previousInnerPoint = resonancePositionAtBeats(innerOrbit, previousElapsedBeats, cx, cy);
+                const previousOuterPoint = resonancePositionAtBeats(outerOrbit, previousElapsedBeats, cx, cy);
+                let previousPoint = getInterferencePoint(previousInnerPoint, previousOuterPoint, cx, cy);
 
-            for (let step = 1; step <= substeps; step++) {
-              const t = step / substeps;
-              const sampleBeats = previousElapsedBeats + deltaBeats * t;
-              const samplePoints = state.orbits.map((orbit) => {
-                const pos = resonancePositionAtBeats(orbit, sampleBeats, cx, cy);
-                return { ...pos, color: orbit.color };
-              });
+                for (let step = 1; step <= substeps; step++) {
+                  const t = step / substeps;
+                  const sampleBeats = previousElapsedBeats + deltaBeats * t;
+                  const innerPoint = resonancePositionAtBeats(innerOrbit, sampleBeats, cx, cy);
+                  const outerPoint = resonancePositionAtBeats(outerOrbit, sampleBeats, cx, cy);
+                  const interferencePoint = getInterferencePoint(innerPoint, outerPoint, cx, cy);
 
-              for (let i = 0; i < samplePoints.length; i++) {
-                for (let j = i + 1; j < samplePoints.length; j++) {
                   traceCtx.save();
                   traceCtx.lineCap = 'round';
+                  traceCtx.lineJoin = 'round';
                   traceCtx.globalAlpha = traceOpacityBudget / substeps;
-                  traceCtx.strokeStyle = samplePoints[i].color;
-                  traceCtx.lineWidth = 0.6;
+                  traceCtx.strokeStyle = INTERFERENCE_TRACE_COLOR;
+                  traceCtx.lineWidth = 1;
                   traceCtx.beginPath();
-                  traceCtx.moveTo(samplePoints[i].x, samplePoints[i].y);
-                  traceCtx.lineTo(samplePoints[j].x, samplePoints[j].y);
+                  traceCtx.moveTo(previousPoint.x, previousPoint.y);
+                  traceCtx.lineTo(interferencePoint.x, interferencePoint.y);
                   traceCtx.stroke();
                   traceCtx.restore();
                   traceSegmentCountRef.current += 1;
+                  previousPoint = interferencePoint;
+                }
+              }
+            } else {
+              const resPoints: { x: number; y: number; color: string }[] = [];
+              for (const orbit of state.orbits) {
+                const pos = resonancePosition(orbit, cx, cy);
+                resPoints.push({ ...pos, color: orbit.color });
+              }
+
+              if (resPoints.length >= 2) {
+                const substeps = getAdaptiveTraceSteps(state.orbits, deltaBeats);
+                const traceOpacityBudget = state.playing ? TRACE_PLAYBACK_OPACITY : TRACE_STEP_OPACITY;
+
+                for (let step = 1; step <= substeps; step++) {
+                  const t = step / substeps;
+                  const sampleBeats = previousElapsedBeats + deltaBeats * t;
+                  const samplePoints = state.orbits.map((orbit) => {
+                    const pos = resonancePositionAtBeats(orbit, sampleBeats, cx, cy);
+                    return { ...pos, color: orbit.color };
+                  });
+
+                  for (let i = 0; i < samplePoints.length; i++) {
+                    for (let j = i + 1; j < samplePoints.length; j++) {
+                      traceCtx.save();
+                      traceCtx.lineCap = 'round';
+                      traceCtx.globalAlpha = traceOpacityBudget / substeps;
+                      traceCtx.strokeStyle = samplePoints[i].color;
+                      traceCtx.lineWidth = 0.6;
+                      traceCtx.beginPath();
+                      traceCtx.moveTo(samplePoints[i].x, samplePoints[i].y);
+                      traceCtx.lineTo(samplePoints[j].x, samplePoints[j].y);
+                      traceCtx.stroke();
+                      traceCtx.restore();
+                      traceSegmentCountRef.current += 1;
+                    }
+                  }
                 }
               }
             }
@@ -398,6 +462,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.drawImage(traceCanvas, 0, 0);
           ctx.restore();
         }
+
+        const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
+        const currentInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
+        const currentOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
+        const currentInnerPoint =
+          currentInnerOrbit ? resonancePosition(currentInnerOrbit, cx, cy) : null;
+        const currentOuterPoint =
+          currentOuterOrbit ? resonancePosition(currentOuterOrbit, cx, cy) : null;
+        const currentInterferencePoint =
+          currentInnerPoint && currentOuterPoint
+            ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
+            : null;
 
         // ---- Orbit rings ----
         for (const orbit of state.orbits) {
@@ -478,6 +554,56 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
+        if (
+          geometryModeRef.current === 'interference-trace' &&
+          currentInnerPoint &&
+          currentOuterPoint &&
+          currentInterferencePoint &&
+          normalizedInterferenceSettings.showConnectors
+        ) {
+          ctx.save();
+          ctx.globalAlpha = 0.36;
+          ctx.lineWidth = 0.9;
+          ctx.strokeStyle = currentInnerOrbit?.color ?? '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(currentInnerPoint.x, currentInnerPoint.y);
+          ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
+          ctx.stroke();
+          ctx.strokeStyle = currentOuterOrbit?.color ?? '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(currentOuterPoint.x, currentOuterPoint.y);
+          ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (geometryModeRef.current === 'interference-trace' && currentInterferencePoint) {
+          ctx.save();
+          const grad = ctx.createRadialGradient(
+            currentInterferencePoint.x,
+            currentInterferencePoint.y,
+            0,
+            currentInterferencePoint.x,
+            currentInterferencePoint.y,
+            16,
+          );
+          grad.addColorStop(0, '#32CD32AA');
+          grad.addColorStop(0.5, '#32CD3233');
+          grad.addColorStop(1, '#32CD3200');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 16, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 3, 0, TAU);
+          ctx.fillStyle = INTERFERENCE_TRACE_COLOR;
+          ctx.fill();
+          ctx.restore();
+        }
+
         // ---- Radial blooms (on 12 o'clock trigger) ----
         bloomsRef.current = bloomsRef.current.filter((b) => now - b.birth < BLOOM_DURATION);
 
@@ -532,9 +658,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ctx.fillText(`BPM ${bpm}`, 16, h - 60);
         ctx.fillText(`ORBITS ${state.orbits.length}`, 16, h - 46);
         ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
+        ctx.fillText(
+          geometryModeRef.current === 'interference-trace' ? 'MODE INTERFERENCE' : 'MODE STANDARD',
+          16,
+          h - 18,
+        );
         if (traceModeRef.current) {
           ctx.fillStyle = '#00FFAA';
-          ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 18);
+          ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
         }
         ctx.restore();
 

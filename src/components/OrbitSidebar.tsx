@@ -17,11 +17,14 @@ import {
   type TonePreset,
 } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
+import { type GeometryMode, type InterferenceSettings } from '../lib/geometry';
 
 interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
   harmonySettings: HarmonySettings;
+  geometryMode: GeometryMode;
+  interferenceSettings: InterferenceSettings;
   builtInScenes: Array<{
     id: string;
     name: string;
@@ -37,6 +40,11 @@ interface OrbitSidebarProps {
   onDeleteOrbit: (id: string) => void;
   onAddOrbit: () => void;
   onLoadPreset: (preset: number[]) => void;
+  onReverseDirections: () => void;
+  onAllClockwise: () => void;
+  onAlternateDirections: () => void;
+  onGeometryModeChange: (mode: GeometryMode) => void;
+  onInterferenceSettingsChange: (updates: Partial<InterferenceSettings>) => void;
   onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
   onSaveScene: () => void;
   onSaveSceneAs: (name: string) => void;
@@ -64,6 +72,8 @@ export default function OrbitSidebar({
   orbits,
   isOpen,
   harmonySettings,
+  geometryMode,
+  interferenceSettings,
   builtInScenes,
   savedScenes,
   onClose,
@@ -71,6 +81,11 @@ export default function OrbitSidebar({
   onDeleteOrbit,
   onAddOrbit,
   onLoadPreset,
+  onReverseDirections,
+  onAllClockwise,
+  onAlternateDirections,
+  onGeometryModeChange,
+  onInterferenceSettingsChange,
   onHarmonyChange,
   onSaveScene,
   onSaveSceneAs,
@@ -736,13 +751,136 @@ export default function OrbitSidebar({
 
           {/* VIEW TAB */}
           {activeTab === 'view' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Display Options
+                Geometry
               </div>
-              <p className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                View controls coming soon. Currently all elements are visible.
+              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                `Standard Trace` keeps the current connector lattice. `Interference Trace` draws a derived point from two chosen orbits for more rosettes, loops, and hollow forms.
               </p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => onGeometryModeChange('standard-trace')}
+                  className="px-3 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.2)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.78)',
+                  }}
+                >
+                  Standard Trace
+                </button>
+                <button
+                  onClick={() => onGeometryModeChange('interference-trace')}
+                  className="px-3 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.2)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.78)',
+                  }}
+                >
+                  Interference Trace
+                </button>
+              </div>
+
+              {geometryMode === 'interference-trace' && (
+                <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                  <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      Inner Source
+                    </label>
+                    <select
+                      value={interferenceSettings.sourceOrbitAId ?? ''}
+                      onChange={(e) => onInterferenceSettingsChange({ sourceOrbitAId: e.target.value || null })}
+                      className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    >
+                      {orbits.map((orbit, index) => (
+                        <option key={orbit.id} value={orbit.id} style={{ background: '#181820' }}>
+                          Orbit {index + 1} · {orbit.pulseCount} pulses
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      Outer Source
+                    </label>
+                    <select
+                      value={interferenceSettings.sourceOrbitBId ?? ''}
+                      onChange={(e) => onInterferenceSettingsChange({ sourceOrbitBId: e.target.value || null })}
+                      className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    >
+                      {orbits.map((orbit, index) => (
+                        <option key={orbit.id} value={orbit.id} style={{ background: '#181820' }}>
+                          Orbit {index + 1} · {orbit.pulseCount} pulses
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={() => onInterferenceSettingsChange({ showConnectors: !interferenceSettings.showConnectors })}
+                    className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                    style={{
+                      background: interferenceSettings.showConnectors ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                      border: `1px solid ${interferenceSettings.showConnectors ? 'rgba(0, 255, 170, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+                      color: interferenceSettings.showConnectors ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  >
+                    {interferenceSettings.showConnectors ? 'Live Connectors On' : 'Live Connectors Off'}
+                  </button>
+                </div>
+              )}
+
+              <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                Motion Layout
+              </div>
+              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                Apply a global spin pattern to all orbits at once. These only change direction, not color, radius, or pulse count.
+              </p>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={onReverseDirections}
+                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'rgba(255, 255, 255, 0.78)',
+                  }}
+                  title="Flip every orbit to the opposite direction"
+                >
+                  Reverse
+                </button>
+                <button
+                  onClick={onAllClockwise}
+                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(0, 255, 170, 0.08)',
+                    border: '1px solid rgba(0, 255, 170, 0.2)',
+                    color: '#00FFAA',
+                  }}
+                  title="Set every orbit to clockwise"
+                >
+                  All CW
+                </button>
+                <button
+                  onClick={onAlternateDirections}
+                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(51, 136, 255, 0.08)',
+                    border: '1px solid rgba(51, 136, 255, 0.2)',
+                    color: '#88CCFF',
+                  }}
+                  title="Set alternating clockwise and counterclockwise directions"
+                >
+                  Alternate
+                </button>
+              </div>
             </div>
           )}
         </div>

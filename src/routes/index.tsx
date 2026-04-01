@@ -25,6 +25,12 @@ import {
   stepEngineByBeats,
   DEFAULT_ORBITS,
 } from '../lib/orbitalEngine';
+import {
+  DEFAULT_INTERFERENCE_SETTINGS,
+  normalizeInterferenceSettings,
+  type GeometryMode,
+  type InterferenceSettings,
+} from '../lib/geometry';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const MANUAL_STEP_BEATS = 0.25;
@@ -32,11 +38,19 @@ const DEFAULT_SCENE_SPEED = 3;
 
 type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 
+interface SceneInterferenceSettings {
+  sourceOrbitAIndex: number | null;
+  sourceOrbitBIndex: number | null;
+  showConnectors: boolean;
+}
+
 interface SceneSnapshot {
   orbits: SceneOrbitSnapshot[];
   speedMultiplier: number;
   traceMode: boolean;
   harmonySettings: HarmonySettings;
+  geometryMode: GeometryMode;
+  interferenceSettings: SceneInterferenceSettings;
 }
 
 interface SavedScene {
@@ -80,6 +94,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'orbit-index',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -102,6 +118,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'pulse-count',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -124,6 +142,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'radius',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -145,6 +165,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'color-hue',
         manualOrbitRoles: false,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -167,6 +189,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'orbit-index',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -188,6 +212,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'radius',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -210,6 +236,8 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'pulse-count',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
   {
@@ -232,9 +260,74 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         mappingMode: 'color-hue',
         manualOrbitRoles: true,
       },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
   },
 ];
+
+function normalizeSceneInterferenceSettings(
+  orbitCount: number,
+  settings?: Partial<SceneInterferenceSettings> | null,
+): SceneInterferenceSettings {
+  if (orbitCount <= 0) {
+    return {
+      sourceOrbitAIndex: null,
+      sourceOrbitBIndex: null,
+      showConnectors: settings?.showConnectors ?? true,
+    };
+  }
+
+  if (orbitCount === 1) {
+    return {
+      sourceOrbitAIndex: 0,
+      sourceOrbitBIndex: null,
+      showConnectors: settings?.showConnectors ?? true,
+    };
+  }
+
+  const safeIndex = (value: number | null | undefined) =>
+    typeof value === 'number' && value >= 0 && value < orbitCount ? value : null;
+
+  let sourceOrbitAIndex = safeIndex(settings?.sourceOrbitAIndex) ?? 0;
+  let sourceOrbitBIndex = safeIndex(settings?.sourceOrbitBIndex) ?? 1;
+
+  if (sourceOrbitAIndex === sourceOrbitBIndex) {
+    sourceOrbitBIndex = sourceOrbitAIndex === 0 ? 1 : 0;
+  }
+
+  return {
+    sourceOrbitAIndex,
+    sourceOrbitBIndex,
+    showConnectors: settings?.showConnectors ?? true,
+  };
+}
+
+function resolveLiveInterferenceSettings(
+  orbits: Orbit[],
+  settings?: Partial<SceneInterferenceSettings> | null,
+): InterferenceSettings {
+  const normalizedScene = normalizeSceneInterferenceSettings(orbits.length, settings);
+  return normalizeInterferenceSettings(orbits, {
+    sourceOrbitAId:
+      normalizedScene.sourceOrbitAIndex != null ? orbits[normalizedScene.sourceOrbitAIndex]?.id ?? null : null,
+    sourceOrbitBId:
+      normalizedScene.sourceOrbitBIndex != null ? orbits[normalizedScene.sourceOrbitBIndex]?.id ?? null : null,
+    showConnectors: normalizedScene.showConnectors,
+  });
+}
+
+function serializeInterferenceSettings(
+  orbits: Orbit[],
+  settings: InterferenceSettings,
+): SceneInterferenceSettings {
+  const normalized = normalizeInterferenceSettings(orbits, settings);
+  return normalizeSceneInterferenceSettings(orbits.length, {
+    sourceOrbitAIndex: orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitAId),
+    sourceOrbitBIndex: orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitBId),
+    showConnectors: normalized.showConnectors,
+  });
+}
 
 function loadSavedScenes(): SavedScene[] {
   if (typeof window === 'undefined') {
@@ -328,6 +421,12 @@ function normalizeImportedScene(value: unknown): SavedScene | null {
       speedMultiplier: snapshot.speedMultiplier,
       traceMode: snapshot.traceMode,
       harmonySettings: snapshot.harmonySettings as HarmonySettings,
+      geometryMode:
+        snapshot.geometryMode === 'interference-trace' ? 'interference-trace' : 'standard-trace',
+      interferenceSettings: normalizeSceneInterferenceSettings(
+        snapshot.orbits.length,
+        snapshot.interferenceSettings as Partial<SceneInterferenceSettings> | undefined,
+      ),
     },
   };
 }
@@ -337,6 +436,8 @@ function applySceneSnapshot(
   snapshot: SceneSnapshot,
   setTraceMode: (traceMode: boolean) => void,
   setHarmonySettings: (settings: HarmonySettings) => void,
+  setGeometryMode: (mode: GeometryMode) => void,
+  setInterferenceSettings: (settings: InterferenceSettings) => void,
   clearTraces: () => void,
 ): void {
   stopAllAudio();
@@ -346,6 +447,13 @@ function applySceneSnapshot(
   resetEngine(engineState);
   setTraceMode(snapshot.traceMode);
   setHarmonySettings(snapshot.harmonySettings);
+  setGeometryMode(snapshot.geometryMode);
+  setInterferenceSettings(
+    resolveLiveInterferenceSettings(
+      engineState.orbits,
+      snapshot.interferenceSettings,
+    ),
+  );
   clearTraces();
 }
 
@@ -375,6 +483,10 @@ function OrbitalPolymeter() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
+  const [geometryMode, setGeometryMode] = useState<GeometryMode>('standard-trace');
+  const [interferenceSettings, setInterferenceSettings] = useState<InterferenceSettings>(() =>
+    normalizeInterferenceSettings(engineState.orbits, DEFAULT_INTERFERENCE_SETTINGS),
+  );
   const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
@@ -451,6 +563,7 @@ function OrbitalPolymeter() {
       const orbit = engineState.orbits.find((o) => o.id === id);
       if (orbit) {
         Object.assign(orbit, updates);
+        setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
         rerender();
       }
     },
@@ -460,6 +573,7 @@ function OrbitalPolymeter() {
   const handleDeleteOrbit = useCallback(
     (id: string) => {
       engineState.orbits = engineState.orbits.filter((o) => o.id !== id);
+      setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
       rerender();
     },
     [engineState, rerender],
@@ -484,6 +598,7 @@ function OrbitalPolymeter() {
       harmonyRegister: 0,
     });
     engineState.orbits.push(newOrbit);
+    setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
     rerender();
   }, [engineState, rerender]);
 
@@ -503,6 +618,7 @@ function OrbitalPolymeter() {
           harmonyRegister: idx > 2 ? 1 : 0,
         }),
       );
+      setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
       handleClearTraces();
       resumeAudio();
       engineState.playing = true;
@@ -511,6 +627,27 @@ function OrbitalPolymeter() {
       rerender();
     },
     [engineState, handleClearTraces, rerender],
+  );
+
+  const handleGeometryModeChange = useCallback(
+    (mode: GeometryMode) => {
+      setGeometryMode(mode);
+      handleClearTraces();
+    },
+    [handleClearTraces],
+  );
+
+  const handleInterferenceSettingsChange = useCallback(
+    (updates: Partial<InterferenceSettings>) => {
+      setInterferenceSettings((current) =>
+        normalizeInterferenceSettings(engineState.orbits, {
+          ...current,
+          ...updates,
+        }),
+      );
+      handleClearTraces();
+    },
+    [engineState.orbits, handleClearTraces],
   );
 
   const handleReverseDirections = useCallback(() => {
@@ -563,6 +700,8 @@ function OrbitalPolymeter() {
       speedMultiplier: engineState.speedMultiplier,
       traceMode,
       harmonySettings,
+      geometryMode,
+      interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
     };
 
     const newScene: SavedScene = {
@@ -577,7 +716,7 @@ function OrbitalPolymeter() {
       persistSavedScenes(next);
       return next;
     });
-  }, [engineState.orbits, engineState.speedMultiplier, harmonySettings, savedScenes.length, traceMode]);
+  }, [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode]);
 
   const handleSaveSceneAs = useCallback(
     (name: string) => {
@@ -596,6 +735,8 @@ function OrbitalPolymeter() {
         speedMultiplier: engineState.speedMultiplier,
         traceMode,
         harmonySettings,
+        geometryMode,
+        interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
       };
 
       const newScene: SavedScene = {
@@ -611,7 +752,7 @@ function OrbitalPolymeter() {
         return next;
       });
     },
-    [engineState.orbits, engineState.speedMultiplier, harmonySettings, savedScenes.length, traceMode],
+    [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode],
   );
 
   const handleLoadScene = useCallback(
@@ -620,7 +761,15 @@ function OrbitalPolymeter() {
       if (!scene) {
         return;
       }
-      applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
+      applySceneSnapshot(
+        engineState,
+        scene.snapshot,
+        setTraceMode,
+        setHarmonySettings,
+        setGeometryMode,
+        setInterferenceSettings,
+        handleClearTraces,
+      );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
     },
     [engineState, handleClearTraces, rerender, savedScenes],
@@ -632,7 +781,15 @@ function OrbitalPolymeter() {
       if (!scene) {
         return;
       }
-      applySceneSnapshot(engineState, scene.snapshot, setTraceMode, setHarmonySettings, handleClearTraces);
+      applySceneSnapshot(
+        engineState,
+        scene.snapshot,
+        setTraceMode,
+        setHarmonySettings,
+        setGeometryMode,
+        setInterferenceSettings,
+        handleClearTraces,
+      );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
     },
     [engineState, handleClearTraces, rerender],
@@ -698,6 +855,8 @@ function OrbitalPolymeter() {
         engineState={engineState}
         traceMode={traceMode}
         harmonySettings={harmonySettings}
+        geometryMode={geometryMode}
+        interferenceSettings={interferenceSettings}
         onOrbitLongPress={handleOrbitLongPress}
       />
 
@@ -757,6 +916,8 @@ function OrbitalPolymeter() {
         orbits={engineState.orbits}
         isOpen={sidebarOpen}
         harmonySettings={harmonySettings}
+        geometryMode={geometryMode}
+        interferenceSettings={interferenceSettings}
         builtInScenes={BUILT_IN_SCENES.map(({ id, name, description }) => ({ id, name, description }))}
         savedScenes={savedScenes}
         onClose={() => setSidebarOpen(false)}
@@ -767,6 +928,8 @@ function OrbitalPolymeter() {
         onReverseDirections={handleReverseDirections}
         onAllClockwise={handleAllClockwise}
         onAlternateDirections={handleAlternateDirections}
+        onGeometryModeChange={handleGeometryModeChange}
+        onInterferenceSettingsChange={handleInterferenceSettingsChange}
         onHarmonyChange={handleHarmonyChange}
         onSaveScene={handleSaveScene}
         onSaveSceneAs={handleSaveSceneAs}
