@@ -8,7 +8,7 @@
 
 export interface Orbit {
   id: string;
-  pulseCount: number;       // 2–100 integer beats per cycle
+  pulseCount: number;       // 1–1000 integer beats per cycle
   radius: number;           // px from center
   direction: 1 | -1;        // 1 = CW, -1 = CCW
   color: string;            // hex color

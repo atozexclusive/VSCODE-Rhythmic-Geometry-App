@@ -3,7 +3,7 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 
@@ -11,6 +11,7 @@ interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
   traceMode: boolean;
+  muted: boolean;
   geometryMode: GeometryMode;
   quickOrbitControls: Array<{
     id: string;
@@ -28,6 +29,7 @@ interface TransportBarProps {
   onClearTraces: () => void;
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
+  onToggleMute: () => void;
   onReset: () => void;
   onOpenSidebar: () => void;
 }
@@ -36,6 +38,7 @@ export default function TransportBar({
   playing,
   speedMultiplier,
   traceMode,
+  muted,
   geometryMode,
   quickOrbitControls,
   onAdjustQuickOrbit,
@@ -49,6 +52,7 @@ export default function TransportBar({
   onClearTraces,
   onSpeedChange,
   onToggleTrace,
+  onToggleMute,
   onReset,
   onOpenSidebar,
 }: TransportBarProps) {
@@ -103,38 +107,52 @@ export default function TransportBar({
               >
                 Interference
               </button>
+              <button
+                onClick={() => onGeometryModeChange('sweep')}
+                className={compactButtonStyle}
+                style={{
+                  background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                  color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
+                }}
+              >
+                Sweep
+              </button>
             </div>
-            <div className="flex items-center gap-2 justify-between">
-              {quickOrbitControls.map((orbit) => (
-                <div
-                  key={orbit.id}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1.5"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                    {orbit.label}
-                  </span>
-                  <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={orbit.pulseCount}
-                    onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                    className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+            {geometryMode !== 'standard-trace' && (
+              <div className="flex items-center gap-2 justify-between">
+                {quickOrbitControls.map((orbit) => (
+                  <div
+                    key={orbit.id}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1.5"
                     style={{
-                      color: 'rgba(255, 255, 255, 0.82)',
                       background: 'rgba(255, 255, 255, 0.04)',
-                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
                     }}
-                  />
-                  <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
-                </div>
-              ))}
-            </div>
+                  >
+                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      {orbit.label}
+                    </span>
+                    <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={orbit.pulseCount}
+                      onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                      style={{
+                        color: 'rgba(255, 255, 255, 0.82)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                      }}
+                    />
+                    <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2 justify-between">
               <button onClick={onReverseDirections} className={directionButtonStyle} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.78)' }}>Reverse</button>
               <button onClick={onAllClockwise} className={directionButtonStyle} style={{ background: 'rgba(0, 255, 170, 0.08)', border: '1px solid rgba(0, 255, 170, 0.2)', color: '#00FFAA' }}>All CW</button>
@@ -184,54 +202,69 @@ export default function TransportBar({
                 >
                   Interference
                 </button>
+                <button
+                  onClick={() => onGeometryModeChange('sweep')}
+                  className={compactButtonStyle}
+                  style={{
+                    background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                  title="Use the original-style fixed-radius sweep geometry"
+                >
+                  Sweep
+                </button>
               </div>
-              <div
-                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
-                style={{
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                }}
-              >
-                {quickOrbitControls.map((orbit) => (
-                  <div
-                    key={orbit.id}
-                    className="flex items-center gap-1"
-                  >
-                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      {orbit.label}
-                    </span>
-                    <button
-                      onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
-                      className="w-6 h-6 rounded-md text-[11px] font-mono"
-                      style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                      title={`Lower ${orbit.label} pulse count`}
+              {geometryMode !== 'standard-trace' && (
+                <div
+                  className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
+                  style={{
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                  }}
+                >
+                  {quickOrbitControls.map((orbit) => (
+                    <div
+                      key={orbit.id}
+                      className="flex items-center gap-1"
                     >
-                      −
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={orbit.pulseCount}
-                      onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                      className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
-                      style={{
-                        color: 'rgba(255, 255, 255, 0.82)',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        borderColor: 'rgba(255, 255, 255, 0.08)',
-                      }}
-                    />
-                    <button
-                      onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
-                      className="w-6 h-6 rounded-md text-[11px] font-mono"
-                      style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                      title={`Raise ${orbit.label} pulse count`}
-                    >
-                      +
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        {orbit.label}
+                      </span>
+                      <button
+                        onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
+                        className="w-6 h-6 rounded-md text-[11px] font-mono"
+                        style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                        title={`Lower ${orbit.label} pulse count`}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={orbit.pulseCount}
+                        onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                        style={{
+                          color: 'rgba(255, 255, 255, 0.82)',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          borderColor: 'rgba(255, 255, 255, 0.08)',
+                        }}
+                      />
+                      <button
+                        onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
+                        className="w-6 h-6 rounded-md text-[11px] font-mono"
+                        style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                        title={`Raise ${orbit.label} pulse count`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div
@@ -399,6 +432,22 @@ export default function TransportBar({
 
         {/* Right: Trace Toggle + Sidebar Menu */}
         <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
+          <button
+            onClick={onToggleMute}
+            className={`${isMobile ? '' : ''} px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95`}
+            style={{
+              background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.6)',
+            }}
+            title={muted ? 'Unmute audio' : 'Mute audio'}
+          >
+            <span className="flex items-center gap-2">
+              {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              <span>{muted ? 'Muted' : 'Audio'}</span>
+            </span>
+          </button>
+
           {/* Trace Toggle */}
           <button
             onClick={onToggleTrace}

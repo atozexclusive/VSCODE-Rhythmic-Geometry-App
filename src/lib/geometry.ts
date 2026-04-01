@@ -1,4 +1,4 @@
-export type GeometryMode = 'standard-trace' | 'interference-trace';
+export type GeometryMode = 'standard-trace' | 'interference-trace' | 'sweep';
 
 export interface InterferenceSettings {
   sourceOrbitAId: string | null;

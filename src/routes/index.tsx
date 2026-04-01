@@ -13,8 +13,10 @@ import { useIsMobile } from '../hooks/use-mobile';
 import {
   DEFAULT_HARMONY_SETTINGS,
   type HarmonySettings,
+  getAudioMuted,
   resumeAudio,
   stopAllAudio,
+  toggleAudioMute,
 } from '../lib/audioEngine';
 import {
   type Orbit,
@@ -422,7 +424,11 @@ function normalizeImportedScene(value: unknown): SavedScene | null {
       traceMode: snapshot.traceMode,
       harmonySettings: snapshot.harmonySettings as HarmonySettings,
       geometryMode:
-        snapshot.geometryMode === 'interference-trace' ? 'interference-trace' : 'standard-trace',
+        snapshot.geometryMode === 'interference-trace'
+          ? 'interference-trace'
+          : snapshot.geometryMode === 'sweep'
+            ? 'sweep'
+            : 'standard-trace',
       interferenceSettings: normalizeSceneInterferenceSettings(
         snapshot.orbits.length,
         snapshot.interferenceSettings as Partial<SceneInterferenceSettings> | undefined,
@@ -482,6 +488,7 @@ function OrbitalPolymeter() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
+  const [muted, setMuted] = useState(() => getAudioMuted());
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
   const [geometryMode, setGeometryMode] = useState<GeometryMode>('standard-trace');
   const [interferenceSettings, setInterferenceSettings] = useState<InterferenceSettings>(() =>
@@ -507,6 +514,10 @@ function OrbitalPolymeter() {
 
   const handleToggleTrace = useCallback(() => {
     setTraceMode((t) => !t);
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    setMuted(toggleAudioMute());
   }, []);
 
   const handleClearTraces = useCallback(() => {
@@ -564,10 +575,14 @@ function OrbitalPolymeter() {
       if (orbit) {
         Object.assign(orbit, updates);
         setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
+        if (typeof updates.direction === 'number') {
+          resetEngine(engineState);
+          handleClearTraces();
+        }
         rerender();
       }
     },
-    [engineState, rerender],
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleDeleteOrbit = useCallback(
@@ -659,22 +674,28 @@ function OrbitalPolymeter() {
     engineState.orbits.forEach((orbit) => {
       orbit.direction = orbit.direction === 1 ? -1 : 1;
     });
+    resetEngine(engineState);
+    handleClearTraces();
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, handleClearTraces, rerender]);
 
   const handleAllClockwise = useCallback(() => {
     engineState.orbits.forEach((orbit) => {
       orbit.direction = 1;
     });
+    resetEngine(engineState);
+    handleClearTraces();
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, handleClearTraces, rerender]);
 
   const handleAlternateDirections = useCallback(() => {
     engineState.orbits.forEach((orbit, index) => {
       orbit.direction = index % 2 === 0 ? 1 : -1;
     });
+    resetEngine(engineState);
+    handleClearTraces();
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, handleClearTraces, rerender]);
 
   const handleOrbitLongPress = useCallback(
     (orbitId: string, x: number, y: number) => {
@@ -696,7 +717,7 @@ function OrbitalPolymeter() {
       if (!orbit) {
         return;
       }
-      orbit.pulseCount = Math.max(1, Math.min(100, orbit.pulseCount + delta));
+      orbit.pulseCount = Math.max(1, Math.min(1000, orbit.pulseCount + delta));
       handleClearTraces();
       rerender();
     },
@@ -709,7 +730,7 @@ function OrbitalPolymeter() {
       if (!orbit) {
         return;
       }
-      orbit.pulseCount = Math.max(1, Math.min(100, pulseCount));
+      orbit.pulseCount = Math.max(1, Math.min(1000, pulseCount));
       handleClearTraces();
       rerender();
     },
@@ -930,6 +951,7 @@ function OrbitalPolymeter() {
         playing={engineState.playing}
         speedMultiplier={engineState.speedMultiplier}
         traceMode={traceMode}
+        muted={muted}
         geometryMode={geometryMode}
         quickOrbitControls={engineState.orbits.slice(0, 2).map((orbit, index) => ({
           id: orbit.id,
@@ -947,6 +969,7 @@ function OrbitalPolymeter() {
         onClearTraces={handleClearTraces}
         onSpeedChange={handleSpeedChange}
         onToggleTrace={handleToggleTrace}
+        onToggleMute={handleToggleMute}
         onReset={handleReset}
         onOpenSidebar={() => setSidebarOpen(true)}
       />

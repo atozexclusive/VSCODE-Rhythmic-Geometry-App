@@ -9,6 +9,7 @@ let masterGain: GainNode | null = null;
 let triggerCount = 0;
 let triggerWindowStart = 0;
 let currentTriggerRate = 0; // triggers per second
+let muted = false;
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -165,6 +166,9 @@ export function playResonanceBeep(
   volume: number = 0.15,
   speedMultiplier: number = 1.0,
 ): void {
+  if (muted) {
+    return;
+  }
   try {
     const ctx = getAudioContext();
     const master = getMasterGain();
@@ -239,6 +243,15 @@ export function playResonanceBeep(
  */
 export function resumeAudio(): void {
   getAudioContext();
+}
+
+export function toggleAudioMute(): boolean {
+  muted = !muted;
+  return muted;
+}
+
+export function getAudioMuted(): boolean {
+  return muted;
 }
 
 /**

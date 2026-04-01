@@ -214,7 +214,7 @@ export default function OrbitSidebar({
                             <button
                               onClick={() =>
                                 onUpdateOrbit(orbit.id, {
-                                  pulseCount: Math.max(2, orbit.pulseCount - 1),
+                                  pulseCount: Math.max(1, orbit.pulseCount - 1),
                                 })
                               }
                               className="px-2 py-1 rounded text-xs font-mono hover:bg-white/10 transition-colors"
@@ -224,12 +224,13 @@ export default function OrbitSidebar({
                             </button>
                             <input
                               type="number"
-                              min="2"
-                              max="100"
+                              min="1"
+                              max="1000"
                               value={orbit.pulseCount}
+                              onFocus={(e) => e.currentTarget.select()}
                               onChange={(e) =>
                                 onUpdateOrbit(orbit.id, {
-                                  pulseCount: Math.max(2, Math.min(100, parseInt(e.target.value) || 2)),
+                                  pulseCount: Math.max(1, Math.min(1000, parseInt(e.target.value) || 1)),
                                 })
                               }
                               className="flex-1 px-2 py-1 rounded text-xs font-mono text-center bg-white/5 border border-white/10 focus:outline-none focus:border-white/30 transition-colors"
@@ -238,7 +239,7 @@ export default function OrbitSidebar({
                             <button
                               onClick={() =>
                                 onUpdateOrbit(orbit.id, {
-                                  pulseCount: Math.min(100, orbit.pulseCount + 1),
+                                  pulseCount: Math.min(1000, orbit.pulseCount + 1),
                                 })
                               }
                               className="px-2 py-1 rounded text-xs font-mono hover:bg-white/10 transition-colors"
@@ -756,10 +757,10 @@ export default function OrbitSidebar({
                 Geometry Routing
               </div>
               <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                Geometry mode now lives on the main transport. Use this panel for the deeper interference routing only.
+                Geometry mode now lives on the main transport. Use this panel for deeper routing for `Interference` and `Sweep`.
               </p>
 
-              {geometryMode === 'interference-trace' && (
+              {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
                 <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>

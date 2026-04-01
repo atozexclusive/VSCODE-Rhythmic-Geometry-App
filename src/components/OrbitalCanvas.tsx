@@ -28,6 +28,14 @@ const TRACE_STEP_OPACITY = 0.3;
 const INTERFERENCE_TRACE_COLOR = '#32CD32';
 const INTERFERENCE_PLAYBACK_OPACITY = 0.78;
 const INTERFERENCE_STEP_OPACITY = 1.05;
+const SWEEP_TRACE_COLOR = '#32CD32';
+const SWEEP_DURATION = 20 * Math.PI;
+const SWEEP_STEPS = 3000;
+const SWEEP_COMPLETION_BEATS = 48;
+const SWEEP_INNER_RADIUS = 1;
+const SWEEP_OUTER_RADIUS = 2;
+const SWEEP_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS;
+const MAX_BLOOM_SPEED = 3;
 
 interface Bloom {
   x: number;
@@ -118,6 +126,41 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         x: centerX + (outerPoint.x - centerX) - (innerPoint.x - centerX),
         y: centerY + (outerPoint.y - centerY) - (innerPoint.y - centerY),
       }),
+      [],
+    );
+
+    const getSweepScale = useCallback((width: number, height: number) => {
+      const margin = 36;
+      return Math.max(1, (Math.min(width, height) / 2 - margin) / SWEEP_MAX_MODEL_RADIUS);
+    }, []);
+
+    const getSweepPositions = useCallback(
+      (
+        innerOrbit: Orbit,
+        outerOrbit: Orbit,
+        t: number,
+        centerX: number,
+        centerY: number,
+        scale: number,
+      ) => {
+        const innerAngle = innerOrbit.direction * innerOrbit.pulseCount * t - Math.PI / 2;
+        const outerAngle = outerOrbit.direction * outerOrbit.pulseCount * t - Math.PI / 2;
+
+        const innerPoint = {
+          x: centerX + SWEEP_INNER_RADIUS * Math.cos(innerAngle) * scale,
+          y: centerY + SWEEP_INNER_RADIUS * Math.sin(innerAngle) * scale,
+        };
+        const outerPoint = {
+          x: centerX + SWEEP_OUTER_RADIUS * Math.cos(outerAngle) * scale,
+          y: centerY + SWEEP_OUTER_RADIUS * Math.sin(outerAngle) * scale,
+        };
+        const sweepPoint = {
+          x: centerX + (SWEEP_OUTER_RADIUS * Math.cos(outerAngle) - SWEEP_INNER_RADIUS * Math.cos(innerAngle)) * scale,
+          y: centerY + (SWEEP_OUTER_RADIUS * Math.sin(outerAngle) - SWEEP_INNER_RADIUS * Math.sin(innerAngle)) * scale,
+        };
+
+        return { innerPoint, outerPoint, sweepPoint };
+      },
       [],
     );
 
@@ -315,13 +358,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const cx = w / 2;
         const cy = h / 2;
         const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
+        const isInterferenceMode = geometryModeRef.current === 'interference-trace';
+        const isSweepMode = geometryModeRef.current === 'sweep';
         const selectedInterferenceOrbitIds = new Set(
-          geometryModeRef.current === 'interference-trace'
+          isInterferenceMode || isSweepMode
             ? [normalizedInterferenceSettings.sourceOrbitAId, normalizedInterferenceSettings.sourceOrbitBId].filter(
                 (orbitId): orbitId is string => Boolean(orbitId),
               )
             : [],
         );
+
+        const selectedInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
+        const selectedOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
 
         // Physics tick — returns triggers for every 12 o'clock crossing
         const triggers = tick(state, timestamp, cx, cy);
@@ -331,8 +379,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === trig.orbitId);
           const orbit = orbitIndex >= 0 ? state.orbits[orbitIndex] : null;
           const shouldRenderOrbitBloom =
-            geometryModeRef.current !== 'interference-trace' || selectedInterferenceOrbitIds.has(trig.orbitId);
-          if (shouldRenderOrbitBloom) {
+            !isSweepMode &&
+            ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
+          if (shouldRenderOrbitBloom && state.speedMultiplier <= MAX_BLOOM_SPEED) {
             bloomsRef.current.push({
               x: trig.x,
               y: trig.y,
@@ -343,7 +392,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             });
           }
           const shouldPlayOrbitAudio =
-            geometryModeRef.current !== 'interference-trace' || selectedInterferenceOrbitIds.has(trig.orbitId);
+            !isSweepMode &&
+            ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
           if (orbit && shouldPlayOrbitAudio) {
             playResonanceBeep(
               {
@@ -358,6 +408,64 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               0.12,
               state.speedMultiplier,
             );
+          }
+        }
+
+        if (
+          isSweepMode &&
+          selectedInnerOrbit &&
+          selectedOuterOrbit &&
+          selectedInnerOrbit.id !== selectedOuterOrbit.id
+        ) {
+          const previousProgress = Math.min(previousElapsedBeats / SWEEP_COMPLETION_BEATS, 1);
+          const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
+          const previousT = previousProgress * SWEEP_DURATION;
+          const currentT = currentProgress * SWEEP_DURATION;
+          const sweepScale = getSweepScale(w, h);
+          const selectedSweepOrbits = [selectedInnerOrbit, selectedOuterOrbit];
+
+          for (const sweepOrbit of selectedSweepOrbits) {
+            const previousRotationCount = Math.floor((Math.abs(sweepOrbit.pulseCount) * previousT) / TAU);
+            const currentRotationCount = Math.floor((Math.abs(sweepOrbit.pulseCount) * currentT) / TAU);
+
+            if (currentRotationCount > previousRotationCount) {
+              const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === sweepOrbit.id);
+
+              for (let rotationIndex = previousRotationCount + 1; rotationIndex <= currentRotationCount; rotationIndex++) {
+                const triggerT = (rotationIndex * TAU) / Math.abs(sweepOrbit.pulseCount);
+                const sweepPositions = getSweepPositions(
+                  selectedInnerOrbit,
+                  selectedOuterOrbit,
+                  triggerT,
+                  cx,
+                  cy,
+                  sweepScale,
+                );
+                const triggerPoint =
+                  sweepOrbit.id === selectedInnerOrbit.id
+                    ? sweepPositions.innerPoint
+                    : sweepPositions.outerPoint;
+
+                if (orbitIndex >= 0) {
+                  playResonanceBeep(
+                    {
+                      orbitIndex,
+                      pulseCount: sweepOrbit.pulseCount,
+                      radius:
+                        sweepOrbit.id === selectedInnerOrbit.id
+                          ? SWEEP_INNER_RADIUS * sweepScale
+                          : SWEEP_OUTER_RADIUS * sweepScale,
+                      color: sweepOrbit.color,
+                      harmonyDegree: sweepOrbit.harmonyDegree,
+                      harmonyRegister: sweepOrbit.harmonyRegister,
+                    },
+                    harmonySettingsRef.current,
+                    0.12,
+                    state.speedMultiplier,
+                  );
+                }
+              }
+            }
           }
         }
 
@@ -383,15 +491,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.lineTo(w, y);
           ctx.stroke();
         }
-        ctx.restore();
-
-        // ---- Center anchor ----
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, 2.5, 0, TAU);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.5;
-        ctx.fill();
         ctx.restore();
 
         // ---- Crosshair ----
@@ -424,7 +523,48 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         if (traceModeRef.current && state.orbits.length >= 2) {
           const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
           if (deltaBeats > 0) {
-            if (geometryModeRef.current === 'interference-trace') {
+            if (isSweepMode) {
+              const innerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
+              const outerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
+
+              if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+                const previousProgress = Math.min(previousElapsedBeats / SWEEP_COMPLETION_BEATS, 1);
+                const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
+                const previousIndex = Math.floor(previousProgress * SWEEP_STEPS);
+                const currentIndex = Math.floor(currentProgress * SWEEP_STEPS);
+                const sweepScale = getSweepScale(w, h);
+
+                if (currentIndex > previousIndex) {
+                  let previousSample = getSweepPositions(
+                    innerOrbit,
+                    outerOrbit,
+                    (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
+                    cx,
+                    cy,
+                    sweepScale,
+                  ).sweepPoint;
+
+                  for (let sampleIndex = previousIndex + 1; sampleIndex <= currentIndex; sampleIndex++) {
+                    const t = (sampleIndex / SWEEP_STEPS) * SWEEP_DURATION;
+                    const currentSample = getSweepPositions(innerOrbit, outerOrbit, t, cx, cy, sweepScale).sweepPoint;
+
+                    traceCtx.save();
+                    traceCtx.lineCap = 'round';
+                    traceCtx.lineJoin = 'round';
+                    traceCtx.globalAlpha = 0.72;
+                    traceCtx.strokeStyle = SWEEP_TRACE_COLOR;
+                    traceCtx.lineWidth = 1;
+                    traceCtx.beginPath();
+                    traceCtx.moveTo(previousSample.x, previousSample.y);
+                    traceCtx.lineTo(currentSample.x, currentSample.y);
+                    traceCtx.stroke();
+                    traceCtx.restore();
+                    traceSegmentCountRef.current += 1;
+                    previousSample = currentSample;
+                  }
+                }
+              }
+            } else if (isInterferenceMode) {
               const normalized = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
               const innerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitAId);
               const outerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitBId);
@@ -504,19 +644,29 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        const currentInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
-        const currentOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
-        const currentInnerPoint =
-          currentInnerOrbit ? resonancePosition(currentInnerOrbit, cx, cy) : null;
-        const currentOuterPoint =
-          currentOuterOrbit ? resonancePosition(currentOuterOrbit, cx, cy) : null;
-        const currentInterferencePoint =
-          currentInnerPoint && currentOuterPoint
+        const currentInnerOrbit = selectedInnerOrbit;
+        const currentOuterOrbit = selectedOuterOrbit;
+        const sweepScale = getSweepScale(w, h);
+        const sweepProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
+        const sweepT = sweepProgress * SWEEP_DURATION;
+        const sweepPositions =
+          isSweepMode && currentInnerOrbit && currentOuterOrbit && currentInnerOrbit.id !== currentOuterOrbit.id
+            ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, cx, cy, sweepScale)
+            : null;
+        const currentInnerPoint = currentInnerOrbit
+          ? sweepPositions?.innerPoint ?? resonancePosition(currentInnerOrbit, cx, cy)
+          : null;
+        const currentOuterPoint = currentOuterOrbit
+          ? sweepPositions?.outerPoint ?? resonancePosition(currentOuterOrbit, cx, cy)
+          : null;
+        const currentInterferencePoint = sweepPositions
+          ? sweepPositions.sweepPoint
+          : currentInnerPoint && currentOuterPoint
             ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
             : null;
 
         const visibleOrbits =
-          geometryModeRef.current === 'interference-trace' && currentInnerOrbit && currentOuterOrbit
+          (isInterferenceMode || isSweepMode) && currentInnerOrbit && currentOuterOrbit
             ? state.orbits.filter(
                 (orbit) => orbit.id === currentInnerOrbit.id || orbit.id === currentOuterOrbit.id,
               )
@@ -524,7 +674,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         // ---- Orbit rings ----
         for (const orbit of visibleOrbits) {
-          const r = orbit.radius;
+          const isSweepInnerOrbit = isSweepMode && currentInnerOrbit?.id === orbit.id;
+          const isSweepOuterOrbit = isSweepMode && currentOuterOrbit?.id === orbit.id;
+          const r = isSweepInnerOrbit
+            ? SWEEP_INNER_RADIUS * sweepScale
+            : isSweepOuterOrbit
+              ? SWEEP_OUTER_RADIUS * sweepScale
+              : orbit.radius;
 
           // Ring
           ctx.save();
@@ -553,7 +709,12 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
 
           // Resonance point position
-          const pos = resonancePosition(orbit, cx, cy);
+          const pos =
+            orbit.id === currentInnerOrbit?.id && currentInnerPoint
+              ? currentInnerPoint
+              : orbit.id === currentOuterOrbit?.id && currentOuterPoint
+                ? currentOuterPoint
+                : resonancePosition(orbit, cx, cy);
 
           // Soft glow around resonance point
           ctx.save();
@@ -602,7 +763,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
 
         if (
-          geometryModeRef.current === 'interference-trace' &&
+          (isInterferenceMode || isSweepMode) &&
           currentInnerPoint &&
           currentOuterPoint &&
           currentInterferencePoint &&
@@ -624,7 +785,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        if (geometryModeRef.current === 'interference-trace' && currentInterferencePoint) {
+        if ((isInterferenceMode || isSweepMode) && currentInterferencePoint) {
           ctx.save();
           const grad = ctx.createRadialGradient(
             currentInterferencePoint.x,
@@ -646,7 +807,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.save();
           ctx.beginPath();
           ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 3, 0, TAU);
-          ctx.fillStyle = INTERFERENCE_TRACE_COLOR;
+          ctx.fillStyle = isSweepMode ? SWEEP_TRACE_COLOR : INTERFERENCE_TRACE_COLOR;
           ctx.fill();
           ctx.restore();
         }
@@ -705,11 +866,12 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ctx.fillText(`BPM ${bpm}`, 16, h - 60);
         ctx.fillText(`ORBITS ${state.orbits.length}`, 16, h - 46);
         ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
-        ctx.fillText(
-          geometryModeRef.current === 'interference-trace' ? 'MODE INTERFERENCE' : 'MODE STANDARD',
-          16,
-          h - 18,
-        );
+        const modeLabel = isSweepMode
+          ? 'MODE SWEEP'
+          : isInterferenceMode
+            ? 'MODE INTERFERENCE'
+            : 'MODE STANDARD';
+        ctx.fillText(modeLabel, 16, h - 18);
         if (traceModeRef.current) {
           ctx.fillStyle = '#00FFAA';
           ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
