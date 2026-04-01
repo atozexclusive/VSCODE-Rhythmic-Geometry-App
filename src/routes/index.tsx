@@ -965,102 +965,7 @@ function OrbitalPolymeter() {
     return (
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
-          <div
-            className="mx-3 rounded-2xl border px-4 py-3"
-            style={{
-              background: 'rgba(17,17,22,0.92)',
-              backdropFilter: 'blur(14px)',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h1 className="text-[13px] font-light tracking-[0.22em] uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Orbital Polymeter
-                </h1>
-                <p className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                  Card-based mobile instrument view
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setHelpOpen((open) => !open)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <CircleHelp size={18} />
-                </button>
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <Menu size={18} />
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              <button
-                onClick={handleTogglePlay}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{
-                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
-                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
-                  color: engineState.playing ? '#FF3366' : '#00FFAA',
-                }}
-              >
-                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
-              </button>
-              <button
-                onClick={handleStepForward}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
-              >
-                <SkipForward size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
-              >
-                <RotateCcw size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
-              </button>
-              <button
-                onClick={handleToggleMute}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
-              >
-                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
-              </button>
-            </div>
-          </div>
-
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 px-1 pb-3">
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
-                </div>
-                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  {modeDescription}
-                </p>
-              </div>
-              <button
-                onClick={handleToggleTrace}
-                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{
-                  background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
-                  color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
-                }}
-              >
-                  {traceMode ? 'Trace On' : 'Trace Off'}
-                </button>
-              </div>
             <div className="relative h-[72svh] min-h-[500px] overflow-hidden">
               <OrbitalCanvas
                 ref={canvasRef}
@@ -1087,13 +992,47 @@ function OrbitalPolymeter() {
             className="rounded-2xl border p-4 space-y-4"
             style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
           >
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                Playback
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {modeDescription}
+                </p>
               </div>
-              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleToggleTrace}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
+                  }}
+                >
+                  {traceMode ? 'Trace On' : 'Trace Off'}
+                </button>
+                <button
+                  onClick={() => setHelpOpen((open) => !open)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <CircleHelp size={18} />
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <Menu size={18} />
+                </button>
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 Control motion first, then shape the ratios below.
-              </p>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-2">
               <button
