@@ -5,11 +5,21 @@
 
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
+import { type GeometryMode } from '../lib/geometry';
 
 interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
   traceMode: boolean;
+  geometryMode: GeometryMode;
+  quickOrbitControls: Array<{
+    id: string;
+    label: string;
+    pulseCount: number;
+  }>;
+  onAdjustQuickOrbit: (orbitId: string, delta: number) => void;
+  onSetQuickOrbit: (orbitId: string, pulseCount: number) => void;
+  onGeometryModeChange: (mode: GeometryMode) => void;
   onReverseDirections: () => void;
   onAllClockwise: () => void;
   onAlternateDirections: () => void;
@@ -26,6 +36,11 @@ export default function TransportBar({
   playing,
   speedMultiplier,
   traceMode,
+  geometryMode,
+  quickOrbitControls,
+  onAdjustQuickOrbit,
+  onSetQuickOrbit,
+  onGeometryModeChange,
   onReverseDirections,
   onAllClockwise,
   onAlternateDirections,
@@ -40,66 +55,244 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
-  const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2.5 hover:scale-105'}`;
+  const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
+  const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-30 pointer-events-none ${isMobile ? 'h-auto' : 'h-20'} relative`}
+      className={`z-30 pointer-events-none relative ${isMobile ? 'h-auto' : 'h-auto'}`}
       style={{
-        background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
-        backdropFilter: 'blur(12px)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: 'auto',
+        paddingBottom: isMobile ? 'max(12px, env(safe-area-inset-bottom))' : '0px',
       }}
     >
-      <div className={`absolute pointer-events-auto ${isMobile ? 'left-3 right-3 -top-14' : 'left-1/2 -translate-x-1/2 -top-12'}`}>
-        <div
-          className={`mx-auto flex items-center gap-2 rounded-xl border ${isMobile ? 'w-full justify-between px-3 py-2' : 'w-fit px-3 py-2'}`}
-          style={{
-            background: 'rgba(17, 17, 22, 0.88)',
-            backdropFilter: 'blur(12px)',
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-          }}
-        >
-          <button
-            onClick={onReverseDirections}
-            className={directionButtonStyle}
+      <div className={`pointer-events-auto ${isMobile ? 'px-3 pt-3 space-y-2' : 'px-6 pt-3'}`}>
+        {isMobile ? (
+          <div
+            className="w-full rounded-xl border px-3 py-2 space-y-2"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: 'rgba(255, 255, 255, 0.78)',
+              background: 'rgba(17, 17, 22, 0.88)',
+              backdropFilter: 'blur(12px)',
+              borderColor: 'rgba(255, 255, 255, 0.1)',
             }}
-            title="Flip every orbit to the opposite direction"
           >
-            Reverse
-          </button>
-          <button
-            onClick={onAllClockwise}
-            className={directionButtonStyle}
-            style={{
-              background: 'rgba(0, 255, 170, 0.08)',
-              border: '1px solid rgba(0, 255, 170, 0.2)',
-              color: '#00FFAA',
-            }}
-            title="Set every orbit to clockwise"
-          >
-            All CW
-          </button>
-          <button
-            onClick={onAlternateDirections}
-            className={directionButtonStyle}
-            style={{
-              background: 'rgba(51, 136, 255, 0.08)',
-              border: '1px solid rgba(51, 136, 255, 0.2)',
-              color: '#88CCFF',
-            }}
-            title="Restore alternating clockwise and counterclockwise directions"
-          >
-            Alternate
-          </button>
-        </div>
+            <div className="flex items-center gap-2 justify-between">
+              <button
+                onClick={() => onGeometryModeChange('standard-trace')}
+                className={compactButtonStyle}
+                style={{
+                  background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                  color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                }}
+              >
+                Standard
+              </button>
+              <button
+                onClick={() => onGeometryModeChange('interference-trace')}
+                className={compactButtonStyle}
+                style={{
+                  background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                  color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
+                }}
+              >
+                Interference
+              </button>
+            </div>
+            <div className="flex items-center gap-2 justify-between">
+              {quickOrbitControls.map((orbit) => (
+                <div
+                  key={orbit.id}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                    {orbit.label}
+                  </span>
+                  <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={orbit.pulseCount}
+                    onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                    className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                    style={{
+                      color: 'rgba(255, 255, 255, 0.82)',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                    }}
+                  />
+                  <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 justify-between">
+              <button onClick={onReverseDirections} className={directionButtonStyle} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.78)' }}>Reverse</button>
+              <button onClick={onAllClockwise} className={directionButtonStyle} style={{ background: 'rgba(0, 255, 170, 0.08)', border: '1px solid rgba(0, 255, 170, 0.2)', color: '#00FFAA' }}>All CW</button>
+              <button onClick={onAlternateDirections} className={directionButtonStyle} style={{ background: 'rgba(51, 136, 255, 0.08)', border: '1px solid rgba(51, 136, 255, 0.2)', color: '#88CCFF' }}>Alternate</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-8 mb-2">
+            <div
+              className="px-3 py-2 flex flex-col items-center gap-2 rounded-xl border"
+              style={{
+                marginLeft: 8,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                background: 'rgba(17, 17, 22, 0.22)',
+                backdropFilter: 'blur(8px)',
+                transform: 'translateY(-4px)',
+              }}
+            >
+              <div
+                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
+                style={{
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                }}
+              >
+                <button
+                  onClick={() => onGeometryModeChange('standard-trace')}
+                  className={compactButtonStyle}
+                  style={{
+                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                  title="Use the original connector-based trace geometry"
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => onGeometryModeChange('interference-trace')}
+                  className={compactButtonStyle}
+                  style={{
+                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                  title="Use the derived interference-point trace geometry"
+                >
+                  Interference
+                </button>
+              </div>
+              <div
+                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
+                style={{
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                }}
+              >
+                {quickOrbitControls.map((orbit) => (
+                  <div
+                    key={orbit.id}
+                    className="flex items-center gap-1"
+                  >
+                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      {orbit.label}
+                    </span>
+                    <button
+                      onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
+                      className="w-6 h-6 rounded-md text-[11px] font-mono"
+                      style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                      title={`Lower ${orbit.label} pulse count`}
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={orbit.pulseCount}
+                      onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                      className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                      style={{
+                        color: 'rgba(255, 255, 255, 0.82)',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                      }}
+                    />
+                    <button
+                      onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
+                      className="w-6 h-6 rounded-md text-[11px] font-mono"
+                      style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                      title={`Raise ${orbit.label} pulse count`}
+                    >
+                      +
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className="px-3 py-2 flex items-center justify-center gap-2 rounded-xl border"
+              style={{
+                marginRight: 8,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                background: 'rgba(17, 17, 22, 0.22)',
+                backdropFilter: 'blur(8px)',
+                transform: 'translateY(-4px)',
+              }}
+            >
+              <button
+                onClick={onReverseDirections}
+                className={directionButtonStyle}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: 'rgba(255, 255, 255, 0.78)',
+                }}
+                title="Flip every orbit to the opposite direction"
+              >
+                Reverse
+              </button>
+              <button
+                onClick={onAllClockwise}
+                className={directionButtonStyle}
+                style={{
+                  background: 'rgba(0, 255, 170, 0.08)',
+                  border: '1px solid rgba(0, 255, 170, 0.2)',
+                  color: '#00FFAA',
+                }}
+                title="Set every orbit to clockwise"
+              >
+                All CW
+              </button>
+              <button
+                onClick={onAlternateDirections}
+                className={directionButtonStyle}
+                style={{
+                  background: 'rgba(51, 136, 255, 0.08)',
+                  border: '1px solid rgba(51, 136, 255, 0.2)',
+                  color: '#88CCFF',
+                }}
+                title="Restore alternating clockwise and counterclockwise directions"
+              >
+                Alternate
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className={`${isMobile ? 'flex flex-col gap-3 px-3 py-3' : 'h-full flex items-center justify-between px-6'} pointer-events-auto`}>
+      <div
+        className={`${isMobile ? 'flex flex-col gap-3 px-3 py-3' : 'flex items-center justify-between px-6 py-3'} pointer-events-auto`}
+        style={{
+          background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
+          backdropFilter: 'blur(12px)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
         {/* Left: Playback + Step + Clear + Reset */}
         <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
           {/* Play/Pause */}

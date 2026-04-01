@@ -631,10 +631,15 @@ function OrbitalPolymeter() {
 
   const handleGeometryModeChange = useCallback(
     (mode: GeometryMode) => {
+      if (geometryMode === mode) {
+        return;
+      }
       setGeometryMode(mode);
+      resetEngine(engineState);
       handleClearTraces();
+      rerender();
     },
-    [handleClearTraces],
+    [engineState, geometryMode, handleClearTraces, rerender],
   );
 
   const handleInterferenceSettingsChange = useCallback(
@@ -683,6 +688,32 @@ function OrbitalPolymeter() {
       handleUpdateOrbit(orbitId, { color });
     },
     [handleUpdateOrbit],
+  );
+
+  const handleAdjustQuickOrbit = useCallback(
+    (orbitId: string, delta: number) => {
+      const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
+      if (!orbit) {
+        return;
+      }
+      orbit.pulseCount = Math.max(1, Math.min(100, orbit.pulseCount + delta));
+      handleClearTraces();
+      rerender();
+    },
+    [engineState, handleClearTraces, rerender],
+  );
+
+  const handleSetQuickOrbit = useCallback(
+    (orbitId: string, pulseCount: number) => {
+      const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
+      if (!orbit) {
+        return;
+      }
+      orbit.pulseCount = Math.max(1, Math.min(100, pulseCount));
+      handleClearTraces();
+      rerender();
+    },
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleSaveScene = useCallback(() => {
@@ -883,12 +914,12 @@ function OrbitalPolymeter() {
           style={{ color: 'rgba(255, 255, 255, 0.15)' }}
         >
           {isMobile ? (
-            'Hold an orbit to edit it. Use Menu for scenes, sound, and presets.'
+            'Tap an orbit to edit color. Use Menu for scenes, sound, and interference routing.'
           ) : (
             <>
-              long-press orbit for options
+              tap orbit for color controls
               <br />
-              use sidebar to manage orbits
+              use menu for scenes, sound, and routing
             </>
           )}
         </p>
@@ -899,6 +930,15 @@ function OrbitalPolymeter() {
         playing={engineState.playing}
         speedMultiplier={engineState.speedMultiplier}
         traceMode={traceMode}
+        geometryMode={geometryMode}
+        quickOrbitControls={engineState.orbits.slice(0, 2).map((orbit, index) => ({
+          id: orbit.id,
+          label: index === 0 ? 'Ratio A' : 'Ratio B',
+          pulseCount: orbit.pulseCount,
+        }))}
+        onAdjustQuickOrbit={handleAdjustQuickOrbit}
+        onSetQuickOrbit={handleSetQuickOrbit}
+        onGeometryModeChange={handleGeometryModeChange}
         onReverseDirections={handleReverseDirections}
         onAllClockwise={handleAllClockwise}
         onAlternateDirections={handleAlternateDirections}

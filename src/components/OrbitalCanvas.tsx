@@ -60,7 +60,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+    const pressHandledRef = useRef(false);
     const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
     const [, forceUpdate] = useState(0);
 
@@ -141,12 +143,40 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const detectOrbitAtPoint = (canvasX: number, canvasY: number) => {
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
+        const cx = w / 2;
+        const cy = h / 2;
+
+        const state = engineRef.current;
+        const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+        const pointHitRadius = isCoarsePointer ? 28 : 20;
+        const ringHitRadius = isCoarsePointer ? 18 : 12;
+        for (const orbit of state.orbits) {
+          const pos = resonancePosition(orbit, cx, cy);
+          const dist = Math.hypot(canvasX - pos.x, canvasY - pos.y);
+          if (dist < pointHitRadius) {
+            return orbit.id;
+          }
+          const distFromCenter = Math.hypot(canvasX - cx, canvasY - cy);
+          const ringDist = Math.abs(distFromCenter - orbit.radius);
+          if (ringDist < ringHitRadius) {
+            return orbit.id;
+          }
+        }
+        return null;
+      };
+
       const handleMouseDown = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
+        mouseDownRef.current = { x: mx, y: my };
+        pressHandledRef.current = false;
         longPressTimerRef.current = setTimeout(() => {
-          handleLongPress(mx, my);
+          openOrbitMenu(mx, my);
         }, 600);
       };
 
@@ -157,11 +187,22 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
       };
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (e: MouseEvent) => {
         if (longPressTimerRef.current) {
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
+        if (onOrbitLongPress && mouseDownRef.current) {
+          const rect = canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          const moved = Math.hypot(mx - mouseDownRef.current.x, my - mouseDownRef.current.y);
+          if (moved <= 6 && !pressHandledRef.current) {
+            openOrbitMenu(mouseDownRef.current.x, mouseDownRef.current.y);
+          }
+        }
+        mouseDownRef.current = null;
+        pressHandledRef.current = false;
       };
 
       const handleTouchStart = (e: TouchEvent) => {
@@ -171,8 +212,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const tx = touch.clientX - rect.left;
           const ty = touch.clientY - rect.top;
           touchStartRef.current = { x: tx, y: ty };
+          pressHandledRef.current = false;
           longPressTimerRef.current = setTimeout(() => {
-            handleLongPress(tx, ty);
+            openOrbitMenu(tx, ty);
           }, 450);
         }
       };
@@ -198,34 +240,19 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
+        if (touchStartRef.current && !pressHandledRef.current) {
+          openOrbitMenu(touchStartRef.current.x, touchStartRef.current.y);
+        }
         touchStartRef.current = null;
+        pressHandledRef.current = false;
       };
 
-      const handleLongPress = (canvasX: number, canvasY: number) => {
+      const openOrbitMenu = (canvasX: number, canvasY: number) => {
         if (!onOrbitLongPress) return;
-        const dpr = window.devicePixelRatio || 1;
-        const w = canvas.width / dpr;
-        const h = canvas.height / dpr;
-        const cx = w / 2;
-        const cy = h / 2;
-
-        const state = engineRef.current;
-        const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-        const pointHitRadius = isCoarsePointer ? 28 : 20;
-        const ringHitRadius = isCoarsePointer ? 18 : 12;
-        for (const orbit of state.orbits) {
-          const pos = resonancePosition(orbit, cx, cy);
-          const dist = Math.hypot(canvasX - pos.x, canvasY - pos.y);
-          if (dist < pointHitRadius) {
-            onOrbitLongPress(orbit.id, canvasX, canvasY);
-            return;
-          }
-          const distFromCenter = Math.hypot(canvasX - cx, canvasY - cy);
-          const ringDist = Math.abs(distFromCenter - orbit.radius);
-          if (ringDist < ringHitRadius) {
-            onOrbitLongPress(orbit.id, canvasX, canvasY);
-            return;
-          }
+        const orbitId = detectOrbitAtPoint(canvasX, canvasY);
+        if (orbitId) {
+          pressHandledRef.current = true;
+          onOrbitLongPress(orbitId, canvasX, canvasY);
         }
       };
 
@@ -287,6 +314,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const h = canvas.height / dpr;
         const cx = w / 2;
         const cy = h / 2;
+        const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
+        const selectedInterferenceOrbitIds = new Set(
+          geometryModeRef.current === 'interference-trace'
+            ? [normalizedInterferenceSettings.sourceOrbitAId, normalizedInterferenceSettings.sourceOrbitBId].filter(
+                (orbitId): orbitId is string => Boolean(orbitId),
+              )
+            : [],
+        );
 
         // Physics tick — returns triggers for every 12 o'clock crossing
         const triggers = tick(state, timestamp, cx, cy);
@@ -295,15 +330,21 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         for (const trig of triggers) {
           const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === trig.orbitId);
           const orbit = orbitIndex >= 0 ? state.orbits[orbitIndex] : null;
-          bloomsRef.current.push({
-            x: trig.x,
-            y: trig.y,
-            color: trig.color,
-            radius: 0,
-            birth: timestamp,
-            orbitRadius: trig.radius,
-          });
-          if (orbit) {
+          const shouldRenderOrbitBloom =
+            geometryModeRef.current !== 'interference-trace' || selectedInterferenceOrbitIds.has(trig.orbitId);
+          if (shouldRenderOrbitBloom) {
+            bloomsRef.current.push({
+              x: trig.x,
+              y: trig.y,
+              color: trig.color,
+              radius: 0,
+              birth: timestamp,
+              orbitRadius: trig.radius,
+            });
+          }
+          const shouldPlayOrbitAudio =
+            geometryModeRef.current !== 'interference-trace' || selectedInterferenceOrbitIds.has(trig.orbitId);
+          if (orbit && shouldPlayOrbitAudio) {
             playResonanceBeep(
               {
                 orbitIndex,
@@ -463,7 +504,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
         const currentInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
         const currentOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
         const currentInnerPoint =
@@ -475,8 +515,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
             : null;
 
+        const visibleOrbits =
+          geometryModeRef.current === 'interference-trace' && currentInnerOrbit && currentOuterOrbit
+            ? state.orbits.filter(
+                (orbit) => orbit.id === currentInnerOrbit.id || orbit.id === currentOuterOrbit.id,
+              )
+            : state.orbits;
+
         // ---- Orbit rings ----
-        for (const orbit of state.orbits) {
+        for (const orbit of visibleOrbits) {
           const r = orbit.radius;
 
           // Ring

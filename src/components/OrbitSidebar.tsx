@@ -753,36 +753,11 @@ export default function OrbitSidebar({
           {activeTab === 'view' && (
             <div className="space-y-4">
               <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Geometry
+                Geometry Routing
               </div>
               <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                `Standard Trace` keeps the current connector lattice. `Interference Trace` draws a derived point from two chosen orbits for more rosettes, loops, and hollow forms.
+                Geometry mode now lives on the main transport. Use this panel for the deeper interference routing only.
               </p>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => onGeometryModeChange('standard-trace')}
-                  className="px-3 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.08)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.2)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.78)',
-                  }}
-                >
-                  Standard Trace
-                </button>
-                <button
-                  onClick={() => onGeometryModeChange('interference-trace')}
-                  className="px-3 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.08)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.2)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.78)',
-                  }}
-                >
-                  Interference Trace
-                </button>
-              </div>
 
               {geometryMode === 'interference-trace' && (
                 <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
@@ -837,49 +812,15 @@ export default function OrbitSidebar({
               )}
 
               <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Motion Layout
+                Orbit Pattern
               </div>
               <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                Apply a global spin pattern to all orbits at once. These only change direction, not color, radius, or pulse count.
+                Quick pulse and direction controls live on the main page now. Use the orbit cards for deeper per-orbit editing.
               </p>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={onReverseDirections}
-                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: 'rgba(255, 255, 255, 0.78)',
-                  }}
-                  title="Flip every orbit to the opposite direction"
-                >
-                  Reverse
-                </button>
-                <button
-                  onClick={onAllClockwise}
-                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(0, 255, 170, 0.08)',
-                    border: '1px solid rgba(0, 255, 170, 0.2)',
-                    color: '#00FFAA',
-                  }}
-                  title="Set every orbit to clockwise"
-                >
-                  All CW
-                </button>
-                <button
-                  onClick={onAlternateDirections}
-                  className="px-2 py-3 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(51, 136, 255, 0.08)',
-                    border: '1px solid rgba(51, 136, 255, 0.2)',
-                    color: '#88CCFF',
-                  }}
-                  title="Set alternating clockwise and counterclockwise directions"
-                >
-                  Alternate
-                </button>
+              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                  Tap an orbit directly on the canvas to change its color. Use the menu mainly for scenes, sound, exports, and interference routing.
+                </p>
               </div>
             </div>
           )}

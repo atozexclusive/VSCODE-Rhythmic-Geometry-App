@@ -57,94 +57,76 @@ export default function RadialMenu({
     };
   }, [onClose]);
 
-  const TAU = 2 * Math.PI;
-  const RADIUS = 70;
-  const items = QUICK_COLORS.length + 1; // colors + delete
-
   return (
     <div
       ref={menuRef}
-      className="fixed z-[100]"
+      className="fixed z-[100] w-52 rounded-2xl border p-3"
       style={{
         left: x,
         top: y,
         transform: 'translate(-50%, -50%)',
+        background: 'rgba(17, 17, 22, 0.92)',
+        backdropFilter: 'blur(16px)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
       }}
     >
-      {/* Center indicator */}
-      <div
-        className="absolute w-6 h-6 rounded-full"
-        style={{
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          backgroundColor: orbitColor,
-          boxShadow: `0 0 16px ${orbitColor}88`,
-        }}
-      />
-
-      {/* Color options arranged in a circle */}
-      {QUICK_COLORS.map((color, i) => {
-        const angle = (i / items) * TAU - Math.PI / 2;
-        const px = Math.cos(angle) * RADIUS;
-        const py = Math.sin(angle) * RADIUS;
-        const isActive = color === orbitColor;
-        const isHovered = color === hoveredColor;
-
-        return (
-          <button
-            key={color}
-            onClick={() => {
-              onChangeColor(orbitId, color);
-              onClose();
-            }}
-            onMouseEnter={() => setHoveredColor(color)}
-            onMouseLeave={() => setHoveredColor(null)}
-            onTouchStart={() => setHoveredColor(color)}
-            onTouchEnd={() => setHoveredColor(null)}
-            className="absolute w-9 h-9 rounded-full transition-all"
-            style={{
-              left: `calc(50% + ${px}px)`,
-              top: `calc(50% + ${py}px)`,
-              transform: `translate(-50%, -50%) scale(${isActive || isHovered ? 1.25 : 1})`,
-              backgroundColor: color,
-              boxShadow: isActive ? `0 0 16px ${color}AA` : isHovered ? `0 0 12px ${color}66` : `0 0 8px ${color}44`,
-              border: isActive ? '2px solid white' : '1px solid rgba(255,255,255,0.1)',
-            }}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: orbitColor, boxShadow: `0 0 10px ${orbitColor}88` }}
           />
-        );
-      })}
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Orbit Color
+          </span>
+        </div>
+        <button
+          onClick={() => {
+            onDelete(orbitId);
+            onClose();
+          }}
+          onMouseEnter={() => setHoveredColor('DELETE')}
+          onMouseLeave={() => setHoveredColor(null)}
+          className="w-8 h-8 rounded-lg text-red-400 flex items-center justify-center transition-all"
+          style={{
+            background: hoveredColor === 'DELETE' ? 'rgba(239, 68, 68, 0.22)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${hoveredColor === 'DELETE' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255,255,255,0.08)'}`,
+          }}
+          title="Delete orbit"
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
 
-      {/* Delete button */}
-      {(() => {
-        const angle = (QUICK_COLORS.length / items) * TAU - Math.PI / 2;
-        const px = Math.cos(angle) * RADIUS;
-        const py = Math.sin(angle) * RADIUS;
-        const isDeleteHovered = hoveredColor === 'DELETE';
-        return (
-          <button
-            onClick={() => {
-              onDelete(orbitId);
-              onClose();
-            }}
-            onMouseEnter={() => setHoveredColor('DELETE')}
-            onMouseLeave={() => setHoveredColor(null)}
-            onTouchStart={() => setHoveredColor('DELETE')}
-            onTouchEnd={() => setHoveredColor(null)}
-            className="absolute w-9 h-9 rounded-full text-red-400 flex items-center justify-center text-sm transition-all"
-            style={{
-              left: `calc(50% + ${px}px)`,
-              top: `calc(50% + ${py}px)`,
-              transform: `translate(-50%, -50%) scale(${isDeleteHovered ? 1.25 : 1})`,
-              backgroundColor: isDeleteHovered ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)',
-              border: `1px solid ${isDeleteHovered ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.3)'}`,
-              boxShadow: isDeleteHovered ? '0 0 12px rgba(239, 68, 68, 0.4)' : 'none',
-            }}
-          >
-            <Trash2 size={16} />
-          </button>
-        );
-      })()}
+      <div className="grid grid-cols-4 gap-2 mt-3">
+        {QUICK_COLORS.map((color) => {
+          const isActive = color === orbitColor;
+          const isHovered = color === hoveredColor;
+
+          return (
+            <button
+              key={color}
+              onClick={() => {
+                onChangeColor(orbitId, color);
+                onClose();
+              }}
+              onMouseEnter={() => setHoveredColor(color)}
+              onMouseLeave={() => setHoveredColor(null)}
+              onTouchStart={() => setHoveredColor(color)}
+              onTouchEnd={() => setHoveredColor(null)}
+              className="h-10 rounded-xl transition-all"
+              style={{
+                backgroundColor: color,
+                boxShadow: isActive ? `0 0 16px ${color}AA` : isHovered ? `0 0 12px ${color}66` : `0 0 8px ${color}44`,
+                border: isActive ? '2px solid white' : '1px solid rgba(255,255,255,0.14)',
+                transform: `scale(${isActive || isHovered ? 1.05 : 1})`,
+              }}
+              title={`Set orbit color to ${color}`}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
