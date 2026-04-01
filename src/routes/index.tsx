@@ -5,6 +5,7 @@
 
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef } from 'react';
+import { CircleHelp, Menu, Pause, Play, RotateCcw, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -30,6 +31,7 @@ import {
   resetEngine,
   stepEngineByBeats,
   DEFAULT_ORBITS,
+  PRESET_RATIOS,
 } from '../lib/orbitalEngine';
 import {
   DEFAULT_INTERFERENCE_SETTINGS,
@@ -742,6 +744,20 @@ function OrbitalPolymeter() {
     [engineState, handleClearTraces, rerender],
   );
 
+  const handleToggleOrbitDirection = useCallback(
+    (orbitId: string) => {
+      const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
+      if (!orbit) {
+        return;
+      }
+      orbit.direction = orbit.direction === 1 ? -1 : 1;
+      resetEngine(engineState);
+      handleClearTraces();
+      rerender();
+    },
+    [engineState, handleClearTraces, rerender],
+  );
+
   const handleSaveScene = useCallback(() => {
     const now = new Date().toISOString();
     const defaultName = `Scene ${savedScenes.length + 1}`;
@@ -923,12 +939,425 @@ function OrbitalPolymeter() {
           })
           .filter((orbit): orbit is { id: string; label: string; pulseCount: number } => Boolean(orbit))
   );
+  const mobileQuickOrbits =
+    geometryMode === 'standard-trace'
+      ? engineState.orbits.slice(0, 2).map((orbit, index) => ({
+          id: orbit.id,
+          label: index === 0 ? 'Inner cycles' : 'Outer cycles',
+          pulseCount: orbit.pulseCount,
+          direction: orbit.direction,
+        }))
+      : activePairControls.map((orbit) => {
+          const match = engineState.orbits.find((entry) => entry.id === orbit.id);
+          return {
+            ...orbit,
+            direction: match?.direction ?? 1,
+          };
+        });
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Shared multi-orbit string field.'
       : geometryMode === 'interference-trace'
         ? 'Live derived path from the selected pair.'
         : 'Finite sampled sweep from the selected pair.';
+
+  if (isMobile) {
+    return (
+      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] px-3 pt-3 pb-8 select-none">
+        <div className="space-y-3">
+          <div
+            className="rounded-2xl border px-4 py-3"
+            style={{
+              background: 'rgba(17,17,22,0.92)',
+              backdropFilter: 'blur(14px)',
+              borderColor: 'rgba(255,255,255,0.08)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="text-[13px] font-light tracking-[0.22em] uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  Orbital Polymeter
+                </h1>
+                <p className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                  Card-based mobile instrument view
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setHelpOpen((open) => !open)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <CircleHelp size={18} />
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <Menu size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mt-3">
+              <button
+                onClick={handleTogglePlay}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{
+                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
+                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
+                  color: engineState.playing ? '#FF3366' : '#00FFAA',
+                }}
+              >
+                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
+              </button>
+              <button
+                onClick={handleStepForward}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
+              >
+                <SkipForward size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
+              >
+                <RotateCcw size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
+              </button>
+              <button
+                onClick={handleToggleMute}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
+              >
+                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="rounded-[24px] border p-3"
+            style={{
+              background: 'rgba(13,16,28,0.96)',
+              borderColor: 'rgba(255,255,255,0.08)',
+              boxShadow: '0 18px 48px rgba(0,0,0,0.28)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-3 px-1 pb-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {modeDescription}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleTrace}
+                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                  color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
+                }}
+              >
+                {traceMode ? 'Trace On' : 'Trace Off'}
+              </button>
+            </div>
+            <div className="relative h-[54svh] min-h-[360px] rounded-[20px] overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <OrbitalCanvas
+                ref={canvasRef}
+                engineState={engineState}
+                traceMode={traceMode}
+                harmonySettings={harmonySettings}
+                geometryMode={geometryMode}
+                interferenceSettings={interferenceSettings}
+                onOrbitLongPress={handleOrbitLongPress}
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3 px-1 pt-3">
+              <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                Long-press an orbit to edit color or note role.
+              </div>
+              <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                {engineState.speedMultiplier.toFixed(1)}x
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
+          >
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                Orbits
+              </div>
+              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Quick ratio controls on the main page. Use Menu for deeper orbit editing.
+              </p>
+            </div>
+            {mobileQuickOrbits.map((orbit) => (
+              <div key={orbit.id} className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[12px]" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                    {orbit.label}
+                  </div>
+                  <button
+                    onClick={() => handleToggleOrbitDirection(orbit.id)}
+                    className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                  >
+                    {orbit.direction === 1 ? 'CW' : 'CCW'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="1000"
+                    step="1"
+                    value={orbit.pulseCount}
+                    onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                    className="flex-1 accent-white"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={orbit.pulseCount}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                    className="w-20 px-2 py-2 rounded-xl border text-center text-[14px] font-mono focus:outline-none"
+                    style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
+          >
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                Geometry & Tempo
+              </div>
+              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Choose the drawing method, then shape speed and direction.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'standard-trace' as const, label: 'Standard', color: '#00FFAA' },
+                { key: 'interference-trace' as const, label: 'Interference', color: '#88CCFF' },
+                { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  onClick={() => handleGeometryModeChange(mode.key)}
+                  className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                  style={{
+                    background: geometryMode === mode.key ? `${mode.color}1a` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
+                    color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.74)',
+                  }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[11px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                <span>Speed</span>
+                <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="10"
+                step="0.1"
+                value={engineState.speedMultiplier}
+                onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                className="w-full mt-2 accent-white"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={handleReverseDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                Reverse
+              </button>
+              <button onClick={handleAllClockwise} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}>
+                All CW
+              </button>
+              <button onClick={handleAlternateDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.08)', border: '1px solid rgba(51,136,255,0.2)' }}>
+                Alternate
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
+          >
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                Sound
+              </div>
+              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Keep the main musical choices close. Deeper harmony still lives in Menu.
+              </p>
+            </div>
+            <button
+              onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
+              className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+              style={{
+                background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.12)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.1)'}`,
+                color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
+              }}
+            >
+              {harmonySettings.tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+            </button>
+            {harmonySettings.tonePreset === 'scale-quantized' && (
+              <div className="grid grid-cols-[92px,1fr] gap-2">
+                <select
+                  value={harmonySettings.rootNote}
+                  onChange={(e) => handleHarmonyChange({ rootNote: e.target.value as RootNote })}
+                  className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                  style={{ color: 'rgba(255,255,255,0.82)' }}
+                >
+                  {NOTE_NAMES.map((note) => (
+                    <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                  ))}
+                </select>
+                <select
+                  value={harmonySettings.scaleName}
+                  onChange={(e) => handleHarmonyChange({ scaleName: e.target.value as ScaleName })}
+                  className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                  style={{ color: 'rgba(255,255,255,0.82)' }}
+                >
+                  {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                    <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                  Presets & Scenes
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  Quick ratio starts below. Open Menu for built-in scenes, save, export, and scene files.
+                </p>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                Open Menu
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(PRESET_RATIOS).slice(0, 6).map(([label, preset]) => (
+                <button
+                  key={label}
+                  onClick={() => handleLoadPreset(preset)}
+                  className="px-3 py-2 rounded-xl text-[11px] font-mono"
+                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {helpOpen && (
+          <>
+            <div className="fixed inset-0 z-30 bg-black/35 backdrop-blur-sm" onClick={() => setHelpOpen(false)} />
+            <div
+              className="fixed left-3 right-3 bottom-6 z-40 rounded-2xl border p-4"
+              style={{
+                background: 'rgba(17,17,22,0.94)',
+                backdropFilter: 'blur(16px)',
+                borderColor: 'rgba(255,255,255,0.12)',
+              }}
+            >
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Quick Help
+              </div>
+              <div className="mt-3 space-y-2 text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                <p><span style={{ color: '#00FFAA' }}>Standard</span> connects all active orbits into one shared field.</p>
+                <p><span style={{ color: '#88CCFF' }}>Interference</span> traces a live path from the selected pair.</p>
+                <p><span style={{ color: '#FFAA00' }}>Sweep</span> draws a finite sampled figure from the selected pair.</p>
+                <p>Long-press an orbit to edit color or note role. Use Menu for deeper controls and scenes.</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        <OrbitSidebar
+          orbits={engineState.orbits}
+          isOpen={sidebarOpen}
+          harmonySettings={harmonySettings}
+          geometryMode={geometryMode}
+          interferenceSettings={interferenceSettings}
+          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description }) => ({ id, name, description }))}
+          savedScenes={savedScenes}
+          onClose={() => setSidebarOpen(false)}
+          onUpdateOrbit={handleUpdateOrbit}
+          onDeleteOrbit={handleDeleteOrbit}
+          onAddOrbit={handleAddOrbit}
+          onLoadPreset={handleLoadPreset}
+          onReverseDirections={handleReverseDirections}
+          onAllClockwise={handleAllClockwise}
+          onAlternateDirections={handleAlternateDirections}
+          onGeometryModeChange={handleGeometryModeChange}
+          onInterferenceSettingsChange={handleInterferenceSettingsChange}
+          onHarmonyChange={handleHarmonyChange}
+          onSaveScene={handleSaveScene}
+          onSaveSceneAs={handleSaveSceneAs}
+          onLoadScene={handleLoadScene}
+          onLoadBuiltInScene={handleLoadBuiltInScene}
+          onDeleteScene={handleDeleteScene}
+          onExportScene={handleExportScene}
+          onImportScene={handleImportScene}
+          onExportPng={handleExportPng}
+        />
+
+        {radialMenu && (
+          <RadialMenu
+            x={radialMenu.x}
+            y={radialMenu.y}
+            orbitId={radialMenu.orbitId}
+            orbitColor={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'}
+            orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
+            orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
+            harmonySettings={harmonySettings}
+            onChangeColor={handleRadialColorChange}
+            onChangeHarmony={handleHarmonyChange}
+            onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}
+            onDelete={handleDeleteOrbit}
+            onClose={() => setRadialMenu(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'}>
