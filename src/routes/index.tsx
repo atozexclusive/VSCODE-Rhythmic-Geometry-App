@@ -992,6 +992,44 @@ function OrbitalPolymeter() {
             className="rounded-2xl border p-4 space-y-4"
             style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
           >
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={handleTogglePlay}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{
+                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
+                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
+                  color: engineState.playing ? '#FF3366' : '#00FFAA',
+                }}
+              >
+                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
+              </button>
+              <button
+                onClick={handleStepForward}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
+              >
+                <SkipForward size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
+              >
+                <RotateCcw size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
+              </button>
+              <button
+                onClick={handleToggleMute}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
+              >
+                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
+              </button>
+            </div>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -1033,44 +1071,6 @@ function OrbitalPolymeter() {
               <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 Control motion first, then shape the ratios below.
               </div>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={handleTogglePlay}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{
-                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
-                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
-                  color: engineState.playing ? '#FF3366' : '#00FFAA',
-                }}
-              >
-                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
-              </button>
-              <button
-                onClick={handleStepForward}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
-              >
-                <SkipForward size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
-              >
-                <RotateCcw size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
-              </button>
-              <button
-                onClick={handleToggleMute}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
-              >
-                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
-              </button>
             </div>
           </div>
 

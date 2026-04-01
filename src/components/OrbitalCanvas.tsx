@@ -194,7 +194,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         const cx = w / 2;
-        const cy = h / 2;
+        const cy = isMobile ? h * 0.43 : h / 2;
 
         const state = engineRef.current;
         const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
