@@ -1030,48 +1030,6 @@ function OrbitalPolymeter() {
                 <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
               </button>
             </div>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
-                </div>
-                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  {modeDescription}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleToggleTrace}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
-                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
-                  }}
-                >
-                  {traceMode ? 'Trace On' : 'Trace Off'}
-                </button>
-                <button
-                  onClick={() => setHelpOpen((open) => !open)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <CircleHelp size={18} />
-                </button>
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <Menu size={18} />
-                </button>
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Control motion first, then shape the ratios below.
-              </div>
-            </div>
           </div>
 
           <div
@@ -1136,6 +1094,43 @@ function OrbitalPolymeter() {
               <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 Choose the drawing method, then shape speed and direction.
               </p>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  {modeDescription}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleToggleTrace}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
+                  }}
+                >
+                  {traceMode ? 'Trace On' : 'Trace Off'}
+                </button>
+                <button
+                  onClick={() => setHelpOpen((open) => !open)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <CircleHelp size={18} />
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                >
+                  <Menu size={18} />
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
