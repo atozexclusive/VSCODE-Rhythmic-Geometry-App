@@ -963,10 +963,10 @@ function OrbitalPolymeter() {
 
   if (isMobile) {
     return (
-      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] px-3 pt-3 pb-8 select-none">
+      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
           <div
-            className="rounded-2xl border px-4 py-3"
+            className="mx-3 rounded-2xl border px-4 py-3"
             style={{
               background: 'rgba(17,17,22,0.92)',
               backdropFilter: 'blur(14px)',
@@ -1039,14 +1039,7 @@ function OrbitalPolymeter() {
             </div>
           </div>
 
-          <div
-            className="rounded-[24px] border p-3"
-            style={{
-              background: 'rgba(13,16,28,0.96)',
-              borderColor: 'rgba(255,255,255,0.08)',
-              boxShadow: '0 18px 48px rgba(0,0,0,0.28)',
-            }}
-          >
+          <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 px-1 pb-3">
               <div>
                 <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -1065,10 +1058,10 @@ function OrbitalPolymeter() {
                   color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
                 }}
               >
-                {traceMode ? 'Trace On' : 'Trace Off'}
-              </button>
-            </div>
-            <div className="relative h-[54svh] min-h-[360px] rounded-[20px] overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  {traceMode ? 'Trace On' : 'Trace Off'}
+                </button>
+              </div>
+            <div className="relative h-[72svh] min-h-[500px] overflow-hidden">
               <OrbitalCanvas
                 ref={canvasRef}
                 engineState={engineState}
@@ -1080,13 +1073,65 @@ function OrbitalPolymeter() {
                 className="absolute inset-0 w-full h-full"
               />
             </div>
-            <div className="flex items-center justify-between gap-3 px-1 pt-3">
+            <div className="flex items-center justify-between gap-3 px-4 pt-1">
               <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
                 Long-press an orbit to edit color or note role.
               </div>
               <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 {engineState.speedMultiplier.toFixed(1)}x
               </div>
+            </div>
+          </div>
+
+          <div
+            className="rounded-2xl border p-4 space-y-4"
+            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
+          >
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                Playback
+              </div>
+              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Control motion first, then shape the ratios below.
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={handleTogglePlay}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{
+                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
+                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
+                  color: engineState.playing ? '#FF3366' : '#00FFAA',
+                }}
+              >
+                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
+              </button>
+              <button
+                onClick={handleStepForward}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
+              >
+                <SkipForward size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
+              >
+                <RotateCcw size={19} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
+              </button>
+              <button
+                onClick={handleToggleMute}
+                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
+                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
+              >
+                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
+                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
+              </button>
             </div>
           </div>
 
