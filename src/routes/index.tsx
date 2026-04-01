@@ -487,6 +487,7 @@ function OrbitalPolymeter() {
   const rerender = useCallback(() => setTick((t) => t + 1), []);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
@@ -899,6 +900,26 @@ function OrbitalPolymeter() {
     }
   }, []);
 
+  const normalizedPairSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+  const activePairControls = (
+    geometryMode === 'standard-trace'
+      ? []
+      : [normalizedPairSettings.sourceOrbitAId, normalizedPairSettings.sourceOrbitBId]
+          .filter((orbitId): orbitId is string => Boolean(orbitId))
+          .map((orbitId, index) => {
+            const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
+            if (!orbit) {
+              return null;
+            }
+            return {
+              id: orbit.id,
+              label: index === 0 ? 'Pair A' : 'Pair B',
+              pulseCount: orbit.pulseCount,
+            };
+          })
+          .filter((orbit): orbit is { id: string; label: string; pulseCount: number } => Boolean(orbit))
+  );
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#111116] select-none">
       {/* Canvas */}
@@ -935,16 +956,45 @@ function OrbitalPolymeter() {
           style={{ color: 'rgba(255, 255, 255, 0.15)' }}
         >
           {isMobile ? (
-            'Tap an orbit to edit color. Use Menu for scenes, sound, and interference routing.'
+            'Tap an orbit to edit color. Use Help for mode guidance and Menu for deeper settings.'
           ) : (
             <>
               tap orbit for color controls
               <br />
-              use menu for scenes, sound, and routing
+              use help for mode guidance
             </>
           )}
         </p>
       </div>
+
+      {helpOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm"
+            onClick={() => setHelpOpen(false)}
+          />
+          <div
+            className={`fixed z-40 rounded-2xl border ${isMobile ? 'left-3 right-3 bottom-36 p-4' : 'right-6 bottom-28 w-[360px] p-5'}`}
+            style={{
+              background: 'rgba(17, 17, 22, 0.9)',
+              backdropFilter: 'blur(16px)',
+              borderColor: 'rgba(255, 255, 255, 0.12)',
+            }}
+          >
+            <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              Quick Help
+            </div>
+            <div className="mt-3 space-y-3 text-[11px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+              <p><span style={{ color: '#00FFAA' }}>Standard</span> connects all active orbits into a shared string-art field.</p>
+              <p><span style={{ color: '#88CCFF' }}>Interference</span> traces one live path from the relationship between the selected pair.</p>
+              <p><span style={{ color: '#FFAA00' }}>Sweep</span> plots a finite sampled figure from the selected pair using the old canonical sweep.</p>
+              <p>Pair controls only matter in Interference and Sweep. They choose which two orbits generate the pair path.</p>
+              <p><span style={{ color: '#00FFAA' }}>Trace</span> keeps drawing motion history so the full structure can accumulate.</p>
+              <p>If you are new: pick a mode, press Play, try a built-in scene, then change one ratio at a time.</p>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Transport Bar */}
       <TransportBar
@@ -952,12 +1002,12 @@ function OrbitalPolymeter() {
         speedMultiplier={engineState.speedMultiplier}
         traceMode={traceMode}
         muted={muted}
+        showHelp={helpOpen}
         geometryMode={geometryMode}
-        quickOrbitControls={engineState.orbits.slice(0, 2).map((orbit, index) => ({
-          id: orbit.id,
-          label: index === 0 ? 'Ratio A' : 'Ratio B',
-          pulseCount: orbit.pulseCount,
-        }))}
+        tonePreset={harmonySettings.tonePreset}
+        rootNote={harmonySettings.rootNote}
+        scaleName={harmonySettings.scaleName}
+        quickOrbitControls={activePairControls}
         onAdjustQuickOrbit={handleAdjustQuickOrbit}
         onSetQuickOrbit={handleSetQuickOrbit}
         onGeometryModeChange={handleGeometryModeChange}
@@ -970,6 +1020,10 @@ function OrbitalPolymeter() {
         onSpeedChange={handleSpeedChange}
         onToggleTrace={handleToggleTrace}
         onToggleMute={handleToggleMute}
+        onToggleHelp={() => setHelpOpen((open) => !open)}
+        onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
+        onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
+        onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
         onReset={handleReset}
         onOpenSidebar={() => setSidebarOpen(true)}
       />
@@ -1013,7 +1067,12 @@ function OrbitalPolymeter() {
           orbitColor={
             engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'
           }
+          orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
+          orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
+          harmonySettings={harmonySettings}
           onChangeColor={handleRadialColorChange}
+          onChangeHarmony={handleHarmonyChange}
+          onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}
           onDelete={handleDeleteOrbit}
           onClose={() => setRadialMenu(null)}
         />

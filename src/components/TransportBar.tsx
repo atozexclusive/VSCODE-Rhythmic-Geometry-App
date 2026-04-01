@@ -3,9 +3,12 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
+import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
+import InfoTip from './InfoTip';
 
 interface TransportBarProps {
   playing: boolean;
@@ -13,6 +16,10 @@ interface TransportBarProps {
   traceMode: boolean;
   muted: boolean;
   geometryMode: GeometryMode;
+  showHelp: boolean;
+  tonePreset: TonePreset;
+  rootNote: RootNote;
+  scaleName: ScaleName;
   quickOrbitControls: Array<{
     id: string;
     label: string;
@@ -30,6 +37,10 @@ interface TransportBarProps {
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
   onToggleMute: () => void;
+  onToggleHelp: () => void;
+  onSoundModeChange: (tonePreset: TonePreset) => void;
+  onRootNoteChange: (rootNote: RootNote) => void;
+  onScaleChange: (scaleName: ScaleName) => void;
   onReset: () => void;
   onOpenSidebar: () => void;
 }
@@ -40,6 +51,10 @@ export default function TransportBar({
   traceMode,
   muted,
   geometryMode,
+  showHelp,
+  tonePreset,
+  rootNote,
+  scaleName,
   quickOrbitControls,
   onAdjustQuickOrbit,
   onSetQuickOrbit,
@@ -53,14 +68,25 @@ export default function TransportBar({
   onSpeedChange,
   onToggleTrace,
   onToggleMute,
+  onToggleHelp,
+  onSoundModeChange,
+  onRootNoteChange,
+  onScaleChange,
   onReset,
   onOpenSidebar,
 }: TransportBarProps) {
   const isMobile = useIsMobile();
+  const [mobilePanel, setMobilePanel] = useState<'none' | 'pair' | 'sound'>('none');
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
+  const modeDescription =
+    geometryMode === 'standard-trace'
+      ? 'Connects all active orbits into a shared string-art field.'
+      : geometryMode === 'interference-trace'
+        ? 'Traces one live path from the relationship between the selected pair.'
+        : 'Plots a finite sampled figure from the selected pair using the canonical sweep.';
 
   return (
     <div
@@ -76,87 +102,168 @@ export default function TransportBar({
     >
       <div className={`pointer-events-auto ${isMobile ? 'px-3 pt-3 space-y-2' : 'px-6 pt-3'}`}>
         {isMobile ? (
-          <div
-            className="w-full rounded-xl border px-3 py-2 space-y-2"
-            style={{
-              background: 'rgba(17, 17, 22, 0.88)',
-              backdropFilter: 'blur(12px)',
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-            }}
-          >
-            <div className="flex items-center gap-2 justify-between">
-              <button
-                onClick={() => onGeometryModeChange('standard-trace')}
-                className={compactButtonStyle}
-                style={{
-                  background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                  color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                }}
-              >
-                Standard
-              </button>
-              <button
-                onClick={() => onGeometryModeChange('interference-trace')}
-                className={compactButtonStyle}
-                style={{
-                  background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                  color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
-                }}
-              >
-                Interference
-              </button>
-              <button
-                onClick={() => onGeometryModeChange('sweep')}
-                className={compactButtonStyle}
-                style={{
-                  background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                  color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
-                }}
-              >
-                Sweep
-              </button>
-            </div>
-            {geometryMode !== 'standard-trace' && (
-              <div className="flex items-center gap-2 justify-between">
-                {quickOrbitControls.map((orbit) => (
-                  <div
-                    key={orbit.id}
-                    className="flex items-center gap-1 rounded-lg px-2 py-1.5"
+          <div className="space-y-2">
+            <div
+              className="w-full rounded-xl border px-3 py-3 space-y-2"
+              style={{
+                background: 'rgba(17, 17, 22, 0.88)',
+                backdropFilter: 'blur(12px)',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => onGeometryModeChange('standard-trace')}
+                  className={`${compactButtonStyle} flex-1`}
+                  style={{
+                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => onGeometryModeChange('interference-trace')}
+                  className={`${compactButtonStyle} flex-1`}
+                  style={{
+                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                >
+                  Interference
+                </button>
+                <button
+                  onClick={() => onGeometryModeChange('sweep')}
+                  className={`${compactButtonStyle} flex-1`}
+                  style={{
+                    background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                >
+                  Sweep
+                </button>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[10px] leading-relaxed flex-1" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                  {modeDescription}
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setMobilePanel((current) => (current === 'sound' ? 'none' : 'sound'))}
+                    className={`${compactButtonStyle} px-3`}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      background: mobilePanel === 'sound' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${mobilePanel === 'sound' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255,255,255,0.12)'}`,
+                      color: mobilePanel === 'sound' ? '#00FFAA' : 'rgba(255,255,255,0.72)',
                     }}
                   >
-                    <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      {orbit.label}
-                    </span>
-                    <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={orbit.pulseCount}
-                      onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="w-10 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                    Sound
+                  </button>
+                  {geometryMode !== 'standard-trace' && (
+                    <button
+                      onClick={() => setMobilePanel((current) => (current === 'pair' ? 'none' : 'pair'))}
+                      className={`${compactButtonStyle} px-3`}
                       style={{
-                        color: 'rgba(255, 255, 255, 0.82)',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                        background: mobilePanel === 'pair' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${mobilePanel === 'pair' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255,255,255,0.12)'}`,
+                        color: mobilePanel === 'pair' ? '#88CCFF' : 'rgba(255,255,255,0.72)',
                       }}
-                    />
-                    <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="w-6 h-6 rounded-md text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
-                  </div>
-                ))}
+                    >
+                      Pair
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-            <div className="flex items-center gap-2 justify-between">
-              <button onClick={onReverseDirections} className={directionButtonStyle} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.78)' }}>Reverse</button>
-              <button onClick={onAllClockwise} className={directionButtonStyle} style={{ background: 'rgba(0, 255, 170, 0.08)', border: '1px solid rgba(0, 255, 170, 0.2)', color: '#00FFAA' }}>All CW</button>
-              <button onClick={onAlternateDirections} className={directionButtonStyle} style={{ background: 'rgba(51, 136, 255, 0.08)', border: '1px solid rgba(51, 136, 255, 0.2)', color: '#88CCFF' }}>Alternate</button>
+
+              {mobilePanel === 'sound' && (
+                <div
+                  className="rounded-xl border p-3 space-y-3"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
+                      className={`${compactButtonStyle} flex-1`}
+                      style={{
+                        background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                        border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                        color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                      }}
+                    >
+                      {tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+                    </button>
+                    {tonePreset === 'scale-quantized' && (
+                      <select
+                        value={rootNote}
+                        onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
+                        className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono focus:outline-none"
+                        style={{ color: 'rgba(255,255,255,0.82)' }}
+                      >
+                        {NOTE_NAMES.map((note) => (
+                          <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  {tonePreset === 'scale-quantized' && (
+                    <select
+                      value={scaleName}
+                      onChange={(e) => onScaleChange(e.target.value as ScaleName)}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono focus:outline-none"
+                      style={{ color: 'rgba(255,255,255,0.82)' }}
+                    >
+                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                        <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {mobilePanel === 'pair' && geometryMode !== 'standard-trace' && (
+                <div
+                  className="rounded-xl border p-3 space-y-3"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  {quickOrbitControls.map((orbit) => (
+                    <div key={orbit.id} className="grid grid-cols-[56px,36px,1fr,36px] gap-2 items-center">
+                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        {orbit.label}
+                      </span>
+                      <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="h-9 rounded-lg text-[13px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={orbit.pulseCount}
+                        onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="h-9 rounded-lg border text-center text-[12px] font-mono focus:outline-none"
+                        style={{
+                          color: 'rgba(255, 255, 255, 0.82)',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          borderColor: 'rgba(255, 255, 255, 0.08)',
+                        }}
+                      />
+                      <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="h-9 rounded-lg text-[13px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={onReverseDirections} className={directionButtonStyle} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.78)' }}>Reverse</button>
+                    <button onClick={onAllClockwise} className={directionButtonStyle} style={{ background: 'rgba(0, 255, 170, 0.08)', border: '1px solid rgba(0, 255, 170, 0.2)', color: '#00FFAA' }}>All CW</button>
+                    <button onClick={onAlternateDirections} className={directionButtonStyle} style={{ background: 'rgba(51, 136, 255, 0.08)', border: '1px solid rgba(51, 136, 255, 0.2)', color: '#88CCFF' }}>Alternate</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -214,6 +321,58 @@ export default function TransportBar({
                 >
                   Sweep
                 </button>
+              </div>
+              <p className="max-w-[380px] text-center text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                {modeDescription}
+              </p>
+              <div
+                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
+                style={{
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                }}
+              >
+                <div className="flex items-center gap-1">
+                  <button
+                  onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
+                  className={compactButtonStyle}
+                  style={{
+                    background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                  }}
+                  title="Switch between the original sound palette and the scale-based harmony mode"
+                >
+                  {tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+                  </button>
+                  <InfoTip text="Switch between the original tone palette and the key-and-scale harmony mode." />
+                </div>
+                {tonePreset === 'scale-quantized' && (
+                  <>
+                    <select
+                      value={rootNote}
+                      onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
+                      className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
+                      style={{ color: 'rgba(255,255,255,0.82)' }}
+                      title="Global key center"
+                    >
+                      {NOTE_NAMES.map((note) => (
+                        <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={scaleName}
+                      onChange={(e) => onScaleChange(e.target.value as ScaleName)}
+                      className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
+                      style={{ color: 'rgba(255,255,255,0.82)' }}
+                      title="Global scale"
+                    >
+                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                        <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
               {geometryMode !== 'standard-trace' && (
                 <div
@@ -318,8 +477,154 @@ export default function TransportBar({
         )}
       </div>
 
+      {isMobile ? (
+        <div className="px-3 pointer-events-auto">
+          <div
+            className="rounded-2xl border p-3 space-y-3"
+            style={{
+              background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.76))',
+              backdropFilter: 'blur(12px)',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+            }}
+          >
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={onTogglePlay}
+                className={mobileIconButtonStyle}
+                style={{
+                  background: playing ? 'rgba(255, 51, 102, 0.2)' : 'rgba(0, 255, 170, 0.2)',
+                  border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.4)' : 'rgba(0, 255, 170, 0.4)'}`,
+                  color: playing ? '#FF3366' : '#00FFAA',
+                }}
+                title={playing ? 'Pause motion and freeze the current state' : 'Start playback and let the system run continuously'}
+              >
+                {playing ? <Pause size={20} /> : <Play size={20} />}
+                <span className="text-[10px] font-mono uppercase tracking-wider">{playing ? 'Pause' : 'Play'}</span>
+              </button>
+              <button
+                onClick={onStepForward}
+                className={mobileIconButtonStyle}
+                style={{
+                  background: 'rgba(51, 136, 255, 0.16)',
+                  border: '1px solid rgba(51, 136, 255, 0.32)',
+                  color: '#3388FF',
+                }}
+                title="Advance the geometry by one small step while paused"
+              >
+                <SkipForward size={20} />
+                <span className="text-[10px] font-mono uppercase tracking-wider">Step</span>
+              </button>
+              <button
+                onClick={onReset}
+                className={mobileIconButtonStyle}
+                style={{
+                  background: 'rgba(255, 170, 0, 0.15)',
+                  border: '1px solid rgba(255, 170, 0, 0.3)',
+                  color: '#FFAA00',
+                }}
+                title="Reset motion back to the beginning and clear all traces"
+              >
+                <RotateCcw size={20} />
+                <span className="text-[10px] font-mono uppercase tracking-wider">Reset</span>
+              </button>
+              <button
+                onClick={onOpenSidebar}
+                className={mobileIconButtonStyle}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                }}
+                title="Open sidebar"
+              >
+                <Menu size={20} />
+                <span className="text-[10px] font-mono uppercase tracking-wider">Menu</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Zap size={14} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                    Speed {speedMultiplier.toFixed(2)}×
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  10.0× max
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="10.0"
+                step="0.1"
+                value={speedMultiplier}
+                onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+                className="w-full h-1 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
+                  WebkitAppearance: 'none',
+                }}
+                title="Speed multiplier (0.1x to 10.0x)"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={onToggleTrace}
+                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={{
+                  background: traceMode ? 'rgba(0, 255, 170, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.5)',
+                }}
+                title="Toggle trace mode (sweep geometry)"
+              >
+                {traceMode ? 'TRACE ON' : 'TRACE OFF'}
+              </button>
+              <button
+                onClick={onClearTraces}
+                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.14)',
+                  color: 'rgba(255, 255, 255, 0.75)',
+                }}
+                title="Clear trace history only. Keep the current orbits, speed, and motion state."
+              >
+                CLEAR
+              </button>
+              <button
+                onClick={onToggleMute}
+                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={{
+                  background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.6)',
+                }}
+                title={muted ? 'Unmute audio' : 'Mute audio'}
+              >
+                {muted ? 'MUTED' : 'AUDIO'}
+              </button>
+              <button
+                onClick={onToggleHelp}
+                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={{
+                  background: showHelp ? 'rgba(0, 255, 170, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+                  border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+                  color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.6)',
+                }}
+                title="Show quick help"
+              >
+                HELP
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div
-        className={`${isMobile ? 'flex flex-col gap-3 px-3 py-3' : 'flex items-center justify-between px-6 py-3'} pointer-events-auto`}
+        className="flex items-center justify-between px-6 py-3 pointer-events-auto"
         style={{
           background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
           backdropFilter: 'blur(12px)',
@@ -327,11 +632,11 @@ export default function TransportBar({
         }}
       >
         {/* Left: Playback + Step + Clear + Reset */}
-        <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
+        <div className="flex items-center gap-3">
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
+            className={iconButtonStyle}
             style={{
               background: playing
                 ? 'rgba(255, 51, 102, 0.2)'
@@ -349,7 +654,7 @@ export default function TransportBar({
 
           <button
             onClick={onStepForward}
-            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
+            className={iconButtonStyle}
             style={{
               background: 'rgba(51, 136, 255, 0.16)',
               border: '1px solid rgba(51, 136, 255, 0.32)',
@@ -365,7 +670,7 @@ export default function TransportBar({
 
           <button
             onClick={onClearTraces}
-            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
+            className={iconButtonStyle}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.14)',
@@ -382,7 +687,7 @@ export default function TransportBar({
           {/* Reset */}
           <button
             onClick={onReset}
-            className={isMobile ? mobileIconButtonStyle : iconButtonStyle}
+            className={iconButtonStyle}
             style={{
               background: 'rgba(255, 170, 0, 0.15)',
               border: '1px solid rgba(255, 170, 0, 0.3)',
@@ -398,7 +703,7 @@ export default function TransportBar({
         </div>
 
         {/* Center: Speed Multiplier */}
-        <div className={`flex items-center gap-4 ${isMobile ? 'w-full' : 'flex-1 mx-8'}`}>
+        <div className="flex items-center gap-4 flex-1 mx-8">
           <div className="flex items-center gap-2">
             <Zap size={16} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
             <span
@@ -431,10 +736,10 @@ export default function TransportBar({
         </div>
 
         {/* Right: Trace Toggle + Sidebar Menu */}
-        <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
+        <div className="flex items-center gap-3">
           <button
             onClick={onToggleMute}
-            className={`${isMobile ? '' : ''} px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95`}
+            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
               background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
               border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
@@ -451,7 +756,7 @@ export default function TransportBar({
           {/* Trace Toggle */}
           <button
             onClick={onToggleTrace}
-            className={`${isMobile ? 'flex-1' : ''} px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95`}
+            className="px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
               background: traceMode
                 ? 'rgba(0, 255, 170, 0.2)'
@@ -463,11 +768,28 @@ export default function TransportBar({
           >
             {traceMode ? '● TRACE' : '○ TRACE'}
           </button>
+          {!isMobile && <InfoTip text="Trace keeps drawing motion history so the structure can accumulate over time." />}
+
+          <button
+            onClick={onToggleHelp}
+            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              background: showHelp ? 'rgba(0, 255, 170, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
+              color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.6)',
+            }}
+            title="Show quick help"
+          >
+            <span className="flex items-center gap-2">
+              <CircleHelp size={16} />
+              <span>Help</span>
+            </span>
+          </button>
 
           {/* Sidebar Menu */}
           <button
             onClick={onOpenSidebar}
-            className={`${isMobile ? 'px-4 py-2' : 'p-3'} rounded-lg transition-all duration-200 hover:scale-110 active:scale-95`}
+            className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -475,14 +797,11 @@ export default function TransportBar({
             }}
             title="Open sidebar"
           >
-            {isMobile ? (
-              <span className="text-xs font-mono uppercase tracking-wider">Menu</span>
-            ) : (
-              <Menu size={20} />
-            )}
+            <Menu size={20} />
           </button>
         </div>
       </div>
+      )}
 
       {/* Custom range input styling */}
       <style>{`

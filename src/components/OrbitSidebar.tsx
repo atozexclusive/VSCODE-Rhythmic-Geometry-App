@@ -7,6 +7,7 @@ import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Orbit } from '../lib/orbitalEngine';
 import { PRESET_RATIOS } from '../lib/orbitalEngine';
+import InfoTip from './InfoTip';
 import {
   NOTE_NAMES,
   SCALE_PRESETS,
@@ -97,10 +98,16 @@ export default function OrbitSidebar({
   onExportPng,
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<'orbits' | 'scenes' | 'presets' | 'sound' | 'view'>('orbits');
+  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes'>('geometry');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const currentModeLabel =
+    geometryMode === 'standard-trace'
+      ? 'Standard'
+      : geometryMode === 'interference-trace'
+        ? 'Interference'
+        : 'Sweep';
 
   return (
     <>
@@ -143,7 +150,7 @@ export default function OrbitSidebar({
 
         {/* Tabs */}
         <div className={`flex gap-1 border-b border-white/5 ${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4'}`}>
-          {(['orbits', 'scenes', 'presets', 'sound', 'view'] as const).map((tab) => (
+          {(['geometry', 'orbits', 'sound', 'scenes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -164,6 +171,14 @@ export default function OrbitSidebar({
           {/* ORBITS TAB */}
           {activeTab === 'orbits' && (
             <div className="space-y-3">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Orbits
+                </div>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Shape the motion, spacing, direction, and color of each orbit.
+                </p>
+              </div>
               {orbits.length === 0 ? (
                 <p className="text-xs text-center py-8" style={{ color: 'rgba(255, 255, 255, 0.3)' }}>
                   No orbits. Add one to begin.
@@ -188,9 +203,14 @@ export default function OrbitSidebar({
                           className="w-3 h-3 rounded-full"
                           style={{ background: orbit.color, boxShadow: `0 0 8px ${orbit.color}` }}
                         />
-                        <span className="text-xs font-mono" style={{ color: orbit.color }}>
-                          {orbit.pulseCount} pulses
-                        </span>
+                        <div className="text-left">
+                          <div className="text-xs font-mono" style={{ color: orbit.color }}>
+                            Orbit {orbits.findIndex((entry) => entry.id === orbit.id) + 1}
+                          </div>
+                          <div className="text-[10px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                            {orbit.pulseCount} pulses · {orbit.direction === 1 ? 'CW' : 'CCW'} · {orbit.radius}px
+                          </div>
+                        </div>
                       </div>
                       <ChevronDown
                         size={16}
@@ -205,7 +225,11 @@ export default function OrbitSidebar({
                     {/* Expanded Controls */}
                     {expandedOrbit === orbit.id && (
                       <div className="px-3 pb-3 space-y-3 border-t border-white/5 pt-3">
-                        {/* Pulse Count Stepper */}
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                            Motion
+                          </div>
+                        </div>
                         <div>
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                             Pulses
@@ -250,7 +274,6 @@ export default function OrbitSidebar({
                           </div>
                         </div>
 
-                        {/* Radius Slider */}
                         <div>
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                             Radius: {orbit.radius}px
@@ -272,7 +295,6 @@ export default function OrbitSidebar({
                           />
                         </div>
 
-                        {/* Direction Toggle */}
                         <div>
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                             Direction
@@ -301,7 +323,11 @@ export default function OrbitSidebar({
                           </div>
                         </div>
 
-                        {/* Color Grid */}
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                            Appearance
+                          </div>
+                        </div>
                         <div>
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                             Color
@@ -324,6 +350,11 @@ export default function OrbitSidebar({
 
                         {harmonySettings.tonePreset === 'scale-quantized' && harmonySettings.manualOrbitRoles && (
                           <>
+                            <div>
+                              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                                Note Role
+                              </div>
+                            </div>
                             <div>
                               <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                                 Scale Degree
@@ -404,29 +435,6 @@ export default function OrbitSidebar({
                 <Plus size={16} />
                 Add Orbit
               </button>
-            </div>
-          )}
-
-          {/* PRESETS TAB */}
-          {activeTab === 'presets' && (
-            <div className="space-y-2">
-              {Object.entries(PRESET_RATIOS).map(([name, ratios]) => (
-                <button
-                  key={name}
-                  onClick={() => onLoadPreset(ratios)}
-                  className="w-full px-4 py-3 rounded-lg border transition-all duration-200 hover:bg-white/5 text-left"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                  }}
-                >
-                  <div className="text-xs font-mono font-light">{name}</div>
-                  <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                    {ratios.join(' : ')}
-                  </div>
-                </button>
-              ))}
             </div>
           )}
 
@@ -621,150 +629,206 @@ export default function OrbitSidebar({
             <div className="space-y-4">
               <div>
                 <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Harmony
+                  Sound
                 </div>
-                <p className="text-[10px] mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  The original tone set stays as the main preset. Scale quantization is optional.
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Choose whether the system sounds raw, key-based, or orbit-shaped inside a musical scale.
                 </p>
               </div>
 
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Tone Preset
-                </label>
+              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                    Sound Mode
+                  </div>
+                  <InfoTip text="Original keeps the old sound palette. Scale Quantized locks the system into a musical key and scale." />
+                </div>
                 <select
                   value={harmonySettings.tonePreset}
                   onChange={(e) => onHarmonyChange({ tonePreset: e.target.value as TonePreset })}
-                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
                   style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                 >
                   <option value="original" style={{ background: '#181820' }}>Original</option>
                   <option value="scale-quantized" style={{ background: '#181820' }}>Scale Quantized</option>
                 </select>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  `Original` keeps the old sound behavior. `Scale Quantized` snaps notes into a musical scale so the system sounds more intentionally harmonic.
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  `Original` keeps the old tone behavior. `Scale Quantized` locks the system into a musical key and scale.
                 </p>
               </div>
 
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Root Note
-                </label>
-                <select
-                  value={harmonySettings.rootNote}
-                  onChange={(e) => onHarmonyChange({ rootNote: e.target.value as RootNote })}
-                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
-                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                    Key and Scale
+                  </div>
+                  <InfoTip text="These are global. They define the tonal home base and note palette for the whole system." />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      Key Center
+                    </label>
+                    <InfoTip text="The tonal home base. Changing it shifts the whole mood without changing the rhythm." />
+                  </div>
+                  <select
+                    value={harmonySettings.rootNote}
+                    onChange={(e) => onHarmonyChange({ rootNote: e.target.value as RootNote })}
+                    className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    {NOTE_NAMES.map((note) => (
+                      <option key={note} value={note} style={{ background: '#181820' }}>
+                        {note}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                    This is the tonal home base for the whole system.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      Scale
+                    </label>
+                    <InfoTip text="The set of notes the system is allowed to use." />
+                  </div>
+                  <select
+                    value={harmonySettings.scaleName}
+                    onChange={(e) => onHarmonyChange({ scaleName: e.target.value as ScaleName })}
+                    className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    {Object.entries(SCALE_PRESETS).map(([scaleName, scale]) => (
+                      <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
+                        {scale.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                    The scale is the note palette the system is allowed to use.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                    Note Assignment
+                  </div>
+                  <InfoTip text="Choose whether the app assigns notes automatically or lets each orbit take its own role inside the key." />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                      Auto Note Mapping
+                    </label>
+                    <InfoTip text="When per-orbit roles are off, this decides how the system chooses notes." />
+                  </div>
+                  <select
+                    value={harmonySettings.mappingMode}
+                    onChange={(e) => onHarmonyChange({ mappingMode: e.target.value as HarmonyMappingMode })}
+                    className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    <option value="color-hue" style={{ background: '#181820' }}>By Color</option>
+                    <option value="orbit-index" style={{ background: '#181820' }}>By Orbit Order</option>
+                    <option value="pulse-count" style={{ background: '#181820' }}>By Pulse Count</option>
+                    <option value="radius" style={{ background: '#181820' }}>By Radius</option>
+                  </select>
+                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                    When orbit roles are automatic, this decides how notes are chosen.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => onHarmonyChange({ manualOrbitRoles: !harmonySettings.manualOrbitRoles })}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: harmonySettings.manualOrbitRoles
+                      ? 'rgba(0, 255, 170, 0.12)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                    border: `1px solid ${harmonySettings.manualOrbitRoles ? 'rgba(0, 255, 170, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+                    color: harmonySettings.manualOrbitRoles ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
+                  }}
                 >
-                  {NOTE_NAMES.map((note) => (
-                    <option key={note} value={note} style={{ background: '#181820' }}>
-                      {note}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  The root note is the tonal home base. Changing it shifts the whole mood up or down without changing the rhythm.
+                  {harmonySettings.manualOrbitRoles ? 'Per-Orbit Note Roles On' : 'Per-Orbit Note Roles Off'}
+                </button>
+                <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                  Global key and scale shape the whole system. Manual orbit roles let each orbit choose its own place inside that system.
                 </p>
               </div>
-
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Scale
-                </label>
-                <select
-                  value={harmonySettings.scaleName}
-                  onChange={(e) => onHarmonyChange({ scaleName: e.target.value as ScaleName })}
-                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
-                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                >
-                  {Object.entries(SCALE_PRESETS).map(([scaleName, scale]) => (
-                    <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
-                      {scale.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  The scale chooses which notes are allowed. Think of it as the emotional color palette for the sound.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Mapping Mode
-                </label>
-                <select
-                  value={harmonySettings.mappingMode}
-                  onChange={(e) => onHarmonyChange({ mappingMode: e.target.value as HarmonyMappingMode })}
-                  className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
-                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                >
-                  <option value="color-hue" style={{ background: '#181820' }}>Color Hue</option>
-                  <option value="orbit-index" style={{ background: '#181820' }}>Orbit Index</option>
-                  <option value="pulse-count" style={{ background: '#181820' }}>Pulse Count</option>
-                  <option value="radius" style={{ background: '#181820' }}>Radius</option>
-                </select>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  This decides how pitches are chosen automatically:
-                  <br />
-                  `Color Hue` uses orbit color.
-                  <br />
-                  `Orbit Index` uses orbit order.
-                  <br />
-                  `Pulse Count` uses rhythm complexity.
-                  <br />
-                  `Radius` uses distance from center.
-                </p>
-              </div>
-
-              <button
-                onClick={() => onHarmonyChange({ manualOrbitRoles: !harmonySettings.manualOrbitRoles })}
-                className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                style={{
-                  background: harmonySettings.manualOrbitRoles
-                    ? 'rgba(0, 255, 170, 0.12)'
-                    : 'rgba(255, 255, 255, 0.06)',
-                  border: `1px solid ${harmonySettings.manualOrbitRoles ? 'rgba(0, 255, 170, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
-                  color: harmonySettings.manualOrbitRoles ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
-                }}
-              >
-                {harmonySettings.manualOrbitRoles ? 'Manual Orbit Roles On' : 'Manual Orbit Roles Off'}
-              </button>
-              <p className="text-[10px] -mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                When this is on, each orbit can be given its own note role and register in the `ORBITS` tab. When it is off, pitch is chosen automatically by the mapping mode above.
-              </p>
 
               <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Current Mode
+                  Current Sound
                 </div>
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
                   {harmonySettings.tonePreset === 'original'
-                    ? 'Original hue-based pentatonic voicing.'
-                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}, ${
+                    ? 'The original orbit-driven tone palette is active.'
+                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}. ${
                         harmonySettings.manualOrbitRoles
-                          ? 'using manual orbit roles.'
-                          : `mapped by ${harmonySettings.mappingMode.replace('-', ' ')}.`
+                          ? 'Each orbit can choose its own role.'
+                          : `Notes are assigned automatically ${harmonySettings.mappingMode === 'color-hue'
+                              ? 'by color'
+                              : harmonySettings.mappingMode === 'orbit-index'
+                                ? 'by orbit order'
+                                : harmonySettings.mappingMode === 'pulse-count'
+                                  ? 'by pulse count'
+                                  : 'by radius'}.`
                       }`}
                 </p>
               </div>
             </div>
           )}
 
-          {/* VIEW TAB */}
-          {activeTab === 'view' && (
+          {/* GEOMETRY TAB */}
+          {activeTab === 'geometry' && (
             <div className="space-y-4">
-              <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Geometry Routing
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Geometry
+                </div>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Choose how structure is generated and which pair drives derived modes.
+                </p>
               </div>
-              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                Geometry mode now lives on the main transport. Use this panel for deeper routing for `Interference` and `Sweep`.
-              </p>
+
+              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Start Here
+                </div>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                  Pick a mode on the main transport, press play, try a built-in scene, then change one ratio at a time.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Current Geometry Mode
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.72)' }}>
+                  {currentModeLabel}
+                </p>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+                  {geometryMode === 'standard-trace'
+                    ? 'Standard connects all active orbits into one shared field.'
+                    : geometryMode === 'interference-trace'
+                      ? 'Interference draws one live pair path from two selected orbits.'
+                      : 'Sweep plots a finite sampled figure from the selected pair.'}
+                </p>
+              </div>
 
               {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
                 <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                    Active Pair
+                  </div>
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Inner Source
+                      Pair Orbit A
                     </label>
                     <select
                       value={interferenceSettings.sourceOrbitAId ?? ''}
@@ -778,11 +842,14 @@ export default function OrbitSidebar({
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                      This is the first orbit used to build the pair path.
+                    </p>
                   </div>
 
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Outer Source
+                      Pair Orbit B
                     </label>
                     <select
                       value={interferenceSettings.sourceOrbitBId ?? ''}
@@ -796,6 +863,9 @@ export default function OrbitSidebar({
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                      This is the second orbit used to build the pair path.
+                    </p>
                   </div>
 
                   <button
@@ -807,20 +877,43 @@ export default function OrbitSidebar({
                       color: interferenceSettings.showConnectors ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
                     }}
                   >
-                    {interferenceSettings.showConnectors ? 'Live Connectors On' : 'Live Connectors Off'}
+                    {interferenceSettings.showConnectors ? 'Pair Guide Lines On' : 'Pair Guide Lines Off'}
                   </button>
+                  <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                    Guide lines show the live connection from each selected orbit into the pair path.
+                  </p>
                 </div>
               )}
 
-              <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                Orbit Pattern
+              <div className="space-y-2">
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Ratio Sets
+                </div>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Load a ready-made orbit relationship, then refine it on the main controls.
+                </p>
+                {Object.entries(PRESET_RATIOS).map(([name, ratios]) => (
+                  <button
+                    key={name}
+                    onClick={() => onLoadPreset(ratios)}
+                    className="w-full px-4 py-3 rounded-lg border transition-all duration-200 hover:bg-white/5 text-left"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  >
+                    <div className="text-xs font-mono font-light">{name}</div>
+                    <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                      {ratios.join(' : ')}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                Quick pulse and direction controls live on the main page now. Use the orbit cards for deeper per-orbit editing.
-              </p>
+
               <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  Tap an orbit directly on the canvas to change its color. Use the menu mainly for scenes, sound, exports, and interference routing.
+                  Tap an orbit directly on the canvas to change its color. Use the menu mainly for geometry choices, sound, scenes, and deeper orbit edits.
                 </p>
               </div>
             </div>
