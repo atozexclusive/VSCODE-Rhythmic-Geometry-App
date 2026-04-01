@@ -21,7 +21,7 @@ export interface Orbit {
 export interface EngineState {
   orbits: Orbit[];
   playing: boolean;
-  speedMultiplier: number;  // 0.1 – 50.0
+  speedMultiplier: number;  // 0.1 – 10.0
   elapsedBeats: number;     // master beat counter (double-precision)
   lastTimestamp: number;     // last RAF timestamp in ms
   baseBPM: number;          // reference tempo

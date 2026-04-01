@@ -10,6 +10,9 @@ interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
   traceMode: boolean;
+  onReverseDirections: () => void;
+  onAllClockwise: () => void;
+  onAlternateDirections: () => void;
   onTogglePlay: () => void;
   onStepForward: () => void;
   onClearTraces: () => void;
@@ -23,6 +26,9 @@ export default function TransportBar({
   playing,
   speedMultiplier,
   traceMode,
+  onReverseDirections,
+  onAllClockwise,
+  onAlternateDirections,
   onTogglePlay,
   onStepForward,
   onClearTraces,
@@ -34,16 +40,65 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
+  const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2.5 hover:scale-105'}`;
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-30 pointer-events-none ${isMobile ? 'h-auto' : 'h-20'}`}
+      className={`fixed bottom-0 left-0 right-0 z-30 pointer-events-none ${isMobile ? 'h-auto' : 'h-20'} relative`}
       style={{
         background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
         backdropFilter: 'blur(12px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
       }}
     >
+      <div className={`absolute pointer-events-auto ${isMobile ? 'left-3 right-3 -top-14' : 'left-1/2 -translate-x-1/2 -top-12'}`}>
+        <div
+          className={`mx-auto flex items-center gap-2 rounded-xl border ${isMobile ? 'w-full justify-between px-3 py-2' : 'w-fit px-3 py-2'}`}
+          style={{
+            background: 'rgba(17, 17, 22, 0.88)',
+            backdropFilter: 'blur(12px)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <button
+            onClick={onReverseDirections}
+            className={directionButtonStyle}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: 'rgba(255, 255, 255, 0.78)',
+            }}
+            title="Flip every orbit to the opposite direction"
+          >
+            Reverse
+          </button>
+          <button
+            onClick={onAllClockwise}
+            className={directionButtonStyle}
+            style={{
+              background: 'rgba(0, 255, 170, 0.08)',
+              border: '1px solid rgba(0, 255, 170, 0.2)',
+              color: '#00FFAA',
+            }}
+            title="Set every orbit to clockwise"
+          >
+            All CW
+          </button>
+          <button
+            onClick={onAlternateDirections}
+            className={directionButtonStyle}
+            style={{
+              background: 'rgba(51, 136, 255, 0.08)',
+              border: '1px solid rgba(51, 136, 255, 0.2)',
+              color: '#88CCFF',
+            }}
+            title="Restore alternating clockwise and counterclockwise directions"
+          >
+            Alternate
+          </button>
+        </div>
+      </div>
+
       <div className={`${isMobile ? 'flex flex-col gap-3 px-3 py-3' : 'h-full flex items-center justify-between px-6'} pointer-events-auto`}>
         {/* Left: Playback + Step + Clear + Reset */}
         <div className={`flex items-center ${isMobile ? 'justify-between gap-2' : 'gap-3'}`}>
@@ -130,7 +185,7 @@ export default function TransportBar({
           <input
             type="range"
             min="0.1"
-            max="50.0"
+            max="10.0"
             step="0.1"
             value={speedMultiplier}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
@@ -139,13 +194,13 @@ export default function TransportBar({
               background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
               WebkitAppearance: 'none',
             }}
-            title="Speed multiplier (0.1x to 50.0x)"
+            title="Speed multiplier (0.1x to 10.0x)"
           />
           <span
             className="text-xs font-mono font-light"
             style={{ color: 'rgba(255, 255, 255, 0.5)' }}
           >
-            50.0×
+            10.0×
           </span>
         </div>
 

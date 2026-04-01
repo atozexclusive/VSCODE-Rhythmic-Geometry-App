@@ -28,6 +28,7 @@ import {
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const MANUAL_STEP_BEATS = 0.25;
+const DEFAULT_SCENE_SPEED = 3;
 
 type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 
@@ -70,7 +71,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 5, radius: 216, direction: 1, color: '#3388FF', harmonyDegree: 4, harmonyRegister: 0 },
         { pulseCount: 7, radius: 276, direction: -1, color: '#FFAA00', harmonyDegree: 1, harmonyRegister: 1 },
       ],
-      speedMultiplier: 8,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -92,7 +93,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 5, radius: 210, direction: 1, color: '#FF3366', harmonyDegree: 4, harmonyRegister: 0 },
         { pulseCount: 7, radius: 270, direction: -1, color: '#3388FF', harmonyDegree: 6, harmonyRegister: 1 },
       ],
-      speedMultiplier: 10,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -114,7 +115,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 9, radius: 198, direction: 1, color: '#88CCFF', harmonyDegree: 5, harmonyRegister: 1 },
         { pulseCount: 12, radius: 258, direction: -1, color: '#FFCC00', harmonyDegree: 7, harmonyRegister: 1 },
       ],
-      speedMultiplier: 6,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -135,7 +136,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 8, radius: 176, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
         { pulseCount: 13, radius: 244, direction: 1, color: '#88CCFF', harmonyDegree: 4, harmonyRegister: 1 },
       ],
-      speedMultiplier: 4,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'original',
@@ -157,7 +158,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 8, radius: 212, direction: 1, color: '#FF4488', harmonyDegree: 4, harmonyRegister: 0 },
         { pulseCount: 13, radius: 272, direction: -1, color: '#FFCC00', harmonyDegree: 6, harmonyRegister: 1 },
       ],
-      speedMultiplier: 5.5,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -178,7 +179,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 7, radius: 196, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
         { pulseCount: 11, radius: 274, direction: 1, color: '#00FFAA', harmonyDegree: 4, harmonyRegister: 0 },
       ],
-      speedMultiplier: 3.2,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -200,7 +201,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 10, radius: 198, direction: 1, color: '#AA44FF', harmonyDegree: 4, harmonyRegister: 1 },
         { pulseCount: 15, radius: 254, direction: -1, color: '#00CCFF', harmonyDegree: 6, harmonyRegister: 1 },
       ],
-      speedMultiplier: 9,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -222,7 +223,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
         { pulseCount: 9, radius: 222, direction: 1, color: '#FF3366', harmonyDegree: 4, harmonyRegister: 0 },
         { pulseCount: 14, radius: 282, direction: -1, color: '#AA44FF', harmonyDegree: 6, harmonyRegister: 1 },
       ],
-      speedMultiplier: 6.8,
+      speedMultiplier: DEFAULT_SCENE_SPEED,
       traceMode: true,
       harmonySettings: {
         tonePreset: 'scale-quantized',
@@ -392,14 +393,6 @@ function OrbitalPolymeter() {
     rerender();
   }, [engineState, rerender]);
 
-  const handleSpeedChange = useCallback(
-    (speed: number) => {
-      engineState.speedMultiplier = speed;
-      rerender();
-    },
-    [engineState, rerender],
-  );
-
   const handleToggleTrace = useCallback(() => {
     setTraceMode((t) => !t);
   }, []);
@@ -411,6 +404,16 @@ function OrbitalPolymeter() {
     }
     rerender();
   }, [rerender]);
+
+  const handleSpeedChange = useCallback(
+    (speed: number) => {
+      engineState.speedMultiplier = Math.max(0.1, Math.min(10, speed));
+      resetEngine(engineState);
+      handleClearTraces();
+      rerender();
+    },
+    [engineState, handleClearTraces, rerender],
+  );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
     setHarmonySettings((current) => ({ ...current, ...updates }));
@@ -509,6 +512,27 @@ function OrbitalPolymeter() {
     },
     [engineState, handleClearTraces, rerender],
   );
+
+  const handleReverseDirections = useCallback(() => {
+    engineState.orbits.forEach((orbit) => {
+      orbit.direction = orbit.direction === 1 ? -1 : 1;
+    });
+    rerender();
+  }, [engineState, rerender]);
+
+  const handleAllClockwise = useCallback(() => {
+    engineState.orbits.forEach((orbit) => {
+      orbit.direction = 1;
+    });
+    rerender();
+  }, [engineState, rerender]);
+
+  const handleAlternateDirections = useCallback(() => {
+    engineState.orbits.forEach((orbit, index) => {
+      orbit.direction = index % 2 === 0 ? 1 : -1;
+    });
+    rerender();
+  }, [engineState, rerender]);
 
   const handleOrbitLongPress = useCallback(
     (orbitId: string, x: number, y: number) => {
@@ -716,6 +740,9 @@ function OrbitalPolymeter() {
         playing={engineState.playing}
         speedMultiplier={engineState.speedMultiplier}
         traceMode={traceMode}
+        onReverseDirections={handleReverseDirections}
+        onAllClockwise={handleAllClockwise}
+        onAlternateDirections={handleAlternateDirections}
         onTogglePlay={handleTogglePlay}
         onStepForward={handleStepForward}
         onClearTraces={handleClearTraces}
@@ -737,6 +764,9 @@ function OrbitalPolymeter() {
         onDeleteOrbit={handleDeleteOrbit}
         onAddOrbit={handleAddOrbit}
         onLoadPreset={handleLoadPreset}
+        onReverseDirections={handleReverseDirections}
+        onAllClockwise={handleAllClockwise}
+        onAlternateDirections={handleAlternateDirections}
         onHarmonyChange={handleHarmonyChange}
         onSaveScene={handleSaveScene}
         onSaveSceneAs={handleSaveSceneAs}
