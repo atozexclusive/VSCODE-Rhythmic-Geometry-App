@@ -12,7 +12,11 @@ import RadialMenu from '../components/RadialMenu';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
   DEFAULT_HARMONY_SETTINGS,
+  NOTE_NAMES,
+  SCALE_PRESETS,
   type HarmonySettings,
+  type RootNote,
+  type ScaleName,
   getAudioMuted,
   resumeAudio,
   stopAllAudio,
@@ -919,10 +923,17 @@ function OrbitalPolymeter() {
           })
           .filter((orbit): orbit is { id: string; label: string; pulseCount: number } => Boolean(orbit))
   );
+  const modeDescription =
+    geometryMode === 'standard-trace'
+      ? 'Shared multi-orbit string field.'
+      : geometryMode === 'interference-trace'
+        ? 'Live derived path from the selected pair.'
+        : 'Finite sampled sweep from the selected pair.';
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#111116] select-none">
+    <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'}>
       {/* Canvas */}
+      {isMobile && <div className="h-[68svh] min-h-[420px]" />}
       <OrbitalCanvas
         ref={canvasRef}
         engineState={engineState}
@@ -931,6 +942,7 @@ function OrbitalPolymeter() {
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
         onOrbitLongPress={handleOrbitLongPress}
+        className={isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : undefined}
       />
 
       {/* Title */}
@@ -956,7 +968,7 @@ function OrbitalPolymeter() {
           style={{ color: 'rgba(255, 255, 255, 0.15)' }}
         >
           {isMobile ? (
-            'Tap an orbit to edit color. Use Help for mode guidance and Menu for deeper settings.'
+            'Long-press an orbit to edit. Use Menu for deeper settings.'
           ) : (
             <>
               tap orbit for color controls
@@ -996,37 +1008,222 @@ function OrbitalPolymeter() {
         </>
       )}
 
+      {isMobile && (
+        <div className="relative z-20 px-3 pb-28 space-y-3">
+          <div
+            className="rounded-3xl border px-4 py-4 space-y-4"
+            style={{
+              background: 'linear-gradient(180deg, rgba(17,17,22,0.92), rgba(17,17,22,0.78))',
+              backdropFilter: 'blur(12px)',
+              borderColor: 'rgba(255,255,255,0.08)',
+            }}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    Geometry
+                  </div>
+                  <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {modeDescription}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.18em]"
+                  style={{
+                    color: 'rgba(255,255,255,0.7)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  More
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: 'standard-trace' as const, label: 'Standard', activeColor: '#00FFAA' },
+                  { key: 'interference-trace' as const, label: 'Interference', activeColor: '#88CCFF' },
+                  { key: 'sweep' as const, label: 'Sweep', activeColor: '#FFAA00' },
+                ].map((mode) => (
+                  <button
+                    key={mode.key}
+                    onClick={() => handleGeometryModeChange(mode.key)}
+                    className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: geometryMode === mode.key ? `${mode.activeColor}1f` : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${geometryMode === mode.key ? `${mode.activeColor}55` : 'rgba(255,255,255,0.08)'}`,
+                      color: geometryMode === mode.key ? mode.activeColor : 'rgba(255,255,255,0.74)',
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {geometryMode !== 'standard-trace' && (
+              <div
+                className="rounded-2xl border px-3 py-3 space-y-3"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  borderColor: 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    Pair Ratios
+                  </div>
+                  <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Change the two orbits that drive the current derived shape.
+                  </p>
+                </div>
+                {activePairControls.map((orbit) => (
+                  <div
+                    key={orbit.id}
+                    className="rounded-xl border px-3 py-3"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {orbit.label}
+                    </div>
+                    <div className="grid grid-cols-[44px,1fr,44px] gap-3 items-center mt-3">
+                      <button
+                        onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
+                        className="h-11 rounded-xl text-[18px] font-mono"
+                        style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.07)' }}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={orbit.pulseCount}
+                        onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="h-11 rounded-xl border text-center text-[16px] font-mono focus:outline-none"
+                        style={{
+                          color: 'rgba(255,255,255,0.88)',
+                          background: 'rgba(255,255,255,0.05)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
+                        className="h-11 rounded-xl text-[18px] font-mono"
+                        style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.07)' }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={handleReverseDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    Reverse
+                  </button>
+                  <button onClick={handleAllClockwise} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}>
+                    All CW
+                  </button>
+                  <button onClick={handleAlternateDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.08)', border: '1px solid rgba(51,136,255,0.2)' }}>
+                    Alternate
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div
+              className="rounded-2xl border px-3 py-3 space-y-3"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  Sound
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Keep sound close at hand. Deeper harmony controls still live in Menu.
+                </p>
+              </div>
+              <button
+                onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
+                className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                style={{
+                  background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.12)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.1)'}`,
+                  color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
+                }}
+              >
+                {harmonySettings.tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+              </button>
+              {harmonySettings.tonePreset === 'scale-quantized' && (
+                <div className="grid grid-cols-[92px,1fr] gap-2">
+                  <select
+                    value={harmonySettings.rootNote}
+                    onChange={(e) => handleHarmonyChange({ rootNote: e.target.value as RootNote })}
+                    className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                    style={{ color: 'rgba(255,255,255,0.82)' }}
+                  >
+                    {NOTE_NAMES.map((note) => (
+                      <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={harmonySettings.scaleName}
+                    onChange={(e) => handleHarmonyChange({ scaleName: e.target.value as ScaleName })}
+                    className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                    style={{ color: 'rgba(255,255,255,0.82)' }}
+                  >
+                    {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                      <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transport Bar */}
-      <TransportBar
-        playing={engineState.playing}
-        speedMultiplier={engineState.speedMultiplier}
-        traceMode={traceMode}
-        muted={muted}
-        showHelp={helpOpen}
-        geometryMode={geometryMode}
-        tonePreset={harmonySettings.tonePreset}
-        rootNote={harmonySettings.rootNote}
-        scaleName={harmonySettings.scaleName}
-        quickOrbitControls={activePairControls}
-        onAdjustQuickOrbit={handleAdjustQuickOrbit}
-        onSetQuickOrbit={handleSetQuickOrbit}
-        onGeometryModeChange={handleGeometryModeChange}
-        onReverseDirections={handleReverseDirections}
-        onAllClockwise={handleAllClockwise}
-        onAlternateDirections={handleAlternateDirections}
-        onTogglePlay={handleTogglePlay}
-        onStepForward={handleStepForward}
-        onClearTraces={handleClearTraces}
-        onSpeedChange={handleSpeedChange}
-        onToggleTrace={handleToggleTrace}
-        onToggleMute={handleToggleMute}
-        onToggleHelp={() => setHelpOpen((open) => !open)}
-        onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
-        onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
-        onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
-        onReset={handleReset}
-        onOpenSidebar={() => setSidebarOpen(true)}
-      />
+      <div className={isMobile ? 'relative z-20 mt-0' : ''}>
+        <TransportBar
+          playing={engineState.playing}
+          speedMultiplier={engineState.speedMultiplier}
+          traceMode={traceMode}
+          muted={muted}
+          showHelp={helpOpen}
+          geometryMode={geometryMode}
+          tonePreset={harmonySettings.tonePreset}
+          rootNote={harmonySettings.rootNote}
+          scaleName={harmonySettings.scaleName}
+          quickOrbitControls={activePairControls}
+          onAdjustQuickOrbit={handleAdjustQuickOrbit}
+          onSetQuickOrbit={handleSetQuickOrbit}
+          onGeometryModeChange={handleGeometryModeChange}
+          onReverseDirections={handleReverseDirections}
+          onAllClockwise={handleAllClockwise}
+          onAlternateDirections={handleAlternateDirections}
+          onTogglePlay={handleTogglePlay}
+          onStepForward={handleStepForward}
+          onClearTraces={handleClearTraces}
+          onSpeedChange={handleSpeedChange}
+          onToggleTrace={handleToggleTrace}
+          onToggleMute={handleToggleMute}
+          onToggleHelp={() => setHelpOpen((open) => !open)}
+          onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
+          onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
+          onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+          onReset={handleReset}
+          onOpenSidebar={() => setSidebarOpen(true)}
+        />
+      </div>
 
       {/* Sidebar */}
       <OrbitSidebar

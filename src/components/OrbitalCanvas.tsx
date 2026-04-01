@@ -18,6 +18,7 @@ import {
   type GeometryMode,
   type InterferenceSettings,
 } from '../lib/geometry';
+import { useIsMobile } from '../hooks/use-mobile';
 
 const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
@@ -53,10 +54,12 @@ interface OrbitalCanvasProps {
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
   onOrbitLongPress?: (orbitId: string, x: number, y: number) => void;
+  className?: string;
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, onOrbitLongPress }, ref) => {
+  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, onOrbitLongPress, className }, ref) => {
+    const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
     const bloomsRef = useRef<Bloom[]>([]);
@@ -282,9 +285,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         if (longPressTimerRef.current) {
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
-        }
-        if (touchStartRef.current && !pressHandledRef.current) {
-          openOrbitMenu(touchStartRef.current.x, touchStartRef.current.y);
         }
         touchStartRef.current = null;
         pressHandledRef.current = false;
@@ -898,9 +898,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           if (typeof ref === 'function') ref(el);
           else if (ref) ref.current = el;
         }}
-        className="fixed inset-0 w-full h-full"
+        className={className ?? (isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : 'fixed inset-0 w-full h-full')}
         style={{
-          touchAction: 'none',
+          touchAction: isMobile ? 'pan-y' : 'none',
           cursor: 'crosshair',
           userSelect: 'none',
           WebkitUserSelect: 'none',

@@ -3,7 +3,6 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { useState } from 'react';
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
@@ -76,7 +75,6 @@ export default function TransportBar({
   onOpenSidebar,
 }: TransportBarProps) {
   const isMobile = useIsMobile();
-  const [mobilePanel, setMobilePanel] = useState<'none' | 'pair' | 'sound'>('none');
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
@@ -90,183 +88,18 @@ export default function TransportBar({
 
   return (
     <div
-      className={`z-30 pointer-events-none relative ${isMobile ? 'h-auto' : 'h-auto'}`}
+      className="z-30 pointer-events-none relative h-auto"
       style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
+        position: isMobile ? 'relative' : 'fixed',
+        left: isMobile ? undefined : 0,
+        right: isMobile ? undefined : 0,
+        bottom: isMobile ? undefined : 0,
         top: 'auto',
-        paddingBottom: isMobile ? 'max(12px, env(safe-area-inset-bottom))' : '0px',
+        paddingBottom: isMobile ? '0px' : '0px',
       }}
     >
-      <div className={`pointer-events-auto ${isMobile ? 'px-3 pt-3 space-y-2' : 'px-6 pt-3'}`}>
-        {isMobile ? (
-          <div className="space-y-2">
-            <div
-              className="w-full rounded-xl border px-3 py-3 space-y-2"
-              style={{
-                background: 'rgba(17, 17, 22, 0.88)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <button
-                  onClick={() => onGeometryModeChange('standard-trace')}
-                  className={`${compactButtonStyle} flex-1`}
-                  style={{
-                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                >
-                  Standard
-                </button>
-                <button
-                  onClick={() => onGeometryModeChange('interference-trace')}
-                  className={`${compactButtonStyle} flex-1`}
-                  style={{
-                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                >
-                  Interference
-                </button>
-                <button
-                  onClick={() => onGeometryModeChange('sweep')}
-                  className={`${compactButtonStyle} flex-1`}
-                  style={{
-                    background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                >
-                  Sweep
-                </button>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-[10px] leading-relaxed flex-1" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  {modeDescription}
-                </p>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => setMobilePanel((current) => (current === 'sound' ? 'none' : 'sound'))}
-                    className={`${compactButtonStyle} px-3`}
-                    style={{
-                      background: mobilePanel === 'sound' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${mobilePanel === 'sound' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255,255,255,0.12)'}`,
-                      color: mobilePanel === 'sound' ? '#00FFAA' : 'rgba(255,255,255,0.72)',
-                    }}
-                  >
-                    Sound
-                  </button>
-                  {geometryMode !== 'standard-trace' && (
-                    <button
-                      onClick={() => setMobilePanel((current) => (current === 'pair' ? 'none' : 'pair'))}
-                      className={`${compactButtonStyle} px-3`}
-                      style={{
-                        background: mobilePanel === 'pair' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255,255,255,0.05)',
-                        border: `1px solid ${mobilePanel === 'pair' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255,255,255,0.12)'}`,
-                        color: mobilePanel === 'pair' ? '#88CCFF' : 'rgba(255,255,255,0.72)',
-                      }}
-                    >
-                      Pair
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {mobilePanel === 'sound' && (
-                <div
-                  className="rounded-xl border p-3 space-y-3"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
-                      className={`${compactButtonStyle} flex-1`}
-                      style={{
-                        background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                        border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                        color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                      }}
-                    >
-                      {tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
-                    </button>
-                    {tonePreset === 'scale-quantized' && (
-                      <select
-                        value={rootNote}
-                        onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
-                        className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono focus:outline-none"
-                        style={{ color: 'rgba(255,255,255,0.82)' }}
-                      >
-                        {NOTE_NAMES.map((note) => (
-                          <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                  {tonePreset === 'scale-quantized' && (
-                    <select
-                      value={scaleName}
-                      onChange={(e) => onScaleChange(e.target.value as ScaleName)}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono focus:outline-none"
-                      style={{ color: 'rgba(255,255,255,0.82)' }}
-                    >
-                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
-                        <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {mobilePanel === 'pair' && geometryMode !== 'standard-trace' && (
-                <div
-                  className="rounded-xl border p-3 space-y-3"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  {quickOrbitControls.map((orbit) => (
-                    <div key={orbit.id} className="grid grid-cols-[56px,36px,1fr,36px] gap-2 items-center">
-                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                        {orbit.label}
-                      </span>
-                      <button onClick={() => onAdjustQuickOrbit(orbit.id, -1)} className="h-9 rounded-lg text-[13px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>−</button>
-                      <input
-                        type="number"
-                        min="1"
-                        max="1000"
-                        value={orbit.pulseCount}
-                        onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                        onFocus={(e) => e.currentTarget.select()}
-                        className="h-9 rounded-lg border text-center text-[12px] font-mono focus:outline-none"
-                        style={{
-                          color: 'rgba(255, 255, 255, 0.82)',
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          borderColor: 'rgba(255, 255, 255, 0.08)',
-                        }}
-                      />
-                      <button onClick={() => onAdjustQuickOrbit(orbit.id, 1)} className="h-9 rounded-lg text-[13px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}>+</button>
-                    </div>
-                  ))}
-                  <div className="grid grid-cols-3 gap-2">
-                    <button onClick={onReverseDirections} className={directionButtonStyle} style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.12)', color: 'rgba(255, 255, 255, 0.78)' }}>Reverse</button>
-                    <button onClick={onAllClockwise} className={directionButtonStyle} style={{ background: 'rgba(0, 255, 170, 0.08)', border: '1px solid rgba(0, 255, 170, 0.2)', color: '#00FFAA' }}>All CW</button>
-                    <button onClick={onAlternateDirections} className={directionButtonStyle} style={{ background: 'rgba(51, 136, 255, 0.08)', border: '1px solid rgba(51, 136, 255, 0.2)', color: '#88CCFF' }}>Alternate</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
+      <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-6 pt-3'}`}>
+        {!isMobile ? (
           <div className="flex items-center justify-between gap-8 mb-2">
             <div
               className="px-3 py-2 flex flex-col items-center gap-2 rounded-xl border"
@@ -474,7 +307,7 @@ export default function TransportBar({
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {isMobile ? (
