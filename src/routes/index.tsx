@@ -989,7 +989,7 @@ function OrbitalPolymeter() {
           </div>
 
           <div
-            className="rounded-2xl border p-4 space-y-4"
+            className="mt-4 rounded-2xl border p-4 space-y-4"
             style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
           >
             <div className="grid grid-cols-4 gap-2">
