@@ -30,11 +30,13 @@ interface OrbitSidebarProps {
     id: string;
     name: string;
     description: string;
+    thumbnailDataUrl?: string;
   }>;
   savedScenes: Array<{
     id: string;
     name: string;
     updatedAt: string;
+    thumbnailDataUrl?: string;
   }>;
   onClose: () => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
@@ -471,7 +473,17 @@ export default function OrbitSidebar({
                       background: 'rgba(255, 255, 255, 0.03)',
                       borderColor: 'rgba(255, 255, 255, 0.1)',
                     }}
-                  >
+                    >
+                    {scene.thumbnailDataUrl && (
+                      <div className="mb-3 flex justify-center">
+                        <img
+                          src={scene.thumbnailDataUrl}
+                          alt={`${scene.name} thumbnail`}
+                          className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1"
+                          style={{ background: 'rgba(255,255,255,0.02)' }}
+                        />
+                      </div>
+                    )}
                     <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.82)' }}>
                       {scene.name}
                     </div>
@@ -668,6 +680,16 @@ export default function OrbitSidebar({
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                       }}
                     >
+                      {scene.thumbnailDataUrl && (
+                        <div className="mb-3 flex justify-center">
+                          <img
+                            src={scene.thumbnailDataUrl}
+                            alt={`${scene.name} thumbnail`}
+                            className="w-20 h-20 rounded-lg object-contain border border-white/10 p-1"
+                            style={{ background: 'rgba(255,255,255,0.02)' }}
+                          />
+                        </div>
+                      )}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>

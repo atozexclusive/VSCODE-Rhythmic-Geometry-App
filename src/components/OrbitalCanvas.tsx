@@ -38,6 +38,13 @@ const SWEEP_OUTER_RADIUS = 2;
 const SWEEP_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS;
 const MAX_BLOOM_SPEED = 3;
 
+const EXPORT_ASPECTS = {
+  landscape: { width: 1600, height: 900 },
+  square: { width: 1080, height: 1080 },
+  portrait: { width: 1080, height: 1350 },
+  story: { width: 1080, height: 1920 },
+} as const;
+
 interface Bloom {
   x: number;
   y: number;
@@ -70,6 +77,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
+    const hudVisibleRef = useRef(true);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -172,14 +180,158 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const canvas = canvasRef.current;
       if (canvas) {
         (canvas as any).__clearTraces = clearTraces;
-        (canvas as any).__exportPng = () => {
-          const link = document.createElement('a');
+        (canvas as any).__exportPng = async ({
+          aspect = 'landscape',
+          scale = 2,
+        }: {
+          aspect?: keyof typeof EXPORT_ASPECTS;
+          scale?: 1 | 2 | 4;
+        } = {}) => {
+          const traceCanvas = traceCanvasRef.current;
+          if (!traceCanvas) return;
+
+          const waitForFrame = () =>
+            new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+          const previousHudVisible = hudVisibleRef.current;
+          hudVisibleRef.current = false;
+          forceUpdate((value) => value + 1);
+          await waitForFrame();
+          await waitForFrame();
+
+          const exportSpec = EXPORT_ASPECTS[aspect];
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = exportSpec.width * scale;
+          exportCanvas.height = exportSpec.height * scale;
+          const exportCtx = exportCanvas.getContext('2d');
+
+          if (!exportCtx) {
+            hudVisibleRef.current = previousHudVisible;
+            return;
+          }
+
+          exportCtx.fillStyle = '#0a0a0f';
+          exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+          const sourceWidth = canvas.width;
+          const sourceHeight = canvas.height;
+          const containScale = Math.min(exportCanvas.width / sourceWidth, exportCanvas.height / sourceHeight);
+          const drawWidth = sourceWidth * containScale;
+          const drawHeight = sourceHeight * containScale;
+          const offsetX = (exportCanvas.width - drawWidth) / 2;
+          const offsetY = (exportCanvas.height - drawHeight) / 2;
+
+          exportCtx.imageSmoothingEnabled = true;
+          exportCtx.imageSmoothingQuality = 'high';
+          exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          link.href = canvas.toDataURL('image/png');
-          link.download = `orbital-polymeter-${timestamp}.png`;
+          const link = document.createElement('a');
+          link.href = exportCanvas.toDataURL('image/png');
+          link.download = `orbital-polymeter-${aspect}-${scale}x-${timestamp}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+
+          hudVisibleRef.current = previousHudVisible;
+          forceUpdate((value) => value + 1);
+        };
+
+        (canvas as any).__captureThumbnail = async () => {
+          const waitForFrame = () =>
+            new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+          const previousHudVisible = hudVisibleRef.current;
+          hudVisibleRef.current = false;
+          forceUpdate((value) => value + 1);
+          await waitForFrame();
+          await waitForFrame();
+
+          const thumbnailCanvas = document.createElement('canvas');
+          const size = 160;
+          thumbnailCanvas.width = size;
+          thumbnailCanvas.height = size;
+          const thumbnailCtx = thumbnailCanvas.getContext('2d');
+
+          if (!thumbnailCtx) {
+            hudVisibleRef.current = previousHudVisible;
+            forceUpdate((value) => value + 1);
+            return undefined;
+          }
+
+          const sourceSize = Math.min(canvas.width, canvas.height);
+          const sourceX = (canvas.width - sourceSize) / 2;
+          const sourceY = (canvas.height - sourceSize) / 2;
+          thumbnailCtx.imageSmoothingEnabled = true;
+          thumbnailCtx.imageSmoothingQuality = 'high';
+          thumbnailCtx.drawImage(canvas, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+
+          hudVisibleRef.current = previousHudVisible;
+          forceUpdate((value) => value + 1);
+          return thumbnailCanvas.toDataURL('image/jpeg', 0.72);
+        };
+
+        (canvas as any).__exportVideo = async ({
+          durationSeconds = 8,
+        }: {
+          durationSeconds?: 8 | 12;
+        } = {}) => {
+          if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
+            throw new Error('Video export is not supported in this browser.');
+          }
+
+          const mimeType =
+            MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+              ? 'video/webm;codecs=vp9'
+              : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+                ? 'video/webm;codecs=vp8'
+                : 'video/webm';
+
+          const waitForFrame = () =>
+            new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+          const previousHudVisible = hudVisibleRef.current;
+          hudVisibleRef.current = false;
+          forceUpdate((value) => value + 1);
+          try {
+            await waitForFrame();
+
+            const stream = canvas.captureStream(60);
+            const recorder = new MediaRecorder(stream, {
+              mimeType,
+              videoBitsPerSecond: 12_000_000,
+            });
+            const chunks: BlobPart[] = [];
+
+            recorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                chunks.push(event.data);
+              }
+            };
+
+            await new Promise<void>((resolve, reject) => {
+              recorder.onerror = () => reject(new Error('Recording failed.'));
+              recorder.onstop = () => resolve();
+              recorder.start();
+              window.setTimeout(() => recorder.stop(), durationSeconds * 1000);
+            });
+
+            stream.getTracks().forEach((track) => track.stop());
+
+            const blob = new Blob(chunks, { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `orbital-polymeter-${durationSeconds}s-${timestamp}.webm`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          } finally {
+            hudVisibleRef.current = previousHudVisible;
+            forceUpdate((value) => value + 1);
+          }
         };
       }
     }, [clearTraces]);
@@ -872,26 +1024,28 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
 
         // ---- HUD ----
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '10px "SF Mono", "Fira Code", monospace';
-        ctx.textAlign = 'left';
-        const bpm = (state.baseBPM * state.speedMultiplier).toFixed(1);
-        ctx.fillText(`BPM ${bpm}`, 16, h - 60);
-        ctx.fillText(`ORBITS ${state.orbits.length}`, 16, h - 46);
-        ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
-        const modeLabel = isSweepMode
-          ? 'MODE SWEEP'
-          : isInterferenceMode
-            ? 'MODE INTERFERENCE'
-            : 'MODE STANDARD';
-        ctx.fillText(modeLabel, 16, h - 18);
-        if (traceModeRef.current) {
-          ctx.fillStyle = '#00FFAA';
-          ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
+        if (hudVisibleRef.current) {
+          ctx.save();
+          ctx.globalAlpha = 0.25;
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '10px "SF Mono", "Fira Code", monospace';
+          ctx.textAlign = 'left';
+          const bpm = (state.baseBPM * state.speedMultiplier).toFixed(1);
+          ctx.fillText(`BPM ${bpm}`, 16, h - 60);
+          ctx.fillText(`ORBITS ${state.orbits.length}`, 16, h - 46);
+          ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
+          const modeLabel = isSweepMode
+            ? 'MODE SWEEP'
+            : isInterferenceMode
+              ? 'MODE INTERFERENCE'
+              : 'MODE STANDARD';
+          ctx.fillText(modeLabel, 16, h - 18);
+          if (traceModeRef.current) {
+            ctx.fillStyle = '#00FFAA';
+            ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
+          }
+          ctx.restore();
         }
-        ctx.restore();
 
         previousElapsedBeatsRef.current = state.elapsedBeats;
         rafRef.current = requestAnimationFrame(renderFrame);

@@ -29,6 +29,7 @@ import {
   createEngineState,
   createOrbit,
   resetEngine,
+  resonancePositionAtBeats,
   stepEngineByBeats,
   DEFAULT_ORBITS,
   PRESET_RATIOS,
@@ -105,6 +106,7 @@ interface SavedScene {
   name: string;
   updatedAt: string;
   snapshot: SceneSnapshot;
+  thumbnailDataUrl?: string;
 }
 
 interface ImportedSceneFile {
@@ -118,6 +120,202 @@ interface BuiltInScene {
   name: string;
   description: string;
   snapshot: SceneSnapshot;
+  thumbnailDataUrl: string;
+}
+
+function createSceneThumbnailSvg(snapshot: SceneSnapshot): string {
+  const size = 160;
+  const center = size / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    return '';
+  }
+
+  const getInterferencePoint = (
+    innerPoint: { x: number; y: number },
+    outerPoint: { x: number; y: number },
+  ) => ({
+    x: center + (outerPoint.x - center) - (innerPoint.x - center),
+    y: center + (outerPoint.y - center) - (innerPoint.y - center),
+  });
+
+  const getScenePreviewOrbits = () =>
+    snapshot.orbits.map((orbit) => ({
+      id: crypto.randomUUID(),
+      pulseCount: orbit.pulseCount,
+      radius: orbit.radius,
+      direction: orbit.direction,
+      color: orbit.color,
+      harmonyDegree: orbit.harmonyDegree,
+      harmonyRegister: orbit.harmonyRegister,
+      phase: 0,
+      lastTriggerBeat: -1,
+    })) satisfies Orbit[];
+
+  const traceOrbits = getScenePreviewOrbits();
+  const maxRadius = Math.max(...traceOrbits.map((orbit) => orbit.radius), 1);
+  const standardScale = (size * 0.39) / maxRadius;
+  const totalPairs = Math.max(1, (traceOrbits.length * (traceOrbits.length - 1)) / 2);
+  const normalizedInterference = normalizeInterferenceSettings(
+    traceOrbits,
+    snapshot.interferenceSettings
+      ? {
+          sourceOrbitAId:
+            snapshot.interferenceSettings.sourceOrbitAIndex != null
+              ? traceOrbits[snapshot.interferenceSettings.sourceOrbitAIndex]?.id ?? null
+              : null,
+          sourceOrbitBId:
+            snapshot.interferenceSettings.sourceOrbitBIndex != null
+              ? traceOrbits[snapshot.interferenceSettings.sourceOrbitBIndex]?.id ?? null
+              : null,
+          showConnectors: snapshot.interferenceSettings.showConnectors,
+        }
+      : undefined,
+  );
+
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(center, 0);
+  ctx.lineTo(center, size);
+  ctx.moveTo(0, center);
+  ctx.lineTo(size, center);
+  ctx.stroke();
+
+  const drawOrbitRings = () => {
+    for (const orbit of traceOrbits) {
+      ctx.strokeStyle = `${orbit.color}26`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(center, center, Math.max(8, orbit.radius * standardScale), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  };
+
+  if (snapshot.traceMode && traceOrbits.length >= 2) {
+    if (snapshot.geometryMode === 'sweep') {
+      const innerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitAId);
+      const outerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitBId);
+      const innerRadius = 1;
+      const outerRadius = 2;
+      const maxModelRadius = innerRadius + outerRadius;
+      const sweepScale = Math.max(1, (size / 2 - 14) / maxModelRadius);
+      const steps = 420;
+      let previousPoint: { x: number; y: number } | null = null;
+
+      if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+        ctx.strokeStyle = '#32CD32';
+        ctx.lineWidth = 0.9;
+        ctx.globalAlpha = 0.88;
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * (20 * Math.PI);
+          const innerAngle = innerOrbit.direction * innerOrbit.pulseCount * t - Math.PI / 2;
+          const outerAngle = outerOrbit.direction * outerOrbit.pulseCount * t - Math.PI / 2;
+          const point = {
+            x: center + (outerRadius * Math.cos(outerAngle) - innerRadius * Math.cos(innerAngle)) * sweepScale,
+            y: center + (outerRadius * Math.sin(outerAngle) - innerRadius * Math.sin(innerAngle)) * sweepScale,
+          };
+          if (previousPoint) {
+            ctx.beginPath();
+            ctx.moveTo(previousPoint.x, previousPoint.y);
+            ctx.lineTo(point.x, point.y);
+            ctx.stroke();
+          }
+          previousPoint = point;
+        }
+        ctx.globalAlpha = 1;
+      }
+    } else if (snapshot.geometryMode === 'interference-trace') {
+      const innerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitAId);
+      const outerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitBId);
+      let previousPoint: { x: number; y: number } | null = null;
+      const beatsWindow = Math.max(48, Math.max(...traceOrbits.map((orbit) => orbit.pulseCount)) * 10);
+      const steps = 420;
+
+      if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+        ctx.strokeStyle = '#32CD32';
+        ctx.lineWidth = 0.9;
+        ctx.globalAlpha = 0.85;
+        for (let i = 0; i <= steps; i++) {
+          const beats = (i / steps) * beatsWindow;
+          const innerPoint = resonancePositionAtBeats(
+            { ...innerOrbit, radius: innerOrbit.radius * standardScale },
+            beats,
+            center,
+            center,
+          );
+          const outerPoint = resonancePositionAtBeats(
+            { ...outerOrbit, radius: outerOrbit.radius * standardScale },
+            beats,
+            center,
+            center,
+          );
+          const point = getInterferencePoint(innerPoint, outerPoint);
+          if (previousPoint) {
+            ctx.beginPath();
+            ctx.moveTo(previousPoint.x, previousPoint.y);
+            ctx.lineTo(point.x, point.y);
+            ctx.stroke();
+          }
+          previousPoint = point;
+        }
+        ctx.globalAlpha = 1;
+      }
+    } else {
+      const beatsWindow = Math.max(36, Math.max(...traceOrbits.map((orbit) => orbit.pulseCount)) * 8);
+      const steps = 240;
+
+      for (let step = 0; step <= steps; step++) {
+        const beats = (step / steps) * beatsWindow;
+        const samplePoints = traceOrbits.map((orbit) => {
+          const pos = resonancePositionAtBeats(
+            { ...orbit, radius: orbit.radius * standardScale },
+            beats,
+            center,
+            center,
+          );
+          return { ...pos, color: orbit.color };
+        });
+
+        for (let i = 0; i < samplePoints.length; i++) {
+          for (let j = i + 1; j < samplePoints.length; j++) {
+            ctx.strokeStyle = samplePoints[i].color;
+            ctx.globalAlpha = 0.34 / totalPairs;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(samplePoints[i].x, samplePoints[i].y);
+            ctx.lineTo(samplePoints[j].x, samplePoints[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  drawOrbitRings();
+
+  for (const orbit of traceOrbits) {
+    const pos = resonancePositionAtBeats(
+      { ...orbit, radius: orbit.radius * standardScale },
+      0,
+      center,
+      center,
+    );
+    ctx.fillStyle = orbit.color;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return canvas.toDataURL('image/jpeg', 0.78);
 }
 
 const BUILT_IN_SCENES: BuiltInScene[] = [
@@ -144,6 +342,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'prime_ritual',
@@ -168,6 +367,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'rose_engine',
@@ -192,6 +392,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'blue_mandala',
@@ -215,6 +416,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'dorian_bloom',
@@ -239,6 +441,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'silent_cosmology',
@@ -262,6 +465,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'metallic_whorl',
@@ -286,6 +490,7 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
   {
     id: 'aeolian_tide',
@@ -310,8 +515,13 @@ const BUILT_IN_SCENES: BuiltInScene[] = [
       geometryMode: 'standard-trace',
       interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
     },
+    thumbnailDataUrl: '',
   },
 ];
+
+for (const scene of BUILT_IN_SCENES) {
+  scene.thumbnailDataUrl = createSceneThumbnailSvg(scene.snapshot);
+}
 
 function normalizeSceneInterferenceSettings(
   orbitCount: number,
@@ -463,6 +673,7 @@ function normalizeImportedScene(value: unknown): SavedScene | null {
     id: typeof candidate.id === 'string' ? candidate.id : globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
     name: candidate.name,
     updatedAt: candidate.updatedAt,
+    thumbnailDataUrl: typeof candidate.thumbnailDataUrl === 'string' ? candidate.thumbnailDataUrl : undefined,
     snapshot: {
       orbits: snapshot.orbits as SceneOrbitSnapshot[],
       speedMultiplier: snapshot.speedMultiplier,
@@ -799,43 +1010,9 @@ function OrbitalPolymeter() {
   );
 
   const handleSaveScene = useCallback(() => {
-    const now = new Date().toISOString();
-    const defaultName = `Scene ${savedScenes.length + 1}`;
-    const snapshot: SceneSnapshot = {
-      orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
-        pulseCount,
-        radius,
-        direction,
-        color,
-        harmonyDegree,
-        harmonyRegister,
-      })),
-      speedMultiplier: engineState.speedMultiplier,
-      traceMode,
-      harmonySettings,
-      geometryMode,
-      interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
-    };
-
-    const newScene: SavedScene = {
-      id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
-      name: defaultName,
-      updatedAt: now,
-      snapshot,
-    };
-
-    setSavedScenes((current) => {
-      const next = [newScene, ...current];
-      persistSavedScenes(next);
-      return next;
-    });
-  }, [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode]);
-
-  const handleSaveSceneAs = useCallback(
-    (name: string) => {
-      const trimmedName = name.trim();
-      const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
+    const run = async () => {
       const now = new Date().toISOString();
+      const defaultName = `Scene ${savedScenes.length + 1}`;
       const snapshot: SceneSnapshot = {
         orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
           pulseCount,
@@ -851,12 +1028,14 @@ function OrbitalPolymeter() {
         geometryMode,
         interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
       };
+      const thumbnailDataUrl = await (canvasRef.current as any)?.__captureThumbnail?.();
 
       const newScene: SavedScene = {
         id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
-        name: sceneName,
+        name: defaultName,
         updatedAt: now,
         snapshot,
+        thumbnailDataUrl,
       };
 
       setSavedScenes((current) => {
@@ -864,6 +1043,50 @@ function OrbitalPolymeter() {
         persistSavedScenes(next);
         return next;
       });
+    };
+
+    void run();
+  }, [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode]);
+
+  const handleSaveSceneAs = useCallback(
+    (name: string) => {
+      const run = async () => {
+        const trimmedName = name.trim();
+        const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
+        const now = new Date().toISOString();
+        const snapshot: SceneSnapshot = {
+          orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
+            pulseCount,
+            radius,
+            direction,
+            color,
+            harmonyDegree,
+            harmonyRegister,
+          })),
+          speedMultiplier: engineState.speedMultiplier,
+          traceMode,
+          harmonySettings,
+          geometryMode,
+          interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
+        };
+        const thumbnailDataUrl = await (canvasRef.current as any)?.__captureThumbnail?.();
+
+        const newScene: SavedScene = {
+          id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
+          name: sceneName,
+          updatedAt: now,
+          snapshot,
+          thumbnailDataUrl,
+        };
+
+        setSavedScenes((current) => {
+          const next = [newScene, ...current];
+          persistSavedScenes(next);
+          return next;
+        });
+      };
+
+      void run();
     },
     [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode],
   );
@@ -1428,7 +1651,7 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
-          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description }) => ({ id, name, description }))}
+          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
           savedScenes={savedScenes}
           onClose={() => setSidebarOpen(false)}
           onUpdateOrbit={handleUpdateOrbit}
@@ -1789,7 +2012,7 @@ function OrbitalPolymeter() {
         harmonySettings={harmonySettings}
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
-        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description }) => ({ id, name, description }))}
+        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
         savedScenes={savedScenes}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
