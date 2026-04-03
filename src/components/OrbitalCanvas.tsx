@@ -60,12 +60,13 @@ interface OrbitalCanvasProps {
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
+  presentationMode?: boolean;
   onOrbitLongPress?: (orbitId: string, x: number, y: number) => void;
   className?: string;
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, onOrbitLongPress, className }, ref) => {
+  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
     const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
@@ -77,6 +78,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
+    const presentationModeRef = useRef(presentationMode);
     const hudVisibleRef = useRef(true);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
@@ -91,6 +93,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
     interferenceSettingsRef.current = interferenceSettings;
+    presentationModeRef.current = presentationMode;
 
     // Clear traces externally
     const clearTraces = useCallback(() => {
@@ -1024,7 +1027,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
 
         // ---- HUD ----
-        if (hudVisibleRef.current) {
+        if (hudVisibleRef.current && !presentationModeRef.current) {
           ctx.save();
           ctx.globalAlpha = 0.25;
           ctx.fillStyle = '#ffffff';

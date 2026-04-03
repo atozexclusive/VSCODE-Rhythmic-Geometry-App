@@ -3,7 +3,7 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
@@ -14,6 +14,7 @@ interface TransportBarProps {
   speedMultiplier: number;
   traceMode: boolean;
   muted: boolean;
+  presentationMode: boolean;
   geometryMode: GeometryMode;
   showHelp: boolean;
   tonePreset: TonePreset;
@@ -37,6 +38,7 @@ interface TransportBarProps {
   onToggleTrace: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
+  onTogglePresentation: () => void;
   onSoundModeChange: (tonePreset: TonePreset) => void;
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
@@ -49,6 +51,7 @@ export default function TransportBar({
   speedMultiplier,
   traceMode,
   muted,
+  presentationMode,
   geometryMode,
   showHelp,
   tonePreset,
@@ -68,6 +71,7 @@ export default function TransportBar({
   onToggleTrace,
   onToggleMute,
   onToggleHelp,
+  onTogglePresentation,
   onSoundModeChange,
   onRootNoteChange,
   onScaleChange,
@@ -85,6 +89,84 @@ export default function TransportBar({
       : geometryMode === 'interference-trace'
         ? 'Traces one live path from the relationship between the selected pair.'
         : 'Plots a finite sampled figure from the selected pair using the canonical sweep.';
+  const minimalModeLabel =
+    geometryMode === 'standard-trace'
+      ? 'Standard'
+      : geometryMode === 'interference-trace'
+        ? 'Interference'
+        : 'Sweep';
+
+  if (presentationMode) {
+    return (
+      <div
+        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-3 right-3 bottom-4' : 'left-1/2 bottom-5 -translate-x-1/2'}`}
+      >
+        <div
+          className={`rounded-2xl border ${isMobile ? 'px-3 py-3' : 'px-4 py-3'} flex items-center gap-2`}
+          style={{
+            background: 'rgba(17, 17, 22, 0.74)',
+            backdropFilter: 'blur(16px)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.28)',
+          }}
+        >
+          <div className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)' }}>
+            {minimalModeLabel}
+          </div>
+          <button
+            onClick={onTogglePlay}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{
+              background: playing ? 'rgba(255, 51, 102, 0.18)' : 'rgba(0, 255, 170, 0.18)',
+              border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.35)' : 'rgba(0, 255, 170, 0.35)'}`,
+              color: playing ? '#FF3366' : '#00FFAA',
+            }}
+            title={playing ? 'Pause' : 'Play'}
+          >
+            {playing ? <Pause size={18} /> : <Play size={18} />}
+          </button>
+          {!isMobile && (
+            <button
+              onClick={onStepForward}
+              className="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+              style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
+              title="Step"
+            >
+              <SkipForward size={18} />
+            </button>
+          )}
+          <button
+            onClick={onReset}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
+            title="Reset"
+          >
+            <RotateCcw size={18} />
+          </button>
+          <button
+            onClick={onToggleMute}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{
+              background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
+              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
+            }}
+            title={muted ? 'Unmute audio' : 'Mute audio'}
+          >
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+          <button
+            onClick={onTogglePresentation}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
+            title="Exit presentation mode"
+          >
+            <Minimize2 size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -320,7 +402,7 @@ export default function TransportBar({
               borderColor: 'rgba(255, 255, 255, 0.08)',
             }}
           >
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               <button
                 onClick={onTogglePlay}
                 className={mobileIconButtonStyle}
@@ -359,6 +441,19 @@ export default function TransportBar({
               >
                 <RotateCcw size={20} />
                 <span className="text-[10px] font-mono uppercase tracking-wider">Reset</span>
+              </button>
+              <button
+                onClick={onTogglePresentation}
+                className={mobileIconButtonStyle}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                }}
+                title="Enter presentation mode"
+              >
+                <Maximize2 size={18} />
+                <span className="text-[10px] font-mono uppercase tracking-wider">View</span>
               </button>
               <button
                 onClick={onOpenSidebar}
@@ -602,6 +697,22 @@ export default function TransportBar({
             {traceMode ? '● TRACE' : '○ TRACE'}
           </button>
           {!isMobile && <InfoTip text="Trace keeps drawing motion history so the structure can accumulate over time." />}
+
+          <button
+            onClick={onTogglePresentation}
+            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'rgba(255, 255, 255, 0.6)',
+            }}
+            title="Enter presentation mode"
+          >
+            <span className="flex items-center gap-2">
+              <Maximize2 size={16} />
+              <span>Present</span>
+            </span>
+          </button>
 
           <button
             onClick={onToggleHelp}

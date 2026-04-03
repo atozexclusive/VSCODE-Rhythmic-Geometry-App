@@ -4,7 +4,7 @@
 // ============================================================
 
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -744,6 +744,7 @@ function OrbitalPolymeter() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [presentationMode, setPresentationMode] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
@@ -760,6 +761,39 @@ function OrbitalPolymeter() {
   } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!presentationMode) {
+      return;
+    }
+
+    setSidebarOpen(false);
+    setHelpOpen(false);
+    setRadialMenu(null);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPresentationMode(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [presentationMode]);
+
+  const handleTogglePresentation = useCallback(() => {
+    setPresentationMode((current) => {
+      const next = !current;
+      if (!isMobile) {
+        if (next && document.documentElement.requestFullscreen) {
+          void document.documentElement.requestFullscreen().catch(() => {});
+        } else if (!next && document.fullscreenElement && document.exitFullscreen) {
+          void document.exitFullscreen().catch(() => {});
+        }
+      }
+      return next;
+    });
+  }, [isMobile]);
 
   const handleTogglePlay = useCallback(() => {
     resumeAudio();
@@ -1250,8 +1284,83 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Live derived path from the selected pair.'
         : 'Finite sampled sweep from the selected pair.';
+  const presentationSoundLabel = muted
+    ? 'Muted'
+    : harmonySettings.tonePreset === 'original'
+      ? 'Original Sound'
+      : `${harmonySettings.rootNote} ${SCALE_PRESETS[harmonySettings.scaleName].label}`;
+  const presentationModeLabel =
+    geometryMode === 'standard-trace'
+      ? 'Standard'
+      : geometryMode === 'interference-trace'
+        ? 'Interference'
+        : 'Sweep';
 
   if (isMobile) {
+    if (presentationMode) {
+      return (
+        <div className="fixed inset-0 overflow-hidden bg-[#111116] select-none">
+          <OrbitalCanvas
+            ref={canvasRef}
+            engineState={engineState}
+            traceMode={traceMode}
+            harmonySettings={harmonySettings}
+            geometryMode={geometryMode}
+            interferenceSettings={interferenceSettings}
+            presentationMode={presentationMode}
+            className="absolute inset-0 w-full h-full"
+          />
+
+          <div className="fixed top-3 left-1/2 z-20 -translate-x-1/2">
+            <div
+              className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+              style={{
+                background: 'rgba(17,17,22,0.66)',
+                backdropFilter: 'blur(12px)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.72)',
+              }}
+            >
+              {presentationModeLabel} · {engineState.speedMultiplier.toFixed(1)}x · {presentationSoundLabel}
+            </div>
+          </div>
+
+          <TransportBar
+            playing={engineState.playing}
+            speedMultiplier={engineState.speedMultiplier}
+            traceMode={traceMode}
+            muted={muted}
+            presentationMode={presentationMode}
+            showHelp={false}
+            geometryMode={geometryMode}
+            tonePreset={harmonySettings.tonePreset}
+            rootNote={harmonySettings.rootNote}
+            scaleName={harmonySettings.scaleName}
+            quickOrbitControls={activePairControls}
+            onAdjustQuickOrbit={handleAdjustQuickOrbit}
+            onSetQuickOrbit={handleSetQuickOrbit}
+            onGeometryModeChange={handleGeometryModeChange}
+            onReverseDirections={handleReverseDirections}
+            onAllClockwise={handleAllClockwise}
+            onAlternateDirections={handleAlternateDirections}
+            onTogglePlay={handleTogglePlay}
+            onStepForward={handleStepForward}
+            onClearTraces={handleClearTraces}
+            onSpeedChange={handleSpeedChange}
+            onToggleTrace={handleToggleTrace}
+            onToggleMute={handleToggleMute}
+            onToggleHelp={() => setHelpOpen((open) => !open)}
+            onTogglePresentation={handleTogglePresentation}
+            onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
+            onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
+            onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+            onReset={handleReset}
+            onOpenSidebar={() => setSidebarOpen(true)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
@@ -1264,6 +1373,7 @@ function OrbitalPolymeter() {
                 harmonySettings={harmonySettings}
                 geometryMode={geometryMode}
                 interferenceSettings={interferenceSettings}
+                presentationMode={presentationMode}
                 onOrbitLongPress={handleOrbitLongPress}
                 className="absolute inset-0 w-full h-full"
               />
@@ -1317,6 +1427,13 @@ function OrbitalPolymeter() {
               <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 {engineState.speedMultiplier.toFixed(1)}x
               </div>
+              <button
+                onClick={handleTogglePresentation}
+                className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                Present
+              </button>
             </div>
           </div>
 
@@ -1707,11 +1824,13 @@ function OrbitalPolymeter() {
         harmonySettings={harmonySettings}
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
-        onOrbitLongPress={handleOrbitLongPress}
+        presentationMode={presentationMode}
+        onOrbitLongPress={presentationMode ? undefined : handleOrbitLongPress}
         className={isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : undefined}
       />
 
       {/* Title */}
+      {!presentationMode && (
       <div className={`fixed z-20 pointer-events-none ${isMobile ? 'top-3 left-1/2 -translate-x-1/2 text-center' : 'top-4 left-5'}`}>
         <h1
           className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase`}
@@ -1726,8 +1845,10 @@ function OrbitalPolymeter() {
           Polyrhythmic Geometry Explorer
         </p>
       </div>
+      )}
 
       {/* Help hint */}
+      {!presentationMode && (
       <div className={`fixed z-20 pointer-events-none ${isMobile ? 'top-16 left-1/2 -translate-x-1/2' : 'top-4 right-5'}`}>
         <p
           className={`font-mono leading-relaxed ${isMobile ? 'text-[9px] text-center' : 'text-[10px] text-right'}`}
@@ -1744,8 +1865,25 @@ function OrbitalPolymeter() {
           )}
         </p>
       </div>
+      )}
 
-      {helpOpen && (
+      {presentationMode && (
+        <div className="fixed z-20 top-4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div
+            className="rounded-full border px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
+            style={{
+              background: 'rgba(17,17,22,0.62)',
+              backdropFilter: 'blur(14px)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.72)',
+            }}
+          >
+            {presentationModeLabel} · {engineState.speedMultiplier.toFixed(1)}x · {presentationSoundLabel}
+          </div>
+        </div>
+      )}
+
+      {helpOpen && !presentationMode && (
         <>
           <div
             className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm"
@@ -1788,7 +1926,7 @@ function OrbitalPolymeter() {
         </>
       )}
 
-      {isMobile && (
+      {isMobile && !presentationMode && (
         <div className="relative z-20 px-3 pb-28 space-y-3">
           <div
             className="rounded-3xl border px-4 py-4 space-y-4"
@@ -1978,6 +2116,7 @@ function OrbitalPolymeter() {
           speedMultiplier={engineState.speedMultiplier}
           traceMode={traceMode}
           muted={muted}
+          presentationMode={presentationMode}
           showHelp={helpOpen}
           geometryMode={geometryMode}
           tonePreset={harmonySettings.tonePreset}
@@ -1997,6 +2136,7 @@ function OrbitalPolymeter() {
           onToggleTrace={handleToggleTrace}
           onToggleMute={handleToggleMute}
           onToggleHelp={() => setHelpOpen((open) => !open)}
+          onTogglePresentation={handleTogglePresentation}
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
@@ -2008,7 +2148,7 @@ function OrbitalPolymeter() {
       {/* Sidebar */}
       <OrbitSidebar
         orbits={engineState.orbits}
-        isOpen={sidebarOpen}
+        isOpen={sidebarOpen && !presentationMode}
         harmonySettings={harmonySettings}
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
@@ -2038,7 +2178,7 @@ function OrbitalPolymeter() {
       />
 
       {/* Radial Menu */}
-      {radialMenu && (
+      {radialMenu && !presentationMode && (
         <RadialMenu
           x={radialMenu.x}
           y={radialMenu.y}
