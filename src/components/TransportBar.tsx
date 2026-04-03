@@ -13,6 +13,7 @@ interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
   traceMode: boolean;
+  showPlanets: boolean;
   muted: boolean;
   presentationMode: boolean;
   geometryMode: GeometryMode;
@@ -36,6 +37,7 @@ interface TransportBarProps {
   onClearTraces: () => void;
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
+  onTogglePlanets: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onTogglePresentation: () => void;
@@ -50,6 +52,7 @@ export default function TransportBar({
   playing,
   speedMultiplier,
   traceMode,
+  showPlanets,
   muted,
   presentationMode,
   geometryMode,
@@ -69,6 +72,7 @@ export default function TransportBar({
   onClearTraces,
   onSpeedChange,
   onToggleTrace,
+  onTogglePlanets,
   onToggleMute,
   onToggleHelp,
   onTogglePresentation,
@@ -498,7 +502,7 @@ export default function TransportBar({
               />
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               <button
                 onClick={onToggleTrace}
                 className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
@@ -534,6 +538,18 @@ export default function TransportBar({
                 title={muted ? 'Unmute audio' : 'Mute audio'}
               >
                 {muted ? 'MUTED' : 'AUDIO'}
+              </button>
+              <button
+                onClick={onTogglePlanets}
+                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={{
+                  background: showPlanets ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.12)',
+                  border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.22)'}`,
+                  color: 'rgba(255, 255, 255, 0.75)',
+                }}
+                title={showPlanets ? 'Hide orbit dots and guide lines' : 'Show orbit dots and guide lines'}
+              >
+                {showPlanets ? 'PLANETS' : 'NO DOTS'}
               </button>
               <button
                 onClick={onToggleHelp}
@@ -678,6 +694,22 @@ export default function TransportBar({
             <span className="flex items-center gap-2">
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
               <span>{muted ? 'Muted' : 'Audio'}</span>
+            </span>
+          </button>
+
+          <button
+            onClick={onTogglePlanets}
+            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              background: showPlanets ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.12)',
+              border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.22)'}`,
+              color: 'rgba(255, 255, 255, 0.72)',
+            }}
+            title={showPlanets ? 'Hide orbit dots and guide lines' : 'Show orbit dots and guide lines'}
+          >
+            <span className="flex items-center gap-2">
+              <Zap size={16} />
+              <span>{showPlanets ? 'Planets' : 'No Dots'}</span>
             </span>
           </button>
 

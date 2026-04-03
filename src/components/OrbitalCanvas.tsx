@@ -57,6 +57,7 @@ interface Bloom {
 interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
+  showPlanets?: boolean;
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
@@ -66,7 +67,7 @@ interface OrbitalCanvasProps {
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
+  ({ engineState, traceMode, showPlanets = true, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
     const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
@@ -75,6 +76,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const traceSegmentCountRef = useRef(0);
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
+    const showPlanetsRef = useRef(showPlanets);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
@@ -90,6 +92,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     // Keep refs in sync
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
+    showPlanetsRef.current = showPlanets;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
     interferenceSettingsRef.current = interferenceSettings;
@@ -886,37 +889,39 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 ? currentOuterPoint
                 : resonancePosition(orbit, cx, cy);
 
-          // Soft glow around resonance point
-          ctx.save();
-          const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 12);
-          grad.addColorStop(0, orbit.color + 'AA');
-          grad.addColorStop(0.5, orbit.color + '33');
-          grad.addColorStop(1, orbit.color + '00');
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 12, 0, TAU);
-          ctx.fill();
-          ctx.restore();
+          if (showPlanetsRef.current) {
+            // Soft glow around resonance point
+            ctx.save();
+            const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 12);
+            grad.addColorStop(0, orbit.color + 'AA');
+            grad.addColorStop(0.5, orbit.color + '33');
+            grad.addColorStop(1, orbit.color + '00');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 12, 0, TAU);
+            ctx.fill();
+            ctx.restore();
 
-          // Core dot
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(pos.x, pos.y, 3, 0, TAU);
-          ctx.fillStyle = orbit.color;
-          ctx.globalAlpha = 1;
-          ctx.fill();
-          ctx.restore();
+            // Core dot
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 3, 0, TAU);
+            ctx.fillStyle = orbit.color;
+            ctx.globalAlpha = 1;
+            ctx.fill();
+            ctx.restore();
 
-          // Connecting line from center to resonance point
-          ctx.save();
-          ctx.globalAlpha = 0.05;
-          ctx.strokeStyle = orbit.color;
-          ctx.lineWidth = 0.5;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.lineTo(pos.x, pos.y);
-          ctx.stroke();
-          ctx.restore();
+            // Connecting line from center to resonance point
+            ctx.save();
+            ctx.globalAlpha = 0.05;
+            ctx.strokeStyle = orbit.color;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.restore();
+          }
 
           // Pulse count label
           ctx.save();
