@@ -330,21 +330,36 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       traceCanvasRef.current = traceCanvas;
 
       const resize = () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
+        const bounds = canvas.getBoundingClientRect();
+        const w = Math.max(1, Math.round(bounds.width || window.innerWidth));
+        const h = Math.max(1, Math.round(bounds.height || window.innerHeight));
+        const nextCanvasWidth = w * dpr;
+        const nextCanvasHeight = h * dpr;
+
+        if (
+          canvas.width === nextCanvasWidth &&
+          canvas.height === nextCanvasHeight &&
+          traceCanvas.width === nextCanvasWidth &&
+          traceCanvas.height === nextCanvasHeight
+        ) {
+          return;
+        }
+
+        canvas.width = nextCanvasWidth;
+        canvas.height = nextCanvasHeight;
         canvas.style.width = `${w}px`;
         canvas.style.height = `${h}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        traceCanvas.width = w * dpr;
-        traceCanvas.height = h * dpr;
+        traceCanvas.width = nextCanvasWidth;
+        traceCanvas.height = nextCanvasHeight;
         traceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         clearTraces();
       };
 
       resize();
+      const resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(canvas);
       window.addEventListener('resize', resize);
 
       const BLOOM_DURATION = 500;
@@ -886,6 +901,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
       return () => {
         cancelAnimationFrame(rafRef.current);
+        resizeObserver.disconnect();
         window.removeEventListener('resize', resize);
         traceCanvasRef.current = null;
       };
