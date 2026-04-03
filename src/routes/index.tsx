@@ -941,9 +941,9 @@ function OrbitalPolymeter() {
   );
   const mobileQuickOrbits =
     geometryMode === 'standard-trace'
-      ? engineState.orbits.slice(0, 2).map((orbit, index) => ({
+      ? engineState.orbits.map((orbit, index) => ({
           id: orbit.id,
-          label: index === 0 ? 'Inner cycles' : 'Outer cycles',
+          label: `Orbit ${index + 1}`,
           pulseCount: orbit.pulseCount,
           direction: orbit.direction,
         }))
@@ -1041,6 +1041,9 @@ function OrbitalPolymeter() {
               <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 Quick ratio controls on the main page. Use Menu for deeper orbit editing.
               </p>
+              <p className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                Sliders stay in the 1-10 range for touch control. Type any higher number directly.
+              </p>
             </div>
             {mobileQuickOrbits.map((orbit) => (
               <div key={orbit.id} className="space-y-2">
@@ -1060,9 +1063,9 @@ function OrbitalPolymeter() {
                   <input
                     type="range"
                     min="1"
-                    max="1000"
+                    max="10"
                     step="1"
-                    value={orbit.pulseCount}
+                    value={Math.min(orbit.pulseCount, 10)}
                     onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
                     className="flex-1 accent-white"
                   />
