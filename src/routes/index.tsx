@@ -5,7 +5,7 @@
 
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef } from 'react';
-import { CircleHelp, Menu, Pause, Play, RotateCcw, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -43,6 +43,45 @@ import {
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
+const HELP_SECTIONS = [
+  {
+    title: 'Modes',
+    accent: '#00FFAA',
+    items: [
+      { label: 'Standard', color: '#00FFAA', text: 'Connects all active orbits into one shared string field.' },
+      { label: 'Interference', color: '#88CCFF', text: 'Traces a live path from the relationship between Pair A and Pair B.' },
+      { label: 'Sweep', color: '#FFAA00', text: 'Draws a finite sampled figure from the selected pair.' },
+    ],
+  },
+  {
+    title: 'Motion',
+    accent: '#88CCFF',
+    items: [
+      { label: 'Play', color: '#00FFAA', text: 'Starts or pauses the full motion and sound.' },
+      { label: 'Step', color: '#88CCFF', text: 'Advances one small beat without free-running playback.' },
+      { label: 'Reset', color: '#FFAA00', text: 'Restarts motion from the beginning and clears the current path.' },
+      { label: 'Trace', color: '#00FFAA', text: 'Keeps the path history visible so the form can accumulate.' },
+    ],
+  },
+  {
+    title: 'Editing',
+    accent: '#FF3366',
+    items: [
+      { label: 'Long-Press Orbit', color: '#FF3366', text: 'Opens quick color and note-role editing for one orbit.' },
+      { label: 'Pair A / Pair B', color: '#88CCFF', text: 'Only matters in Interference and Sweep. These two orbits drive the derived shape.' },
+      { label: 'Menu', color: '#FFFFFF', text: 'Holds deeper orbit controls, scenes, sound settings, and exports.' },
+    ],
+  },
+  {
+    title: 'Sound',
+    accent: '#FFAA00',
+    items: [
+      { label: 'Original Sound', color: '#FFFFFF', text: 'Uses the raw original tone behavior.' },
+      { label: 'Scale Key', color: '#00FFAA', text: 'Locks notes to a key center and scale palette.' },
+      { label: 'Audio', color: '#FFAA00', text: 'Mutes or restores the app without changing geometry.' },
+    ],
+  },
+] as const;
 
 type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 
@@ -1034,32 +1073,68 @@ function OrbitalPolymeter() {
             className="-mt-2 rounded-2xl border p-4 space-y-4"
             style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
           >
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                Orbits
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                  Orbits
+                </div>
+                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                  Quick ratio controls on the main page. Use Menu for deeper orbit editing.
+                </p>
+                <p className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                  Sliders stay in the 1-10 range for touch control. Type any higher number directly.
+                </p>
               </div>
-              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Quick ratio controls on the main page. Use Menu for deeper orbit editing.
-              </p>
-              <p className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                Sliders stay in the 1-10 range for touch control. Type any higher number directly.
-              </p>
+              {geometryMode === 'standard-trace' && (
+                <button
+                  onClick={handleAddOrbit}
+                  className="h-10 w-10 rounded-xl flex items-center justify-center"
+                  style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
+                  title="Add orbit"
+                >
+                  <Plus size={16} />
+                </button>
+              )}
             </div>
             {mobileQuickOrbits.map((orbit) => (
-              <div key={orbit.id} className="space-y-2">
+              <div
+                key={orbit.id}
+                className="rounded-xl border p-3 space-y-3"
+                style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-[12px]" style={{ color: 'rgba(255,255,255,0.74)' }}>
+                  <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.78)' }}>
                     {orbit.label}
                   </div>
-                  <button
-                    onClick={() => handleToggleOrbitDirection(orbit.id)}
-                    className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                  >
-                    {orbit.direction === 1 ? 'CW' : 'CCW'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggleOrbitDirection(orbit.id)}
+                      className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                    >
+                      {orbit.direction === 1 ? 'CW' : 'CCW'}
+                    </button>
+                    {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
+                      <button
+                        onClick={() => handleDeleteOrbit(orbit.id)}
+                        className="h-9 w-9 rounded-xl flex items-center justify-center"
+                        style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                        title={`Remove ${orbit.label}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    title={`Lower ${orbit.label}`}
+                  >
+                    <Minus size={16} />
+                  </button>
                   <input
                     type="range"
                     min="1"
@@ -1069,6 +1144,19 @@ function OrbitalPolymeter() {
                     onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
                     className="flex-1 accent-white"
                   />
+                  <button
+                    onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    title={`Raise ${orbit.label}`}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                    Type for 11+
+                  </div>
                   <input
                     type="number"
                     min="1"
@@ -1280,11 +1368,27 @@ function OrbitalPolymeter() {
               <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                 Quick Help
               </div>
-              <div className="mt-3 space-y-2 text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                <p><span style={{ color: '#00FFAA' }}>Standard</span> connects all active orbits into one shared field.</p>
-                <p><span style={{ color: '#88CCFF' }}>Interference</span> traces a live path from the selected pair.</p>
-                <p><span style={{ color: '#FFAA00' }}>Sweep</span> draws a finite sampled figure from the selected pair.</p>
-                <p>Long-press an orbit to edit color or note role. Use Menu for deeper controls and scenes.</p>
+              <div className="mt-3 space-y-3">
+                {HELP_SECTIONS.map((section) => (
+                  <div
+                    key={section.title}
+                    className="rounded-xl border px-3 py-3"
+                    style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+                  >
+                    <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: section.accent }}>
+                      {section.title}
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {section.items.map((item) => (
+                        <div key={item.label} className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                          <span style={{ color: item.color }}>{item.label}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.44)' }}> — </span>
+                          <span>{item.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </>
@@ -1405,13 +1509,27 @@ function OrbitalPolymeter() {
             <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
               Quick Help
             </div>
-            <div className="mt-3 space-y-3 text-[11px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
-              <p><span style={{ color: '#00FFAA' }}>Standard</span> connects all active orbits into a shared string-art field.</p>
-              <p><span style={{ color: '#88CCFF' }}>Interference</span> traces one live path from the relationship between the selected pair.</p>
-              <p><span style={{ color: '#FFAA00' }}>Sweep</span> plots a finite sampled figure from the selected pair using the old canonical sweep.</p>
-              <p>Pair controls only matter in Interference and Sweep. They choose which two orbits generate the pair path.</p>
-              <p><span style={{ color: '#00FFAA' }}>Trace</span> keeps drawing motion history so the full structure can accumulate.</p>
-              <p>If you are new: pick a mode, press Play, try a built-in scene, then change one ratio at a time.</p>
+            <div className="mt-3 space-y-3">
+              {HELP_SECTIONS.map((section) => (
+                <div
+                  key={section.title}
+                  className="rounded-xl border px-3 py-3"
+                  style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+                >
+                  <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: section.accent }}>
+                    {section.title}
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {section.items.map((item) => (
+                      <div key={item.label} className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                        <span style={{ color: item.color }}>{item.label}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.44)' }}> — </span>
+                        <span>{item.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>
