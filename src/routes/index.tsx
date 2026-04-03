@@ -966,7 +966,7 @@ function OrbitalPolymeter() {
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
           <div className="space-y-3">
-            <div className="relative h-[72svh] min-h-[500px] overflow-hidden">
+            <div className="relative h-[76svh] min-h-[540px] overflow-hidden">
               <OrbitalCanvas
                 ref={canvasRef}
                 engineState={engineState}
@@ -978,20 +978,10 @@ function OrbitalPolymeter() {
                 className="absolute inset-0 w-full h-full"
               />
             </div>
-            <div className="flex items-center justify-between gap-3 px-4 pt-1">
-              <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                Long-press an orbit to edit color or note role.
-              </div>
-              <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                {engineState.speedMultiplier.toFixed(1)}x
-              </div>
-            </div>
+            <div className="h-6" />
           </div>
 
-          <div
-            className="mt-4 rounded-2xl border p-4 space-y-4"
-            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
+          <div className="mt-14 px-3 space-y-3">
             <div className="grid grid-cols-4 gap-2">
               <button
                 onClick={handleTogglePlay}
@@ -1030,10 +1020,18 @@ function OrbitalPolymeter() {
                 <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
               </button>
             </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                Long-press an orbit to edit color or note role.
+              </div>
+              <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                {engineState.speedMultiplier.toFixed(1)}x
+              </div>
+            </div>
           </div>
 
           <div
-            className="rounded-2xl border p-4 space-y-4"
+            className="-mt-2 rounded-2xl border p-4 space-y-4"
             style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
           >
             <div>
