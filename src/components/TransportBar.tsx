@@ -88,7 +88,7 @@ export default function TransportBar({
       ? 'Connects all active orbits into a shared string-art field.'
       : geometryMode === 'interference-trace'
         ? 'Traces one live path from the relationship between the selected pair.'
-        : 'Plots a finite sampled figure from the selected pair using the canonical sweep.';
+      : 'Plots a finite sampled figure from the selected pair.';
   const minimalModeLabel =
     geometryMode === 'standard-trace'
       ? 'Standard'
@@ -258,9 +258,9 @@ export default function TransportBar({
                   }}
                   title="Switch between the original sound palette and the scale-based harmony mode"
                 >
-                  {tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+                  {tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
                   </button>
-                  <InfoTip text="Switch between the original tone palette and the key-and-scale harmony mode." />
+                  <InfoTip text="Switch between the original tone palette and keyed harmony." />
                 </div>
                 {tonePreset === 'scale-quantized' && (
                   <>

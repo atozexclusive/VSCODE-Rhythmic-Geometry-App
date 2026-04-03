@@ -118,11 +118,6 @@ export default function RadialMenu({
             <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
               Orbit Editor
             </div>
-            {isMobile && (
-              <div className="text-[10px] mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Color and note role for this orbit.
-              </div>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +189,7 @@ export default function RadialMenu({
 
       <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          Musical Key
+          Key
         </div>
         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-[72px,1fr]'} gap-2 mt-3`}>
           <select
@@ -223,7 +218,7 @@ export default function RadialMenu({
           </select>
         </div>
         <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-          These are global. They set the key and note palette for the whole system.
+          Global for the whole system.
         </p>
       </div>
 
@@ -299,12 +294,12 @@ export default function RadialMenu({
               </div>
             </div>
             <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Manual orbit roles let this orbit choose its own place inside the global key.
+              Manual roles let this orbit choose its own place in the key.
             </p>
           </>
         ) : (
           <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-            Turn on manual orbit roles to assign this orbit its own note role and register. Otherwise the app chooses automatically.
+            Turn on manual roles to set this orbit directly.
           </p>
         )}
       </div>

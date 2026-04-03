@@ -105,7 +105,7 @@ export default function OrbitSidebar({
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
-  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes'>('geometry');
+  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('geometry');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -147,7 +147,7 @@ export default function OrbitSidebar({
         {/* Header */}
         <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'p-6'}`}>
           <h2 className="text-sm font-light tracking-widest uppercase" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            Orbital Control
+            Controls
           </h2>
           <button
             onClick={onClose}
@@ -161,7 +161,7 @@ export default function OrbitSidebar({
 
         {/* Tabs */}
         <div className={`flex gap-1 border-b border-white/5 ${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4'}`}>
-          {(['geometry', 'orbits', 'sound', 'scenes'] as const).map((tab) => (
+          {(['geometry', 'orbits', 'sound', 'scenes', 'export'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -454,16 +454,16 @@ export default function OrbitSidebar({
             <div className="space-y-4">
               <div>
                 <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Saved Scenes
+                  Scenes
                 </div>
                 <p className="text-[10px] mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Save the full current state locally in this browser: orbits, speed, trace mode, and harmony.
+                  Load built-ins or save the current state locally.
                 </p>
               </div>
 
               <div className="space-y-2">
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Built-In Library
+                  Built-In Scenes
                 </div>
                 {builtInScenes.map((scene) => (
                   <div
@@ -499,108 +499,13 @@ export default function OrbitSidebar({
                         color: '#00FFAA',
                       }}
                     >
-                      Load Built-In Scene
+                      Load Scene
                     </button>
                   </div>
                 ))}
               </div>
 
               <div className="space-y-2">
-                <div
-                  className="rounded-lg border p-3 space-y-3"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                  }}
-                >
-                  <div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                      Export
-                    </div>
-                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                      Export the canvas only. Use share-friendly aspect presets and short WebM motion loops.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={exportAspect}
-                      onChange={(e) => setExportAspect(e.target.value as typeof exportAspect)}
-                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                    >
-                      <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
-                      <option value="square" style={{ background: '#181820' }}>Square Post</option>
-                      <option value="portrait" style={{ background: '#181820' }}>Wallpaper</option>
-                      <option value="story" style={{ background: '#181820' }}>Story</option>
-                    </select>
-                    <select
-                      value={String(exportScale)}
-                      onChange={(e) => setExportScale(Number(e.target.value) as 1 | 2 | 4)}
-                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                    >
-                      <option value="1" style={{ background: '#181820' }}>HD</option>
-                      <option value="2" style={{ background: '#181820' }}>2K</option>
-                      <option value="4" style={{ background: '#181820' }}>4K</option>
-                    </select>
-                  </div>
-                  <button
-                    onClick={() => {
-                      onExportPng({ aspect: exportAspect, scale: exportScale });
-                      setExportNotice('PNG exported. Open it, then Share > Save Image on mobile.');
-                    }}
-                    className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                    style={{
-                      background: 'rgba(0, 255, 170, 0.08)',
-                      border: '1px solid rgba(0, 255, 170, 0.2)',
-                      color: '#00FFAA',
-                    }}
-                  >
-                    Export PNG
-                  </button>
-                  <div className="grid grid-cols-[1fr,auto] gap-2">
-                    <select
-                      value={String(videoDuration)}
-                      onChange={(e) => setVideoDuration(Number(e.target.value) as 8 | 12)}
-                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                    >
-                      <option value="8" style={{ background: '#181820' }}>8s loop</option>
-                      <option value="12" style={{ background: '#181820' }}>12s clip</option>
-                    </select>
-                    <button
-                      onClick={() => {
-                        void onExportVideo({ durationSeconds: videoDuration });
-                        setExportNotice(
-                          isIOS
-                            ? 'WebM recording started from reset. iPhone may not save WebM cleanly; PNG is more reliable there.'
-                            : 'WebM recording started from reset. After download, share or save the file normally.',
-                        );
-                      }}
-                      disabled={isRecordingVideo}
-                      className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
-                      style={{
-                        background: 'rgba(51, 136, 255, 0.08)',
-                        border: '1px solid rgba(51, 136, 255, 0.2)',
-                        color: '#88CCFF',
-                      }}
-                    >
-                      {isRecordingVideo ? 'Recording…' : 'Record WebM'}
-                    </button>
-                  </div>
-                  {exportNotice && (
-                    <div
-                      className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'rgba(255,255,255,0.62)',
-                      }}
-                    >
-                      {exportNotice}
-                    </div>
-                  )}
-                </div>
                 <input
                   type="text"
                   value={sceneName}
@@ -622,8 +527,8 @@ export default function OrbitSidebar({
                       color: '#00FFAA',
                     }}
                   >
-                    Save Named Scene
-                  </button>
+                  Save Scene
+                </button>
                   <button
                     onClick={onSaveScene}
                     className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
@@ -633,38 +538,14 @@ export default function OrbitSidebar({
                       color: 'rgba(255, 255, 255, 0.7)',
                     }}
                   >
-                    Quick Save
+                    Save
                   </button>
                 </div>
-                <button
-                  onClick={() => importInputRef.current?.click()}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                  }}
-                >
-                  Import Scene JSON
-                </button>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept="application/json,.json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      onImportScene(file);
-                    }
-                    e.target.value = '';
-                  }}
-                />
               </div>
 
               <div className="space-y-2">
                 <div className="text-[10px] font-mono uppercase tracking-widest pt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Your Saved Scenes
+                  Saved by You
                 </div>
                 {savedScenes.length === 0 ? (
                   <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
@@ -739,6 +620,160 @@ export default function OrbitSidebar({
             </div>
           )}
 
+          {/* EXPORT TAB */}
+          {activeTab === 'export' && (
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                  Export
+                </div>
+                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                  Export clean stills, short motion loops, or scene files.
+                </p>
+              </div>
+
+              <div
+                className="rounded-lg border p-3 space-y-3"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Image Export
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={exportAspect}
+                    onChange={(e) => setExportAspect(e.target.value as typeof exportAspect)}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
+                    <option value="square" style={{ background: '#181820' }}>Square Post</option>
+                    <option value="portrait" style={{ background: '#181820' }}>Wallpaper</option>
+                    <option value="story" style={{ background: '#181820' }}>Story</option>
+                  </select>
+                  <select
+                    value={String(exportScale)}
+                    onChange={(e) => setExportScale(Number(e.target.value) as 1 | 2 | 4)}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    <option value="1" style={{ background: '#181820' }}>HD</option>
+                    <option value="2" style={{ background: '#181820' }}>2K</option>
+                    <option value="4" style={{ background: '#181820' }}>4K</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => {
+                    onExportPng({ aspect: exportAspect, scale: exportScale });
+                    setExportNotice('PNG exported. On mobile: Share > Save Image.');
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(0, 255, 170, 0.08)',
+                    border: '1px solid rgba(0, 255, 170, 0.2)',
+                    color: '#00FFAA',
+                  }}
+                >
+                  Export PNG
+                </button>
+              </div>
+
+              <div
+                className="rounded-lg border p-3 space-y-3"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Motion Export
+                </div>
+                <div className="grid grid-cols-[1fr,auto] gap-2">
+                  <select
+                    value={String(videoDuration)}
+                    onChange={(e) => setVideoDuration(Number(e.target.value) as 8 | 12)}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                  >
+                    <option value="8" style={{ background: '#181820' }}>8s loop</option>
+                    <option value="12" style={{ background: '#181820' }}>12s clip</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      void onExportVideo({ durationSeconds: videoDuration });
+                      setExportNotice(
+                        isIOS
+                          ? 'WebM may not save cleanly on iPhone. PNG is more reliable there.'
+                          : 'WebM recording started from reset.',
+                      );
+                    }}
+                    disabled={isRecordingVideo}
+                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                    style={{
+                      background: 'rgba(51, 136, 255, 0.08)',
+                      border: '1px solid rgba(51, 136, 255, 0.2)',
+                      color: '#88CCFF',
+                    }}
+                  >
+                    {isRecordingVideo ? 'Recording…' : 'Record WebM'}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className="rounded-lg border p-3 space-y-3"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                }}
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Scene Files
+                </div>
+                <button
+                  onClick={() => importInputRef.current?.click()}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  }}
+                >
+                  Import Scene JSON
+                </button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      onImportScene(file);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+
+              {exportNotice && (
+                <div
+                  className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.62)',
+                  }}
+                >
+                  {exportNotice}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SOUND TAB */}
           {activeTab === 'sound' && (
             <div className="space-y-4">
@@ -747,7 +782,7 @@ export default function OrbitSidebar({
                   Sound
                 </div>
                 <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Choose whether the system sounds raw, key-based, or orbit-shaped inside a musical scale.
+                  Choose between the original palette and keyed harmony.
                 </p>
               </div>
 
@@ -756,7 +791,7 @@ export default function OrbitSidebar({
                   <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
                     Sound Mode
                   </div>
-                  <InfoTip text="Original keeps the old sound palette. Scale Quantized locks the system into a musical key and scale." />
+                  <InfoTip text="Original uses the old tone palette. Keyed harmony locks the system into a key and scale." />
                 </div>
                 <select
                   value={harmonySettings.tonePreset}
@@ -764,18 +799,15 @@ export default function OrbitSidebar({
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
                   style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                 >
-                  <option value="original" style={{ background: '#181820' }}>Original</option>
-                  <option value="scale-quantized" style={{ background: '#181820' }}>Scale Quantized</option>
+                  <option value="original" style={{ background: '#181820' }}>Original Tones</option>
+                  <option value="scale-quantized" style={{ background: '#181820' }}>Keyed Harmony</option>
                 </select>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  `Original` keeps the old tone behavior. `Scale Quantized` locks the system into a musical key and scale.
-                </p>
               </div>
 
               <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                    Key and Scale
+                    Key
                   </div>
                   <InfoTip text="These are global. They define the tonal home base and note palette for the whole system." />
                 </div>
@@ -799,7 +831,6 @@ export default function OrbitSidebar({
                     ))}
                   </select>
                   <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                    This is the tonal home base for the whole system.
                   </p>
                 </div>
 
@@ -823,7 +854,6 @@ export default function OrbitSidebar({
                     ))}
                   </select>
                   <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                    The scale is the note palette the system is allowed to use.
                   </p>
                 </div>
               </div>
@@ -838,7 +868,7 @@ export default function OrbitSidebar({
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Auto Note Mapping
+                      Auto Mapping
                     </label>
                     <InfoTip text="When per-orbit roles are off, this decides how the system chooses notes." />
                   </div>
@@ -853,9 +883,6 @@ export default function OrbitSidebar({
                     <option value="pulse-count" style={{ background: '#181820' }}>By Pulse Count</option>
                     <option value="radius" style={{ background: '#181820' }}>By Radius</option>
                   </select>
-                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                    When orbit roles are automatic, this decides how notes are chosen.
-                  </p>
                 </div>
 
                 <button
@@ -869,10 +896,10 @@ export default function OrbitSidebar({
                     color: harmonySettings.manualOrbitRoles ? '#00FFAA' : 'rgba(255, 255, 255, 0.7)',
                   }}
                 >
-                  {harmonySettings.manualOrbitRoles ? 'Per-Orbit Note Roles On' : 'Per-Orbit Note Roles Off'}
+                  {harmonySettings.manualOrbitRoles ? 'Orbit Roles: Manual' : 'Orbit Roles: Auto'}
                 </button>
                 <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  Global key and scale shape the whole system. Manual orbit roles let each orbit choose its own place inside that system.
+                  Global key and scale shape the whole system. Orbit roles shape each orbit inside it.
                 </p>
               </div>
 
@@ -882,7 +909,7 @@ export default function OrbitSidebar({
                 </div>
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
                   {harmonySettings.tonePreset === 'original'
-                    ? 'The original orbit-driven tone palette is active.'
+                    ? 'The original tone palette is active.'
                     : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}. ${
                         harmonySettings.manualOrbitRoles
                           ? 'Each orbit can choose its own role.'
@@ -907,7 +934,7 @@ export default function OrbitSidebar({
                   Geometry
                 </div>
                 <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Choose how structure is generated and which pair drives derived modes.
+                  Choose how the form is generated.
                 </p>
               </div>
 
@@ -916,13 +943,13 @@ export default function OrbitSidebar({
                   Start Here
                 </div>
                 <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  Pick a mode on the main transport, press play, try a built-in scene, then change one ratio at a time.
+                  Pick a mode, press play, then change one ratio at a time.
                 </p>
               </div>
 
               <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Current Geometry Mode
+                  Active Mode
                 </div>
                 <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.72)' }}>
                   {currentModeLabel}
@@ -939,11 +966,11 @@ export default function OrbitSidebar({
               {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
                 <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
                   <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                    Active Pair
+                    Driving Pair
                   </div>
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Pair Orbit A
+                      Pair A
                     </label>
                     <select
                       value={interferenceSettings.sourceOrbitAId ?? ''}
@@ -957,14 +984,11 @@ export default function OrbitSidebar({
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                      This is the first orbit used to build the pair path.
-                    </p>
                   </div>
 
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Pair Orbit B
+                      Pair B
                     </label>
                     <select
                       value={interferenceSettings.sourceOrbitBId ?? ''}
@@ -978,9 +1002,6 @@ export default function OrbitSidebar({
                         </option>
                       ))}
                     </select>
-                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                      This is the second orbit used to build the pair path.
-                    </p>
                   </div>
 
                   <button
@@ -994,9 +1015,6 @@ export default function OrbitSidebar({
                   >
                     {interferenceSettings.showConnectors ? 'Pair Guide Lines On' : 'Pair Guide Lines Off'}
                   </button>
-                  <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                    Guide lines show the live connection from each selected orbit into the pair path.
-                  </p>
                 </div>
               )}
 
@@ -1005,7 +1023,7 @@ export default function OrbitSidebar({
                   Ratio Sets
                 </div>
                 <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Load a ready-made orbit relationship, then refine it on the main controls.
+                  Load a ready-made orbit relationship, then refine it.
                 </p>
                 {Object.entries(PRESET_RATIOS).map(([name, ratios]) => (
                   <button
@@ -1026,11 +1044,6 @@ export default function OrbitSidebar({
                 ))}
               </div>
 
-              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  Tap an orbit directly on the canvas to change its color. Use the menu mainly for geometry choices, sound, scenes, and deeper orbit edits.
-                </p>
-              </div>
             </div>
           )}
         </div>

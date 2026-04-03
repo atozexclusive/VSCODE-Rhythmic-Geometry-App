@@ -49,36 +49,36 @@ const HELP_SECTIONS = [
     title: 'Modes',
     accent: '#00FFAA',
     items: [
-      { label: 'Standard', color: '#00FFAA', text: 'Connects all active orbits into one shared string field.' },
-      { label: 'Interference', color: '#88CCFF', text: 'Traces a live path from the relationship between Pair A and Pair B.' },
-      { label: 'Sweep', color: '#FFAA00', text: 'Draws a finite sampled figure from the selected pair.' },
+      { label: 'Standard', color: '#00FFAA', text: 'Connects all active orbits into one shared field.' },
+      { label: 'Interference', color: '#88CCFF', text: 'Traces a live path from the selected pair.' },
+      { label: 'Sweep', color: '#FFAA00', text: 'Plots a finite sampled figure from the selected pair.' },
     ],
   },
   {
     title: 'Motion',
     accent: '#88CCFF',
     items: [
-      { label: 'Play', color: '#00FFAA', text: 'Starts or pauses the full motion and sound.' },
-      { label: 'Step', color: '#88CCFF', text: 'Advances one small beat without free-running playback.' },
-      { label: 'Reset', color: '#FFAA00', text: 'Restarts motion from the beginning and clears the current path.' },
-      { label: 'Trace', color: '#00FFAA', text: 'Keeps the path history visible so the form can accumulate.' },
+      { label: 'Play', color: '#00FFAA', text: 'Starts or pauses motion and sound.' },
+      { label: 'Step', color: '#88CCFF', text: 'Advances one small beat while paused.' },
+      { label: 'Reset', color: '#FFAA00', text: 'Restarts motion and clears the path.' },
+      { label: 'Trace', color: '#00FFAA', text: 'Keeps path history visible.' },
     ],
   },
   {
     title: 'Editing',
     accent: '#FF3366',
     items: [
-      { label: 'Long-Press Orbit', color: '#FF3366', text: 'Opens quick color and note-role editing for one orbit.' },
-      { label: 'Pair A / Pair B', color: '#88CCFF', text: 'Only matters in Interference and Sweep. These two orbits drive the derived shape.' },
-      { label: 'Menu', color: '#FFFFFF', text: 'Holds deeper orbit controls, scenes, sound settings, and exports.' },
+      { label: 'Long-Press Orbit', color: '#FF3366', text: 'Opens quick color and note-role editing.' },
+      { label: 'Pair A / Pair B', color: '#88CCFF', text: 'In Interference and Sweep, these two orbits drive the form.' },
+      { label: 'Menu', color: '#FFFFFF', text: 'Holds deeper orbit, sound, scene, and export controls.' },
     ],
   },
   {
     title: 'Sound',
     accent: '#FFAA00',
     items: [
-      { label: 'Original Sound', color: '#FFFFFF', text: 'Uses the raw original tone behavior.' },
-      { label: 'Scale Key', color: '#00FFAA', text: 'Locks notes to a key center and scale palette.' },
+      { label: 'Original Tones', color: '#FFFFFF', text: 'Uses the raw original tone behavior.' },
+      { label: 'Keyed Harmony', color: '#00FFAA', text: 'Locks notes to a key and scale.' },
       { label: 'Audio', color: '#FFAA00', text: 'Mutes or restores the app without changing geometry.' },
     ],
   },
@@ -1287,7 +1287,7 @@ function OrbitalPolymeter() {
   const presentationSoundLabel = muted
     ? 'Muted'
     : harmonySettings.tonePreset === 'original'
-      ? 'Original Sound'
+      ? 'Original Tones'
       : `${harmonySettings.rootNote} ${SCALE_PRESETS[harmonySettings.scaleName].label}`;
   const presentationModeLabel =
     geometryMode === 'standard-trace'
@@ -1422,7 +1422,7 @@ function OrbitalPolymeter() {
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                Long-press an orbit to edit color or note role.
+                Long-press orbits to edit.
               </div>
               <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
                 {engineState.speedMultiplier.toFixed(1)}x
@@ -1447,10 +1447,7 @@ function OrbitalPolymeter() {
                   Orbits
                 </div>
                 <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  Quick ratio controls on the main page. Use Menu for deeper orbit editing.
-                </p>
-                <p className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                  Sliders stay in the 1-10 range for touch control. Type any higher number directly.
+                  Quick ratios live here. Type for 11+.
                 </p>
               </div>
               {geometryMode === 'standard-trace' && (
@@ -1546,10 +1543,10 @@ function OrbitalPolymeter() {
           >
             <div>
               <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                Geometry & Tempo
+                Mode & Motion
               </div>
               <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Choose the drawing method, then shape speed and direction.
+                Choose the mode, then shape speed.
               </p>
             </div>
             <div className="flex items-start justify-between gap-3">
@@ -1646,7 +1643,7 @@ function OrbitalPolymeter() {
                 Sound
               </div>
               <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Keep the main musical choices close. Deeper harmony still lives in Menu.
+                Main sound choices live here.
               </p>
             </div>
             <button
@@ -1658,7 +1655,7 @@ function OrbitalPolymeter() {
                 color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
               }}
             >
-              {harmonySettings.tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+              {harmonySettings.tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
             </button>
             {harmonySettings.tonePreset === 'scale-quantized' && (
               <div className="grid grid-cols-[92px,1fr] gap-2">
@@ -1693,10 +1690,10 @@ function OrbitalPolymeter() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  Presets & Scenes
+                  Scenes
                 </div>
                 <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  Quick ratio starts below. Open Menu for built-in scenes, save, export, and scene files.
+                  Quick starts live here. Menu holds the full scene library.
                 </p>
               </div>
               <button
