@@ -541,6 +541,7 @@ function OrbitalPolymeter() {
     normalizeInterferenceSettings(engineState.orbits, DEFAULT_INTERFERENCE_SETTINGS),
   );
   const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
+  const [recordingVideo, setRecordingVideo] = useState(false);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
     x: number;
@@ -915,12 +916,39 @@ function OrbitalPolymeter() {
     });
   }, []);
 
-  const handleExportPng = useCallback(() => {
+  const handleExportPng = useCallback((options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
     const canvasEl = canvasRef.current;
     if (canvasEl && (canvasEl as any).__exportPng) {
-      (canvasEl as any).__exportPng();
+      (canvasEl as any).__exportPng(options);
     }
   }, []);
+
+  const handleExportVideo = useCallback(
+    async (options: { durationSeconds: 8 | 12 }) => {
+      const canvasEl = canvasRef.current;
+      if (!canvasEl || !(canvasEl as any).__exportVideo || recordingVideo) {
+        return;
+      }
+
+      try {
+        setRecordingVideo(true);
+        stopAllAudio();
+        resetEngine(engineState);
+        handleClearTraces();
+        resumeAudio();
+        engineState.playing = true;
+        engineState.lastTimestamp = -1;
+        rerender();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await (canvasEl as any).__exportVideo(options);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setRecordingVideo(false);
+      }
+    },
+    [engineState, handleClearTraces, recordingVideo, rerender],
+  );
 
   const handleExportScene = useCallback(
     (sceneId: string) => {
@@ -1421,6 +1449,8 @@ function OrbitalPolymeter() {
           onExportScene={handleExportScene}
           onImportScene={handleImportScene}
           onExportPng={handleExportPng}
+          onExportVideo={handleExportVideo}
+          isRecordingVideo={recordingVideo}
         />
 
         {radialMenu && (
@@ -1780,6 +1810,8 @@ function OrbitalPolymeter() {
         onExportScene={handleExportScene}
         onImportScene={handleImportScene}
         onExportPng={handleExportPng}
+        onExportVideo={handleExportVideo}
+        isRecordingVideo={recordingVideo}
       />
 
       {/* Radial Menu */}

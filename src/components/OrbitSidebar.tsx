@@ -54,7 +54,9 @@ interface OrbitSidebarProps {
   onDeleteScene: (sceneId: string) => void;
   onExportScene: (sceneId: string) => void;
   onImportScene: (file: File) => void;
-  onExportPng: () => void;
+  onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
+  onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
+  isRecordingVideo: boolean;
 }
 
 const COLORS = [
@@ -96,11 +98,18 @@ export default function OrbitSidebar({
   onExportScene,
   onImportScene,
   onExportPng,
+  onExportVideo,
+  isRecordingVideo,
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
+  const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes'>('geometry');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
+  const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
+  const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
+  const [videoDuration, setVideoDuration] = useState<8 | 12>(8);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const currentModeLabel =
     geometryMode === 'standard-trace'
@@ -485,17 +494,101 @@ export default function OrbitSidebar({
               </div>
 
               <div className="space-y-2">
-                <button
-                  onClick={onExportPng}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                <div
+                  className="rounded-lg border p-3 space-y-3"
                   style={{
-                    background: 'rgba(0, 255, 170, 0.08)',
-                    border: '1px solid rgba(0, 255, 170, 0.2)',
-                    color: '#00FFAA',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  Export Current View PNG
-                </button>
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                      Export
+                    </div>
+                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                      Export the canvas only. Use share-friendly aspect presets and short WebM motion loops.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={exportAspect}
+                      onChange={(e) => setExportAspect(e.target.value as typeof exportAspect)}
+                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    >
+                      <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
+                      <option value="square" style={{ background: '#181820' }}>Square Post</option>
+                      <option value="portrait" style={{ background: '#181820' }}>Wallpaper</option>
+                      <option value="story" style={{ background: '#181820' }}>Story</option>
+                    </select>
+                    <select
+                      value={String(exportScale)}
+                      onChange={(e) => setExportScale(Number(e.target.value) as 1 | 2 | 4)}
+                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    >
+                      <option value="1" style={{ background: '#181820' }}>HD</option>
+                      <option value="2" style={{ background: '#181820' }}>2K</option>
+                      <option value="4" style={{ background: '#181820' }}>4K</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onExportPng({ aspect: exportAspect, scale: exportScale });
+                      setExportNotice('PNG exported. Open it, then Share > Save Image on mobile.');
+                    }}
+                    className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                    style={{
+                      background: 'rgba(0, 255, 170, 0.08)',
+                      border: '1px solid rgba(0, 255, 170, 0.2)',
+                      color: '#00FFAA',
+                    }}
+                  >
+                    Export PNG
+                  </button>
+                  <div className="grid grid-cols-[1fr,auto] gap-2">
+                    <select
+                      value={String(videoDuration)}
+                      onChange={(e) => setVideoDuration(Number(e.target.value) as 8 | 12)}
+                      className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    >
+                      <option value="8" style={{ background: '#181820' }}>8s loop</option>
+                      <option value="12" style={{ background: '#181820' }}>12s clip</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        void onExportVideo({ durationSeconds: videoDuration });
+                        setExportNotice(
+                          isIOS
+                            ? 'WebM recording started from reset. iPhone may not save WebM cleanly; PNG is more reliable there.'
+                            : 'WebM recording started from reset. After download, share or save the file normally.',
+                        );
+                      }}
+                      disabled={isRecordingVideo}
+                      className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                      style={{
+                        background: 'rgba(51, 136, 255, 0.08)',
+                        border: '1px solid rgba(51, 136, 255, 0.2)',
+                        color: '#88CCFF',
+                      }}
+                    >
+                      {isRecordingVideo ? 'Recording…' : 'Record WebM'}
+                    </button>
+                  </div>
+                  {exportNotice && (
+                    <div
+                      className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: 'rgba(255,255,255,0.62)',
+                      }}
+                    >
+                      {exportNotice}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={sceneName}
