@@ -44,45 +44,142 @@ import {
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
-const HELP_SECTIONS = [
+interface StartGuideStep {
+  target: string;
+  title: string;
+  text: string;
+}
+
+const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
-    title: 'Modes',
-    accent: '#00FFAA',
-    items: [
-      { label: 'Standard', color: '#00FFAA', text: 'Connects all active orbits into one shared field.' },
-      { label: 'Interference', color: '#88CCFF', text: 'Traces a live path from the selected pair.' },
-      { label: 'Sweep', color: '#FFAA00', text: 'Plots a finite sampled figure from the selected pair.' },
-    ],
+    target: 'mobile-scenes',
+    title: 'Start Here',
+    text: 'Pick a built-in scene to load a strong starting pattern, then press play.',
   },
   {
-    title: 'Motion',
-    accent: '#88CCFF',
-    items: [
-      { label: 'Play', color: '#00FFAA', text: 'Starts or pauses motion and sound.' },
-      { label: 'Step', color: '#88CCFF', text: 'Advances one small beat while paused.' },
-      { label: 'Reset', color: '#FFAA00', text: 'Restarts motion and clears the path.' },
-      { label: 'Trace', color: '#00FFAA', text: 'Keeps path history visible.' },
-    ],
+    target: 'mobile-playback',
+    title: 'Playback',
+    text: 'This is the main motion row: play starts, reset clears, audio mutes, random refreshes, and speed shapes the pace.',
   },
   {
-    title: 'Editing',
-    accent: '#FF3366',
-    items: [
-      { label: 'Long-Press Orbit', color: '#FF3366', text: 'Opens quick color and note-role editing.' },
-      { label: 'Pair A / Pair B', color: '#88CCFF', text: 'In Interference and Sweep, these two orbits drive the form.' },
-      { label: 'Menu', color: '#FFFFFF', text: 'Holds deeper orbit, sound, scene, and export controls.' },
-    ],
+    target: 'mobile-speed',
+    title: 'Speed',
+    text: 'Slow speeds reveal structure. Faster speeds turn the form into a denser field.',
   },
   {
+    target: 'mobile-present',
+    title: 'Present',
+    text: 'Use Present for a cleaner viewing mode when you want to show, record, or focus on the form.',
+  },
+  {
+    target: 'mobile-customize',
+    title: 'Customize Pattern',
+    text: 'Open this to change the pattern logic, trail, markers, and the main layer relationships.',
+  },
+  {
+    target: 'mobile-layers',
+    title: 'Layers',
+    text: 'Change pulse counts here. Small number shifts can produce very different forms.',
+  },
+  {
+    target: 'mobile-direction',
+    title: 'Direction',
+    text: 'Layers can move clockwise or counterclockwise. Reverse, All CW, and Alternate quickly reshape the pattern.',
+  },
+  {
+    target: 'mobile-trail',
+    title: 'Trail',
+    text: 'Trail keeps motion history visible so the form can accumulate into a dense structure.',
+  },
+  {
+    target: 'mobile-markers',
+    title: 'Markers',
+    text: 'Markers show or hide the moving dots. Turn them off when you want a cleaner finished view.',
+  },
+  {
+    target: 'mobile-sound',
     title: 'Sound',
-    accent: '#FFAA00',
-    items: [
-      { label: 'Original Tones', color: '#FFFFFF', text: 'Uses the raw original tone behavior.' },
-      { label: 'Keyed Harmony', color: '#00FFAA', text: 'Locks notes to a key and scale.' },
-      { label: 'Audio', color: '#FFAA00', text: 'Mutes or restores the app without changing geometry.' },
-    ],
+    text: 'Switch between raw tones and keyed harmony, then shape the key and scale.',
   },
-] as const;
+  {
+    target: 'mobile-audio',
+    title: 'Audio',
+    text: 'Audio can be toggled without changing the geometry, so you can explore visually in silence if you want.',
+  },
+  {
+    target: 'mobile-colors',
+    title: 'Colors',
+    text: 'Long-press an orbit to change color and musical role. Color can also influence tone mapping in some modes.',
+  },
+  {
+    target: 'mobile-menu',
+    title: 'Menu',
+    text: 'Use Menu for scenes, export, and deeper editing once you know what you want.',
+  },
+];
+
+const DESKTOP_START_GUIDE: StartGuideStep[] = [
+  {
+    target: 'desktop-playback',
+    title: 'Start Here',
+    text: 'This main row controls motion: play starts, reset clears, audio mutes, random refreshes, and speed shapes the pace.',
+  },
+  {
+    target: 'desktop-speed',
+    title: 'Speed',
+    text: 'Use speed to move between slow structural study and dense flowing trace.',
+  },
+  {
+    target: 'desktop-menu',
+    title: 'Scenes',
+    text: 'If you are unsure where to begin, start with a built-in scene. Scenes are fast starting points for strong compositions.',
+  },
+  {
+    target: 'desktop-geometry',
+    title: 'Pattern',
+    text: 'Standard, Pattern, and Sweep each reveal a different relationship in the same system.',
+  },
+  {
+    target: 'desktop-direction',
+    title: 'Direction',
+    text: 'Reverse, All CW, and Alternate quickly change how the orbits move and how the geometry grows.',
+  },
+  {
+    target: 'desktop-trace',
+    title: 'Trail',
+    text: 'Trail keeps path history visible so the structure can build into a denser field over time.',
+  },
+  {
+    target: 'desktop-markers',
+    title: 'Markers',
+    text: 'Markers show or hide the orbit dots and guides when you want a cleaner final image.',
+  },
+  {
+    target: 'desktop-sound',
+    title: 'Sound',
+    text: 'Choose whether the system sounds raw or locked to a musical key and scale.',
+  },
+  {
+    target: 'desktop-audio',
+    title: 'Audio',
+    text: 'Mute audio at any time without affecting the geometry or motion.',
+  },
+  {
+    target: 'desktop-present',
+    title: 'Present',
+    text: 'Present hides most UI so you can focus on the form, show it, or record it cleanly.',
+  },
+  {
+    target: 'desktop-colors',
+    title: 'Colors',
+    text: 'Tap an orbit to edit color and quick musical roles. Color is expressive and can shape tone mapping too.',
+  },
+  {
+    target: 'desktop-menu',
+    title: 'Menu',
+    text: 'Open the menu for scenes, exports, and deeper orbit editing.',
+  },
+];
 
 type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 
@@ -130,6 +227,70 @@ const BUILT_IN_SCENE_ASSET_MAP: Partial<Record<string, string>> = {
   silent_cosmology: '/scene-captures/silent_cosmology.jpg',
   aeolian_tide: '/scene-captures/aeolian_tide.jpg',
 };
+
+const RANDOM_COLOR_FAMILIES = [
+  ['#00FFAA', '#FF3366', '#3388FF', '#FFAA00', '#AA44FF'],
+  ['#8AD8FF', '#5FA8FF', '#6A7BFF', '#B8E6FF', '#9FD2FF'],
+  ['#44FF88', '#88CCFF', '#FF4488', '#FFCC00', '#00CCFF'],
+  ['#A7F3D0', '#C4B5FD', '#7DD3FC', '#F9A8D4', '#FDE68A'],
+  ['#7FD7FF', '#9F8CFF', '#6BF5D0', '#FF88C2', '#FFD166'],
+] as const;
+
+const RANDOM_PULSE_GROUPS = [
+  [2, 3, 5, 8, 13],
+  [3, 4, 5, 7, 11],
+  [4, 6, 9, 12, 15],
+  [2, 5, 7, 9, 14],
+  [3, 5, 8, 11, 13],
+  [4, 7, 10, 13, 16],
+] as const;
+
+const RANDOM_DIRECTION_SCHEMES = [
+  [1, -1, 1, -1, 1],
+  [1, 1, 1, -1, -1],
+  [-1, -1, 1, 1, 1],
+  [1, 1, -1, 1, 1],
+  [1, -1, -1, 1, -1],
+] as const;
+
+const RANDOM_MAPPING_MODES: HarmonySettings['mappingMode'][] = [
+  'color-hue',
+  'orbit-index',
+  'pulse-count',
+  'radius',
+];
+
+function randomItem<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function shuffleArray<T>(items: T[]): T[] {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function buildRandomPulseCounts(count: number): number[] {
+  const source = shuffleArray([...randomItem(RANDOM_PULSE_GROUPS)]);
+  return Array.from({ length: count }, (_, index) => {
+    const fallback = Math.min(10, 2 + index * 2);
+    return source[index] ?? fallback;
+  }).map((pulse) => Math.max(1, Math.min(10, pulse)));
+}
+
+function buildRandomDirections(count: number): (1 | -1)[] {
+  const scheme = randomItem(RANDOM_DIRECTION_SCHEMES);
+  return Array.from({ length: count }, (_, index) => {
+    if (index < scheme.length) {
+      return scheme[index] as 1 | -1;
+    }
+    const last = scheme[scheme.length - 1] as 1 | -1;
+    return index % 2 === 0 ? last : ((last === 1 ? -1 : 1) as 1 | -1);
+  });
+}
 
 function gcd(a: number, b: number): number {
   let x = Math.abs(a);
@@ -822,10 +983,73 @@ function OrbitalPolymeter() {
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
   const [mobileExpandedLayerId, setMobileExpandedLayerId] = useState<string | null>(null);
+  const [helpStepIndex, setHelpStepIndex] = useState(0);
+  const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureLoadedRef = useRef(false);
   const siteSceneLoadedRef = useRef(false);
+  const guideSteps = isMobile ? MOBILE_START_GUIDE : DESKTOP_START_GUIDE;
+  const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const guideCalloutHeight = isMobile ? 230 : 220;
+  const guideCalloutWidth = isMobile ? Math.max(320, viewportWidth - 24) : 360;
+  const guideCalloutStyle = (() => {
+    const base = {
+      background: 'rgba(17, 17, 22, 0.92)',
+      backdropFilter: 'blur(16px)',
+      borderColor: 'rgba(255, 255, 255, 0.12)',
+    } as const;
+
+    if (!guideRect) {
+      return isMobile
+        ? { ...base, left: 12, right: 12, bottom: 24 }
+        : { ...base, right: 24, bottom: 32, width: guideCalloutWidth };
+    }
+
+    if (isMobile) {
+      const fitsBelow = guideRect.bottom + guideCalloutHeight + 28 < viewportHeight;
+      return {
+        ...base,
+        left: 12,
+        right: 12,
+        top: fitsBelow ? Math.min(viewportHeight - guideCalloutHeight - 24, guideRect.bottom + 18) : undefined,
+        bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
+      };
+    }
+
+    const canFitRight = guideRect.right + guideCalloutWidth + 32 < viewportWidth;
+    const canFitLeft = guideRect.left - guideCalloutWidth - 32 > 0;
+    const top = Math.min(viewportHeight - guideCalloutHeight - 24, Math.max(24, guideRect.top - 8));
+
+    if (canFitRight) {
+      return {
+        ...base,
+        width: guideCalloutWidth,
+        left: guideRect.right + 18,
+        top,
+      };
+    }
+
+    if (canFitLeft) {
+      return {
+        ...base,
+        width: guideCalloutWidth,
+        left: guideRect.left - guideCalloutWidth - 18,
+        top,
+      };
+    }
+
+    const fitsBelow = guideRect.bottom + guideCalloutHeight + 28 < viewportHeight;
+    return {
+      ...base,
+      width: guideCalloutWidth,
+      left: Math.min(viewportWidth - guideCalloutWidth - 24, Math.max(24, guideRect.left + guideRect.width / 2 - guideCalloutWidth / 2)),
+      top: fitsBelow ? Math.min(viewportHeight - guideCalloutHeight - 24, guideRect.bottom + 18) : undefined,
+      bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
+    };
+  })();
 
   useEffect(() => {
     if (!presentationMode) {
@@ -846,6 +1070,52 @@ function OrbitalPolymeter() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [presentationMode]);
 
+  useEffect(() => {
+    if (!helpOpen || !isMobile) {
+      return;
+    }
+
+    if (currentGuideStep?.target === 'mobile-scenes') {
+      setMobileScenesOpen(true);
+    }
+    if (
+      currentGuideStep?.target === 'mobile-customize' ||
+      currentGuideStep?.target === 'mobile-layers' ||
+      currentGuideStep?.target === 'mobile-direction' ||
+      currentGuideStep?.target === 'mobile-trail' ||
+      currentGuideStep?.target === 'mobile-markers' ||
+      currentGuideStep?.target === 'mobile-menu'
+    ) {
+      setMobileCustomizeOpen(true);
+    }
+    if (
+      currentGuideStep?.target === 'mobile-sound' ||
+      currentGuideStep?.target === 'mobile-audio'
+    ) {
+      setMobileSoundOpen(true);
+    }
+  }, [currentGuideStep, helpOpen, isMobile]);
+
+  useEffect(() => {
+    if (!helpOpen || !currentGuideStep) {
+      setGuideRect(null);
+      return;
+    }
+
+    const updateGuideRect = () => {
+      const element = document.querySelector<HTMLElement>(`[data-guide="${currentGuideStep.target}"]`);
+      setGuideRect(element?.getBoundingClientRect() ?? null);
+    };
+
+    updateGuideRect();
+    window.addEventListener('resize', updateGuideRect);
+    window.addEventListener('scroll', updateGuideRect, true);
+    return () => {
+      window.removeEventListener('resize', updateGuideRect);
+      window.removeEventListener('scroll', updateGuideRect, true);
+    };
+  }, [currentGuideStep, helpOpen]);
+
   const handleTogglePresentation = useCallback(() => {
     setPresentationMode((current) => {
       const next = !current;
@@ -859,6 +1129,15 @@ function OrbitalPolymeter() {
       return next;
     });
   }, [isMobile]);
+
+  const openStartGuide = useCallback(() => {
+    setHelpStepIndex(0);
+    setHelpOpen(true);
+  }, []);
+
+  const closeStartGuide = useCallback(() => {
+    setHelpOpen(false);
+  }, []);
 
   const handleTogglePlay = useCallback(() => {
     resumeAudio();
@@ -1186,8 +1465,8 @@ function OrbitalPolymeter() {
   const handleRandomPattern = useCallback(() => {
     const nextCount =
       geometryMode === 'standard-trace'
-        ? Math.max(2, Math.min(5, engineState.orbits.length))
-        : engineState.orbits.length;
+        ? 3 + Math.floor(Math.random() * 3)
+        : Math.max(3, Math.min(5, engineState.orbits.length));
 
     if (geometryMode === 'standard-trace') {
       if (engineState.orbits.length < nextCount) {
@@ -1199,10 +1478,47 @@ function OrbitalPolymeter() {
       }
     }
 
+    const palette = randomItem(RANDOM_COLOR_FAMILIES);
+    const colors = shuffleArray([...palette]);
+    const pulses = buildRandomPulseCounts(engineState.orbits.length);
+    const directions = buildRandomDirections(engineState.orbits.length);
+    const useKeyedHarmony = Math.random() > 0.35;
+    const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
+    const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
+    const nextRoot = randomItem(NOTE_NAMES);
+    const nextMappingMode = randomItem(RANDOM_MAPPING_MODES);
+    const useManualOrbitRoles = useKeyedHarmony && Math.random() > 0.45;
+    const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
+    const pairCandidates = engineState.orbits.length >= 4
+      ? [0, engineState.orbits.length - 1]
+      : [0, Math.max(1, engineState.orbits.length - 1)];
+
     engineState.orbits.forEach((orbit, index) => {
-      orbit.pulseCount = Math.max(1, Math.min(10, Math.floor(Math.random() * 10) + 1));
-      orbit.direction = index % 2 === 0 ? 1 : -1;
+      orbit.pulseCount = pulses[index];
+      orbit.direction = directions[index];
+      orbit.color = colors[index % colors.length];
+      orbit.harmonyDegree = (index * 2) % Math.max(1, scaleLength);
+      orbit.harmonyRegister = index === engineState.orbits.length - 1 ? 1 : index === 0 ? -1 : 0;
     });
+
+    setHarmonySettings((current) => ({
+      ...current,
+      tonePreset: useKeyedHarmony ? 'scale-quantized' : 'original',
+      rootNote: nextRoot,
+      scaleName: nextScale,
+      mappingMode: nextMappingMode,
+      manualOrbitRoles: useManualOrbitRoles,
+    }));
+
+    setInterferenceSettings((current) =>
+      normalizeInterferenceSettings(engineState.orbits, {
+        ...current,
+        sourceOrbitAId: engineState.orbits[pairCandidates[0]]?.id,
+        sourceOrbitBId: engineState.orbits[pairCandidates[1]]?.id,
+        showConnectors: Math.random() > 0.5,
+      }),
+    );
+
     resetEngine(engineState);
     handleClearTraces();
     engineState.playing = true;
@@ -1519,8 +1835,9 @@ function OrbitalPolymeter() {
             onToggleTrace={handleToggleTrace}
             onTogglePlanets={handleTogglePlanets}
             onToggleMute={handleToggleMute}
-            onToggleHelp={() => setHelpOpen((open) => !open)}
+            onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
             onTogglePresentation={handleTogglePresentation}
+            onRandomPattern={handleRandomPattern}
             onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
             onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
             onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
@@ -1535,7 +1852,7 @@ function OrbitalPolymeter() {
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
           <div className="space-y-3">
-            <div className="relative h-[76svh] min-h-[540px] overflow-hidden">
+            <div data-guide="mobile-colors" className="relative h-[76svh] min-h-[540px] overflow-hidden">
               <OrbitalCanvas
                 ref={canvasRef}
                 engineState={engineState}
@@ -1554,6 +1871,7 @@ function OrbitalPolymeter() {
 
           <div className="mt-10 px-4 space-y-4">
             <div
+              data-guide="mobile-playback"
               className="rounded-[28px] border px-4 py-5 space-y-4"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
@@ -1561,13 +1879,24 @@ function OrbitalPolymeter() {
                 <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                   Playback
                 </div>
-                <button
-                  onClick={handleTogglePresentation}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  Present
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => (helpOpen ? closeStartGuide() : openStartGuide())}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                    aria-label={helpOpen ? 'Close start guide' : 'Open start guide'}
+                  >
+                    <CircleHelp size={18} />
+                  </button>
+                  <button
+                    data-guide="mobile-present"
+                    onClick={handleTogglePresentation}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    Present
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <button
@@ -1591,6 +1920,7 @@ function OrbitalPolymeter() {
                   <span className="text-[11px] font-mono uppercase tracking-[0.14em]">Reset</span>
                 </button>
                 <button
+                  data-guide="mobile-audio"
                   onClick={handleToggleMute}
                   className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
                   style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
@@ -1599,7 +1929,7 @@ function OrbitalPolymeter() {
                   <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
                 </button>
               </div>
-              <div className="space-y-2">
+              <div data-guide="mobile-speed" className="space-y-2">
                 <div className="flex items-center justify-between text-[12px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
                   <span>Speed</span>
                   <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
@@ -1617,6 +1947,7 @@ function OrbitalPolymeter() {
             </div>
 
             <div
+              data-guide="mobile-scenes"
               className="rounded-[28px] border"
               style={{
                 background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
@@ -1690,6 +2021,7 @@ function OrbitalPolymeter() {
             </div>
 
             <div
+              data-guide="mobile-customize"
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
@@ -1738,6 +2070,7 @@ function OrbitalPolymeter() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button
+                        data-guide="mobile-trail"
                         onClick={handleToggleTrace}
                         className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
                         style={{
@@ -1749,6 +2082,7 @@ function OrbitalPolymeter() {
                         {traceMode ? 'Trail On' : 'Trail Off'}
                       </button>
                       <button
+                        data-guide="mobile-markers"
                         onClick={handleTogglePlanets}
                         className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
                         style={{
@@ -1762,7 +2096,7 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3">
+                  <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
                       Layers
                     </div>
@@ -1791,7 +2125,7 @@ function OrbitalPolymeter() {
                         className="rounded-2xl border p-3 space-y-3"
                         style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
                       >
-                        <div className="flex items-center justify-between gap-3">
+                  <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
                           <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.8)' }}>
                             {layerLabel}
                           </div>
@@ -1843,7 +2177,7 @@ function OrbitalPolymeter() {
                           </button>
                         </div>
                         {layerOpen && (
-                          <div className="flex items-center justify-between gap-2 pt-1">
+                          <div data-guide="mobile-direction" className="flex items-center justify-between gap-2 pt-1">
                             <button
                               onClick={() => handleToggleOrbitDirection(orbit.id)}
                               className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
@@ -1879,6 +2213,7 @@ function OrbitalPolymeter() {
                       </div>
                     </button>
                     <button
+                      data-guide="mobile-menu"
                       onClick={() => setSidebarOpen(true)}
                       className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
                       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
@@ -1894,6 +2229,7 @@ function OrbitalPolymeter() {
             </div>
 
             <div
+              data-guide="mobile-sound"
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
@@ -1910,16 +2246,6 @@ function OrbitalPolymeter() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setHelpOpen((open) => !open);
-                    }}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                  >
-                    <CircleHelp size={18} />
-                  </button>
                   <div style={{ color: 'rgba(255,255,255,0.62)' }}>
                     {mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </div>
@@ -1968,46 +2294,6 @@ function OrbitalPolymeter() {
             </div>
           </div>
         </div>
-
-        {helpOpen && (
-          <>
-            <div className="fixed inset-0 z-30 bg-black/35 backdrop-blur-sm" onClick={() => setHelpOpen(false)} />
-            <div
-              className="fixed left-3 right-3 bottom-6 z-40 rounded-2xl border p-4"
-              style={{
-                background: 'rgba(17,17,22,0.94)',
-                backdropFilter: 'blur(16px)',
-                borderColor: 'rgba(255,255,255,0.12)',
-              }}
-            >
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                Quick Help
-              </div>
-              <div className="mt-3 space-y-3">
-                {HELP_SECTIONS.map((section) => (
-                  <div
-                    key={section.title}
-                    className="rounded-xl border px-3 py-3"
-                    style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
-                  >
-                    <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: section.accent }}>
-                      {section.title}
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      {section.items.map((item) => (
-                        <div key={item.label} className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                          <span style={{ color: item.color }}>{item.label}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.44)' }}> — </span>
-                          <span>{item.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
 
         <OrbitSidebar
           orbits={engineState.orbits}
@@ -2082,18 +2368,20 @@ function OrbitalPolymeter() {
     <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'}>
       {/* Canvas */}
       {isMobile && <div className="h-[68svh] min-h-[420px]" />}
-      <OrbitalCanvas
-        ref={canvasRef}
-        engineState={engineState}
-        traceMode={traceMode}
-        showPlanets={showPlanets}
-        harmonySettings={harmonySettings}
-        geometryMode={geometryMode}
-        interferenceSettings={interferenceSettings}
-        presentationMode={presentationMode}
-        onOrbitLongPress={presentationMode ? undefined : handleOrbitLongPress}
-        className={isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : undefined}
-      />
+      <div data-guide={!isMobile ? 'desktop-colors' : undefined}>
+        <OrbitalCanvas
+          ref={canvasRef}
+          engineState={engineState}
+          traceMode={traceMode}
+          showPlanets={showPlanets}
+          harmonySettings={harmonySettings}
+          geometryMode={geometryMode}
+          interferenceSettings={interferenceSettings}
+          presentationMode={presentationMode}
+          onOrbitLongPress={presentationMode ? undefined : handleOrbitLongPress}
+          className={isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : undefined}
+        />
+      </div>
 
       {/* Title */}
       {!presentationMode && (
@@ -2151,45 +2439,79 @@ function OrbitalPolymeter() {
         </div>
       )}
 
-      {helpOpen && !presentationMode && (
+      {helpOpen && !presentationMode && currentGuideStep && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm"
-            onClick={() => setHelpOpen(false)}
+            className="fixed inset-0 z-30 bg-black/38 backdrop-blur-[2px]"
+            onClick={closeStartGuide}
           />
+          {guideRect && (
+            <div
+              className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
+              style={{
+                left: Math.max(8, guideRect.left - 8),
+                top: Math.max(8, guideRect.top - 8),
+                width: guideRect.width + 16,
+                height: guideRect.height + 16,
+                borderColor: 'rgba(0,255,170,0.42)',
+                boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
+              }}
+            />
+          )}
           <div
-            className={`fixed z-40 rounded-2xl border ${isMobile ? 'left-3 right-3 bottom-36 p-4' : 'right-6 bottom-28 w-[360px] p-5'}`}
-            style={{
-              background: 'rgba(17, 17, 22, 0.9)',
-              backdropFilter: 'blur(16px)',
-              borderColor: 'rgba(255, 255, 255, 0.12)',
-            }}
+            className={`fixed z-40 rounded-2xl border p-4 ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
+            style={guideCalloutStyle}
           >
-            <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-              Quick Help
+            <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
+              {helpStepIndex === 0 ? 'Start Guide' : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
             </div>
-            <div className="mt-3 space-y-3">
-              {HELP_SECTIONS.map((section) => (
-                <div
-                  key={section.title}
-                  className="rounded-xl border px-3 py-3"
-                  style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+            <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+              {currentGuideStep.title}
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+              {currentGuideStep.text}
+            </p>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <button
+                onClick={closeStartGuide}
+                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                Done
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
+                  disabled={helpStepIndex === 0}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
                 >
-                  <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: section.accent }}>
-                    {section.title}
-                  </div>
-                  <div className="mt-2 space-y-2">
-                    {section.items.map((item) => (
-                      <div key={item.label} className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                        <span style={{ color: item.color }}>{item.label}</span>
-                        <span style={{ color: 'rgba(255,255,255,0.44)' }}> — </span>
-                        <span>{item.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                  Back
+                </button>
+                <button
+                  onClick={() => {
+                    if (helpStepIndex >= guideSteps.length - 1) {
+                      closeStartGuide();
+                      return;
+                    }
+                    setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+                  }}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
+                >
+                  {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                </button>
+              </div>
             </div>
+            {helpStepIndex === guideSteps.length - 1 && (
+              <div className="mt-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                You&apos;re ready to explore.
+              </div>
+            )}
           </div>
         </>
       )}
@@ -2405,8 +2727,9 @@ function OrbitalPolymeter() {
           onToggleTrace={handleToggleTrace}
           onTogglePlanets={handleTogglePlanets}
           onToggleMute={handleToggleMute}
-          onToggleHelp={() => setHelpOpen((open) => !open)}
+          onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
           onTogglePresentation={handleTogglePresentation}
+          onRandomPattern={handleRandomPattern}
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}

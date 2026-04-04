@@ -3,7 +3,7 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
@@ -41,6 +41,7 @@ interface TransportBarProps {
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onTogglePresentation: () => void;
+  onRandomPattern: () => void;
   onSoundModeChange: (tonePreset: TonePreset) => void;
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
@@ -76,6 +77,7 @@ export default function TransportBar({
   onToggleMute,
   onToggleHelp,
   onTogglePresentation,
+  onRandomPattern,
   onSoundModeChange,
   onRootNoteChange,
   onScaleChange,
@@ -188,6 +190,7 @@ export default function TransportBar({
         {!isMobile ? (
           <div className="flex items-center justify-between gap-8 mb-2">
             <div
+              data-guide="desktop-geometry"
               className="px-3 py-2 flex flex-col items-center gap-2 rounded-xl border"
               style={{
                 marginLeft: 8,
@@ -198,6 +201,7 @@ export default function TransportBar({
               }}
             >
               <div
+                data-guide="desktop-sound"
                 className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
                 style={{
                   borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -346,6 +350,7 @@ export default function TransportBar({
             </div>
 
             <div
+              data-guide="desktop-direction"
               className="px-3 py-2 flex items-center justify-center gap-2 rounded-xl border"
               style={{
                 marginRight: 8,
@@ -576,7 +581,7 @@ export default function TransportBar({
         }}
       >
         {/* Left: Playback + Step + Clear + Reset */}
-        <div className="flex items-center gap-3">
+        <div data-guide="desktop-playback" className="flex items-center gap-3">
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
@@ -644,10 +649,26 @@ export default function TransportBar({
               Reset
             </span>
           </button>
+
+          <button
+            onClick={onRandomPattern}
+            className={iconButtonStyle}
+            style={{
+              background: 'rgba(51, 136, 255, 0.16)',
+              border: '1px solid rgba(51, 136, 255, 0.32)',
+              color: '#88CCFF',
+            }}
+            title="Generate a curated random pattern with fresh ratios, color, motion, and sound"
+          >
+            <Shuffle size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Random
+            </span>
+          </button>
         </div>
 
         {/* Center: Speed Multiplier */}
-        <div className="flex items-center gap-4 flex-1 mx-8">
+        <div data-guide="desktop-speed" className="flex items-center gap-4 flex-1 mx-8">
           <div className="flex items-center gap-2">
             <Zap size={16} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
             <span
@@ -682,6 +703,7 @@ export default function TransportBar({
         {/* Right: Trace Toggle + Sidebar Menu */}
         <div className="flex items-center gap-3">
           <button
+            data-guide="desktop-audio"
             onClick={onToggleMute}
             className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
@@ -698,6 +720,7 @@ export default function TransportBar({
           </button>
 
           <button
+            data-guide="desktop-markers"
             onClick={onTogglePlanets}
             className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
@@ -715,6 +738,7 @@ export default function TransportBar({
 
           {/* Trace Toggle */}
           <button
+            data-guide="desktop-trace"
             onClick={onToggleTrace}
             className="px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
@@ -731,6 +755,7 @@ export default function TransportBar({
           {!isMobile && <InfoTip text="Trace keeps drawing motion history so the structure can accumulate over time." />}
 
           <button
+            data-guide="desktop-present"
             onClick={onTogglePresentation}
             className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
@@ -764,6 +789,7 @@ export default function TransportBar({
 
           {/* Sidebar Menu */}
           <button
+            data-guide="desktop-menu"
             onClick={onOpenSidebar}
             className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
             style={{
