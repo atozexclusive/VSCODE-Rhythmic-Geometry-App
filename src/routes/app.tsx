@@ -5,7 +5,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -1882,10 +1882,11 @@ function OrbitalPolymeter() {
                     data-guide="mobile-present"
                     onClick={handleTogglePresentation}
                     type="button"
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    aria-label="Presentation mode"
                   >
-                    Present
+                    <Maximize2 size={17} />
                   </button>
                   <button
                     onClick={() => (helpOpen ? closeStartGuide() : openStartGuide())}
@@ -2153,6 +2154,29 @@ function OrbitalPolymeter() {
                               className="w-20 rounded-xl border px-2 py-2 text-center text-[14px] font-mono focus:outline-none"
                               style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
                             />
+                            <button
+                              data-guide="mobile-direction"
+                              onClick={() => handleToggleOrbitDirection(orbit.id)}
+                              className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                              title={orbit.direction === 1 ? `Set ${layerLabel} counterclockwise` : `Set ${layerLabel} clockwise`}
+                            >
+                              {orbit.direction === 1 ? (
+                                <RotateCcw size={16} />
+                              ) : (
+                                <RotateCcw size={16} style={{ transform: 'scaleX(-1)' }} />
+                              )}
+                            </button>
+                            {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
+                              <button
+                                onClick={() => handleDeleteOrbit(orbit.id)}
+                                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                                style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                                title={`Remove ${layerLabel}`}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2181,30 +2205,6 @@ function OrbitalPolymeter() {
                           >
                             <Plus size={16} />
                           </button>
-                        </div>
-                        <div data-guide="mobile-direction" className="flex items-center justify-between gap-2 pt-1">
-                          <button
-                            onClick={() => handleToggleOrbitDirection(orbit.id)}
-                            className="h-10 w-10 rounded-xl flex items-center justify-center"
-                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                            title={orbit.direction === 1 ? `Set ${layerLabel} counterclockwise` : `Set ${layerLabel} clockwise`}
-                          >
-                            {orbit.direction === 1 ? (
-                              <RotateCcw size={16} />
-                            ) : (
-                              <RotateCcw size={16} style={{ transform: 'scaleX(-1)' }} />
-                            )}
-                          </button>
-                          {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
-                            <button
-                              onClick={() => handleDeleteOrbit(orbit.id)}
-                              className="h-10 w-10 rounded-xl flex items-center justify-center"
-                              style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                              title={`Remove ${layerLabel}`}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
                         </div>
                       </div>
                     );
