@@ -42,6 +42,7 @@ interface TransportBarProps {
   onToggleHelp: () => void;
   onTogglePresentation: () => void;
   onRandomPattern: () => void;
+  onRandomPatternPlus: () => void;
   onSoundModeChange: (tonePreset: TonePreset) => void;
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
@@ -78,6 +79,7 @@ export default function TransportBar({
   onToggleHelp,
   onTogglePresentation,
   onRandomPattern,
+  onRandomPatternPlus,
   onSoundModeChange,
   onRootNoteChange,
   onScaleChange,
@@ -663,6 +665,22 @@ export default function TransportBar({
             <Shuffle size={20} />
             <span className="text-[10px] font-mono uppercase tracking-wider">
               Random
+            </span>
+          </button>
+
+          <button
+            onClick={onRandomPatternPlus}
+            className={iconButtonStyle}
+            style={{
+              background: 'rgba(255, 170, 0, 0.14)',
+              border: '1px solid rgba(255, 170, 0, 0.28)',
+              color: '#FFAA00',
+            }}
+            title="Generate an extended curated random pattern with values up to 100"
+          >
+            <Shuffle size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Random+
             </span>
           </button>
         </div>

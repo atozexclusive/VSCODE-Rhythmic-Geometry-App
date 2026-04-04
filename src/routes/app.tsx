@@ -228,7 +228,7 @@ const BUILT_IN_SCENE_ASSET_MAP: Partial<Record<string, string>> = {
   aeolian_tide: '/scene-captures/aeolian_tide.jpg',
 };
 
-const RANDOM_COLOR_FAMILIES = [
+const RANDOM_COLOR_FAMILIES: readonly (readonly string[])[] = [
   ['#00FFAA', '#FF3366', '#3388FF', '#FFAA00', '#AA44FF'],
   ['#8AD8FF', '#5FA8FF', '#6A7BFF', '#B8E6FF', '#9FD2FF'],
   ['#44FF88', '#88CCFF', '#FF4488', '#FFCC00', '#00CCFF'],
@@ -236,13 +236,31 @@ const RANDOM_COLOR_FAMILIES = [
   ['#7FD7FF', '#9F8CFF', '#6BF5D0', '#FF88C2', '#FFD166'],
 ] as const;
 
-const RANDOM_PULSE_GROUPS = [
+const RANDOM_PLUS_COLOR_FAMILIES: readonly (readonly string[])[] = [
+  ['#8AD8FF', '#5FA8FF', '#6A7BFF', '#B8E6FF', '#9FD2FF'],
+  ['#7FD7FF', '#9F8CFF', '#6BF5D0', '#FF88C2', '#FFD166'],
+  ['#A7F3D0', '#C4B5FD', '#7DD3FC', '#F9A8D4', '#FDE68A'],
+  ['#88CCFF', '#3388FF', '#00FFAA', '#FFCC66', '#FF6699'],
+] as const;
+
+const RANDOM_PULSE_GROUPS: readonly (readonly number[])[] = [
   [2, 3, 5, 8, 13],
   [3, 4, 5, 7, 11],
   [4, 6, 9, 12, 15],
   [2, 5, 7, 9, 14],
   [3, 5, 8, 11, 13],
   [4, 7, 10, 13, 16],
+] as const;
+
+const RANDOM_PLUS_PULSE_GROUPS: readonly (readonly number[])[] = [
+  [7, 11, 18, 27, 45],
+  [9, 14, 21, 34, 55],
+  [8, 13, 21, 34, 55],
+  [10, 16, 25, 40, 64],
+  [12, 19, 30, 48, 72],
+  [15, 24, 36, 54, 81],
+  [11, 18, 29, 47, 76],
+  [13, 21, 34, 55, 89],
 ] as const;
 
 const RANDOM_DIRECTION_SCHEMES = [
@@ -273,12 +291,39 @@ function shuffleArray<T>(items: T[]): T[] {
   return next;
 }
 
-function buildRandomPulseCounts(count: number): number[] {
-  const source = shuffleArray([...randomItem(RANDOM_PULSE_GROUPS)]);
+function buildRandomPulseCounts(
+  count: number,
+  options?: { extended?: boolean },
+): number[] {
+  if (options?.extended) {
+    const source = [...randomItem(RANDOM_PLUS_PULSE_GROUPS)];
+    const offset = Math.floor(Math.random() * 4) - 1;
+    const limited = source
+      .slice(0, count)
+      .map((pulse, index) => {
+        const nudged = pulse + offset + index;
+        return Math.max(7, Math.min(100, nudged));
+      })
+      .sort((a, b) => a - b);
+
+    return limited.map((pulse, index, values) => {
+      if (index === 0) {
+        return pulse;
+      }
+      const previous = values[index - 1]!;
+      return pulse - previous < 5 ? Math.min(100, previous + 6 + index * 2) : pulse;
+    });
+  }
+
+  const sourceGroups = options?.extended ? RANDOM_PLUS_PULSE_GROUPS : RANDOM_PULSE_GROUPS;
+  const pulseCap = options?.extended ? 100 : 10;
+  const source = shuffleArray([...randomItem(sourceGroups)]);
   return Array.from({ length: count }, (_, index) => {
-    const fallback = Math.min(10, 2 + index * 2);
+    const fallback = options?.extended
+      ? Math.min(pulseCap, 8 + index * 12)
+      : Math.min(pulseCap, 2 + index * 2);
     return source[index] ?? fallback;
-  }).map((pulse) => Math.max(1, Math.min(10, pulse)));
+  }).map((pulse) => Math.max(1, Math.min(pulseCap, pulse)));
 }
 
 function buildRandomDirections(count: number): (1 | -1)[] {
@@ -290,6 +335,23 @@ function buildRandomDirections(count: number): (1 | -1)[] {
     const last = scheme[scheme.length - 1] as 1 | -1;
     return index % 2 === 0 ? last : ((last === 1 ? -1 : 1) as 1 | -1);
   });
+}
+
+function computeRandomPlusSpeed(pulses: number[]): number {
+  const maxPulse = Math.max(...pulses);
+  const averagePulse = pulses.reduce((sum, pulse) => sum + pulse, 0) / Math.max(1, pulses.length);
+  const highCount = pulses.filter((pulse) => pulse >= 20).length;
+
+  let speed = 1.8;
+  if (averagePulse >= 18) speed += 0.9;
+  if (averagePulse >= 28) speed += 1.2;
+  if (highCount >= 2) speed += 0.8;
+  if (highCount >= 4) speed += 0.6;
+  if (maxPulse >= 40) speed += 1.1;
+  if (maxPulse >= 70) speed += 1.0;
+  if (maxPulse >= 90) speed += 0.6;
+
+  return Math.max(1.8, Math.min(7.4, speed));
 }
 
 function gcd(a: number, b: number): number {
@@ -1460,7 +1522,8 @@ function OrbitalPolymeter() {
     [engineState, handleClearTraces, rerender],
   );
 
-  const handleRandomPattern = useCallback(() => {
+  const applyRandomPattern = useCallback((options?: { extended?: boolean }) => {
+    const isExtended = Boolean(options?.extended);
     const nextCount =
       geometryMode === 'standard-trace'
         ? 3 + Math.floor(Math.random() * 3)
@@ -1476,16 +1539,18 @@ function OrbitalPolymeter() {
       }
     }
 
-    const palette = randomItem(RANDOM_COLOR_FAMILIES);
+    const palette = randomItem(isExtended ? RANDOM_PLUS_COLOR_FAMILIES : RANDOM_COLOR_FAMILIES);
     const colors = shuffleArray([...palette]);
-    const pulses = buildRandomPulseCounts(engineState.orbits.length);
+    const pulses = buildRandomPulseCounts(engineState.orbits.length, options);
     const directions = buildRandomDirections(engineState.orbits.length);
-    const useKeyedHarmony = Math.random() > 0.35;
+    const useKeyedHarmony = isExtended ? Math.random() > 0.15 : Math.random() > 0.35;
     const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
     const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
     const nextRoot = randomItem(NOTE_NAMES);
-    const nextMappingMode = randomItem(RANDOM_MAPPING_MODES);
-    const useManualOrbitRoles = useKeyedHarmony && Math.random() > 0.45;
+    const nextMappingMode = randomItem(
+      isExtended ? RANDOM_MAPPING_MODES.filter((mode) => mode !== 'color-hue') : RANDOM_MAPPING_MODES,
+    );
+    const useManualOrbitRoles = useKeyedHarmony && (isExtended ? Math.random() > 0.7 : Math.random() > 0.45);
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
     const pairCandidates = engineState.orbits.length >= 4
       ? [0, engineState.orbits.length - 1]
@@ -1513,16 +1578,27 @@ function OrbitalPolymeter() {
         ...current,
         sourceOrbitAId: engineState.orbits[pairCandidates[0]]?.id,
         sourceOrbitBId: engineState.orbits[pairCandidates[1]]?.id,
-        showConnectors: Math.random() > 0.5,
+        showConnectors: isExtended ? Math.random() > 0.35 : Math.random() > 0.5,
       }),
     );
 
     resetEngine(engineState);
     handleClearTraces();
+    if (isExtended) {
+      engineState.speedMultiplier = computeRandomPlusSpeed(pulses);
+    }
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     rerender();
   }, [engineState, geometryMode, handleClearTraces, rerender]);
+
+  const handleRandomPattern = useCallback(() => {
+    applyRandomPattern();
+  }, [applyRandomPattern]);
+
+  const handleRandomPatternPlus = useCallback(() => {
+    applyRandomPattern({ extended: true });
+  }, [applyRandomPattern]);
 
   const handleSaveScene = useCallback(() => {
     const run = async () => {
@@ -1836,6 +1912,7 @@ function OrbitalPolymeter() {
             onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
             onTogglePresentation={handleTogglePresentation}
             onRandomPattern={handleRandomPattern}
+            onRandomPatternPlus={handleRandomPatternPlus}
             onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
             onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
             onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
@@ -1985,6 +2062,18 @@ function OrbitalPolymeter() {
                     style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
                   >
                     Random
+                  </button>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRandomPatternPlus();
+                    }}
+                    type="button"
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                    title="Extended random pattern with curated values up to 100"
+                  >
+                    Random+
                   </button>
                   <button
                     onClick={() => setMobileScenesOpen((open) => !open)}
@@ -2792,6 +2881,7 @@ function OrbitalPolymeter() {
           onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
           onTogglePresentation={handleTogglePresentation}
           onRandomPattern={handleRandomPattern}
+          onRandomPatternPlus={handleRandomPatternPlus}
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
