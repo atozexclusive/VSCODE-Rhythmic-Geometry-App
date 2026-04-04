@@ -1872,7 +1872,7 @@ function OrbitalPolymeter() {
           <div className="mt-10 px-4 space-y-4">
             <div
               data-guide="mobile-playback"
-              className="rounded-[28px] border px-4 py-5 space-y-4"
+              className="relative z-10 rounded-[28px] border px-4 py-5 space-y-4"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -1882,15 +1882,17 @@ function OrbitalPolymeter() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => (helpOpen ? closeStartGuide() : openStartGuide())}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    className="relative z-20 h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
                     aria-label={helpOpen ? 'Close start guide' : 'Open start guide'}
+                    type="button"
                   >
                     <CircleHelp size={18} />
                   </button>
                   <button
                     data-guide="mobile-present"
                     onClick={handleTogglePresentation}
+                    type="button"
                     className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
                     style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
                   >
