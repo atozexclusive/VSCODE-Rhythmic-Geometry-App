@@ -124,11 +124,11 @@ export interface BuiltInScene {
 }
 
 const BUILT_IN_SCENE_ASSET_MAP: Partial<Record<string, string>> = {
-  glass_cathedral: '/scene-captures/glass_cathedral.png',
-  blue_mandala: '/scene-captures/blue_mandala.png',
-  dorian_bloom: '/scene-captures/dorian_bloom.png',
-  silent_cosmology: '/scene-captures/silent_cosmology.png',
-  aeolian_tide: '/scene-captures/aeolian_tide.png',
+  glass_cathedral: '/scene-captures/glass_cathedral.jpg',
+  blue_mandala: '/scene-captures/blue_mandala.jpg',
+  dorian_bloom: '/scene-captures/dorian_bloom.jpg',
+  silent_cosmology: '/scene-captures/silent_cosmology.jpg',
+  aeolian_tide: '/scene-captures/aeolian_tide.jpg',
 };
 
 function gcd(a: number, b: number): number {
