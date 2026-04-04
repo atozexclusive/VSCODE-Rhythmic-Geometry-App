@@ -278,6 +278,53 @@ const RANDOM_MAPPING_MODES: HarmonySettings['mappingMode'][] = [
   'radius',
 ];
 
+const RANDOM_PATTERN_PAIRS: readonly (readonly [number, number])[] = [
+  [2, 9],
+  [2, 8],
+  [3, 8],
+  [3, 7],
+  [4, 9],
+  [5, 9],
+  [7, 8],
+  [5, 8],
+];
+
+const RANDOM_PLUS_PATTERN_PAIRS: readonly (readonly [number, number])[] = [
+  [2, 34],
+  [3, 55],
+  [5, 34],
+  [8, 55],
+  [13, 34],
+  [21, 55],
+  [34, 35],
+  [55, 57],
+  [48, 97],
+  [34, 89],
+];
+
+const RANDOM_SWEEP_PAIRS: readonly (readonly [number, number])[] = [
+  [2, 9],
+  [2, 8],
+  [3, 8],
+  [4, 9],
+  [7, 8],
+  [8, 9],
+];
+
+const RANDOM_PLUS_SWEEP_PAIRS: readonly (readonly [number, number])[] = [
+  [2, 99],
+  [2, 98],
+  [3, 97],
+  [4, 96],
+  [99, 98],
+  [97, 96],
+  [89, 97],
+  [89, 88],
+  [72, 81],
+  [55, 89],
+  [48, 97],
+];
+
 function randomItem<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -335,6 +382,47 @@ function buildRandomDirections(count: number): (1 | -1)[] {
     const last = scheme[scheme.length - 1] as 1 | -1;
     return index % 2 === 0 ? last : ((last === 1 ? -1 : 1) as 1 | -1);
   });
+}
+
+function buildModeAwareDirections(
+  mode: GeometryMode,
+  count: number,
+  options?: { extended?: boolean },
+): (1 | -1)[] {
+  if (mode === 'sweep') {
+    if (options?.extended || Math.random() > 0.2) {
+      return Array.from({ length: count }, () => 1 as 1 | -1);
+    }
+    return count > 1 ? [1, 1, ...Array.from({ length: count - 2 }, () => 1 as 1 | -1)] : [1];
+  }
+
+  if (mode === 'interference-trace') {
+    const schemes: Array<(1 | -1)[]> = options?.extended
+      ? [[1, -1], [1, 1], [-1, 1], [1, -1]]
+      : [[1, -1], [1, 1], [-1, 1]];
+    const chosen = randomItem(schemes);
+    return Array.from({ length: count }, (_, index) => chosen[index % chosen.length]!);
+  }
+
+  return buildRandomDirections(count);
+}
+
+function buildModeAwarePulses(
+  mode: GeometryMode,
+  count: number,
+  options?: { extended?: boolean },
+): number[] {
+  if (mode === 'sweep') {
+    const pair = randomItem(options?.extended ? RANDOM_PLUS_SWEEP_PAIRS : RANDOM_SWEEP_PAIRS);
+    return [pair[0], pair[1]];
+  }
+
+  if (mode === 'interference-trace') {
+    const pair = randomItem(options?.extended ? RANDOM_PLUS_PATTERN_PAIRS : RANDOM_PATTERN_PAIRS);
+    return [pair[0], pair[1]];
+  }
+
+  return buildRandomPulseCounts(count, options);
 }
 
 function computeRandomPlusSpeed(pulses: number[]): number {
@@ -1524,12 +1612,22 @@ function OrbitalPolymeter() {
 
   const applyRandomPattern = useCallback((options?: { extended?: boolean }) => {
     const isExtended = Boolean(options?.extended);
+    const isSweepMode = geometryMode === 'sweep';
+    const isPatternMode = geometryMode === 'interference-trace';
     const nextCount =
       geometryMode === 'standard-trace'
         ? 3 + Math.floor(Math.random() * 3)
-        : Math.max(3, Math.min(5, engineState.orbits.length));
+        : 2;
 
     if (geometryMode === 'standard-trace') {
+      if (engineState.orbits.length < nextCount) {
+        while (engineState.orbits.length < nextCount) {
+          engineState.orbits.push(createOrbit(DEFAULT_ORBITS[engineState.orbits.length % DEFAULT_ORBITS.length]));
+        }
+      } else if (engineState.orbits.length > nextCount) {
+        engineState.orbits = engineState.orbits.slice(0, nextCount);
+      }
+    } else {
       if (engineState.orbits.length < nextCount) {
         while (engineState.orbits.length < nextCount) {
           engineState.orbits.push(createOrbit(DEFAULT_ORBITS[engineState.orbits.length % DEFAULT_ORBITS.length]));
@@ -1541,8 +1639,8 @@ function OrbitalPolymeter() {
 
     const palette = randomItem(isExtended ? RANDOM_PLUS_COLOR_FAMILIES : RANDOM_COLOR_FAMILIES);
     const colors = shuffleArray([...palette]);
-    const pulses = buildRandomPulseCounts(engineState.orbits.length, options);
-    const directions = buildRandomDirections(engineState.orbits.length);
+    const pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
+    const directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
     const useKeyedHarmony = isExtended ? Math.random() > 0.15 : Math.random() > 0.35;
     const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
     const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
@@ -1552,14 +1650,15 @@ function OrbitalPolymeter() {
     );
     const useManualOrbitRoles = useKeyedHarmony && (isExtended ? Math.random() > 0.7 : Math.random() > 0.45);
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
-    const pairCandidates = engineState.orbits.length >= 4
-      ? [0, engineState.orbits.length - 1]
-      : [0, Math.max(1, engineState.orbits.length - 1)];
+    const pairCandidates = [0, Math.max(1, engineState.orbits.length - 1)];
 
     engineState.orbits.forEach((orbit, index) => {
       orbit.pulseCount = pulses[index];
       orbit.direction = directions[index];
-      orbit.color = colors[index % colors.length];
+      orbit.color =
+        isSweepMode || isPatternMode
+          ? colors[index]
+          : colors[index % colors.length];
       orbit.harmonyDegree = (index * 2) % Math.max(1, scaleLength);
       orbit.harmonyRegister = index === engineState.orbits.length - 1 ? 1 : index === 0 ? -1 : 0;
     });
@@ -1578,7 +1677,7 @@ function OrbitalPolymeter() {
         ...current,
         sourceOrbitAId: engineState.orbits[pairCandidates[0]]?.id,
         sourceOrbitBId: engineState.orbits[pairCandidates[1]]?.id,
-        showConnectors: isExtended ? Math.random() > 0.35 : Math.random() > 0.5,
+        showConnectors: isSweepMode ? false : isPatternMode ? true : isExtended ? Math.random() > 0.35 : Math.random() > 0.5,
       }),
     );
 
@@ -1586,6 +1685,10 @@ function OrbitalPolymeter() {
     handleClearTraces();
     if (isExtended) {
       engineState.speedMultiplier = computeRandomPlusSpeed(pulses);
+    } else if (isSweepMode) {
+      engineState.speedMultiplier = 2.2;
+    } else if (isPatternMode) {
+      engineState.speedMultiplier = 1.6;
     }
     engineState.playing = true;
     engineState.lastTimestamp = -1;
@@ -1941,10 +2044,9 @@ function OrbitalPolymeter() {
                 className="absolute inset-0 w-full h-full"
               />
             </div>
-            <div className="h-6" />
           </div>
 
-          <div className="mt-10 px-4 space-y-4">
+          <div className="px-4 space-y-4">
             <div
               data-guide="mobile-playback"
               className="relative z-10 rounded-[28px] border px-4 py-5 space-y-4"
