@@ -1083,8 +1083,7 @@ function OrbitalPolymeter() {
       currentGuideStep?.target === 'mobile-layers' ||
       currentGuideStep?.target === 'mobile-direction' ||
       currentGuideStep?.target === 'mobile-trail' ||
-      currentGuideStep?.target === 'mobile-markers' ||
-      currentGuideStep?.target === 'mobile-menu'
+      currentGuideStep?.target === 'mobile-markers'
     ) {
       setMobileCustomizeOpen(true);
     }
@@ -1881,6 +1880,15 @@ function OrbitalPolymeter() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    data-guide="mobile-present"
+                    onClick={handleTogglePresentation}
+                    type="button"
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    Present
+                  </button>
+                  <button
                     onClick={() => (helpOpen ? closeStartGuide() : openStartGuide())}
                     className="relative z-20 h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
@@ -1890,13 +1898,14 @@ function OrbitalPolymeter() {
                     <CircleHelp size={18} />
                   </button>
                   <button
-                    data-guide="mobile-present"
-                    onClick={handleTogglePresentation}
+                    data-guide="mobile-menu"
+                    onClick={() => setSidebarOpen(true)}
                     type="button"
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    aria-label="Open menu"
                   >
-                    Present
+                    <Menu size={17} />
                   </button>
                 </div>
               </div>
@@ -1956,10 +1965,7 @@ function OrbitalPolymeter() {
                 borderColor: 'rgba(255,255,255,0.08)',
               }}
             >
-              <button
-                onClick={() => setMobileScenesOpen((open) => !open)}
-                className="flex w-full items-center justify-between px-4 py-4"
-              >
+              <div className="flex items-center justify-between px-4 py-4">
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Scenes
@@ -1974,16 +1980,23 @@ function OrbitalPolymeter() {
                       event.stopPropagation();
                       handleRandomPattern();
                     }}
+                    type="button"
                     className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
                     style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
                   >
                     Random
                   </button>
-                  <div style={{ color: 'rgba(255,255,255,0.62)' }}>
+                  <button
+                    onClick={() => setMobileScenesOpen((open) => !open)}
+                    type="button"
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.62)' }}
+                    aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
+                  >
                     {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </div>
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {mobileScenesOpen && (
                 <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
@@ -2206,23 +2219,12 @@ function OrbitalPolymeter() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={handleStepForward}
-                      className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                      className="col-span-2 px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
                       style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <SkipForward size={15} />
                         <span>Step</span>
-                      </div>
-                    </button>
-                    <button
-                      data-guide="mobile-menu"
-                      onClick={() => setSidebarOpen(true)}
-                      className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <Menu size={15} />
-                        <span>Menu</span>
                       </div>
                     </button>
                   </div>

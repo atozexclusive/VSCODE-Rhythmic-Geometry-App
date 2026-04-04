@@ -865,21 +865,23 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.stroke();
           ctx.restore();
 
-          // Pulse tick marks around the ring
-          ctx.save();
-          ctx.globalAlpha = 0.12;
-          ctx.strokeStyle = orbit.color;
-          ctx.lineWidth = 0.5;
-          for (let i = 0; i < orbit.pulseCount; i++) {
-            const angle = (i / orbit.pulseCount) * TAU - Math.PI / 2;
-            const innerR = r - 4;
-            const outerR = r + 4;
-            ctx.beginPath();
-            ctx.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
-            ctx.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
-            ctx.stroke();
+          if (showPlanetsRef.current) {
+            // Pulse tick marks around the ring
+            ctx.save();
+            ctx.globalAlpha = 0.12;
+            ctx.strokeStyle = orbit.color;
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < orbit.pulseCount; i++) {
+              const angle = (i / orbit.pulseCount) * TAU - Math.PI / 2;
+              const innerR = r - 4;
+              const outerR = r + 4;
+              ctx.beginPath();
+              ctx.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+              ctx.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+              ctx.stroke();
+            }
+            ctx.restore();
           }
-          ctx.restore();
 
           // Resonance point position
           const pos =
@@ -923,18 +925,20 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.restore();
           }
 
-          // Pulse count label
-          ctx.save();
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = orbit.color;
-          ctx.font = '10px "SF Mono", "Fira Code", monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            `${orbit.pulseCount}`,
-            cx + (r + 18) * Math.cos(-Math.PI / 4),
-            cy + (r + 18) * Math.sin(-Math.PI / 4),
-          );
-          ctx.restore();
+          if (showPlanetsRef.current) {
+            // Pulse count label
+            ctx.save();
+            ctx.globalAlpha = 0.35;
+            ctx.fillStyle = orbit.color;
+            ctx.font = '10px "SF Mono", "Fira Code", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+              `${orbit.pulseCount}`,
+              cx + (r + 18) * Math.cos(-Math.PI / 4),
+              cy + (r + 18) * Math.sin(-Math.PI / 4),
+            );
+            ctx.restore();
+          }
         }
 
         if (
