@@ -5,7 +5,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, SkipForward, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, SkipForward, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -122,6 +122,14 @@ export interface BuiltInScene {
   snapshot: SceneSnapshot;
   thumbnailDataUrl: string;
 }
+
+const BUILT_IN_SCENE_ASSET_MAP: Partial<Record<string, string>> = {
+  glass_cathedral: '/scene-captures/glass_cathedral.png',
+  blue_mandala: '/scene-captures/blue_mandala.png',
+  dorian_bloom: '/scene-captures/dorian_bloom.png',
+  silent_cosmology: '/scene-captures/silent_cosmology.png',
+  aeolian_tide: '/scene-captures/aeolian_tide.png',
+};
 
 function gcd(a: number, b: number): number {
   let x = Math.abs(a);
@@ -563,7 +571,7 @@ export const BUILT_IN_SCENES: BuiltInScene[] = [
 ];
 
 for (const scene of BUILT_IN_SCENES) {
-  scene.thumbnailDataUrl = createScenePreviewDataUrl(scene.snapshot);
+  scene.thumbnailDataUrl = BUILT_IN_SCENE_ASSET_MAP[scene.id] ?? createScenePreviewDataUrl(scene.snapshot);
 }
 
 function normalizeSceneInterferenceSettings(
@@ -781,9 +789,11 @@ function OrbitalPolymeter() {
   const captureSceneId = searchParams?.get('captureScene');
   const captureSpeed = Math.max(0.5, Math.min(3, Number(searchParams?.get('captureSpeed') ?? '1') || 1));
   const captureBeatsParam = Number(searchParams?.get('captureBeats') ?? '');
+  const siteSceneId = searchParams?.get('scene');
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
     state.orbits = DEFAULT_ORBITS.map((def) => createOrbit(def));
+    state.playing = true;
     return state;
   });
 
@@ -808,9 +818,14 @@ function OrbitalPolymeter() {
     x: number;
     y: number;
   } | null>(null);
+  const [mobileScenesOpen, setMobileScenesOpen] = useState(false);
+  const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
+  const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
+  const [mobileExpandedLayerId, setMobileExpandedLayerId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureLoadedRef = useRef(false);
+  const siteSceneLoadedRef = useRef(false);
 
   useEffect(() => {
     if (!presentationMode) {
@@ -873,6 +888,35 @@ function OrbitalPolymeter() {
     }
     rerender();
   }, [rerender]);
+
+  useEffect(() => {
+    if (captureMode || !siteSceneId || siteSceneLoadedRef.current) {
+      return;
+    }
+
+    const scene = BUILT_IN_SCENES.find((entry) => entry.id === siteSceneId);
+    if (!scene) {
+      return;
+    }
+
+    siteSceneLoadedRef.current = true;
+    applySceneSnapshot(
+      engineState,
+      scene.snapshot,
+      setTraceMode,
+      setHarmonySettings,
+      setGeometryMode,
+      setInterferenceSettings,
+      handleClearTraces,
+    );
+    launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
+  }, [
+    captureMode,
+    engineState,
+    handleClearTraces,
+    rerender,
+    siteSceneId,
+  ]);
 
   useEffect(() => {
     if (!captureMode || !captureSceneId || captureLoadedRef.current) {
@@ -1138,6 +1182,33 @@ function OrbitalPolymeter() {
     },
     [engineState, handleClearTraces, rerender],
   );
+
+  const handleRandomPattern = useCallback(() => {
+    const nextCount =
+      geometryMode === 'standard-trace'
+        ? Math.max(2, Math.min(5, engineState.orbits.length))
+        : engineState.orbits.length;
+
+    if (geometryMode === 'standard-trace') {
+      if (engineState.orbits.length < nextCount) {
+        while (engineState.orbits.length < nextCount) {
+          engineState.orbits.push(createOrbit(DEFAULT_ORBITS[engineState.orbits.length % DEFAULT_ORBITS.length]));
+        }
+      } else if (engineState.orbits.length > nextCount) {
+        engineState.orbits = engineState.orbits.slice(0, nextCount);
+      }
+    }
+
+    engineState.orbits.forEach((orbit, index) => {
+      orbit.pulseCount = Math.max(1, Math.min(10, Math.floor(Math.random() * 10) + 1));
+      orbit.direction = index % 2 === 0 ? 1 : -1;
+    });
+    resetEngine(engineState);
+    handleClearTraces();
+    engineState.playing = true;
+    engineState.lastTimestamp = -1;
+    rerender();
+  }, [engineState, geometryMode, handleClearTraces, rerender]);
 
   const handleSaveScene = useCallback(() => {
     const run = async () => {
@@ -1469,6 +1540,7 @@ function OrbitalPolymeter() {
                 ref={canvasRef}
                 engineState={engineState}
                 traceMode={traceMode}
+                showPlanets={showPlanets}
                 harmonySettings={harmonySettings}
                 geometryMode={geometryMode}
                 interferenceSettings={interferenceSettings}
@@ -1480,351 +1552,419 @@ function OrbitalPolymeter() {
             <div className="h-6" />
           </div>
 
-          <div className="mt-14 px-3 space-y-3">
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={handleTogglePlay}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{
-                  background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
-                  border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
-                  color: engineState.playing ? '#FF3366' : '#00FFAA',
-                }}
-              >
-                {engineState.playing ? <Pause size={19} /> : <Play size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
-              </button>
-              <button
-                onClick={handleStepForward}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
-              >
-                <SkipForward size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Step</span>
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
-              >
-                <RotateCcw size={19} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">Reset</span>
-              </button>
-              <button
-                onClick={handleToggleMute}
-                className="px-2 py-3 rounded-xl flex flex-col items-center gap-1"
-                style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
-              >
-                {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-                <span className="text-[10px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
-              </button>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                Long-press orbits to edit.
-              </div>
-              <div className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                {engineState.speedMultiplier.toFixed(1)}x
-              </div>
-              <button
-                onClick={handleTogglePresentation}
-                className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                Present
-              </button>
-            </div>
-          </div>
-
-          <div
-            className="-mt-2 rounded-2xl border p-4 space-y-4"
-            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  Orbits
+          <div className="mt-10 px-4 space-y-4">
+            <div
+              className="rounded-[28px] border px-4 py-5 space-y-4"
+              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Playback
                 </div>
-                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  Quick ratios live here. Type for 11+.
-                </p>
-              </div>
-              {geometryMode === 'standard-trace' && (
                 <button
-                  onClick={handleAddOrbit}
-                  className="h-10 w-10 rounded-xl flex items-center justify-center"
-                  style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
-                  title="Add orbit"
+                  onClick={handleTogglePresentation}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
-                  <Plus size={16} />
+                  Present
                 </button>
-              )}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={handleTogglePlay}
+                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  style={{
+                    background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
+                    border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
+                    color: engineState.playing ? '#FF3366' : '#00FFAA',
+                  }}
+                >
+                  {engineState.playing ? <Pause size={20} /> : <Play size={20} />}
+                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
+                >
+                  <RotateCcw size={17} />
+                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">Reset</span>
+                </button>
+                <button
+                  onClick={handleToggleMute}
+                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
+                >
+                  {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
+                </button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[12px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                  <span>Speed</span>
+                  <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={engineState.speedMultiplier}
+                  onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                  className="w-full accent-white"
+                />
+              </div>
             </div>
-            {mobileQuickOrbits.map((orbit) => (
-              <div
-                key={orbit.id}
-                className="rounded-xl border p-3 space-y-3"
-                style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+
+            <div
+              className="rounded-[28px] border"
+              style={{
+                background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <button
+                onClick={() => setMobileScenesOpen((open) => !open)}
+                className="flex w-full items-center justify-between px-4 py-4"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                    {orbit.label}
+                <div className="text-left">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Scenes
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggleOrbitDirection(orbit.id)}
-                      className="px-3 py-1.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                    >
-                      {orbit.direction === 1 ? 'CW' : 'CCW'}
-                    </button>
-                    {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
-                      <button
-                        onClick={() => handleDeleteOrbit(orbit.id)}
-                        className="h-9 w-9 rounded-xl flex items-center justify-center"
-                        style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                        title={`Remove ${orbit.label}`}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                    Tap a pattern to begin.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    title={`Lower ${orbit.label}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRandomPattern();
+                    }}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
                   >
-                    <Minus size={16} />
+                    Random
                   </button>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
-                    value={Math.min(orbit.pulseCount, 10)}
-                    onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                    className="flex-1 accent-white"
-                  />
-                  <button
-                    onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    title={`Raise ${orbit.label}`}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                    Type for 11+
+                  <div style={{ color: 'rgba(255,255,255,0.62)' }}>
+                    {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="1000"
-                    value={orbit.pulseCount}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-2 rounded-xl border text-center text-[14px] font-mono focus:outline-none"
-                    style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
-                  />
                 </div>
-              </div>
-            ))}
-          </div>
+              </button>
 
-          <div
-            className="rounded-2xl border p-4 space-y-4"
-            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                Mode & Motion
-              </div>
-              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Choose the mode, then shape speed.
-              </p>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  {geometryMode === 'standard-trace' ? 'Standard' : geometryMode === 'interference-trace' ? 'Interference' : 'Sweep'}
+              {mobileScenesOpen && (
+                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                    <div className="flex gap-3 px-1 snap-x snap-mandatory">
+                      {BUILT_IN_SCENES.map((scene) => (
+                        <button
+                          key={scene.id}
+                          onClick={() => handleLoadBuiltInScene(scene.id)}
+                          className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            borderColor: 'rgba(255,255,255,0.09)',
+                          }}
+                        >
+                          <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
+                            <img
+                              src={scene.thumbnailDataUrl}
+                              alt={scene.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="space-y-1 px-4 py-4">
+                            <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                              {scene.name}
+                            </div>
+                            <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                              {scene.description}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  {modeDescription}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleToggleTrace}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
-                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
-                  }}
-                >
-                  {traceMode ? 'Trace On' : 'Trace Off'}
-                </button>
-                <button
-                  onClick={handleTogglePlanets}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: showPlanets ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
-                    border: `1px solid ${showPlanets ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)'}`,
-                    color: 'rgba(255,255,255,0.72)',
-                  }}
-                >
-                  {showPlanets ? 'Planets On' : 'No Dots'}
-                </button>
-                <button
-                  onClick={() => setHelpOpen((open) => !open)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <CircleHelp size={18} />
-                </button>
-                <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                >
-                  <Menu size={18} />
-                </button>
-              </div>
+              )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { key: 'standard-trace' as const, label: 'Standard', color: '#00FFAA' },
-                { key: 'interference-trace' as const, label: 'Interference', color: '#88CCFF' },
-                { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
-              ].map((mode) => (
-                <button
-                  key={mode.key}
-                  onClick={() => handleGeometryModeChange(mode.key)}
-                  className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-                  style={{
-                    background: geometryMode === mode.key ? `${mode.color}1a` : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
-                    color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.74)',
-                  }}
-                >
-                  {mode.label}
-                </button>
-              ))}
-            </div>
-            <div>
-              <div className="flex items-center justify-between text-[11px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                <span>Speed</span>
-                <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
-              </div>
-              <input
-                type="range"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={engineState.speedMultiplier}
-                onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                className="w-full mt-2 accent-white"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button onClick={handleReverseDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                Reverse
-              </button>
-              <button onClick={handleAllClockwise} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}>
-                All CW
-              </button>
-              <button onClick={handleAlternateDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.08)', border: '1px solid rgba(51,136,255,0.2)' }}>
-                Alternate
-              </button>
-            </div>
-          </div>
 
-          <div
-            className="rounded-2xl border p-4 space-y-4"
-            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                Sound
-              </div>
-              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                Main sound choices live here.
-              </p>
-            </div>
-            <button
-              onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
-              className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-              style={{
-                background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.12)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.1)'}`,
-                color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
-              }}
+            <div
+              className="rounded-[28px] border"
+              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              {harmonySettings.tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
-            </button>
-            {harmonySettings.tonePreset === 'scale-quantized' && (
-              <div className="grid grid-cols-[92px,1fr] gap-2">
-                <select
-                  value={harmonySettings.rootNote}
-                  onChange={(e) => handleHarmonyChange({ rootNote: e.target.value as RootNote })}
-                  className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
-                  style={{ color: 'rgba(255,255,255,0.82)' }}
-                >
-                  {NOTE_NAMES.map((note) => (
-                    <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                  ))}
-                </select>
-                <select
-                  value={harmonySettings.scaleName}
-                  onChange={(e) => handleHarmonyChange({ scaleName: e.target.value as ScaleName })}
-                  className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
-                  style={{ color: 'rgba(255,255,255,0.82)' }}
-                >
-                  {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
-                    <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div
-            className="rounded-2xl border p-4 space-y-4"
-            style={{ background: 'rgba(17,17,22,0.88)', borderColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                  Scenes
-                </div>
-                <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                  Quick starts live here. Menu holds the full scene library.
-                </p>
-              </div>
               <button
-                onClick={() => setSidebarOpen(true)}
-                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onClick={() => setMobileCustomizeOpen((open) => !open)}
+                className="flex w-full items-center justify-between px-4 py-4"
               >
-                Open Menu
+                <div className="text-left">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Customize Pattern
+                  </div>
+                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Layers, pattern, trail, and markers.
+                  </div>
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.62)' }}>
+                  {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </div>
               </button>
+
+              {mobileCustomizeOpen && (
+                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="space-y-3 rounded-2xl border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                      Pattern
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { key: 'standard-trace' as const, label: 'Standard', color: '#00FFAA' },
+                        { key: 'interference-trace' as const, label: 'Pattern', color: '#88CCFF' },
+                        { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
+                      ].map((mode) => (
+                        <button
+                          key={mode.key}
+                          onClick={() => handleGeometryModeChange(mode.key)}
+                          className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: geometryMode === mode.key ? `${mode.color}1a` : 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
+                            color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.74)',
+                          }}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={handleToggleTrace}
+                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                        style={{
+                          background: traceMode ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${traceMode ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                          color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
+                        }}
+                      >
+                        {traceMode ? 'Trail On' : 'Trail Off'}
+                      </button>
+                      <button
+                        onClick={handleTogglePlanets}
+                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                        style={{
+                          background: showPlanets ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.12)',
+                          border: `1px solid ${showPlanets ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)'}`,
+                          color: 'rgba(255,255,255,0.72)',
+                        }}
+                      >
+                        {showPlanets ? 'Markers On' : 'Markers Off'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                      Layers
+                    </div>
+                    {geometryMode === 'standard-trace' && (
+                      <button
+                        onClick={handleAddOrbit}
+                        className="h-10 w-10 rounded-xl flex items-center justify-center"
+                        style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
+                        title="Add layer"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {mobileQuickOrbits.map((orbit) => {
+                    const layerLabel =
+                      geometryMode === 'standard-trace'
+                        ? orbit.label.replace('Orbit', 'Layer')
+                        : orbit.label.replace('Pair', 'Layer');
+                    const layerOpen = mobileExpandedLayerId === orbit.id;
+
+                    return (
+                      <div
+                        key={orbit.id}
+                        className="rounded-2xl border p-3 space-y-3"
+                        style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                            {layerLabel}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="1000"
+                              value={orbit.pulseCount}
+                              onFocus={(e) => e.currentTarget.select()}
+                              onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                              className="w-20 rounded-xl border px-2 py-2 text-center text-[14px] font-mono focus:outline-none"
+                              style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
+                            />
+                            <button
+                              onClick={() => setMobileExpandedLayerId((current) => (current === orbit.id ? null : orbit.id))}
+                              className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                            >
+                              {layerOpen ? 'Less' : 'More'}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
+                            className="h-11 w-11 rounded-xl flex items-center justify-center"
+                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                            title={`Lower ${layerLabel}`}
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            step="1"
+                            value={Math.min(orbit.pulseCount, 10)}
+                            onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                            className="flex-1 accent-white"
+                          />
+                          <button
+                            onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
+                            className="h-11 w-11 rounded-xl flex items-center justify-center"
+                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                            title={`Raise ${layerLabel}`}
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+                        {layerOpen && (
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            <button
+                              onClick={() => handleToggleOrbitDirection(orbit.id)}
+                              className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                            >
+                              {orbit.direction === 1 ? 'CW' : 'CCW'}
+                            </button>
+                            {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
+                              <button
+                                onClick={() => handleDeleteOrbit(orbit.id)}
+                                className="h-10 w-10 rounded-xl flex items-center justify-center"
+                                style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                                title={`Remove ${layerLabel}`}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handleStepForward}
+                      className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                      style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <SkipForward size={15} />
+                        <span>Step</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSidebarOpen(true)}
+                      className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <Menu size={15} />
+                        <span>Menu</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(PRESET_RATIOS).slice(0, 6).map(([label, preset]) => (
-                <button
-                  key={label}
-                  onClick={() => handleLoadPreset(preset)}
-                  className="px-3 py-2 rounded-xl text-[11px] font-mono"
-                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  {label}
-                </button>
-              ))}
+
+            <div
+              className="rounded-[28px] border"
+              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+            >
+              <button
+                onClick={() => setMobileSoundOpen((open) => !open)}
+                className="flex w-full items-center justify-between px-4 py-4"
+              >
+                <div className="text-left">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Sound
+                  </div>
+                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Tone, key, and scale.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setHelpOpen((open) => !open);
+                    }}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+                  >
+                    <CircleHelp size={18} />
+                  </button>
+                  <div style={{ color: 'rgba(255,255,255,0.62)' }}>
+                    {mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </div>
+                </div>
+              </button>
+
+              {mobileSoundOpen && (
+                <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <button
+                    onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
+                    className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.12)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.1)'}`,
+                      color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
+                    }}
+                  >
+                    {harmonySettings.tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
+                  </button>
+                  {harmonySettings.tonePreset === 'scale-quantized' && (
+                    <div className="grid grid-cols-[92px,1fr] gap-2">
+                      <select
+                        value={harmonySettings.rootNote}
+                        onChange={(e) => handleHarmonyChange({ rootNote: e.target.value as RootNote })}
+                        className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                        style={{ color: 'rgba(255,255,255,0.82)' }}
+                      >
+                        {NOTE_NAMES.map((note) => (
+                          <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={harmonySettings.scaleName}
+                        onChange={(e) => handleHarmonyChange({ scaleName: e.target.value as ScaleName })}
+                        className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
+                        style={{ color: 'rgba(255,255,255,0.82)' }}
+                      >
+                        {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                          <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

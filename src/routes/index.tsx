@@ -78,20 +78,33 @@ const modeCards = [
   },
 ] as const;
 
-const showcaseCards = BUILT_IN_SCENES.map((scene, index) => ({
-  title: scene.name,
-  tag: index < 3 ? ['Standard', 'Interference Feel', 'Lattice'][index] : 'Scene',
-  description: scene.description,
-  accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#FF6699', '#66DDFF', '#AA88FF', '#FFCC66', '#44FF88'][index % 8],
-  image: createScenePreviewDataUrl(scene.snapshot, 520, {
-    oversample: 2,
-    format: 'image/png',
-    cycleFactor: scene.snapshot.geometryMode === 'standard-trace' ? 0.72 : 0.88,
-    scaleRatio: 0.35,
-  }),
-}));
+const showcaseSceneIds = [
+  'glass_cathedral',
+  'blue_mandala',
+  'dorian_bloom',
+  'silent_cosmology',
+  'aeolian_tide',
+] as const;
 
-const heroImage = createScenePreviewDataUrl(BUILT_IN_SCENES[0].snapshot, 960, {
+const showcaseCards = showcaseSceneIds
+  .map((sceneId, index) => {
+    const scene = BUILT_IN_SCENES.find((entry) => entry.id === sceneId);
+    if (!scene) {
+      return null;
+    }
+
+    return {
+      id: scene.id,
+      title: scene.name,
+      tag: index === 0 ? 'Featured' : 'Built-In Scene',
+      description: scene.description,
+      accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#66DDFF', '#AA88FF'][index % 5],
+      image: scene.thumbnailDataUrl,
+    };
+  })
+  .filter((card): card is NonNullable<typeof card> => Boolean(card));
+
+const heroImage = BUILT_IN_SCENES.find((scene) => scene.id === 'glass_cathedral')?.thumbnailDataUrl ?? createScenePreviewDataUrl(BUILT_IN_SCENES[0].snapshot, 960, {
   oversample: 2,
   format: 'image/png',
   cycleFactor: 0.82,
@@ -258,8 +271,9 @@ function OrbitalPolymeterLanding() {
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {showcaseCards.map((card) => (
-                <div
+                <a
                   key={card.title}
+                  href={`/app?scene=${card.id}`}
                   className="group rounded-[1.6rem] border border-white/8 bg-white/[0.03] p-4 transition hover:border-white/14 hover:bg-white/[0.045]"
                 >
                   <div className="flex items-center justify-between">
@@ -273,7 +287,7 @@ function OrbitalPolymeterLanding() {
                   </div>
                   <div className="mt-4 text-lg font-light text-white">{card.title}</div>
                   <p className="mt-2 text-sm leading-7 text-white/52">{card.description}</p>
-                </div>
+                </a>
               ))}
             </div>
           </div>
