@@ -5,7 +5,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, SkipForward, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleHelp, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -982,7 +982,6 @@ function OrbitalPolymeter() {
   const [mobileScenesOpen, setMobileScenesOpen] = useState(false);
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
-  const [mobileExpandedLayerId, setMobileExpandedLayerId] = useState<string | null>(null);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
 
@@ -2132,7 +2131,6 @@ function OrbitalPolymeter() {
                       geometryMode === 'standard-trace'
                         ? orbit.label.replace('Orbit', 'Layer')
                         : orbit.label.replace('Pair', 'Layer');
-                    const layerOpen = mobileExpandedLayerId === orbit.id;
 
                     return (
                       <div
@@ -2140,7 +2138,7 @@ function OrbitalPolymeter() {
                         className="rounded-2xl border p-3 space-y-3"
                         style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
                       >
-                  <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
+                        <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
                           <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.8)' }}>
                             {layerLabel}
                           </div>
@@ -2155,13 +2153,6 @@ function OrbitalPolymeter() {
                               className="w-20 rounded-xl border px-2 py-2 text-center text-[14px] font-mono focus:outline-none"
                               style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
                             />
-                            <button
-                              onClick={() => setMobileExpandedLayerId((current) => (current === orbit.id ? null : orbit.id))}
-                              className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-                            >
-                              {layerOpen ? 'Less' : 'More'}
-                            </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2191,43 +2182,33 @@ function OrbitalPolymeter() {
                             <Plus size={16} />
                           </button>
                         </div>
-                        {layerOpen && (
-                          <div data-guide="mobile-direction" className="flex items-center justify-between gap-2 pt-1">
-                            <button
-                              onClick={() => handleToggleOrbitDirection(orbit.id)}
-                              className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                            >
-                              {orbit.direction === 1 ? 'CW' : 'CCW'}
-                            </button>
-                            {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
-                              <button
-                                onClick={() => handleDeleteOrbit(orbit.id)}
-                                className="h-10 w-10 rounded-xl flex items-center justify-center"
-                                style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                                title={`Remove ${layerLabel}`}
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                        <div data-guide="mobile-direction" className="flex items-center justify-between gap-2 pt-1">
+                          <button
+                            onClick={() => handleToggleOrbitDirection(orbit.id)}
+                            className="h-10 w-10 rounded-xl flex items-center justify-center"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                            title={orbit.direction === 1 ? `Set ${layerLabel} counterclockwise` : `Set ${layerLabel} clockwise`}
+                          >
+                            {orbit.direction === 1 ? (
+                              <RotateCcw size={16} />
+                            ) : (
+                              <RotateCcw size={16} style={{ transform: 'scaleX(-1)' }} />
                             )}
-                          </div>
-                        )}
+                          </button>
+                          {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
+                            <button
+                              onClick={() => handleDeleteOrbit(orbit.id)}
+                              className="h-10 w-10 rounded-xl flex items-center justify-center"
+                              style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                              title={`Remove ${layerLabel}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={handleStepForward}
-                      className="col-span-2 px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-                      style={{ background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.25)', color: '#88CCFF' }}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        <SkipForward size={15} />
-                        <span>Step</span>
-                      </div>
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
