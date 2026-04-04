@@ -2297,6 +2297,83 @@ function OrbitalPolymeter() {
           </div>
         </div>
 
+        {helpOpen && !presentationMode && currentGuideStep && (
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/38 backdrop-blur-[2px]"
+              onClick={closeStartGuide}
+            />
+            {guideRect && (
+              <div
+                className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
+                style={{
+                  left: Math.max(8, guideRect.left - 8),
+                  top: Math.max(8, guideRect.top - 8),
+                  width: guideRect.width + 16,
+                  height: guideRect.height + 16,
+                  borderColor: 'rgba(0,255,170,0.42)',
+                  boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
+                }}
+              />
+            )}
+            <div
+              className="fixed z-40 left-3 right-3 rounded-2xl border p-4"
+              style={guideCalloutStyle}
+            >
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
+                {helpStepIndex === 0 ? 'Start Guide' : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
+              </div>
+              <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                {currentGuideStep.title}
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                {currentGuideStep.text}
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  onClick={closeStartGuide}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  Done
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
+                    disabled={helpStepIndex === 0}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (helpStepIndex >= guideSteps.length - 1) {
+                        closeStartGuide();
+                        return;
+                      }
+                      setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+                    }}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
+                  >
+                    {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                  </button>
+                </div>
+              </div>
+              {helpStepIndex === guideSteps.length - 1 && (
+                <div className="mt-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  You&apos;re ready to explore.
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         <OrbitSidebar
           orbits={engineState.orbits}
           isOpen={sidebarOpen}
