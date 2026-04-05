@@ -155,6 +155,43 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       return Math.max(1, (Math.min(width, height) / 2 - margin) / SWEEP_MAX_MODEL_RADIUS);
     }, []);
 
+    const getStandardLayoutMetrics = useCallback(
+      (orbits: Orbit[], width: number, height: number) => {
+        const cx = width / 2;
+        const cy = isMobile ? height * 0.43 : height / 2;
+        if (!isMobile || orbits.length === 0) {
+          return { cx, cy, orbitScale: 1 };
+        }
+
+        const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 1);
+        const labelAllowance = 26;
+        const edgePadding = 14;
+        const availableHorizontalRadius = Math.max(24, Math.min(cx, width - cx) - edgePadding);
+        const availableVerticalRadius = Math.max(24, Math.min(cy, height - cy) - edgePadding);
+        const orbitScale = Math.min(
+          1,
+          availableHorizontalRadius / (maxRadius + labelAllowance),
+          availableVerticalRadius / (maxRadius + labelAllowance),
+        );
+
+        return { cx, cy, orbitScale };
+      },
+      [isMobile],
+    );
+
+    const scalePointFromCenter = useCallback(
+      (
+        point: { x: number; y: number },
+        centerX: number,
+        centerY: number,
+        scale: number,
+      ) => ({
+        x: centerX + (point.x - centerX) * scale,
+        y: centerY + (point.y - centerY) * scale,
+      }),
+      [],
+    );
+
     const getSweepPositions = useCallback(
       (
         innerOrbit: Orbit,
@@ -355,16 +392,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const dpr = window.devicePixelRatio || 1;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
-        const cx = w / 2;
-        const cy = isMobile ? h * 0.43 : h / 2;
-
         const state = engineRef.current;
+        const { cx, cy, orbitScale } = getStandardLayoutMetrics(state.orbits, w, h);
         const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
         const pointHitRadius = isCoarsePointer ? 28 : 20;
         const ringHitRadius = isCoarsePointer ? 18 : 12;
         let bestMatch: { orbitId: string; score: number } | null = null;
         for (const orbit of state.orbits) {
-          const pos = resonancePosition(orbit, cx, cy);
+          const pos = scalePointFromCenter(resonancePosition(orbit, cx, cy), cx, cy, orbitScale);
           const dist = Math.hypot(canvasX - pos.x, canvasY - pos.y);
           if (dist < pointHitRadius) {
             if (!bestMatch || dist < bestMatch.score) {
@@ -372,7 +407,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             }
           }
           const distFromCenter = Math.hypot(canvasX - cx, canvasY - cy);
-          const ringDist = Math.abs(distFromCenter - orbit.radius);
+          const ringDist = Math.abs(distFromCenter - orbit.radius * orbitScale);
           if (ringDist < ringHitRadius) {
             const score = ringDist + 6;
             if (!bestMatch || score < bestMatch.score) {
@@ -571,8 +606,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const previousElapsedBeats = previousElapsedBeatsRef.current;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
-        const cx = w / 2;
-        const cy = h / 2;
+        const { cx, cy, orbitScale } = getStandardLayoutMetrics(state.orbits, w, h);
         const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
         const isInterferenceMode = geometryModeRef.current === 'interference-trace';
         const isSweepMode = geometryModeRef.current === 'sweep';
@@ -598,13 +632,16 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             !isSweepMode &&
             ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
           if (shouldRenderOrbitBloom && state.speedMultiplier <= MAX_BLOOM_SPEED) {
+            const scaledTriggerPoint = isSweepMode
+              ? { x: trig.x, y: trig.y }
+              : scalePointFromCenter({ x: trig.x, y: trig.y }, cx, cy, orbitScale);
             bloomsRef.current.push({
-              x: trig.x,
-              y: trig.y,
+              x: scaledTriggerPoint.x,
+              y: scaledTriggerPoint.y,
               color: trig.color,
               radius: 0,
               birth: timestamp,
-              orbitRadius: trig.radius,
+              orbitRadius: isSweepMode ? trig.radius : trig.radius * orbitScale,
             });
           }
           const shouldPlayOrbitAudio =
@@ -790,13 +827,28 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 const traceOpacityBudget = state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY;
                 const previousInnerPoint = resonancePositionAtBeats(innerOrbit, previousElapsedBeats, cx, cy);
                 const previousOuterPoint = resonancePositionAtBeats(outerOrbit, previousElapsedBeats, cx, cy);
-                let previousPoint = getInterferencePoint(previousInnerPoint, previousOuterPoint, cx, cy);
+                let previousPoint = getInterferencePoint(
+                  scalePointFromCenter(previousInnerPoint, cx, cy, orbitScale),
+                  scalePointFromCenter(previousOuterPoint, cx, cy, orbitScale),
+                  cx,
+                  cy,
+                );
 
                 for (let step = 1; step <= substeps; step++) {
                   const t = step / substeps;
                   const sampleBeats = previousElapsedBeats + deltaBeats * t;
-                  const innerPoint = resonancePositionAtBeats(innerOrbit, sampleBeats, cx, cy);
-                  const outerPoint = resonancePositionAtBeats(outerOrbit, sampleBeats, cx, cy);
+                  const innerPoint = scalePointFromCenter(
+                    resonancePositionAtBeats(innerOrbit, sampleBeats, cx, cy),
+                    cx,
+                    cy,
+                    orbitScale,
+                  );
+                  const outerPoint = scalePointFromCenter(
+                    resonancePositionAtBeats(outerOrbit, sampleBeats, cx, cy),
+                    cx,
+                    cy,
+                    orbitScale,
+                  );
                   const interferencePoint = getInterferencePoint(innerPoint, outerPoint, cx, cy);
 
                   traceCtx.save();
@@ -829,7 +881,12 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   const t = step / substeps;
                   const sampleBeats = previousElapsedBeats + deltaBeats * t;
                   const samplePoints = state.orbits.map((orbit) => {
-                    const pos = resonancePositionAtBeats(orbit, sampleBeats, cx, cy);
+                    const pos = scalePointFromCenter(
+                      resonancePositionAtBeats(orbit, sampleBeats, cx, cy),
+                      cx,
+                      cy,
+                      orbitScale,
+                    );
                     return { ...pos, color: orbit.color };
                   });
 
@@ -870,10 +927,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, cx, cy, sweepScale)
             : null;
         const currentInnerPoint = currentInnerOrbit
-          ? sweepPositions?.innerPoint ?? resonancePosition(currentInnerOrbit, cx, cy)
+          ? sweepPositions?.innerPoint ?? scalePointFromCenter(resonancePosition(currentInnerOrbit, cx, cy), cx, cy, orbitScale)
           : null;
         const currentOuterPoint = currentOuterOrbit
-          ? sweepPositions?.outerPoint ?? resonancePosition(currentOuterOrbit, cx, cy)
+          ? sweepPositions?.outerPoint ?? scalePointFromCenter(resonancePosition(currentOuterOrbit, cx, cy), cx, cy, orbitScale)
           : null;
         const currentInterferencePoint = sweepPositions
           ? sweepPositions.sweepPoint
@@ -897,7 +954,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ? SWEEP_INNER_RADIUS * sweepScale
             : isSweepOuterOrbit
               ? SWEEP_OUTER_RADIUS * sweepScale
-              : orbit.radius;
+              : orbit.radius * orbitScale;
           const isHoveredOrbit = hoveredOrbitId === orbit.id;
 
           // Ring
@@ -945,7 +1002,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               ? currentInnerPoint
               : orbit.id === currentOuterOrbit?.id && currentOuterPoint
                 ? currentOuterPoint
-                : resonancePosition(orbit, cx, cy);
+                : scalePointFromCenter(resonancePosition(orbit, cx, cy), cx, cy, orbitScale);
 
           if (isHoveredOrbit) {
             ctx.save();
