@@ -105,7 +105,7 @@ export default function OrbitSidebar({
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
-  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('geometry');
+  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -119,6 +119,65 @@ export default function OrbitSidebar({
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+  const baseCardStyle = {
+    background: 'rgba(255, 255, 255, 0.03)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  } as const;
+  const sceneCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
+    borderColor: 'rgba(0, 255, 170, 0.12)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  } as const;
+  const ratioCardStyle = {
+    background: `linear-gradient(180deg, ${
+      geometryMode === 'standard-trace'
+        ? 'rgba(0,255,170,0.12)'
+        : geometryMode === 'interference-trace'
+          ? 'rgba(136,204,255,0.12)'
+          : 'rgba(255,170,0,0.12)'
+    }, rgba(255,255,255,0.028))`,
+    borderColor: geometryMode === 'standard-trace' ? 'rgba(0,255,170,0.16)' : geometryMode === 'interference-trace' ? 'rgba(136,204,255,0.16)' : 'rgba(255,170,0,0.16)',
+    boxShadow:
+      geometryMode === 'standard-trace'
+        ? 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(0,255,170,0.03)'
+        : geometryMode === 'interference-trace'
+          ? 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(136,204,255,0.03)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(255,170,0,0.03)',
+  } as const;
+  const ratioAccentColor =
+    geometryMode === 'standard-trace'
+      ? '#00FFAA'
+      : geometryMode === 'interference-trace'
+        ? '#88CCFF'
+        : '#FFAA00';
+  const soundCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.03))',
+    borderColor: 'rgba(136, 204, 255, 0.12)',
+  } as const;
+  const soundPrimaryCardStyle = {
+    background: 'linear-gradient(180deg, rgba(136,204,255,0.12), rgba(136,204,255,0.04))',
+    borderColor: 'rgba(136, 204, 255, 0.22)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+  } as const;
+  const soundSecondaryCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
+    borderColor: 'rgba(120, 170, 220, 0.12)',
+  } as const;
+  const soundSummaryCardStyle = {
+    background: 'linear-gradient(180deg, rgba(80,130,190,0.14), rgba(80,130,190,0.045))',
+    borderColor: 'rgba(136, 204, 255, 0.18)',
+  } as const;
+  const exportCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
+    borderColor: 'rgba(255, 170, 0, 0.12)',
+  } as const;
+  const tabMeta: Array<{ key: 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
+    { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
+    { key: 'geometry', label: 'Ratios', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
+    { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
+    { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
+    { key: 'export', label: 'Export', activeColor: '#FFAA00' },
+  ];
 
   return (
     <>
@@ -160,21 +219,23 @@ export default function OrbitSidebar({
         </div>
 
         {/* Tabs */}
-        <div className={`flex gap-1 border-b border-white/5 ${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4'}`}>
-          {(['geometry', 'orbits', 'sound', 'scenes', 'export'] as const).map((tab) => (
+        <div className={`overflow-x-auto border-b border-white/5 ${isMobile ? 'px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'}`}>
+          <div className="flex min-w-max gap-1">
+          {tabMeta.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 text-xs font-mono font-light rounded-t-lg transition-all duration-200 ${isMobile ? 'px-4 py-3' : 'px-3 py-2'}`}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`shrink-0 rounded-t-lg text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-2.5 py-2'}`}
               style={{
-                color: activeTab === tab ? '#00FFAA' : 'rgba(255, 255, 255, 0.4)',
-                borderBottom: activeTab === tab ? '2px solid #00FFAA' : 'none',
-                background: activeTab === tab ? 'rgba(0, 255, 170, 0.05)' : 'transparent',
+                color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
+                borderBottom: activeTab === tab.key ? `2px solid ${tab.activeColor}` : 'none',
+                background: activeTab === tab.key ? `${tab.activeColor}10` : 'transparent',
               }}
             >
-              {tab.toUpperCase()}
+              {tab.label.toUpperCase()}
             </button>
           ))}
+          </div>
         </div>
 
         {/* Content */}
@@ -452,27 +513,24 @@ export default function OrbitSidebar({
           {/* SCENES TAB */}
           {activeTab === 'scenes' && (
             <div className="space-y-4">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
                   Scenes
                 </div>
-                <p className="text-[10px] mt-2" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
                   Load built-ins or save the current state locally.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+              <div className="space-y-3">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                   Built-In Scenes
                 </div>
                 {builtInScenes.map((scene) => (
                   <div
                     key={scene.id}
                     className="rounded-lg border p-3"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                    }}
+                    style={sceneCardStyle}
                     >
                     {scene.thumbnailDataUrl && (
                       <div className="mb-3 flex justify-center">
@@ -484,10 +542,10 @@ export default function OrbitSidebar({
                         />
                       </div>
                     )}
-                    <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.82)' }}>
+                    <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
                       {scene.name}
                     </div>
-                    <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                    <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
                       {scene.description}
                     </div>
                     <button
@@ -505,7 +563,7 @@ export default function OrbitSidebar({
                 ))}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3 rounded-lg border p-3" style={sceneCardStyle}>
                 <input
                   type="text"
                   value={sceneName}
@@ -543,8 +601,8 @@ export default function OrbitSidebar({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-[10px] font-mono uppercase tracking-widest pt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+              <div className="space-y-3">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em] pt-1" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                   Saved Scenes
                 </div>
                 {savedScenes.length === 0 ? (
@@ -556,10 +614,7 @@ export default function OrbitSidebar({
                     <div
                       key={scene.id}
                       className="rounded-lg border p-3"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                      }}
+                      style={baseCardStyle}
                     >
                       {scene.thumbnailDataUrl && (
                         <div className="mb-3 flex justify-center">
@@ -623,21 +678,18 @@ export default function OrbitSidebar({
           {/* EXPORT TAB */}
           {activeTab === 'export' && (
             <div className="space-y-4">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
                   Export
                 </div>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
                   Export clean stills, short motion loops, or scene files.
                 </p>
               </div>
 
               <div
                 className="rounded-lg border p-3 space-y-3"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                }}
+                style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
                   Image Export
@@ -683,10 +735,7 @@ export default function OrbitSidebar({
 
               <div
                 className="rounded-lg border p-3 space-y-3"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                }}
+                style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
                   Motion Export
@@ -725,10 +774,7 @@ export default function OrbitSidebar({
 
               <div
                 className="rounded-lg border p-3 space-y-3"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                }}
+                style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
                   Scene Files
@@ -742,7 +788,7 @@ export default function OrbitSidebar({
                     color: 'rgba(255, 255, 255, 0.7)',
                   }}
                 >
-                  Import Scene JSON
+                  Import Scene
                 </button>
                 <input
                   ref={importInputRef}
@@ -777,18 +823,18 @@ export default function OrbitSidebar({
           {/* SOUND TAB */}
           {activeTab === 'sound' && (
             <div className="space-y-4">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
                   Sound
                 </div>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
                   Choose between Original Tones and Keyed Harmony.
                 </p>
               </div>
 
-              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+              <div className="rounded-lg border p-3 space-y-3" style={soundPrimaryCardStyle}>
                 <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
                     Sound Mode
                   </div>
                   <InfoTip text="Original Tones use the original palette. Keyed Harmony locks the system into a key and scale." />
@@ -804,9 +850,9 @@ export default function OrbitSidebar({
                 </select>
               </div>
 
-              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+              <div className="rounded-lg border p-3 space-y-3" style={soundSecondaryCardStyle}>
                 <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.52)' }}>
                     Key
                   </div>
                   <InfoTip text="These are global. They define the tonal home base and note palette for the whole system." />
@@ -854,9 +900,9 @@ export default function OrbitSidebar({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
+              <div className="rounded-lg border p-3 space-y-3" style={soundSecondaryCardStyle}>
                 <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.52)' }}>
                     Note Assignment
                   </div>
                   <InfoTip text="Choose whether the app assigns notes automatically or lets each orbit take its own role inside the key." />
@@ -894,13 +940,13 @@ export default function OrbitSidebar({
                 >
                   {harmonySettings.manualOrbitRoles ? 'Orbit Roles: Manual' : 'Orbit Roles: Auto'}
                 </button>
-                <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                <p className="text-[10px] -mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
                   Global key and scale shape the whole system. Orbit roles shape each orbit inside it.
                 </p>
               </div>
 
-              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+              <div className="rounded-lg border p-3" style={soundSummaryCardStyle}>
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
                   Current Sound
                 </div>
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
@@ -925,45 +971,17 @@ export default function OrbitSidebar({
           {/* GEOMETRY TAB */}
           {activeTab === 'geometry' && (
             <div className="space-y-4">
-              <div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Geometry
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                  Ratios
                 </div>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Choose how the form is generated.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Start Here
-                </div>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  Pick a mode, press play, then change one ratio at a time.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Active Mode
-                </div>
-                <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.72)' }}>
-                  {currentModeLabel}
-                </p>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                  {geometryMode === 'standard-trace'
-                    ? 'Standard connects all active orbits into one shared field.'
-                    : geometryMode === 'interference-trace'
-                      ? 'Interference draws one live pair path from two selected orbits.'
-                      : 'Sweep plots a finite sampled figure from the selected pair.'}
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                  Shape the core orbit relationships and the geometry they produce.
                 </p>
               </div>
 
               {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
-                <div className="space-y-3 rounded-lg border border-white/10 p-3" style={{ background: 'rgba(255, 255, 255, 0.03)' }}>
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                    Driving Pair
-                  </div>
+                <div className="space-y-3 rounded-lg border p-3" style={ratioCardStyle}>
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                       Pair A
@@ -1014,26 +1032,21 @@ export default function OrbitSidebar({
                 </div>
               )}
 
-              <div className="space-y-2">
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Ratio Sets
-                </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Load a ready-made orbit relationship, then refine it.
-                </p>
+              <div className="space-y-3">
                 {Object.entries(PRESET_RATIOS).map(([name, ratios]) => (
                   <button
                     key={name}
                     onClick={() => onLoadPreset(ratios)}
-                    className="w-full px-4 py-3 rounded-lg border transition-all duration-200 hover:bg-white/5 text-left"
+                    className="w-full rounded-lg border px-4 py-3 text-left transition-all duration-200 hover:bg-white/5"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      borderColor: 'rgba(255, 255, 255, 0.1)',
-                      color: 'rgba(255, 255, 255, 0.7)',
+                      background: `linear-gradient(90deg, ${ratioAccentColor}14 0px, ${ratioAccentColor}08 10px, rgba(255, 255, 255, 0.03) 10px, rgba(255, 255, 255, 0.03) 100%)`,
+                      borderColor: `${ratioAccentColor}22`,
+                      color: 'rgba(255, 255, 255, 0.74)',
+                      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 0 0 1px ${ratioAccentColor}08`,
                     }}
                   >
-                    <div className="text-xs font-mono font-light">{name}</div>
-                    <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                    <div className="text-xs font-mono font-light" style={{ color: 'rgba(255, 255, 255, 0.86)' }}>{name}</div>
+                    <div className="mt-1 text-[10px]" style={{ color: `${ratioAccentColor}AA` }}>
                       {ratios.join(' : ')}
                     </div>
                   </button>

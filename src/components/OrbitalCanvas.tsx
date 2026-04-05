@@ -84,6 +84,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const interferenceSettingsRef = useRef(interferenceSettings);
     const presentationModeRef = useRef(presentationMode);
     const hudVisibleRef = useRef(showHudStats);
+    const hoverOrbitIdRef = useRef<string | null>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -361,19 +362,25 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
         const pointHitRadius = isCoarsePointer ? 28 : 20;
         const ringHitRadius = isCoarsePointer ? 18 : 12;
+        let bestMatch: { orbitId: string; score: number } | null = null;
         for (const orbit of state.orbits) {
           const pos = resonancePosition(orbit, cx, cy);
           const dist = Math.hypot(canvasX - pos.x, canvasY - pos.y);
           if (dist < pointHitRadius) {
-            return orbit.id;
+            if (!bestMatch || dist < bestMatch.score) {
+              bestMatch = { orbitId: orbit.id, score: dist };
+            }
           }
           const distFromCenter = Math.hypot(canvasX - cx, canvasY - cy);
           const ringDist = Math.abs(distFromCenter - orbit.radius);
           if (ringDist < ringHitRadius) {
-            return orbit.id;
+            const score = ringDist + 6;
+            if (!bestMatch || score < bestMatch.score) {
+              bestMatch = { orbitId: orbit.id, score };
+            }
           }
         }
-        return null;
+        return bestMatch?.orbitId ?? null;
       };
 
       const isHudToggleHit = (canvasX: number, canvasY: number) => {
@@ -403,6 +410,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       };
 
       const handleMouseMove = (e: MouseEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        hoverOrbitIdRef.current = detectOrbitAtPoint(mx, my);
         if (longPressTimerRef.current && (Math.abs(e.movementX) > 3 || Math.abs(e.movementY) > 3)) {
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
@@ -430,6 +441,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
         mouseDownRef.current = null;
         pressHandledRef.current = false;
+      };
+
+      const handleMouseLeave = () => {
+        hoverOrbitIdRef.current = null;
       };
 
       const handleTouchStart = (e: TouchEvent) => {
@@ -486,6 +501,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       canvas.addEventListener('mousedown', handleMouseDown);
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('mouseleave', handleMouseLeave);
       canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
       canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
       canvas.addEventListener('touchend', handleTouchEnd);
@@ -495,6 +511,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         canvas.removeEventListener('mousedown', handleMouseDown);
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('mouseleave', handleMouseLeave);
         canvas.removeEventListener('touchstart', handleTouchStart);
         canvas.removeEventListener('touchmove', handleTouchMove);
         canvas.removeEventListener('touchend', handleTouchEnd);
@@ -870,6 +887,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 (orbit) => orbit.id === currentInnerOrbit.id || orbit.id === currentOuterOrbit.id,
               )
             : state.orbits;
+        const hoveredOrbitId = !isMobile && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
 
         // ---- Orbit rings ----
         for (const orbit of visibleOrbits) {
@@ -880,6 +898,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             : isSweepOuterOrbit
               ? SWEEP_OUTER_RADIUS * sweepScale
               : orbit.radius;
+          const isHoveredOrbit = hoveredOrbitId === orbit.id;
 
           // Ring
           ctx.save();
@@ -890,6 +909,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.lineWidth = 1;
           ctx.stroke();
           ctx.restore();
+
+          if (isHoveredOrbit) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, TAU);
+            ctx.strokeStyle = orbit.color;
+            ctx.globalAlpha = 0.34;
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+            ctx.restore();
+          }
 
           if (showPlanetsRef.current) {
             // Pulse tick marks around the ring
@@ -916,6 +946,24 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               : orbit.id === currentOuterOrbit?.id && currentOuterPoint
                 ? currentOuterPoint
                 : resonancePosition(orbit, cx, cy);
+
+          if (isHoveredOrbit) {
+            ctx.save();
+            const hoverGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 18);
+            hoverGlow.addColorStop(0, orbit.color + 'CC');
+            hoverGlow.addColorStop(0.4, orbit.color + '44');
+            hoverGlow.addColorStop(1, orbit.color + '00');
+            ctx.fillStyle = hoverGlow;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 18, 0, TAU);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 5, 0, TAU);
+            ctx.fillStyle = orbit.color;
+            ctx.globalAlpha = 0.95;
+            ctx.fill();
+            ctx.restore();
+          }
 
           if (showPlanetsRef.current) {
             // Soft glow around resonance point

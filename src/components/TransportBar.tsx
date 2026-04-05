@@ -100,6 +100,7 @@ export default function TransportBar({
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
+  const desktopUtilityButtonStyle = "px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:bg-white/6 active:scale-95";
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Connects all active orbits into a shared string-art field.'
@@ -374,6 +375,9 @@ export default function TransportBar({
                 transform: 'translateY(-4px)',
               }}
             >
+              <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                Active Geometry
+              </div>
               <div
                 className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
                 style={{
@@ -867,34 +871,34 @@ export default function TransportBar({
 
           <button
             onClick={onClearTraces}
-            className={iconButtonStyle}
+            className={desktopUtilityButtonStyle}
             style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.14)',
-              color: 'rgba(255, 255, 255, 0.75)',
+              background: 'rgba(255, 255, 255, 0.035)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'rgba(255, 255, 255, 0.52)',
             }}
             title="Clear trace history only. Keep the current orbits, speed, and motion state."
           >
-            <Eraser size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
-              Clear
+            <span className="flex items-center gap-2">
+              <Eraser size={15} />
+              <span>Clear</span>
             </span>
           </button>
 
           {/* Reset */}
           <button
             onClick={onReset}
-            className={iconButtonStyle}
+            className={desktopUtilityButtonStyle}
             style={{
-              background: 'rgba(255, 170, 0, 0.15)',
-              border: '1px solid rgba(255, 170, 0, 0.3)',
-              color: '#FFAA00',
+              background: 'rgba(255, 170, 0, 0.08)',
+              border: '1px solid rgba(255, 170, 0, 0.14)',
+              color: 'rgba(255, 196, 96, 0.78)',
             }}
             title="Reset motion back to the beginning and clear all traces"
           >
-            <RotateCcw size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
-              Reset
+            <span className="flex items-center gap-2">
+              <RotateCcw size={15} />
+              <span>Reset</span>
             </span>
           </button>
 
@@ -969,11 +973,11 @@ export default function TransportBar({
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}
-            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            className={desktopUtilityButtonStyle}
             style={{
-              background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.6)',
+              background: muted ? 'rgba(255, 51, 102, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.22)' : 'rgba(255, 255, 255, 0.08)'}`,
+              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.58)',
             }}
             title={muted ? 'Unmute audio' : 'Mute audio'}
           >
@@ -986,11 +990,11 @@ export default function TransportBar({
           <button
             data-guide="desktop-markers"
             onClick={onTogglePlanets}
-            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            className={desktopUtilityButtonStyle}
             style={{
-              background: showPlanets ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.12)',
-              border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.22)'}`,
-              color: 'rgba(255, 255, 255, 0.72)',
+              background: showPlanets ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+              border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.14)'}`,
+              color: 'rgba(255, 255, 255, 0.62)',
             }}
             title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
           >
@@ -1014,18 +1018,18 @@ export default function TransportBar({
             }}
             title="Toggle trace mode (sweep geometry)"
           >
-            {traceMode ? '● TRACE' : '○ TRACE'}
+            {traceMode ? '● Trace' : '○ Trace'}
           </button>
           {!isMobile && <InfoTip text="Trace keeps drawing motion history so the structure can accumulate over time." />}
 
           <button
             data-guide="desktop-present"
             onClick={onTogglePresentation}
-            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            className={desktopUtilityButtonStyle}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'rgba(255, 255, 255, 0.6)',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'rgba(255, 255, 255, 0.58)',
             }}
             title="Enter presentation mode"
           >
@@ -1037,11 +1041,11 @@ export default function TransportBar({
 
           <button
             onClick={onToggleHelp}
-            className="px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
+            className={desktopUtilityButtonStyle}
             style={{
-              background: showHelp ? 'rgba(0, 255, 170, 0.16)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.6)',
+              background: showHelp ? 'rgba(0, 255, 170, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+              border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.22)' : 'rgba(255, 255, 255, 0.08)'}`,
+              color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.58)',
             }}
             title="Show quick help"
           >
@@ -1055,11 +1059,11 @@ export default function TransportBar({
           <button
             data-guide="desktop-menu"
             onClick={onOpenSidebar}
-            className="p-3 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95"
+            className="p-3 rounded-lg transition-all duration-200 hover:bg-white/6 active:scale-95"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'rgba(255, 255, 255, 0.6)',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'rgba(255, 255, 255, 0.58)',
             }}
             title="Open menu"
           >
