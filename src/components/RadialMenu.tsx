@@ -116,7 +116,7 @@ export default function RadialMenu({
           />
           <div>
             <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Orbit Editor
+              Edit Orbit
             </div>
           </div>
         </div>
@@ -189,7 +189,7 @@ export default function RadialMenu({
 
       <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          Key
+          Key & Scale
         </div>
         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-[72px,1fr]'} gap-2 mt-3`}>
           <select

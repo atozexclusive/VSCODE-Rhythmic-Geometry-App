@@ -76,7 +76,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-customize',
     title: 'Customize Pattern',
-    text: 'Open this to change the pattern logic, trail, markers, and the main layer relationships.',
+    text: 'Open this to change the geometry mode, trace, markers, and the main layer relationships.',
   },
   {
     target: 'mobile-layers',
@@ -90,8 +90,8 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'mobile-trail',
-    title: 'Trail',
-    text: 'Trail keeps motion history visible so the form can accumulate into a dense structure.',
+    title: 'Trace',
+    text: 'Trace keeps motion history visible so the form can accumulate into a dense structure.',
   },
   {
     target: 'mobile-markers',
@@ -101,7 +101,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-sound',
     title: 'Sound',
-    text: 'Switch between raw tones and keyed harmony, then shape the key and scale.',
+    text: 'Switch between Original Tones and Keyed Harmony, then shape the key and scale.',
   },
   {
     target: 'mobile-audio',
@@ -132,14 +132,9 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     text: 'Use speed to move between slow structural study and dense flowing trace.',
   },
   {
-    target: 'desktop-menu',
-    title: 'Scenes',
-    text: 'If you are unsure where to begin, start with a built-in scene. Scenes are fast starting points for strong compositions.',
-  },
-  {
     target: 'desktop-geometry',
-    title: 'Pattern',
-    text: 'Standard, Pattern, and Sweep each reveal a different relationship in the same system.',
+    title: 'Geometry',
+    text: 'Standard, Interference, and Sweep each reveal a different relationship in the same system.',
   },
   {
     target: 'desktop-direction',
@@ -148,8 +143,8 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'desktop-trace',
-    title: 'Trail',
-    text: 'Trail keeps path history visible so the structure can build into a denser field over time.',
+    title: 'Trace',
+    text: 'Trace keeps path history visible so the structure can build into a denser field over time.',
   },
   {
     target: 'desktop-markers',
@@ -159,7 +154,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   {
     target: 'desktop-sound',
     title: 'Sound',
-    text: 'Choose whether the system sounds raw or locked to a musical key and scale.',
+    text: 'Choose whether the system uses Original Tones or Keyed Harmony.',
   },
   {
     target: 'desktop-audio',
@@ -179,7 +174,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   {
     target: 'desktop-menu',
     title: 'Menu',
-    text: 'Open the menu for scenes, exports, and deeper orbit editing.',
+    text: 'Open the menu for Scenes, export, and deeper orbit editing.',
   },
 ];
 
@@ -2224,6 +2219,20 @@ function OrbitalPolymeter() {
           })
           .filter((orbit): orbit is { id: string; label: string; pulseCount: number; color: string } => Boolean(orbit))
   );
+  const desktopQuickOrbitControls =
+    geometryMode === 'standard-trace'
+      ? engineState.orbits.map((orbit, index) => ({
+          id: orbit.id,
+          label: `Orbit ${index + 1}`,
+          pulseCount: orbit.pulseCount,
+          color: orbit.color,
+        }))
+      : activePairControls.map(({ id, label, pulseCount, color }) => ({
+          id,
+          label,
+          pulseCount,
+          color,
+        }));
   const mobileQuickOrbits =
     geometryMode === 'standard-trace'
       ? engineState.orbits.map((orbit, index) => ({
@@ -2291,7 +2300,7 @@ function OrbitalPolymeter() {
             tonePreset={harmonySettings.tonePreset}
             rootNote={harmonySettings.rootNote}
             scaleName={harmonySettings.scaleName}
-            quickOrbitControls={activePairControls}
+            quickOrbitControls={desktopQuickOrbitControls}
             onAdjustQuickOrbit={handleAdjustQuickOrbit}
             onSetQuickOrbit={handleSetQuickOrbit}
             onGeometryModeChange={handleGeometryModeChange}
@@ -2309,12 +2318,14 @@ function OrbitalPolymeter() {
             onTogglePresentation={handleTogglePresentation}
             onRandomPattern={handleRandomPattern}
             onRandomPatternPlus={handleRandomPatternPlus}
-            onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
-            onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
-            onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
-            onReset={handleReset}
-            onOpenSidebar={() => setSidebarOpen(true)}
-          />
+        onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
+        onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
+        onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+        onAddOrbit={handleAddOrbit}
+        onDeleteOrbit={handleDeleteOrbit}
+        onReset={handleReset}
+        onOpenSidebar={() => setSidebarOpen(true)}
+      />
         </div>
       );
     }
@@ -2432,108 +2443,6 @@ function OrbitalPolymeter() {
             </div>
 
             <div
-              data-guide="mobile-scenes"
-              className="rounded-[28px] border"
-              style={{
-                background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
-                borderColor: 'rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between px-4 py-4"
-                onClick={() => setMobileScenesOpen((open) => !open)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setMobileScenesOpen((open) => !open);
-                  }
-                }}
-              >
-                <div className="text-left">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    Scenes
-                  </div>
-                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                    Tap a pattern to begin.
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleRandomPattern();
-                    }}
-                    type="button"
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
-                  >
-                    Random
-                  </button>
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleRandomPatternPlus();
-                    }}
-                    type="button"
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
-                    title="Extended random pattern with curated values up to 100"
-                  >
-                    Random+
-                  </button>
-                  <button
-                    onClick={() => setMobileScenesOpen((open) => !open)}
-                    type="button"
-                    onClickCapture={(event) => event.stopPropagation()}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.62)' }}
-                    aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
-                  >
-                    {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {mobileScenesOpen && (
-                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
-                    <div className="flex gap-3 px-1 snap-x snap-mandatory">
-                      {BUILT_IN_SCENES.map((scene) => (
-                        <button
-                          key={scene.id}
-                          onClick={() => handleLoadBuiltInScene(scene.id)}
-                          className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
-                          style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            borderColor: 'rgba(255,255,255,0.09)',
-                          }}
-                        >
-                          <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
-                            <img
-                              src={scene.thumbnailDataUrl}
-                              alt={scene.name}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="space-y-1 px-4 py-4">
-                            <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                              {scene.name}
-                            </div>
-                            <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                              {scene.description}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div
               data-guide="mobile-customize"
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
@@ -2578,7 +2487,7 @@ function OrbitalPolymeter() {
                           border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
                           color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.7)',
                         }}
-                        aria-label={`Switch to ${mode.key === 'standard-trace' ? 'Standard' : mode.key === 'interference-trace' ? 'Pattern' : 'Sweep'} mode`}
+                        aria-label={`Switch to ${mode.key === 'standard-trace' ? 'Standard' : mode.key === 'interference-trace' ? 'Interference' : 'Sweep'} mode`}
                       >
                         {mode.label}
                       </button>
@@ -2603,12 +2512,12 @@ function OrbitalPolymeter() {
                 <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <div className="space-y-3 rounded-2xl border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                      Pattern
+                      Geometry
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { key: 'standard-trace' as const, label: 'Standard', color: '#00FFAA' },
-                        { key: 'interference-trace' as const, label: 'Pattern', color: '#88CCFF' },
+                        { key: 'interference-trace' as const, label: 'Interference', color: '#88CCFF' },
                         { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
                       ].map((mode) => (
                         <button
@@ -2636,7 +2545,7 @@ function OrbitalPolymeter() {
                           color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
                         }}
                       >
-                        {traceMode ? 'Trail On' : 'Trail Off'}
+                        {traceMode ? 'Trace On' : 'Trace Off'}
                       </button>
                       <button
                         data-guide="mobile-markers"
@@ -2752,6 +2661,108 @@ function OrbitalPolymeter() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            <div
+              data-guide="mobile-scenes"
+              className="rounded-[28px] border"
+              style={{
+                background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                className="flex items-center justify-between px-4 py-4"
+                onClick={() => setMobileScenesOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMobileScenesOpen((open) => !open);
+                  }
+                }}
+              >
+                <div className="text-left">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    Scenes
+                  </div>
+                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                    Tap a pattern to begin.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRandomPattern();
+                    }}
+                    type="button"
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
+                  >
+                    Random
+                  </button>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRandomPatternPlus();
+                    }}
+                    type="button"
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                    title="Extended random pattern with curated values up to 100"
+                  >
+                    Random+
+                  </button>
+                  <button
+                    onClick={() => setMobileScenesOpen((open) => !open)}
+                    type="button"
+                    onClickCapture={(event) => event.stopPropagation()}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.62)' }}
+                    aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
+                  >
+                    {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {mobileScenesOpen && (
+                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                    <div className="flex gap-3 px-1 snap-x snap-mandatory">
+                      {BUILT_IN_SCENES.map((scene) => (
+                        <button
+                          key={scene.id}
+                          onClick={() => handleLoadBuiltInScene(scene.id)}
+                          className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            borderColor: 'rgba(255,255,255,0.09)',
+                          }}
+                        >
+                          <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
+                            <img
+                              src={scene.thumbnailDataUrl}
+                              alt={scene.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="space-y-1 px-4 py-4">
+                            <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                              {scene.name}
+                            </div>
+                            <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                              {scene.description}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -3067,7 +3078,7 @@ function OrbitalPolymeter() {
           style={{ color: 'rgba(255, 255, 255, 0.15)' }}
         >
           {isMobile ? (
-            'Long-press an orbit to edit. Use Menu for deeper settings.'
+            'Long-press an orbit to edit. Use Menu for deeper controls.'
           ) : (
             <>
               tap orbit for color controls
@@ -3220,7 +3231,7 @@ function OrbitalPolymeter() {
               >
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                    Pair Ratios
+                  Driving Pair
                   </div>
                   <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     Change the two orbits that drive the current derived shape.
@@ -3308,7 +3319,7 @@ function OrbitalPolymeter() {
                   color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
                 }}
               >
-                {harmonySettings.tonePreset === 'original' ? 'Original Sound' : 'Scale Key'}
+                {harmonySettings.tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
               </button>
               {harmonySettings.tonePreset === 'scale-quantized' && (
                 <div className="grid grid-cols-[92px,1fr] gap-2">
@@ -3354,7 +3365,7 @@ function OrbitalPolymeter() {
           tonePreset={harmonySettings.tonePreset}
           rootNote={harmonySettings.rootNote}
           scaleName={harmonySettings.scaleName}
-          quickOrbitControls={activePairControls}
+          quickOrbitControls={desktopQuickOrbitControls}
           onAdjustQuickOrbit={handleAdjustQuickOrbit}
           onSetQuickOrbit={handleSetQuickOrbit}
           onGeometryModeChange={handleGeometryModeChange}
@@ -3375,6 +3386,8 @@ function OrbitalPolymeter() {
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+          onAddOrbit={handleAddOrbit}
+          onDeleteOrbit={handleDeleteOrbit}
           onReset={handleReset}
           onOpenSidebar={() => setSidebarOpen(true)}
         />

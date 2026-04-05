@@ -1,6 +1,6 @@
 // ============================================================
 // Orbital Polymeter — Glassmorphism Sidebar
-// Tabs: Orbits (manage), Presets (quick-load), View (toggles)
+// Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
 import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
@@ -147,7 +147,7 @@ export default function OrbitSidebar({
         {/* Header */}
         <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'p-6'}`}>
           <h2 className="text-sm font-light tracking-widest uppercase" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            Controls
+            Menu
           </h2>
           <button
             onClick={onClose}
@@ -545,7 +545,7 @@ export default function OrbitSidebar({
 
               <div className="space-y-2">
                 <div className="text-[10px] font-mono uppercase tracking-widest pt-1" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Saved by You
+                  Saved Scenes
                 </div>
                 {savedScenes.length === 0 ? (
                   <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
@@ -782,7 +782,7 @@ export default function OrbitSidebar({
                   Sound
                 </div>
                 <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                  Choose between the original palette and keyed harmony.
+                  Choose between Original Tones and Keyed Harmony.
                 </p>
               </div>
 
@@ -791,7 +791,7 @@ export default function OrbitSidebar({
                   <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
                     Sound Mode
                   </div>
-                  <InfoTip text="Original uses the old tone palette. Keyed harmony locks the system into a key and scale." />
+                  <InfoTip text="Original Tones use the original palette. Keyed Harmony locks the system into a key and scale." />
                 </div>
                 <select
                   value={harmonySettings.tonePreset}
@@ -830,8 +830,6 @@ export default function OrbitSidebar({
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  </p>
                 </div>
 
                 <div>
@@ -853,8 +851,6 @@ export default function OrbitSidebar({
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
-                  </p>
                 </div>
               </div>
 
@@ -909,7 +905,7 @@ export default function OrbitSidebar({
                 </div>
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
                   {harmonySettings.tonePreset === 'original'
-                    ? 'The original tone palette is active.'
+                    ? 'Original Tones are active.'
                     : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}. ${
                         harmonySettings.manualOrbitRoles
                           ? 'Each orbit can choose its own role.'

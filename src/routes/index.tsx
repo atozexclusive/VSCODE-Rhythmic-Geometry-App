@@ -121,7 +121,7 @@ const modePreviews = modeCards.map((mode) => ({
 }));
 
 const featureGrid = [
-  { icon: GalleryVerticalEnd, title: 'Scene Library', text: 'Built-ins, saved scenes, thumbnails, and quick recall.' },
+  { icon: GalleryVerticalEnd, title: 'Scenes', text: 'Built-in Scenes, saved scenes, thumbnails, and quick recall.' },
   { icon: SquarePlay, title: 'Square + Story Export', text: 'Clean still export for posts, wallpapers, and vertical stories.' },
   { icon: MonitorPlay, title: 'Short Loop Capture', text: 'Record short WebM loops directly from the artwork.' },
   { icon: Play, title: 'Presentation Mode', text: 'A minimal viewing state for demos, projection, and recording.' },
