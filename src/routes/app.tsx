@@ -2247,6 +2247,7 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Live derived path from the selected pair.'
         : 'Finite sampled sweep from the selected pair.';
+  const allClockwise = engineState.orbits.every((orbit) => orbit.direction === 1);
   const presentationSoundLabel = muted
     ? 'Muted'
     : harmonySettings.tonePreset === 'original'
@@ -2277,29 +2278,13 @@ function OrbitalPolymeter() {
           className="absolute inset-0 w-full h-full"
           />
 
-          <div className="fixed top-3 left-1/2 z-20 -translate-x-1/2">
-            <button
-              type="button"
-              onClick={() => setTopStatusVisible((visible) => !visible)}
-              className="rounded-full border text-[10px] font-mono uppercase tracking-[0.16em]"
-              style={{
-                background: 'rgba(17,17,22,0.66)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.72)',
-                padding: topStatusVisible ? '0.375rem 0.75rem' : '0.375rem 0.55rem',
-              }}
-            >
-              {topStatusVisible ? `${presentationModeLabel} · ${engineState.speedMultiplier.toFixed(1)}x · ${presentationSoundLabel}` : '···'}
-            </button>
-          </div>
-
           <TransportBar
             playing={engineState.playing}
             speedMultiplier={engineState.speedMultiplier}
             traceMode={traceMode}
             showPlanets={showPlanets}
             muted={muted}
+            allClockwise={allClockwise}
             presentationMode={presentationMode}
             showHelp={false}
             geometryMode={geometryMode}
@@ -3094,25 +3079,6 @@ function OrbitalPolymeter() {
       </div>
       )}
 
-      {presentationMode && (
-        <div className="fixed z-20 top-4 left-1/2 -translate-x-1/2">
-          <button
-            type="button"
-            onClick={() => setTopStatusVisible((visible) => !visible)}
-            className="rounded-full border text-[10px] font-mono uppercase tracking-[0.16em]"
-            style={{
-              background: 'rgba(17,17,22,0.62)',
-              backdropFilter: 'blur(14px)',
-              borderColor: 'rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.72)',
-              padding: topStatusVisible ? '0.5rem 1rem' : '0.45rem 0.65rem',
-            }}
-          >
-            {topStatusVisible ? `${presentationModeLabel} · ${engineState.speedMultiplier.toFixed(1)}x · ${presentationSoundLabel}` : '···'}
-          </button>
-        </div>
-      )}
-
       {helpOpen && !presentationMode && currentGuideStep && (
         <>
           <div
@@ -3381,6 +3347,7 @@ function OrbitalPolymeter() {
           traceMode={traceMode}
           showPlanets={showPlanets}
           muted={muted}
+          allClockwise={allClockwise}
           presentationMode={presentationMode}
           showHelp={helpOpen}
           geometryMode={geometryMode}

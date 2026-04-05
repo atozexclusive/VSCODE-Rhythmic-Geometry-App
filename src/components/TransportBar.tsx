@@ -15,6 +15,7 @@ interface TransportBarProps {
   traceMode: boolean;
   showPlanets: boolean;
   muted: boolean;
+  allClockwise: boolean;
   presentationMode: boolean;
   geometryMode: GeometryMode;
   showHelp: boolean;
@@ -56,6 +57,7 @@ export default function TransportBar({
   traceMode,
   showPlanets,
   muted,
+  allClockwise,
   presentationMode,
   geometryMode,
   showHelp,
@@ -103,6 +105,22 @@ export default function TransportBar({
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+  const cyclePresentationMode = () => {
+    onGeometryModeChange(
+      geometryMode === 'standard-trace'
+        ? 'interference-trace'
+        : geometryMode === 'interference-trace'
+          ? 'sweep'
+          : 'standard-trace',
+    );
+  };
+  const togglePresentationDirections = () => {
+    if (allClockwise) {
+      onAlternateDirections();
+      return;
+    }
+    onAllClockwise();
+  };
 
   if (presentationMode) {
     return (
@@ -118,9 +136,14 @@ export default function TransportBar({
             boxShadow: '0 10px 40px rgba(0,0,0,0.28)',
           }}
         >
-          <div className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)' }}>
+          <button
+            onClick={cyclePresentationMode}
+            className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200 active:scale-95"
+            style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            title="Change geometry mode"
+          >
             {minimalModeLabel}
-          </div>
+          </button>
           <button
             onClick={onTogglePlay}
             className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
@@ -150,6 +173,34 @@ export default function TransportBar({
             title="Reset"
           >
             <RotateCcw size={18} />
+          </button>
+          <button
+            onClick={onRandomPattern}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
+            title="Random pattern"
+          >
+            <Shuffle size={18} />
+          </button>
+          <button
+            onClick={onRandomPatternPlus}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
+            title="Extended random pattern"
+          >
+            <Shuffle size={18} />
+          </button>
+          <button
+            onClick={togglePresentationDirections}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{
+              background: allClockwise ? 'rgba(51, 136, 255, 0.14)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${allClockwise ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
+              color: allClockwise ? '#88CCFF' : 'rgba(255, 255, 255, 0.74)',
+            }}
+            title={allClockwise ? 'Switch to alternating directions' : 'Set all directions clockwise'}
+          >
+            <Zap size={18} />
           </button>
           <button
             onClick={onToggleMute}
