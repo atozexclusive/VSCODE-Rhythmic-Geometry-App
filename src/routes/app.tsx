@@ -2268,7 +2268,6 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
-
   if (isMobile) {
     if (presentationMode) {
       return (
@@ -2278,7 +2277,7 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
-          showHudStats={canvasHudVisible}
+          showHudStats={isMobile ? canvasHudVisible : false}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
