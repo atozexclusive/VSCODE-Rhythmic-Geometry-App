@@ -2362,7 +2362,18 @@ function OrbitalPolymeter() {
               className="relative z-10 rounded-[28px] border px-4 py-5 space-y-4"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div
+                className="flex items-center justify-between gap-3"
+                onClick={() => setMobileScenesOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMobileScenesOpen((open) => !open);
+                  }
+                }}
+              >
                 <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                   Playback
                 </div>
@@ -2490,6 +2501,7 @@ function OrbitalPolymeter() {
                   <button
                     onClick={() => setMobileScenesOpen((open) => !open)}
                     type="button"
+                    onClickCapture={(event) => event.stopPropagation()}
                     className="h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.62)' }}
                     aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
@@ -2541,7 +2553,18 @@ function OrbitalPolymeter() {
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <div className="flex items-center justify-between gap-3 px-4 py-4">
+              <div
+                className="flex items-center justify-between gap-3 px-4 py-4"
+                onClick={() => setMobileCustomizeOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMobileCustomizeOpen((open) => !open);
+                  }
+                }}
+              >
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Customize Pattern
@@ -2560,7 +2583,10 @@ function OrbitalPolymeter() {
                       <button
                         key={mode.key}
                         type="button"
-                        onClick={() => handleGeometryModeChange(mode.key)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleGeometryModeChange(mode.key);
+                        }}
                         className="h-8 w-8 rounded-lg text-[11px] font-mono uppercase tracking-[0.12em]"
                         style={{
                           background: geometryMode === mode.key ? `${mode.color}20` : 'rgba(255,255,255,0.04)',
@@ -2575,7 +2601,10 @@ function OrbitalPolymeter() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setMobileCustomizeOpen((open) => !open)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMobileCustomizeOpen((open) => !open);
+                    }}
                     className="h-8 w-8 rounded-lg flex items-center justify-center"
                     style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                     aria-label={mobileCustomizeOpen ? 'Collapse customize pattern' : 'Expand customize pattern'}
@@ -2747,7 +2776,18 @@ function OrbitalPolymeter() {
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <div className="flex items-center justify-between gap-3 px-4 py-4">
+              <div
+                className="flex items-center justify-between gap-3 px-4 py-4"
+                onClick={() => setMobileSoundOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMobileSoundOpen((open) => !open);
+                  }
+                }}
+              >
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Sound
@@ -2760,7 +2800,10 @@ function OrbitalPolymeter() {
                   <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <button
                       type="button"
-                      onClick={() => handleHarmonyChange({ tonePreset: 'original' })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleHarmonyChange({ tonePreset: 'original' });
+                      }}
                       className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
                       style={{
                         background: harmonySettings.tonePreset === 'original' ? 'rgba(255,255,255,0.12)' : 'transparent',
@@ -2771,7 +2814,10 @@ function OrbitalPolymeter() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleHarmonyChange({ tonePreset: 'scale-quantized' })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleHarmonyChange({ tonePreset: 'scale-quantized' });
+                      }}
                       className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
                       style={{
                         background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.16)' : 'transparent',
@@ -2783,7 +2829,10 @@ function OrbitalPolymeter() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setMobileSoundOpen((open) => !open)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMobileSoundOpen((open) => !open);
+                    }}
                     className="h-8 w-8 rounded-lg flex items-center justify-center"
                     style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                     aria-label={mobileSoundOpen ? 'Collapse sound' : 'Expand sound'}
