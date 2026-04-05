@@ -42,6 +42,8 @@ import {
 } from '../lib/geometry';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
+const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
+const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
 interface StartGuideStep {
@@ -1355,6 +1357,8 @@ function OrbitalPolymeter() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [showPlanets, setShowPlanets] = useState(true);
+  const [topStatusVisible, setTopStatusVisible] = useState(true);
+  const [canvasHudVisible, setCanvasHudVisible] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
   const [geometryMode, setGeometryMode] = useState<GeometryMode>('standard-trace');
@@ -1439,6 +1443,34 @@ function OrbitalPolymeter() {
       bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
     };
   })();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const storedTopStatusVisible = window.localStorage.getItem(TOP_STATUS_VISIBLE_STORAGE_KEY);
+    const storedCanvasHudVisible = window.localStorage.getItem(CANVAS_HUD_VISIBLE_STORAGE_KEY);
+    if (storedTopStatusVisible != null) {
+      setTopStatusVisible(storedTopStatusVisible !== '0');
+    }
+    if (storedCanvasHudVisible != null) {
+      setCanvasHudVisible(storedCanvasHudVisible !== '0');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(TOP_STATUS_VISIBLE_STORAGE_KEY, topStatusVisible ? '1' : '0');
+  }, [topStatusVisible]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(CANVAS_HUD_VISIBLE_STORAGE_KEY, canvasHudVisible ? '1' : '0');
+  }, [canvasHudVisible]);
 
   useEffect(() => {
     if (!presentationMode) {
@@ -2236,6 +2268,8 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHudStats={canvasHudVisible}
+          onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
@@ -2244,17 +2278,20 @@ function OrbitalPolymeter() {
           />
 
           <div className="fixed top-3 left-1/2 z-20 -translate-x-1/2">
-            <div
-              className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+            <button
+              type="button"
+              onClick={() => setTopStatusVisible((visible) => !visible)}
+              className="rounded-full border text-[10px] font-mono uppercase tracking-[0.16em]"
               style={{
                 background: 'rgba(17,17,22,0.66)',
                 backdropFilter: 'blur(12px)',
                 borderColor: 'rgba(255,255,255,0.1)',
                 color: 'rgba(255,255,255,0.72)',
+                padding: topStatusVisible ? '0.375rem 0.75rem' : '0.375rem 0.55rem',
               }}
             >
-              {presentationModeLabel} · {engineState.speedMultiplier.toFixed(1)}x · {presentationSoundLabel}
-            </div>
+              {topStatusVisible ? `${presentationModeLabel} · ${engineState.speedMultiplier.toFixed(1)}x · ${presentationSoundLabel}` : '···'}
+            </button>
           </div>
 
           <TransportBar
@@ -2307,6 +2344,8 @@ function OrbitalPolymeter() {
                 engineState={engineState}
                 traceMode={traceMode}
                 showPlanets={showPlanets}
+                showHudStats={canvasHudVisible}
+                onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
                 harmonySettings={harmonySettings}
                 geometryMode={geometryMode}
                 interferenceSettings={interferenceSettings}
@@ -2502,10 +2541,7 @@ function OrbitalPolymeter() {
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <button
-                onClick={() => setMobileCustomizeOpen((open) => !open)}
-                className="flex w-full items-center justify-between px-4 py-4"
-              >
+              <div className="flex items-center justify-between gap-3 px-4 py-4">
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Customize Pattern
@@ -2514,10 +2550,40 @@ function OrbitalPolymeter() {
                     Layers, pattern, trail, and markers.
                   </div>
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.62)' }}>
-                  {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[
+                      { key: 'standard-trace' as const, label: 'A', color: '#00FFAA' },
+                      { key: 'interference-trace' as const, label: 'B', color: '#88CCFF' },
+                      { key: 'sweep' as const, label: 'C', color: '#FFAA00' },
+                    ].map((mode) => (
+                      <button
+                        key={mode.key}
+                        type="button"
+                        onClick={() => handleGeometryModeChange(mode.key)}
+                        className="h-8 w-8 rounded-lg text-[11px] font-mono uppercase tracking-[0.12em]"
+                        style={{
+                          background: geometryMode === mode.key ? `${mode.color}20` : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
+                          color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.7)',
+                        }}
+                        aria-label={`Switch to ${mode.key === 'standard-trace' ? 'Standard' : mode.key === 'interference-trace' ? 'Pattern' : 'Sweep'} mode`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobileCustomizeOpen((open) => !open)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center"
+                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    aria-label={mobileCustomizeOpen ? 'Collapse customize pattern' : 'Expand customize pattern'}
+                  >
+                    {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {mobileCustomizeOpen && (
                 <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
@@ -2681,10 +2747,7 @@ function OrbitalPolymeter() {
               className="rounded-[28px] border"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <button
-                onClick={() => setMobileSoundOpen((open) => !open)}
-                className="flex w-full items-center justify-between px-4 py-4"
-              >
+              <div className="flex items-center justify-between gap-3 px-4 py-4">
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Sound
@@ -2694,11 +2757,41 @@ function OrbitalPolymeter() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div style={{ color: 'rgba(255,255,255,0.62)' }}>
-                    {mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleHarmonyChange({ tonePreset: 'original' })}
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                      style={{
+                        background: harmonySettings.tonePreset === 'original' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                        color: harmonySettings.tonePreset === 'original' ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.56)',
+                      }}
+                    >
+                      Original
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleHarmonyChange({ tonePreset: 'scale-quantized' })}
+                      className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                      style={{
+                        background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.16)' : 'transparent',
+                        color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.56)',
+                      }}
+                    >
+                      Keyed
+                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSoundOpen((open) => !open)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center"
+                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    aria-label={mobileSoundOpen ? 'Collapse sound' : 'Expand sound'}
+                  >
+                    {mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {mobileSoundOpen && (
                 <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
@@ -2879,6 +2972,8 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHudStats={canvasHudVisible}
+          onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
@@ -2899,6 +2994,8 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHudStats={canvasHudVisible}
+          onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
@@ -2949,18 +3046,21 @@ function OrbitalPolymeter() {
       )}
 
       {presentationMode && (
-        <div className="fixed z-20 top-4 left-1/2 -translate-x-1/2 pointer-events-none">
-          <div
-            className="rounded-full border px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
+        <div className="fixed z-20 top-4 left-1/2 -translate-x-1/2">
+          <button
+            type="button"
+            onClick={() => setTopStatusVisible((visible) => !visible)}
+            className="rounded-full border text-[10px] font-mono uppercase tracking-[0.16em]"
             style={{
               background: 'rgba(17,17,22,0.62)',
               backdropFilter: 'blur(14px)',
               borderColor: 'rgba(255,255,255,0.1)',
               color: 'rgba(255,255,255,0.72)',
+              padding: topStatusVisible ? '0.5rem 1rem' : '0.45rem 0.65rem',
             }}
           >
-            {presentationModeLabel} · {engineState.speedMultiplier.toFixed(1)}x · {presentationSoundLabel}
-          </div>
+            {topStatusVisible ? `${presentationModeLabel} · ${engineState.speedMultiplier.toFixed(1)}x · ${presentationSoundLabel}` : '···'}
+          </button>
         </div>
       )}
 

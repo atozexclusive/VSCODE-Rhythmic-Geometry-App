@@ -58,6 +58,8 @@ interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
   showPlanets?: boolean;
+  showHudStats?: boolean;
+  onToggleHudStats?: () => void;
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
@@ -67,7 +69,7 @@ interface OrbitalCanvasProps {
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, showPlanets = true, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
+  ({ engineState, traceMode, showPlanets = true, showHudStats = true, onToggleHudStats, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
     const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
@@ -81,7 +83,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
     const presentationModeRef = useRef(presentationMode);
-    const hudVisibleRef = useRef(true);
+    const hudVisibleRef = useRef(showHudStats);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -93,6 +95,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
     showPlanetsRef.current = showPlanets;
+    hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
     interferenceSettingsRef.current = interferenceSettings;
@@ -373,6 +376,21 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         return null;
       };
 
+      const isHudToggleHit = (canvasX: number, canvasY: number) => {
+        const dpr = window.devicePixelRatio || 1;
+        const w = canvas.width / dpr;
+        const h = canvas.height / dpr;
+        if (presentationModeRef.current) {
+          return false;
+        }
+
+        if (hudVisibleRef.current) {
+          return canvasX >= 8 && canvasX <= Math.min(160, w * 0.45) && canvasY >= h - 76 && canvasY <= h - 2;
+        }
+
+        return canvasX >= 8 && canvasX <= 54 && canvasY >= h - 28 && canvasY <= h - 6;
+      };
+
       const handleMouseDown = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
@@ -396,12 +414,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
-        if (onOrbitLongPress && mouseDownRef.current) {
+        if (mouseDownRef.current) {
           const rect = canvas.getBoundingClientRect();
           const mx = e.clientX - rect.left;
           const my = e.clientY - rect.top;
           const moved = Math.hypot(mx - mouseDownRef.current.x, my - mouseDownRef.current.y);
           if (moved <= 6 && !pressHandledRef.current) {
+            if (isHudToggleHit(mouseDownRef.current.x, mouseDownRef.current.y)) {
+              onToggleHudStats?.();
+              mouseDownRef.current = null;
+              return;
+            }
             openOrbitMenu(mouseDownRef.current.x, mouseDownRef.current.y);
           }
         }
@@ -444,6 +467,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
+        if (touchStartRef.current && !pressHandledRef.current && isHudToggleHit(touchStartRef.current.x, touchStartRef.current.y)) {
+          onToggleHudStats?.();
+        }
         touchStartRef.current = null;
         pressHandledRef.current = false;
       };
@@ -474,7 +500,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         canvas.removeEventListener('touchend', handleTouchEnd);
         canvas.removeEventListener('touchcancel', handleTouchEnd);
       };
-    }, [onOrbitLongPress]);
+    }, [onOrbitLongPress, onToggleHudStats]);
 
     // ---- Main render loop ----
     useEffect(() => {
@@ -1056,6 +1082,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.fillStyle = '#00FFAA';
             ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
           }
+          ctx.restore();
+        } else if (!presentationModeRef.current) {
+          ctx.save();
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '10px "SF Mono", "Fira Code", monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('STATS', 16, h - 10);
           ctx.restore();
         }
 
