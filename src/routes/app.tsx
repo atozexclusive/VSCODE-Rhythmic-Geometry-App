@@ -2347,18 +2347,7 @@ function OrbitalPolymeter() {
               className="relative z-10 rounded-[28px] border px-4 py-5 space-y-4"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
-              <div
-                className="flex items-center justify-between gap-3"
-                onClick={() => setMobileScenesOpen((open) => !open)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setMobileScenesOpen((open) => !open);
-                  }
-                }}
-              >
+              <div className="flex items-center justify-between gap-3">
                 <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                   Playback
                 </div>
@@ -2450,7 +2439,18 @@ function OrbitalPolymeter() {
                 borderColor: 'rgba(255,255,255,0.08)',
               }}
             >
-              <div className="flex items-center justify-between px-4 py-4">
+              <div
+                className="flex items-center justify-between px-4 py-4"
+                onClick={() => setMobileScenesOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMobileScenesOpen((open) => !open);
+                  }
+                }}
+              >
                 <div className="text-left">
                   <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     Scenes
