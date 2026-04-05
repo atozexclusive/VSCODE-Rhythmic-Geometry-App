@@ -158,22 +158,25 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const getStandardLayoutMetrics = useCallback(
       (orbits: Orbit[], width: number, height: number) => {
         const cx = width / 2;
-        const cy = isMobile ? height * 0.43 : height / 2;
+        const cy = isMobile ? height * 0.39 : height / 2;
         if (!isMobile || orbits.length === 0) {
           return { cx, cy, orbitScale: 1 };
         }
 
         const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 1);
-        const labelAllowance = 44;
-        const edgePadding = 26;
+        const labelAllowance = 88;
+        const edgePadding = 52;
+        const targetDiameter = Math.min(width * 0.74, height * 0.52);
         const availableHorizontalRadius = Math.max(24, Math.min(cx, width - cx) - edgePadding);
         const availableVerticalRadius = Math.max(24, Math.min(cy, height - cy) - edgePadding);
+        const targetRadius = Math.max(24, targetDiameter / 2);
         const fitScale = Math.min(
           1,
+          targetRadius / (maxRadius + labelAllowance),
           availableHorizontalRadius / (maxRadius + labelAllowance),
           availableVerticalRadius / (maxRadius + labelAllowance),
         );
-        const orbitScale = fitScale * 0.9;
+        const orbitScale = fitScale * 0.68;
 
         return { cx, cy, orbitScale };
       },
