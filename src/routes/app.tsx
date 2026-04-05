@@ -234,6 +234,13 @@ const RANDOM_COLOR_FAMILIES: readonly (readonly string[])[] = [
   ['#44FF88', '#88CCFF', '#FF4488', '#FFCC00', '#00CCFF'],
   ['#A7F3D0', '#C4B5FD', '#7DD3FC', '#F9A8D4', '#FDE68A'],
   ['#7FD7FF', '#9F8CFF', '#6BF5D0', '#FF88C2', '#FFD166'],
+  ['#7CE7FF', '#4F8CFF', '#9B7BFF', '#FF6AA2', '#FFD86B'],
+  ['#72F1B8', '#6CC8FF', '#FF7A7A', '#FFC857', '#C084FC'],
+  ['#B8E1FF', '#8EC5FF', '#7EF9C6', '#FFD1A1', '#F7A8FF'],
+  ['#9BE7FF', '#6BE2FF', '#4FB4FF', '#FF8FB8', '#FFD36E'],
+  ['#89F0C8', '#6AB8FF', '#7D89FF', '#FF7C8F', '#FFC96C'],
+  ['#A2FFE3', '#7AD7FF', '#A58BFF', '#FFA3CF', '#FFE29D'],
+  ['#6AF0FF', '#53C7FF', '#7D9CFF', '#FF9B7A', '#FFE17A'],
 ] as const;
 
 const RANDOM_PLUS_COLOR_FAMILIES: readonly (readonly string[])[] = [
@@ -241,6 +248,11 @@ const RANDOM_PLUS_COLOR_FAMILIES: readonly (readonly string[])[] = [
   ['#7FD7FF', '#9F8CFF', '#6BF5D0', '#FF88C2', '#FFD166'],
   ['#A7F3D0', '#C4B5FD', '#7DD3FC', '#F9A8D4', '#FDE68A'],
   ['#88CCFF', '#3388FF', '#00FFAA', '#FFCC66', '#FF6699'],
+  ['#D0F4FF', '#7AB6FF', '#5CF2D6', '#FF9CCC', '#FFE28A'],
+  ['#9AD1FF', '#6F8DFF', '#9DFFEA', '#FFB0B0', '#FFD37A'],
+  ['#C7F3FF', '#7FC0FF', '#6A86FF', '#90FFE6', '#FFD78F'],
+  ['#A3EDFF', '#66B5FF', '#7E70FF', '#FF9FD9', '#FFE08A'],
+  ['#8EF2FF', '#5B9DFF', '#72FFE1', '#FFB2B2', '#FFD56A'],
 ] as const;
 
 const RANDOM_PULSE_GROUPS: readonly (readonly number[])[] = [
@@ -250,6 +262,10 @@ const RANDOM_PULSE_GROUPS: readonly (readonly number[])[] = [
   [2, 5, 7, 9, 14],
   [3, 5, 8, 11, 13],
   [4, 7, 10, 13, 16],
+  [2, 4, 7, 11, 17],
+  [3, 6, 8, 13, 17],
+  [2, 6, 10, 15, 21],
+  [5, 7, 9, 14, 18],
 ] as const;
 
 const RANDOM_PLUS_PULSE_GROUPS: readonly (readonly number[])[] = [
@@ -261,6 +277,9 @@ const RANDOM_PLUS_PULSE_GROUPS: readonly (readonly number[])[] = [
   [15, 24, 36, 54, 81],
   [11, 18, 29, 47, 76],
   [13, 21, 34, 55, 89],
+  [17, 26, 41, 63, 95],
+  [14, 23, 37, 58, 91],
+  [18, 28, 44, 67, 99],
 ] as const;
 
 const RANDOM_DIRECTION_SCHEMES = [
@@ -269,6 +288,14 @@ const RANDOM_DIRECTION_SCHEMES = [
   [-1, -1, 1, 1, 1],
   [1, 1, -1, 1, 1],
   [1, -1, -1, 1, -1],
+  [1, 1, 1, 1, 1],
+  [-1, -1, -1, -1, -1],
+  [1, -1, -1, -1, 1],
+  [-1, 1, 1, 1, -1],
+  [1, 1, -1, -1, 1],
+  [-1, -1, 1, 1, -1],
+  [1, -1, 1, 1, -1],
+  [-1, 1, -1, -1, 1],
 ] as const;
 
 const RANDOM_MAPPING_MODES: HarmonySettings['mappingMode'][] = [
@@ -278,55 +305,19 @@ const RANDOM_MAPPING_MODES: HarmonySettings['mappingMode'][] = [
   'radius',
 ];
 
-const RANDOM_PATTERN_PAIRS: readonly (readonly [number, number])[] = [
-  [2, 9],
-  [2, 8],
-  [3, 8],
-  [3, 7],
-  [4, 9],
-  [5, 9],
-  [7, 8],
-  [5, 8],
-];
-
-const RANDOM_PLUS_PATTERN_PAIRS: readonly (readonly [number, number])[] = [
-  [2, 34],
-  [3, 55],
-  [5, 34],
-  [8, 55],
-  [13, 34],
-  [21, 55],
-  [34, 35],
-  [55, 57],
-  [48, 97],
-  [34, 89],
-];
-
-const RANDOM_SWEEP_PAIRS: readonly (readonly [number, number])[] = [
-  [2, 9],
-  [2, 8],
-  [3, 8],
-  [4, 9],
-  [7, 8],
-  [8, 9],
-];
-
-const RANDOM_PLUS_SWEEP_PAIRS: readonly (readonly [number, number])[] = [
-  [2, 99],
-  [2, 98],
-  [3, 97],
-  [4, 96],
-  [99, 98],
-  [97, 96],
-  [89, 97],
-  [89, 88],
-  [72, 81],
-  [55, 89],
-  [48, 97],
-];
+interface RandomHistoryEntry {
+  pulses: number[];
+  directions: (1 | -1)[];
+  colors: string[];
+  speedBucket: number;
+}
 
 function randomItem<T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function randomInt(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 function shuffleArray<T>(items: T[]): T[] {
@@ -338,50 +329,185 @@ function shuffleArray<T>(items: T[]): T[] {
   return next;
 }
 
-function buildRandomPulseCounts(
+function mutatePulse(value: number, cap: number, spread: number): number {
+  return Math.max(1, Math.min(cap, value + randomInt(-spread, spread)));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sortAndSeparate(values: number[], minGap: number, cap: number): number[] {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted.map((value, index, list) => {
+    if (index === 0) {
+      return value;
+    }
+    const previous = list[index - 1]!;
+    return value - previous < minGap ? Math.min(cap, previous + minGap) : value;
+  });
+}
+
+function mutatePair(
+  pair: readonly [number, number],
+  options: { cap: number; jitterA: number; jitterB: number; preserveContrast?: boolean },
+): [number, number] {
+  const a = mutatePulse(pair[0], options.cap, options.jitterA);
+  const b = mutatePulse(pair[1], options.cap, options.jitterB);
+  const [low, high] = a <= b ? [a, b] : [b, a];
+  if (options.preserveContrast && high - low < 12) {
+    return [Math.max(1, low - randomInt(0, 2)), Math.min(options.cap, high + randomInt(10, 18))];
+  }
+  return [low, high];
+}
+
+function pulseSignature(values: number[]): string {
+  return [...values].sort((a, b) => a - b).join(':');
+}
+
+function directionSignature(values: (1 | -1)[]): string {
+  return values.join(':');
+}
+
+function colorSignature(values: string[]): string {
+  return values.join(':');
+}
+
+function uniqueNumbers(values: number[]): number[] {
+  return [...new Set(values)];
+}
+
+function average(values: number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+}
+
+function maxGap(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  let best = 0;
+  for (let index = 1; index < sorted.length; index += 1) {
+    best = Math.max(best, sorted[index]! - sorted[index - 1]!);
+  }
+  return best;
+}
+
+function pulseDistance(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const sortedA = [...a].sort((x, y) => x - y);
+  const sortedB = [...b].sort((x, y) => x - y);
+  return sortedA.reduce((sum, value, index) => sum + Math.abs(value - sortedB[index]!), 0);
+}
+
+function isNearPulseRepeat(candidate: number[], previous: number[]): boolean {
+  const distance = pulseDistance(candidate, previous);
+  const candidateMax = Math.max(...candidate);
+  const previousMax = Math.max(...previous);
+  if (distance === 0) {
+    return true;
+  }
+  if (candidate.length === previous.length && distance <= candidate.length * 2) {
+    return true;
+  }
+  return candidateMax >= 90 && previousMax >= 90 && Math.abs(candidateMax - previousMax) <= 3 && distance <= 8;
+}
+
+function pickSpacedRandomValues(
+  count: number,
+  options: { min: number; max: number; minGap: number; bias?: 'low' | 'mid' | 'high' | 'mixed' },
+): number[] {
+  const values: number[] = [];
+  let guard = 0;
+  while (values.length < count && guard < 300) {
+    guard += 1;
+    let candidate = randomInt(options.min, options.max);
+    if (options.bias === 'low') {
+      candidate = randomInt(options.min, clamp(options.min + Math.floor((options.max - options.min) * 0.45), options.min, options.max));
+    } else if (options.bias === 'high') {
+      candidate = randomInt(clamp(options.max - Math.floor((options.max - options.min) * 0.4), options.min, options.max), options.max);
+    } else if (options.bias === 'mid') {
+      const mid = Math.floor((options.min + options.max) / 2);
+      candidate = randomInt(clamp(mid - Math.floor((options.max - options.min) * 0.2), options.min, options.max), clamp(mid + Math.floor((options.max - options.min) * 0.2), options.min, options.max));
+    }
+    if (values.every((value) => Math.abs(value - candidate) >= options.minGap)) {
+      values.push(candidate);
+    }
+  }
+  if (values.length < count) {
+    while (values.length < count) {
+      const fallback = clamp(options.min + values.length * options.minGap, options.min, options.max);
+      if (!values.includes(fallback)) {
+        values.push(fallback);
+      } else {
+        values.push(clamp(fallback + values.length, options.min, options.max));
+      }
+    }
+  }
+  return sortAndSeparate(uniqueNumbers(values).slice(0, count), options.minGap, options.max);
+}
+
+function buildBroadRandomPulseCounts(
   count: number,
   options?: { extended?: boolean },
 ): number[] {
-  if (options?.extended) {
-    const source = [...randomItem(RANDOM_PLUS_PULSE_GROUPS)];
-    const offset = Math.floor(Math.random() * 4) - 1;
-    const limited = source
-      .slice(0, count)
-      .map((pulse, index) => {
-        const nudged = pulse + offset + index;
-        return Math.max(7, Math.min(100, nudged));
-      })
-      .sort((a, b) => a - b);
+  const cap = options?.extended ? 100 : 10;
+  const minGap = options?.extended ? 4 : 1;
+  const style = randomInt(0, 5);
+  const seededGroup = shuffleArray([...(options?.extended ? randomItem(RANDOM_PLUS_PULSE_GROUPS) : randomItem(RANDOM_PULSE_GROUPS))]);
 
-    return limited.map((pulse, index, values) => {
-      if (index === 0) {
-        return pulse;
-      }
-      const previous = values[index - 1]!;
-      return pulse - previous < 5 ? Math.min(100, previous + 6 + index * 2) : pulse;
+  if (style === 0) {
+    const base = seededGroup
+      .slice(0, count)
+      .map((pulse, index) => mutatePulse(pulse + index, cap, options?.extended ? 6 : 2));
+    return sortAndSeparate(base, minGap, cap);
+  }
+  if (style === 1) {
+    const lowCluster = pickSpacedRandomValues(Math.max(2, count - 1), {
+      min: 2,
+      max: options?.extended ? 36 : 7,
+      minGap: options?.extended ? 3 : 1,
+      bias: 'low',
     });
+    const accent = randomInt(options?.extended ? 42 : 7, cap);
+    return sortAndSeparate([...lowCluster.slice(0, count - 1), accent], minGap, cap);
+  }
+  if (style === 2) {
+    const base = randomInt(2, options?.extended ? 24 : 6);
+    const values = Array.from({ length: count }, (_, index) =>
+      clamp(base + index * randomInt(options?.extended ? 5 : 1, options?.extended ? 18 : 3) + randomInt(-(options?.extended ? 2 : 1), options?.extended ? 3 : 1), 2, cap),
+    );
+    return sortAndSeparate(uniqueNumbers(values), minGap, cap).slice(0, count);
+  }
+  if (style === 3) {
+    const anchorA = randomInt(2, options?.extended ? 16 : 5);
+    const anchorB = randomInt(options?.extended ? 20 : 5, cap);
+    const values = [anchorA, anchorB];
+    while (values.length < count) {
+      values.push(clamp(randomInt(anchorA + 1, Math.max(anchorA + 2, anchorB - 1)), 2, cap));
+    }
+    return sortAndSeparate(uniqueNumbers(values), minGap, cap).slice(0, count);
   }
 
-  const sourceGroups = options?.extended ? RANDOM_PLUS_PULSE_GROUPS : RANDOM_PULSE_GROUPS;
-  const pulseCap = options?.extended ? 100 : 10;
-  const source = shuffleArray([...randomItem(sourceGroups)]);
-  return Array.from({ length: count }, (_, index) => {
-    const fallback = options?.extended
-      ? Math.min(pulseCap, 8 + index * 12)
-      : Math.min(pulseCap, 2 + index * 2);
-    return source[index] ?? fallback;
-  }).map((pulse) => Math.max(1, Math.min(pulseCap, pulse)));
+  return pickSpacedRandomValues(count, {
+    min: 2,
+    max: cap,
+    minGap,
+    bias: style === 4 ? 'high' : 'mid',
+  });
 }
 
-function buildRandomDirections(count: number): (1 | -1)[] {
-  const scheme = randomItem(RANDOM_DIRECTION_SCHEMES);
-  return Array.from({ length: count }, (_, index) => {
-    if (index < scheme.length) {
-      return scheme[index] as 1 | -1;
-    }
-    const last = scheme[scheme.length - 1] as 1 | -1;
-    return index % 2 === 0 ? last : ((last === 1 ? -1 : 1) as 1 | -1);
-  });
+function buildRandomColors(
+  count: number,
+  options?: { extended?: boolean },
+): string[] {
+  const families = options?.extended ? RANDOM_PLUS_COLOR_FAMILIES : RANDOM_COLOR_FAMILIES;
+  const primary = shuffleArray([...randomItem(families)]);
+  const useSecondary = Math.random() > (options?.extended ? 0.35 : 0.55);
+  const secondary = useSecondary ? shuffleArray([...randomItem(families)]) : [];
+  const colorPool = shuffleArray([...new Set([...primary, ...secondary])]);
+  const chosen = colorPool.slice(0, Math.max(count, Math.min(colorPool.length, count + 2)));
+  const rotated = Array.from({ length: count }, (_, index) => chosen[(index + randomInt(0, Math.max(0, chosen.length - 1))) % chosen.length]!);
+  return shuffleArray(rotated);
 }
 
 function buildModeAwareDirections(
@@ -390,21 +516,27 @@ function buildModeAwareDirections(
   options?: { extended?: boolean },
 ): (1 | -1)[] {
   if (mode === 'sweep') {
-    if (options?.extended || Math.random() > 0.2) {
-      return Array.from({ length: count }, () => 1 as 1 | -1);
-    }
-    return count > 1 ? [1, 1, ...Array.from({ length: count - 2 }, () => 1 as 1 | -1)] : [1];
-  }
-
-  if (mode === 'interference-trace') {
     const schemes: Array<(1 | -1)[]> = options?.extended
-      ? [[1, -1], [1, 1], [-1, 1], [1, -1]]
-      : [[1, -1], [1, 1], [-1, 1]];
+      ? [[1, 1], [1, 1], [1, 1], [1, -1]]
+      : [[1, 1], [1, 1], [1, -1], [-1, 1]];
     const chosen = randomItem(schemes);
     return Array.from({ length: count }, (_, index) => chosen[index % chosen.length]!);
   }
 
-  return buildRandomDirections(count);
+  if (mode === 'interference-trace') {
+    const schemes: Array<(1 | -1)[]> = options?.extended
+      ? [[1, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]]
+      : [[1, -1], [1, 1], [-1, 1], [-1, -1]];
+    const chosen = randomItem(schemes);
+    return Array.from({ length: count }, (_, index) => chosen[index % chosen.length]!);
+  }
+
+  const scheme = randomItem(RANDOM_DIRECTION_SCHEMES);
+  const inverted = Math.random() > 0.5;
+  return Array.from({ length: count }, (_, index) => {
+    const base = index < scheme.length ? scheme[index]! : (index % 2 === 0 ? scheme[scheme.length - 1]! : (scheme[scheme.length - 1] === 1 ? -1 : 1));
+    return inverted ? (base === 1 ? -1 : 1) : base;
+  });
 }
 
 function buildModeAwarePulses(
@@ -412,17 +544,124 @@ function buildModeAwarePulses(
   count: number,
   options?: { extended?: boolean },
 ): number[] {
+  const cap = options?.extended ? 100 : 10;
+
   if (mode === 'sweep') {
-    const pair = randomItem(options?.extended ? RANDOM_PLUS_SWEEP_PAIRS : RANDOM_SWEEP_PAIRS);
-    return [pair[0], pair[1]];
+    const strategy = randomInt(0, 4);
+    if (strategy === 0) {
+      return [randomInt(2, options?.extended ? 10 : 4), randomInt(options?.extended ? 78 : 7, cap)].sort((a, b) => a - b);
+    }
+    if (strategy === 1) {
+      const high = randomInt(options?.extended ? 72 : 6, cap);
+      return [clamp(high - randomInt(1, options?.extended ? 6 : 2), 2, cap - 1), high].sort((a, b) => a - b);
+    }
+    if (strategy === 2) {
+      return [randomInt(options?.extended ? 12 : 3, options?.extended ? 42 : 7), randomInt(options?.extended ? 58 : 6, cap)].sort((a, b) => a - b);
+    }
+    if (strategy === 3) {
+      const low = randomInt(2, options?.extended ? 8 : 3);
+      const high = clamp(cap - randomInt(0, options?.extended ? 12 : 2), low + 1, cap);
+      return [low, high];
+    }
+    return pickSpacedRandomValues(2, {
+      min: 2,
+      max: cap,
+      minGap: options?.extended ? 6 : 2,
+      bias: options?.extended ? 'mixed' : 'high',
+    });
   }
 
   if (mode === 'interference-trace') {
-    const pair = randomItem(options?.extended ? RANDOM_PLUS_PATTERN_PAIRS : RANDOM_PATTERN_PAIRS);
-    return [pair[0], pair[1]];
+    const strategy = randomInt(0, 4);
+    if (strategy === 0) {
+      return [randomInt(2, options?.extended ? 18 : 5), randomInt(options?.extended ? 30 : 5, cap)].sort((a, b) => a - b);
+    }
+    if (strategy === 1) {
+      const high = randomInt(options?.extended ? 45 : 6, cap);
+      return [clamp(high - randomInt(1, options?.extended ? 8 : 2), 2, cap - 1), high].sort((a, b) => a - b);
+    }
+    if (strategy === 2) {
+      const base = randomInt(options?.extended ? 18 : 3, options?.extended ? 70 : 8);
+      return [base, clamp(base + randomInt(options?.extended ? 6 : 1, options?.extended ? 18 : 3), base + 1, cap)];
+    }
+    if (strategy === 3) {
+      const low = randomInt(2, options?.extended ? 12 : 4);
+      const high = randomInt(options?.extended ? 52 : 6, cap);
+      return [low, high].sort((a, b) => a - b);
+    }
+    return pickSpacedRandomValues(2, {
+      min: 2,
+      max: cap,
+      minGap: options?.extended ? 5 : 2,
+      bias: 'mixed',
+    });
   }
 
-  return buildRandomPulseCounts(count, options);
+  return buildBroadRandomPulseCounts(count, options);
+}
+
+function computeRandomSpeed(
+  mode: GeometryMode,
+  pulses: number[],
+  options?: { extended?: boolean },
+): number {
+  if (options?.extended) {
+    let speed = computeRandomPlusSpeed(pulses);
+    if (mode === 'sweep') speed += 0.35;
+    if (mode === 'interference-trace') speed += 0.15;
+    speed += randomInt(-2, 3) * 0.18;
+    return clamp(speed, 1.9, 7.8);
+  }
+
+  const avgPulse = average(pulses);
+  const spread = maxGap(pulses);
+  let speed = mode === 'sweep' ? 2.1 : mode === 'interference-trace' ? 1.5 : 1.2;
+  speed += randomInt(-2, 3) * 0.12;
+  if (spread >= 4) speed += 0.25;
+  if (avgPulse >= 6) speed += 0.2;
+  if (avgPulse <= 3.5) speed -= 0.1;
+  return clamp(speed, 0.95, mode === 'sweep' ? 3.6 : 3.1);
+}
+
+function buildHarmonyAssignments(
+  count: number,
+  scaleLength: number,
+  options?: { extended?: boolean },
+): Array<{ degree: number; register: -1 | 0 | 1 }> {
+  const patterns: Array<Array<{ degree: number; register: -1 | 0 | 1 }>> = [
+    Array.from({ length: count }, (_, index) => ({ degree: (index * 2) % Math.max(1, scaleLength), register: index === 0 ? -1 : index === count - 1 ? 1 : 0 })),
+    Array.from({ length: count }, (_, index) => ({ degree: (index * 3) % Math.max(1, scaleLength), register: index > Math.floor(count / 2) ? 1 : 0 })),
+    Array.from({ length: count }, (_, index) => ({ degree: (index + (options?.extended ? 1 : 0)) % Math.max(1, scaleLength), register: index === 0 ? -1 : 0 })),
+    Array.from({ length: count }, (_, index) => ({ degree: ((count - index - 1) * 2) % Math.max(1, scaleLength), register: index === count - 1 ? 1 : 0 })),
+  ];
+  return randomItem(patterns);
+}
+
+function shouldRejectCandidate(
+  candidate: RandomHistoryEntry,
+  history: RandomHistoryEntry[],
+): boolean {
+  if (!history.length) {
+    return false;
+  }
+  const last = history[history.length - 1]!;
+  if (directionSignature(candidate.directions) === directionSignature(last.directions)) {
+    if (colorSignature(candidate.colors) === colorSignature(last.colors)) {
+      return true;
+    }
+    if (isNearPulseRepeat(candidate.pulses, last.pulses)) {
+      return true;
+    }
+  }
+  return history.some((entry) => {
+    if (isNearPulseRepeat(candidate.pulses, entry.pulses)) {
+      return true;
+    }
+    if (colorSignature(candidate.colors) === colorSignature(entry.colors) && directionSignature(candidate.directions) === directionSignature(entry.directions)) {
+      return true;
+    }
+    return Math.abs(candidate.speedBucket - entry.speedBucket) <= 0 && isNearPulseRepeat(candidate.pulses, entry.pulses);
+  });
 }
 
 function computeRandomPlusSpeed(pulses: number[]): number {
@@ -1138,6 +1377,7 @@ function OrbitalPolymeter() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureLoadedRef = useRef(false);
   const siteSceneLoadedRef = useRef(false);
+  const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
   const guideSteps = isMobile ? MOBILE_START_GUIDE : DESKTOP_START_GUIDE;
   const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -1614,9 +1854,11 @@ function OrbitalPolymeter() {
     const isExtended = Boolean(options?.extended);
     const isSweepMode = geometryMode === 'sweep';
     const isPatternMode = geometryMode === 'interference-trace';
+    const historyKey = `${geometryMode}:${isExtended ? 'plus' : 'base'}`;
+    const recentEntries = recentRandomSignaturesRef.current[historyKey] ?? [];
     const nextCount =
       geometryMode === 'standard-trace'
-        ? 3 + Math.floor(Math.random() * 3)
+        ? (isExtended ? randomInt(3, 5) : randomInt(3, 5))
         : 2;
 
     if (geometryMode === 'standard-trace') {
@@ -1637,10 +1879,37 @@ function OrbitalPolymeter() {
       }
     }
 
-    const palette = randomItem(isExtended ? RANDOM_PLUS_COLOR_FAMILIES : RANDOM_COLOR_FAMILIES);
-    const colors = shuffleArray([...palette]);
-    const pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
-    const directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
+    let pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
+    let directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
+    let colors = buildRandomColors(engineState.orbits.length, options);
+    let speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
+    let candidate: RandomHistoryEntry = {
+      pulses,
+      directions,
+      colors,
+      speedBucket: Math.round(speedMultiplier * 10),
+    };
+
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const hasEnoughSpread =
+        geometryMode === 'standard-trace'
+          ? uniqueNumbers(pulses).length >= Math.max(3, engineState.orbits.length - 1) && maxGap(pulses) >= (isExtended ? 5 : 2)
+          : Math.abs(pulses[1]! - pulses[0]!) >= (isExtended ? 4 : 2);
+      if (hasEnoughSpread && !shouldRejectCandidate(candidate, recentEntries)) {
+        break;
+      }
+      pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
+      directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
+      colors = buildRandomColors(engineState.orbits.length, options);
+      speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
+      candidate = {
+        pulses,
+        directions,
+        colors,
+        speedBucket: Math.round(speedMultiplier * 10),
+      };
+    }
+
     const useKeyedHarmony = isExtended ? Math.random() > 0.15 : Math.random() > 0.35;
     const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
     const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
@@ -1650,7 +1919,11 @@ function OrbitalPolymeter() {
     );
     const useManualOrbitRoles = useKeyedHarmony && (isExtended ? Math.random() > 0.7 : Math.random() > 0.45);
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
-    const pairCandidates = [0, Math.max(1, engineState.orbits.length - 1)];
+    const harmonyAssignments = buildHarmonyAssignments(engineState.orbits.length, scaleLength, options);
+    const pairCandidates =
+      engineState.orbits.length <= 2
+        ? [0, Math.max(1, engineState.orbits.length - 1)]
+        : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index)).slice(0, 2).sort((a, b) => a - b);
 
     engineState.orbits.forEach((orbit, index) => {
       orbit.pulseCount = pulses[index];
@@ -1659,8 +1932,8 @@ function OrbitalPolymeter() {
         isSweepMode || isPatternMode
           ? colors[index]
           : colors[index % colors.length];
-      orbit.harmonyDegree = (index * 2) % Math.max(1, scaleLength);
-      orbit.harmonyRegister = index === engineState.orbits.length - 1 ? 1 : index === 0 ? -1 : 0;
+      orbit.harmonyDegree = harmonyAssignments[index]?.degree ?? 0;
+      orbit.harmonyRegister = harmonyAssignments[index]?.register ?? 0;
     });
 
     setHarmonySettings((current) => ({
@@ -1683,13 +1956,8 @@ function OrbitalPolymeter() {
 
     resetEngine(engineState);
     handleClearTraces();
-    if (isExtended) {
-      engineState.speedMultiplier = computeRandomPlusSpeed(pulses);
-    } else if (isSweepMode) {
-      engineState.speedMultiplier = 2.2;
-    } else if (isPatternMode) {
-      engineState.speedMultiplier = 1.6;
-    }
+    engineState.speedMultiplier = speedMultiplier;
+    recentRandomSignaturesRef.current[historyKey] = [...recentEntries, candidate].slice(-12);
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     rerender();
@@ -1919,9 +2187,10 @@ function OrbitalPolymeter() {
               id: orbit.id,
               label: index === 0 ? 'Pair A' : 'Pair B',
               pulseCount: orbit.pulseCount,
+              color: orbit.color,
             };
           })
-          .filter((orbit): orbit is { id: string; label: string; pulseCount: number } => Boolean(orbit))
+          .filter((orbit): orbit is { id: string; label: string; pulseCount: number; color: string } => Boolean(orbit))
   );
   const mobileQuickOrbits =
     geometryMode === 'standard-trace'
@@ -1930,12 +2199,14 @@ function OrbitalPolymeter() {
           label: `Orbit ${index + 1}`,
           pulseCount: orbit.pulseCount,
           direction: orbit.direction,
+          color: orbit.color,
         }))
       : activePairControls.map((orbit) => {
           const match = engineState.orbits.find((entry) => entry.id === orbit.id);
           return {
             ...orbit,
             direction: match?.direction ?? 1,
+            color: match?.color ?? orbit.color,
           };
         });
   const modeDescription =
@@ -2331,7 +2602,7 @@ function OrbitalPolymeter() {
                         style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
                       >
                         <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
-                          <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                          <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: orbit.color }}>
                             {layerLabel}
                           </div>
                           <div className="flex items-center gap-2">
@@ -2386,7 +2657,8 @@ function OrbitalPolymeter() {
                             step="1"
                             value={Math.min(orbit.pulseCount, 10)}
                             onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                            className="flex-1 accent-white"
+                            className="flex-1"
+                            style={{ accentColor: orbit.color }}
                           />
                           <button
                             onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
