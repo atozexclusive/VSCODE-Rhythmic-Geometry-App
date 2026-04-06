@@ -4,6 +4,7 @@ export interface InterferenceSettings {
   sourceOrbitAId: string | null;
   sourceOrbitBId: string | null;
   sourceOrbitCId: string | null;
+  sourceOrbitDId: string | null;
   showConnectors: boolean;
 }
 
@@ -11,6 +12,7 @@ export const DEFAULT_INTERFERENCE_SETTINGS: InterferenceSettings = {
   sourceOrbitAId: null,
   sourceOrbitBId: null,
   sourceOrbitCId: null,
+  sourceOrbitDId: null,
   showConnectors: true,
 };
 
@@ -22,6 +24,7 @@ export function normalizeInterferenceSettings(
     sourceOrbitAId: settings?.sourceOrbitAId ?? null,
     sourceOrbitBId: settings?.sourceOrbitBId ?? null,
     sourceOrbitCId: settings?.sourceOrbitCId ?? null,
+    sourceOrbitDId: settings?.sourceOrbitDId ?? null,
     showConnectors: settings?.showConnectors ?? true,
   };
 
@@ -35,6 +38,7 @@ export function normalizeInterferenceSettings(
       sourceOrbitAId: orbits[0].id,
       sourceOrbitBId: null,
       sourceOrbitCId: null,
+      sourceOrbitDId: null,
     };
   }
 
@@ -55,6 +59,10 @@ export function normalizeInterferenceSettings(
     normalized.sourceOrbitCId && orbitIds.has(normalized.sourceOrbitCId)
       ? normalized.sourceOrbitCId
       : null;
+  let sourceOrbitDId: string | null =
+    normalized.sourceOrbitDId && orbitIds.has(normalized.sourceOrbitDId)
+      ? normalized.sourceOrbitDId
+      : null;
 
   if (sourceOrbitAId === sourceOrbitBId) {
     const alternative = orbits.find((orbit) => orbit.id !== sourceOrbitAId);
@@ -68,10 +76,24 @@ export function normalizeInterferenceSettings(
     sourceOrbitCId = null;
   }
 
+  if (!sourceOrbitCId) {
+    sourceOrbitDId = null;
+  }
+
+  if (
+    sourceOrbitDId &&
+    (sourceOrbitDId === sourceOrbitAId ||
+      sourceOrbitDId === sourceOrbitBId ||
+      sourceOrbitDId === sourceOrbitCId)
+  ) {
+    sourceOrbitDId = null;
+  }
+
   return {
     sourceOrbitAId,
     sourceOrbitBId,
     sourceOrbitCId,
+    sourceOrbitDId,
     showConnectors: normalized.showConnectors,
   };
 }

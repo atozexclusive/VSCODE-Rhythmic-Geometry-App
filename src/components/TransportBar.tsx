@@ -134,7 +134,7 @@ export default function TransportBar({
     onAllClockwise();
   };
   const canAddDesktopOrbit =
-    (geometryMode === 'standard-trace' || (geometryMode === 'sweep' && quickOrbitControls.length < 3)) &&
+    (geometryMode === 'standard-trace' || (geometryMode === 'sweep' && quickOrbitControls.length < 4)) &&
     quickOrbitControls.length < 6;
   const canDeleteDesktopOrbit = geometryMode === 'standard-trace' && quickOrbitControls.length > 1;
 
@@ -472,10 +472,12 @@ export default function TransportBar({
                       <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
                         {geometryMode === 'standard-trace'
                           ? 'Adjust pulse counts without opening the menu.'
-                          : geometryMode === 'sweep' && quickOrbitControls.length > 2
-                            ? 'Shape the active sweep triad from the main bar.'
+                          : geometryMode === 'sweep' && quickOrbitControls.length > 3
+                            ? 'Shape the active sweep quartet from the main bar.'
+                            : geometryMode === 'sweep' && quickOrbitControls.length > 2
+                              ? 'Shape the active sweep triad from the main bar.'
                             : geometryMode === 'sweep'
-                              ? 'Add one more orbit to unlock triad sweep.'
+                              ? 'Add one more orbit to unlock the next sweep mode.'
                             : 'Shape the active driver pair from the main bar.'}
                       </span>
                     </div>
@@ -565,12 +567,12 @@ export default function TransportBar({
                                 >
                                   ×
                                 </button>
-                              ) : geometryMode === 'sweep' && orbit.label === 'Sweep C' ? (
+                              ) : geometryMode === 'sweep' && (orbit.label === 'Sweep C' || orbit.label === 'Sweep D') ? (
                                 <button
                                   onClick={() => onDeleteOrbit(orbit.id)}
                                   className="h-6 w-6 rounded-md text-[11px] font-mono"
                                   style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                  title="Delete Sweep C orbit"
+                                  title={`Delete ${orbit.label} orbit`}
                                 >
                                   ×
                                 </button>
@@ -604,8 +606,10 @@ export default function TransportBar({
                             title={
                               geometryMode === 'sweep'
                                 ? canAddDesktopOrbit
-                                  ? 'Add a third sweep orbit'
-                                  : 'Sweep triad is already active'
+                                  ? quickOrbitControls.length > 2
+                                    ? 'Add a fourth sweep orbit'
+                                    : 'Add a third sweep orbit'
+                                  : 'Sweep quartet is already active'
                                 : canAddDesktopOrbit
                                   ? 'Add another orbit'
                                   : 'Maximum of 6 orbits'
