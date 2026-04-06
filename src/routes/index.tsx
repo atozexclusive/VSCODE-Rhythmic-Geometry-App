@@ -78,46 +78,35 @@ const modeCards = [
   },
 ] as const;
 
-const showcaseSceneIds = [
-  'glass_cathedral',
-  'blue_mandala',
-  'dorian_bloom',
-  'silent_cosmology',
-  'aeolian_tide',
-] as const;
+const websiteStandardImage = '/scene-captures/website_standard_replacement.png';
+const websiteSceneOverrides: Record<string, string> = {
+  glass_cathedral: websiteStandardImage,
+  metallic_whorl: '/scene-captures/website_metallic_whorl.png',
+  rose_engine: '/scene-captures/website_rose_engine.png',
+  prime_ritual: '/scene-captures/website_prime_ritual.png',
+};
 
-const showcaseCards = showcaseSceneIds
-  .map((sceneId, index) => {
-    const scene = BUILT_IN_SCENES.find((entry) => entry.id === sceneId);
-    if (!scene) {
-      return null;
-    }
+const showcaseCards = BUILT_IN_SCENES.map((scene, index) => ({
+  id: scene.id,
+  title: scene.name,
+  tag: index === 0 ? 'Featured' : 'Built-In Scene',
+  description: scene.description,
+  accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#66DDFF', '#AA88FF', '#AA88FF', '#44E0B0', '#FF7799'][index % 8],
+  image: websiteSceneOverrides[scene.id] ?? scene.thumbnailDataUrl,
+}));
 
-    return {
-      id: scene.id,
-      title: scene.name,
-      tag: index === 0 ? 'Featured' : 'Built-In Scene',
-      description: scene.description,
-      accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#66DDFF', '#AA88FF'][index % 5],
-      image: scene.thumbnailDataUrl,
-    };
-  })
-  .filter((card): card is NonNullable<typeof card> => Boolean(card));
-
-const heroImage = BUILT_IN_SCENES.find((scene) => scene.id === 'glass_cathedral')?.thumbnailDataUrl ?? createScenePreviewDataUrl(BUILT_IN_SCENES[0].snapshot, 960, {
-  oversample: 2,
-  format: 'image/png',
-  cycleFactor: 0.82,
-  scaleRatio: 0.36,
-});
+const heroImage = websiteStandardImage;
 const modePreviews = modeCards.map((mode) => ({
   ...mode,
-  image: createScenePreviewDataUrl(mode.snapshot, 420, {
-    oversample: 2,
-    format: 'image/png',
-    cycleFactor: mode.name === 'Standard' ? 0.78 : 0.9,
-    scaleRatio: mode.name === 'Sweep' ? 0.33 : 0.34,
-  }),
+  image:
+    mode.name === 'Standard'
+      ? websiteStandardImage
+      : createScenePreviewDataUrl(mode.snapshot, 420, {
+          oversample: 2,
+          format: 'image/png',
+          cycleFactor: 0.9,
+          scaleRatio: mode.name === 'Sweep' ? 0.33 : 0.34,
+        }),
 }));
 
 const featureGrid = [
