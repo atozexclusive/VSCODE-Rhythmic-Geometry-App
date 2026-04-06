@@ -5,7 +5,7 @@
 
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
@@ -81,7 +81,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-layers',
     title: 'Layers',
-    text: 'Change pulse counts here. Small number shifts can produce very different forms.',
+    text: 'Change pulse counts here. Tap a layer name or the color wheel to open its color editor. Small number shifts can produce very different forms.',
   },
   {
     target: 'mobile-direction',
@@ -111,7 +111,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-colors',
     title: 'Colors',
-    text: 'Long-press an orbit to change color and musical role. Color can also influence tone mapping in some modes.',
+    text: 'Long-press an orbit or use the color wheel in Layers to change color and musical role. Color can also influence tone mapping in some modes.',
   },
   {
     target: 'mobile-menu',
@@ -218,10 +218,13 @@ export interface BuiltInScene {
 }
 
 const BUILT_IN_SCENE_ASSET_MAP: Partial<Record<string, string>> = {
-  glass_cathedral: '/scene-captures/glass_cathedral.jpg',
+  glass_cathedral: '/scene-captures/website_standard_replacement.png',
+  prime_ritual: '/scene-captures/website_prime_ritual.png',
+  rose_engine: '/scene-captures/website_rose_engine.png',
   blue_mandala: '/scene-captures/blue_mandala.jpg',
   dorian_bloom: '/scene-captures/dorian_bloom.jpg',
   silent_cosmology: '/scene-captures/silent_cosmology.jpg',
+  metallic_whorl: '/scene-captures/website_metallic_whorl.png',
   aeolian_tide: '/scene-captures/aeolian_tide.jpg',
 };
 
@@ -2839,10 +2842,19 @@ function OrbitalPolymeter() {
             <div
               data-guide="mobile-customize"
               className="rounded-[28px] border"
-              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+              style={{
+                background: mobileCustomizeOpen
+                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                  : 'rgba(17,17,22,0.9)',
+                borderColor: mobileCustomizeOpen ? 'rgba(0,255,170,0.18)' : 'rgba(255,255,255,0.08)',
+              }}
             >
               <div
                 className="flex items-center justify-between gap-3 px-4 py-4"
+                style={{
+                  background: mobileCustomizeOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
+                  boxShadow: mobileCustomizeOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
+                }}
                 onClick={() => setMobileCustomizeOpen((open) => !open)}
                 role="button"
                 tabIndex={0}
@@ -2854,10 +2866,16 @@ function OrbitalPolymeter() {
                 }}
               >
                 <div className="text-left">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <div
+                    className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                    style={{ color: mobileCustomizeOpen ? '#00FFAA' : 'rgba(255,255,255,0.5)' }}
+                  >
                     Customize Pattern
                   </div>
-                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <div
+                    className="mt-1 text-[12px]"
+                    style={{ color: mobileCustomizeOpen ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.4)' }}
+                  >
                     Shape the form.
                   </div>
                 </div>
@@ -2991,15 +3009,31 @@ function OrbitalPolymeter() {
                         style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
                       >
                         <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenOrbitEditor(orbit.id)}
-                            className="text-[12px] font-mono uppercase tracking-[0.14em] transition-opacity active:scale-[0.98]"
-                            style={{ color: orbit.color }}
-                            title={`Edit ${layerLabel} color`}
-                          >
-                            {layerLabel}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOrbitEditor(orbit.id)}
+                              className="text-[12px] font-mono uppercase tracking-[0.14em] transition-opacity active:scale-[0.98]"
+                              style={{ color: orbit.color }}
+                              title={`Edit ${layerLabel} color`}
+                            >
+                              {layerLabel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOrbitEditor(orbit.id)}
+                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 active:scale-[0.97]"
+                              style={{
+                                color: orbit.color,
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.09)',
+                              }}
+                              title={`Open ${layerLabel} color picker`}
+                              aria-label={`Open ${layerLabel} color picker`}
+                            >
+                              <Palette size={14} />
+                            </button>
+                          </div>
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
@@ -3075,12 +3109,18 @@ function OrbitalPolymeter() {
               data-guide="mobile-scenes"
               className="rounded-[28px] border"
               style={{
-                background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
-                borderColor: 'rgba(255,255,255,0.08)',
+                background: mobileScenesOpen
+                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                  : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                borderColor: mobileScenesOpen ? 'rgba(51,136,255,0.18)' : 'rgba(255,255,255,0.08)',
               }}
             >
               <div
                 className="flex items-center justify-between px-4 py-4"
+                style={{
+                  background: mobileScenesOpen ? 'linear-gradient(180deg, rgba(51,136,255,0.09), rgba(255,255,255,0))' : 'transparent',
+                  boxShadow: mobileScenesOpen ? 'inset 0 1px 0 rgba(51,136,255,0.08)' : 'none',
+                }}
                 onClick={() => setMobileScenesOpen((open) => !open)}
                 role="button"
                 tabIndex={0}
@@ -3092,10 +3132,16 @@ function OrbitalPolymeter() {
                 }}
               >
                 <div className="text-left">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <div
+                    className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                    style={{ color: mobileScenesOpen ? '#88CCFF' : 'rgba(255,255,255,0.5)' }}
+                  >
                     Scenes
                   </div>
-                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                  <div
+                    className="mt-1 text-[12px]"
+                    style={{ color: mobileScenesOpen ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.42)' }}
+                  >
                     Built-in scenes and quick generators.
                   </div>
                 </div>
@@ -3196,10 +3242,17 @@ function OrbitalPolymeter() {
             <div
               data-guide="mobile-sound"
               className="rounded-[28px] border"
-              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+              style={{
+                background: 'rgba(17,17,22,0.9)',
+                borderColor: mobileSoundOpen ? 'rgba(0,255,170,0.18)' : 'rgba(255,255,255,0.08)',
+              }}
             >
               <div
                 className="flex items-center justify-between gap-3 px-4 py-4"
+                style={{
+                  background: mobileSoundOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
+                  boxShadow: mobileSoundOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
+                }}
                 onClick={() => setMobileSoundOpen((open) => !open)}
                 role="button"
                 tabIndex={0}
@@ -3211,10 +3264,16 @@ function OrbitalPolymeter() {
                 }}
               >
                 <div className="text-left">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <div
+                    className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                    style={{ color: mobileSoundOpen ? '#00FFAA' : 'rgba(255,255,255,0.5)' }}
+                  >
                     Sound
                   </div>
-                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  <div
+                    className="mt-1 text-[12px]"
+                    style={{ color: mobileSoundOpen ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.4)' }}
+                  >
                     Tone and harmony.
                   </div>
                 </div>
