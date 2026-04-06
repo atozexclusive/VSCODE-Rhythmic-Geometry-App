@@ -167,8 +167,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const getStandardLayoutMetrics = useCallback(
       (orbits: Orbit[], width: number, height: number) => {
         const cx = width / 2;
+        const sortedRadii = orbits.map((orbit) => orbit.radius).sort((a, b) => b - a);
+        const maxRadius = sortedRadii[0] ?? 0;
+        const interferenceRadiusBudget =
+          sortedRadii.length >= 2 ? sortedRadii[0] + sortedRadii[1] : maxRadius;
         if (!isMobileRef.current || orbits.length === 0) {
-          const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 0);
           return {
             cx,
             cy: height / 2,
@@ -185,8 +188,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const visualAllowance = smallPhone ? 18 : mediumPhone ? 16 : 14;
         const targetRadius = Math.max(1, Math.min(width, height) / 2 - sidePadding - visualAllowance);
         const cy = height / 2;
-        const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 1);
-        const effectiveVisualRadius = maxRadius + 16;
+        const baseVisualRadius =
+          geometryModeRef.current === 'interference-trace'
+            ? Math.max(maxRadius, interferenceRadiusBudget)
+            : maxRadius;
+        const effectiveVisualRadius = baseVisualRadius + 16;
         const orbitScale = Math.min(1, targetRadius / effectiveVisualRadius);
 
         return { cx, cy, orbitScale, targetRadius, maxRadius, effectiveVisualRadius };
@@ -716,10 +722,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           selectedOuterOrbit &&
           selectedInnerOrbit.id !== selectedOuterOrbit.id
         ) {
-          const previousProgress = Math.min(previousElapsedBeats / SWEEP_COMPLETION_BEATS, 1);
-          const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
-          const previousT = previousProgress * SWEEP_DURATION;
-          const currentT = currentProgress * SWEEP_DURATION;
+          const previousT = (previousElapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
+          const currentT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
           const sweepScale = getSweepScale(w, h);
           const selectedSweepOrbits = [selectedInnerOrbit, selectedOuterOrbit];
 
@@ -966,8 +970,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const currentInnerOrbit = selectedInnerOrbit;
         const currentOuterOrbit = selectedOuterOrbit;
         const sweepScale = getSweepScale(w, h);
-        const sweepProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
-        const sweepT = sweepProgress * SWEEP_DURATION;
+        const sweepT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
         const sweepPositions =
           isSweepMode && currentInnerOrbit && currentOuterOrbit && currentInnerOrbit.id !== currentOuterOrbit.id
             ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, cx, cy, sweepScale)
@@ -1123,6 +1126,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           currentInnerPoint &&
           currentOuterPoint &&
           currentInterferencePoint &&
+          showPlanetsRef.current &&
           normalizedInterferenceSettings.showConnectors
         ) {
           ctx.save();
@@ -1141,7 +1145,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        if ((isInterferenceMode || isSweepMode) && currentInterferencePoint) {
+        if ((isInterferenceMode || isSweepMode) && currentInterferencePoint && showPlanetsRef.current) {
           ctx.save();
           const grad = ctx.createRadialGradient(
             currentInterferencePoint.x,

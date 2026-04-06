@@ -1979,7 +1979,7 @@ function OrbitalPolymeter() {
       if (orbit) {
         Object.assign(orbit, updates);
         setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
-        if (typeof updates.direction === 'number') {
+        if (typeof updates.direction === 'number' || typeof updates.pulseCount === 'number') {
           resetEngine(engineState);
           handleClearTraces();
         }
@@ -2128,6 +2128,7 @@ function OrbitalPolymeter() {
         return;
       }
       orbit.pulseCount = Math.max(1, Math.min(1000, orbit.pulseCount + delta));
+      resetEngine(engineState);
       handleClearTraces();
       rerender();
     },
@@ -2141,6 +2142,7 @@ function OrbitalPolymeter() {
         return;
       }
       orbit.pulseCount = Math.max(1, Math.min(1000, pulseCount));
+      resetEngine(engineState);
       handleClearTraces();
       rerender();
     },
