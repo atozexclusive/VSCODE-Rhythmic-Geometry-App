@@ -45,6 +45,7 @@ interface TransportBarProps {
   onToggleHelp: () => void;
   onTogglePresentation: () => void;
   onRandomPattern: () => void;
+  onRemixPattern: () => void;
   onRandomPatternPlus: () => void;
   onSoundModeChange: (tonePreset: TonePreset) => void;
   onRootNoteChange: (rootNote: RootNote) => void;
@@ -85,6 +86,7 @@ export default function TransportBar({
   onToggleHelp,
   onTogglePresentation,
   onRandomPattern,
+  onRemixPattern,
   onRandomPatternPlus,
   onSoundModeChange,
   onRootNoteChange,
@@ -191,6 +193,14 @@ export default function TransportBar({
                   <Shuffle size={18} />
                 </button>
                 <button
+                  onClick={onRemixPattern}
+                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
+                  title="Refresh the current setup with new color, direction, sound, and speed"
+                >
+                  <Zap size={18} />
+                </button>
+                <button
                   onClick={onRandomPatternPlus}
                   className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
@@ -292,6 +302,14 @@ export default function TransportBar({
             title="Random pattern"
           >
             <Shuffle size={18} />
+          </button>
+          <button
+            onClick={onRemixPattern}
+            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
+            title="Refresh the current setup with new color, direction, sound, and speed"
+          >
+            <Zap size={18} />
           </button>
           <button
             onClick={onRandomPatternPlus}
@@ -920,6 +938,22 @@ export default function TransportBar({
             <Shuffle size={20} />
             <span className="text-[10px] font-mono uppercase tracking-wider">
               Random
+            </span>
+          </button>
+
+          <button
+            onClick={onRemixPattern}
+            className={iconButtonStyle}
+            style={{
+              background: 'rgba(0, 255, 170, 0.14)',
+              border: '1px solid rgba(0, 255, 170, 0.28)',
+              color: '#00FFAA',
+            }}
+            title="Refresh the current setup with new color, direction, sound, and speed"
+          >
+            <Zap size={20} />
+            <span className="text-[10px] font-mono uppercase tracking-wider">
+              Remix
             </span>
           </button>
 

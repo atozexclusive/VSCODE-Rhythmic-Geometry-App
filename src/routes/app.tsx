@@ -56,12 +56,12 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-scenes',
     title: 'Start Here',
-    text: 'Pick a built-in scene to load a strong starting pattern, then press play.',
+    text: 'Scenes load strong starting points. Random builds fresh ratios, Random+ goes wider, and Remix refreshes the current one.',
   },
   {
     target: 'mobile-playback',
     title: 'Playback',
-    text: 'This is the main motion row: play starts, reset clears, audio mutes, random refreshes, and speed shapes the pace.',
+    text: 'This is the motion row: play starts, reset restarts, audio mutes, and speed changes how quickly the form develops.',
   },
   {
     target: 'mobile-speed',
@@ -124,7 +124,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   {
     target: 'desktop-playback',
     title: 'Start Here',
-    text: 'This main row controls motion: play starts, reset clears, audio mutes, random refreshes, and speed shapes the pace.',
+    text: 'This main row controls motion: play starts, reset restarts, Remix refreshes the current setup, and Random builds a new one.',
   },
   {
     target: 'desktop-speed',
@@ -1561,6 +1561,16 @@ function OrbitalPolymeter() {
     setHelpOpen(false);
   }, []);
 
+  const handleToggleHelpGuide = useCallback(() => {
+    if (helpOpen) {
+      closeStartGuide();
+      return;
+    }
+    setSidebarOpen(false);
+    setRadialMenu(null);
+    openStartGuide();
+  }, [closeStartGuide, helpOpen, openStartGuide]);
+
   const handleTogglePlay = useCallback(() => {
     resumeAudio();
     engineState.playing = !engineState.playing;
@@ -2011,6 +2021,67 @@ function OrbitalPolymeter() {
     applyRandomPattern({ extended: true });
   }, [applyRandomPattern]);
 
+  const handleRemixPattern = useCallback(() => {
+    const useKeyedHarmony = Math.random() > 0.3;
+    const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
+    const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
+    const nextRoot = randomItem(NOTE_NAMES);
+    const nextMappingMode = randomItem(RANDOM_MAPPING_MODES.filter((mode) => mode !== 'color-hue'));
+    const directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, {
+      extended: geometryMode !== 'standard-trace' && Math.random() > 0.5,
+    });
+    const colors = buildRandomColors(engineState.orbits.length, {
+      extended: geometryMode !== 'standard-trace' && Math.random() > 0.5,
+    });
+    const speedMultiplier = computeRandomSpeed(
+      geometryMode,
+      engineState.orbits.map((orbit) => orbit.pulseCount),
+      {
+        extended: geometryMode !== 'standard-trace' && Math.random() > 0.5,
+      },
+    );
+    const useManualOrbitRoles = useKeyedHarmony && Math.random() > 0.55;
+    const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
+    const harmonyAssignments = buildHarmonyAssignments(engineState.orbits.length, scaleLength, {
+      extended: useKeyedHarmony && Math.random() > 0.5,
+    });
+
+    engineState.orbits.forEach((orbit, index) => {
+      orbit.direction = directions[index] ?? orbit.direction;
+      orbit.color = colors[index % colors.length] ?? orbit.color;
+      orbit.harmonyDegree = harmonyAssignments[index]?.degree ?? orbit.harmonyDegree;
+      orbit.harmonyRegister = harmonyAssignments[index]?.register ?? orbit.harmonyRegister;
+    });
+
+    setHarmonySettings((current) => ({
+      ...current,
+      tonePreset: useKeyedHarmony ? 'scale-quantized' : 'original',
+      rootNote: nextRoot,
+      scaleName: nextScale,
+      mappingMode: nextMappingMode,
+      manualOrbitRoles: useManualOrbitRoles,
+    }));
+
+    setInterferenceSettings((current) =>
+      normalizeInterferenceSettings(engineState.orbits, {
+        ...current,
+        showConnectors:
+          geometryMode === 'sweep'
+            ? false
+            : geometryMode === 'interference-trace'
+              ? true
+              : current.showConnectors,
+      }),
+    );
+
+    resetEngine(engineState);
+    handleClearTraces();
+    engineState.speedMultiplier = speedMultiplier;
+    engineState.playing = true;
+    engineState.lastTimestamp = -1;
+    rerender();
+  }, [engineState, geometryMode, handleClearTraces, rerender]);
+
   const handleSaveScene = useCallback(() => {
     const run = async () => {
       const now = new Date().toISOString();
@@ -2326,18 +2397,19 @@ function OrbitalPolymeter() {
             onToggleTrace={handleToggleTrace}
             onTogglePlanets={handleTogglePlanets}
             onToggleMute={handleToggleMute}
-            onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
+            onToggleHelp={handleToggleHelpGuide}
             onTogglePresentation={handleTogglePresentation}
             onRandomPattern={handleRandomPattern}
+            onRemixPattern={handleRemixPattern}
             onRandomPatternPlus={handleRandomPatternPlus}
-        onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
-        onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
-        onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
-        onAddOrbit={handleAddOrbit}
-        onDeleteOrbit={handleDeleteOrbit}
-        onReset={handleReset}
-        onOpenSidebar={() => setSidebarOpen(true)}
-      />
+            onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
+            onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
+            onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+            onAddOrbit={handleAddOrbit}
+            onDeleteOrbit={handleDeleteOrbit}
+            onReset={handleReset}
+            onOpenSidebar={() => setSidebarOpen(true)}
+          />
         </div>
       );
     }
@@ -2388,7 +2460,7 @@ function OrbitalPolymeter() {
                     <Maximize2 size={17} />
                   </button>
                   <button
-                    onClick={() => (helpOpen ? closeStartGuide() : openStartGuide())}
+                    onClick={handleToggleHelpGuide}
                     className="relative z-20 h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
                     aria-label={helpOpen ? 'Close start guide' : 'Open start guide'}
@@ -2478,7 +2550,7 @@ function OrbitalPolymeter() {
                     Customize Pattern
                   </div>
                   <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Layers, pattern, trail, and markers.
+                    Shape the form.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2710,7 +2782,7 @@ function OrbitalPolymeter() {
                     Scenes
                   </div>
                   <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                    Tap a pattern to begin.
+                    Built-in scenes and quick generators.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2724,6 +2796,18 @@ function OrbitalPolymeter() {
                     style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
                   >
                     Random
+                  </button>
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRemixPattern();
+                    }}
+                    type="button"
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.12)', border: '1px solid rgba(0,255,170,0.22)' }}
+                    title="Refresh color, direction, sound, and speed while keeping the current ratios"
+                  >
+                    Remix
                   </button>
                   <button
                     onClick={(event) => {
@@ -2809,7 +2893,7 @@ function OrbitalPolymeter() {
                     Sound
                   </div>
                   <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Tone, key, and scale.
+                    Tone and harmony.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3403,9 +3487,10 @@ function OrbitalPolymeter() {
           onToggleTrace={handleToggleTrace}
           onTogglePlanets={handleTogglePlanets}
           onToggleMute={handleToggleMute}
-          onToggleHelp={() => (helpOpen ? closeStartGuide() : openStartGuide())}
+          onToggleHelp={handleToggleHelpGuide}
           onTogglePresentation={handleTogglePresentation}
           onRandomPattern={handleRandomPattern}
+          onRemixPattern={handleRemixPattern}
           onRandomPatternPlus={handleRandomPatternPlus}
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
