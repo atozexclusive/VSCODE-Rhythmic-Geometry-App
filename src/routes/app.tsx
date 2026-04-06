@@ -2726,8 +2726,8 @@ function OrbitalPolymeter() {
     }
 
     return (
-      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
-        <div className="space-y-3">
+      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+        <div className="space-y-2">
           <div
             data-guide="mobile-colors"
             className="relative overflow-hidden"
@@ -2749,10 +2749,10 @@ function OrbitalPolymeter() {
             />
           </div>
 
-          <div className="px-4 space-y-4">
+          <div className="px-4 space-y-3">
             <div
               data-guide="mobile-playback"
-              className="relative z-10 rounded-[28px] border px-4 py-5 space-y-4"
+              className="relative z-10 rounded-[28px] border px-4 py-4 space-y-3"
               style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -2791,10 +2791,10 @@ function OrbitalPolymeter() {
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={handleTogglePlay}
-                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  className="px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
                   style={{
                     background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
                     border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
@@ -2806,7 +2806,7 @@ function OrbitalPolymeter() {
                 </button>
                 <button
                   onClick={handleReset}
-                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  className="px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
                   style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
                 >
                   <RotateCcw size={17} />
@@ -2815,14 +2815,14 @@ function OrbitalPolymeter() {
                 <button
                   data-guide="mobile-audio"
                   onClick={handleToggleMute}
-                  className="px-4 py-4 rounded-2xl flex items-center justify-center gap-2"
+                  className="px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
                   style={{ background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.76)' }}
                 >
                   {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                   <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Audio'}</span>
                 </button>
               </div>
-              <div data-guide="mobile-speed" className="space-y-2">
+              <div data-guide="mobile-speed" className="space-y-1">
                 <div className="flex items-center justify-between text-[12px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
                   <span>Speed</span>
                   <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
@@ -2850,7 +2850,7 @@ function OrbitalPolymeter() {
               }}
             >
               <div
-                className="flex items-center justify-between gap-3 px-4 py-4"
+                className="flex items-center justify-between gap-3 px-4 py-3"
                 style={{
                   background: mobileCustomizeOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
                   boxShadow: mobileCustomizeOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
@@ -2879,7 +2879,7 @@ function OrbitalPolymeter() {
                     Shape the form.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className="flex items-center gap-1">
                     {[
                       { key: 'standard-trace' as const, label: 'A', color: '#00FFAA' },
@@ -2927,7 +2927,7 @@ function OrbitalPolymeter() {
               </div>
 
               {mobileCustomizeOpen && (
-                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <div className="space-y-3 rounded-2xl border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
                       Geometry
@@ -3116,7 +3116,7 @@ function OrbitalPolymeter() {
               }}
             >
               <div
-                className="flex items-center justify-between px-4 py-4"
+                className="flex items-center justify-between px-4 py-3"
                 style={{
                   background: mobileScenesOpen ? 'linear-gradient(180deg, rgba(51,136,255,0.09), rgba(255,255,255,0))' : 'transparent',
                   boxShadow: mobileScenesOpen ? 'inset 0 1px 0 rgba(51,136,255,0.08)' : 'none',
@@ -3145,7 +3145,7 @@ function OrbitalPolymeter() {
                     Built-in scenes and quick generators.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={(event) => {
                       event.stopPropagation();
@@ -3203,7 +3203,7 @@ function OrbitalPolymeter() {
               </div>
 
               {mobileScenesOpen && (
-                <div className="space-y-4 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
                     <div className="flex gap-3 px-1 snap-x snap-mandatory">
                       {BUILT_IN_SCENES.map((scene) => (
@@ -3248,7 +3248,7 @@ function OrbitalPolymeter() {
               }}
             >
               <div
-                className="flex items-center justify-between gap-3 px-4 py-4"
+                className="flex items-center justify-between gap-3 px-4 py-3"
                 style={{
                   background: mobileSoundOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
                   boxShadow: mobileSoundOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
@@ -3277,7 +3277,7 @@ function OrbitalPolymeter() {
                     Tone and harmony.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <button
                       type="button"
@@ -3330,7 +3330,7 @@ function OrbitalPolymeter() {
               </div>
 
               {mobileSoundOpen && (
-                <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <button
                     onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
                     className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
