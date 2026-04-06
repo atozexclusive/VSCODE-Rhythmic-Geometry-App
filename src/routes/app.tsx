@@ -1837,6 +1837,12 @@ function OrbitalPolymeter() {
     [],
   );
 
+  const handleOpenOrbitEditor = useCallback((orbitId: string) => {
+    const x = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
+    const y = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+    setRadialMenu({ orbitId, x, y });
+  }, []);
+
   const handleRadialColorChange = useCallback(
     (orbitId: string, color: string) => {
       handleUpdateOrbit(orbitId, { color });
@@ -2599,9 +2605,15 @@ function OrbitalPolymeter() {
                         style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
                       >
                         <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
-                          <div className="text-[12px] font-mono uppercase tracking-[0.14em]" style={{ color: orbit.color }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenOrbitEditor(orbit.id)}
+                            className="text-[12px] font-mono uppercase tracking-[0.14em] transition-opacity active:scale-[0.98]"
+                            style={{ color: orbit.color }}
+                            title={`Edit ${layerLabel} color`}
+                          >
                             {layerLabel}
-                          </div>
+                          </button>
                           <div className="flex items-center gap-2">
                             <input
                               type="number"

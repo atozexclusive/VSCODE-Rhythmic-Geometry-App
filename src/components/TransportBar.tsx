@@ -135,10 +135,15 @@ export default function TransportBar({
   if (presentationMode) {
     return (
       <div
-        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-3 right-3 bottom-4' : 'left-1/2 bottom-5 -translate-x-1/2'}`}
+        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'left-1/2 bottom-5 -translate-x-1/2'}`}
+        style={
+          isMobile
+            ? { bottom: 'max(12px, calc(env(safe-area-inset-bottom) + 8px))' }
+            : undefined
+        }
       >
         <div
-          className={`rounded-2xl border ${isMobile ? 'px-3 py-3' : 'px-4 py-3'} ${isMobile ? 'flex items-center justify-between gap-3' : 'flex items-center gap-2'}`}
+          className={`rounded-2xl border ${isMobile ? 'px-3 py-3' : 'px-4 py-3'} ${isMobile ? 'flex flex-wrap items-center justify-center gap-2' : 'flex items-center gap-2'}`}
           style={{
             background: 'rgba(17, 17, 22, 0.74)',
             backdropFilter: 'blur(16px)',
@@ -148,7 +153,7 @@ export default function TransportBar({
         >
           {isMobile ? (
             <>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <button
                   onClick={cyclePresentationMode}
                   className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200 active:scale-95"
@@ -194,7 +199,7 @@ export default function TransportBar({
                   <Shuffle size={18} />
                 </button>
               </div>
-              <div className="ml-2 flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <button
                   onClick={togglePresentationDirections}
                   className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
