@@ -1379,6 +1379,7 @@ function OrbitalPolymeter() {
   const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
   const guideSteps = isMobile ? MOBILE_START_GUIDE : DESKTOP_START_GUIDE;
   const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
+  const mobileCanvasBoxStyle = isMobile ? ({ height: 'min(100vw, 56svh)' } as const) : undefined;
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
   const guideCalloutHeight = isMobile ? 230 : 220;
@@ -2333,7 +2334,7 @@ function OrbitalPolymeter() {
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
           <div className="space-y-3">
-            <div data-guide="mobile-colors" className="relative h-[76svh] min-h-[540px] overflow-hidden">
+            <div data-guide="mobile-colors" className="relative overflow-hidden" style={mobileCanvasBoxStyle}>
               <OrbitalCanvas
                 ref={canvasRef}
                 engineState={engineState}
@@ -3031,8 +3032,12 @@ function OrbitalPolymeter() {
   return (
     <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'}>
       {/* Canvas */}
-      {isMobile && <div className="h-[68svh] min-h-[420px]" />}
-      <div data-guide={!isMobile ? 'desktop-colors' : undefined}>
+      {isMobile && <div style={mobileCanvasBoxStyle} />}
+      <div
+        data-guide={!isMobile ? 'desktop-colors' : undefined}
+        className={isMobile ? 'absolute inset-x-0 top-0 overflow-hidden' : undefined}
+        style={isMobile ? mobileCanvasBoxStyle : undefined}
+      >
         <OrbitalCanvas
           ref={canvasRef}
           engineState={engineState}
@@ -3045,7 +3050,7 @@ function OrbitalPolymeter() {
           interferenceSettings={interferenceSettings}
           presentationMode={presentationMode}
           onOrbitLongPress={presentationMode ? undefined : handleOrbitLongPress}
-          className={isMobile ? 'absolute inset-x-0 top-0 w-full h-[68svh] min-h-[420px]' : undefined}
+          className={isMobile ? 'absolute inset-0 w-full h-full' : undefined}
         />
       </div>
 

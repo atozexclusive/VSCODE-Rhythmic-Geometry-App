@@ -158,27 +158,48 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const getStandardLayoutMetrics = useCallback(
       (orbits: Orbit[], width: number, height: number) => {
         const cx = width / 2;
-        const cy = isMobile ? height * 0.39 : height / 2;
         if (!isMobile || orbits.length === 0) {
-          return { cx, cy, orbitScale: 1 };
+          return {
+            cx,
+            cy: height / 2,
+            orbitScale: 1,
+            pulseLabelVisible: true,
+            pulseLabelOffset: 18,
+            pulseLabelFontSize: 10,
+          };
         }
 
+        const viewportWidth =
+          typeof window !== 'undefined' && window.visualViewport
+            ? Math.min(width, window.visualViewport.width)
+            : width;
+        const isSmallPhone = viewportWidth <= 390;
+        const isMediumPhone = viewportWidth <= 430;
+        const centerYRatio = isSmallPhone ? 0.46 : isMediumPhone ? 0.47 : 0.48;
+        const targetRadiusRatio = isSmallPhone ? 0.42 : isMediumPhone ? 0.44 : 0.46;
+        const edgePadding = isSmallPhone ? 12 : isMediumPhone ? 14 : 16;
+        const visualAllowance = isSmallPhone ? 10 : isMediumPhone ? 12 : 14;
+        const cy = height * centerYRatio;
         const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 1);
-        const labelAllowance = 88;
-        const edgePadding = 52;
-        const targetDiameter = Math.min(width * 0.74, height * 0.52);
         const availableHorizontalRadius = Math.max(24, Math.min(cx, width - cx) - edgePadding);
         const availableVerticalRadius = Math.max(24, Math.min(cy, height - cy) - edgePadding);
-        const targetRadius = Math.max(24, targetDiameter / 2);
-        const fitScale = Math.min(
-          1,
-          targetRadius / (maxRadius + labelAllowance),
-          availableHorizontalRadius / (maxRadius + labelAllowance),
-          availableVerticalRadius / (maxRadius + labelAllowance),
+        const targetRadius = Math.max(
+          24,
+          Math.min(width * targetRadiusRatio, availableHorizontalRadius, availableVerticalRadius),
         );
-        const orbitScale = fitScale * 0.68;
+        const orbitScale = Math.min(
+          1,
+          targetRadius / (maxRadius + visualAllowance),
+        );
 
-        return { cx, cy, orbitScale };
+        return {
+          cx,
+          cy,
+          orbitScale,
+          pulseLabelVisible: false,
+          pulseLabelOffset: 14,
+          pulseLabelFontSize: 9,
+        };
       },
       [isMobile],
     );
@@ -610,7 +631,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const previousElapsedBeats = previousElapsedBeatsRef.current;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
-        const { cx, cy, orbitScale } = getStandardLayoutMetrics(state.orbits, w, h);
+        const { cx, cy, orbitScale, pulseLabelVisible, pulseLabelOffset, pulseLabelFontSize } = getStandardLayoutMetrics(state.orbits, w, h);
         const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
         const isInterferenceMode = geometryModeRef.current === 'interference-trace';
         const isSweepMode = geometryModeRef.current === 'sweep';
@@ -1060,17 +1081,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.restore();
           }
 
-          if (showPlanetsRef.current) {
+          if (showPlanetsRef.current && pulseLabelVisible) {
             // Pulse count label
             ctx.save();
             ctx.globalAlpha = 0.35;
             ctx.fillStyle = orbit.color;
-            ctx.font = '10px "SF Mono", "Fira Code", monospace';
+            ctx.font = `${pulseLabelFontSize}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(
               `${orbit.pulseCount}`,
-              cx + (r + 18) * Math.cos(-Math.PI / 4),
-              cy + (r + 18) * Math.sin(-Math.PI / 4),
+              cx + (r + pulseLabelOffset) * Math.cos(-Math.PI / 4),
+              cy + (r + pulseLabelOffset) * Math.sin(-Math.PI / 4),
             );
             ctx.restore();
           }
