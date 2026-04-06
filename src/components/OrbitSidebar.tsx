@@ -68,9 +68,10 @@ interface OrbitSidebarProps {
 }
 
 const COLORS = [
-  '#00FFAA', '#FF3366', '#3388FF', '#FFAA00',
-  '#AA44FF', '#FF6600', '#00CCFF', '#FF0088',
-  '#44FF88', '#FF4488', '#88CCFF', '#FFCC00',
+  '#00FFAA', '#32CD32', '#72F1B8', '#44FF88',
+  '#3388FF', '#88CCFF', '#00CCFF', '#7D89FF',
+  '#FF3366', '#FF4488', '#FF0088', '#FF7799',
+  '#FFAA00', '#FFCC00', '#FF6600', '#AA44FF',
 ];
 
 const REGISTER_OPTIONS: Array<{ label: string; value: -1 | 0 | 1 }> = [
@@ -412,12 +413,12 @@ export default function OrbitSidebar({
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                             Color
                           </label>
-                          <div className="grid grid-cols-6 gap-2 mt-2">
+                          <div className="grid grid-cols-8 gap-1.5 mt-2">
                             {COLORS.map((color) => (
                               <button
                                 key={color}
                                 onClick={() => onUpdateOrbit(orbit.id, { color })}
-                                className="w-full aspect-square rounded-lg transition-all duration-200 hover:scale-110"
+                                className="w-full aspect-square rounded-md transition-all duration-200 hover:scale-110"
                                 style={{
                                   background: color,
                                   boxShadow: orbit.color === color ? `0 0 12px ${color}` : 'none',

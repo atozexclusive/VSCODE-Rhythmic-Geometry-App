@@ -33,8 +33,10 @@ interface RadialMenuProps {
 }
 
 const QUICK_COLORS = [
-  '#00FFAA', '#FF3366', '#3388FF', '#FFAA00',
-  '#AA44FF', '#FF6600', '#00CCFF', '#FF0088',
+  '#00FFAA', '#32CD32', '#72F1B8', '#44FF88',
+  '#3388FF', '#88CCFF', '#00CCFF', '#7D89FF',
+  '#FF3366', '#FF4488', '#FF0088', '#FF7799',
+  '#FFAA00', '#FFCC00', '#FF6600', '#AA44FF',
 ];
 
 export default function RadialMenu({
@@ -158,7 +160,7 @@ export default function RadialMenu({
           Color
         </div>
       </div>
-      <div className={`grid grid-cols-4 ${isMobile ? 'gap-3 mt-4' : 'gap-2 mt-3'}`}>
+      <div className={`grid grid-cols-4 ${isMobile ? 'gap-2 mt-4' : 'gap-1.5 mt-3'}`}>
         {QUICK_COLORS.map((color) => {
           const isActive = color === orbitColor;
           const isHovered = color === hoveredColor;
@@ -174,7 +176,7 @@ export default function RadialMenu({
               onMouseLeave={() => setHoveredColor(null)}
               onTouchStart={() => setHoveredColor(color)}
               onTouchEnd={() => setHoveredColor(null)}
-              className={`${isMobile ? 'h-12' : 'h-10'} rounded-xl transition-all`}
+              className={`${isMobile ? 'h-9' : 'h-8'} rounded-lg transition-all`}
               style={{
                 backgroundColor: color,
                 boxShadow: isActive ? `0 0 16px ${color}AA` : isHovered ? `0 0 12px ${color}66` : `0 0 8px ${color}44`,
