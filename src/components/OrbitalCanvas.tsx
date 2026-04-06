@@ -38,6 +38,40 @@ const SWEEP_OUTER_RADIUS = 2;
 const SWEEP_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS;
 const MAX_BLOOM_SPEED = 3;
 
+function blendHexColors(colorA?: string, colorB?: string): string {
+  const fallback = colorA ?? colorB ?? INTERFERENCE_TRACE_COLOR;
+  if (!colorA || !colorB) {
+    return fallback;
+  }
+
+  const parseHex = (value: string) => {
+    const hex = value.replace('#', '');
+    if (hex.length !== 6) {
+      return null;
+    }
+    const parsed = Number.parseInt(hex, 16);
+    if (Number.isNaN(parsed)) {
+      return null;
+    }
+    return {
+      r: (parsed >> 16) & 255,
+      g: (parsed >> 8) & 255,
+      b: parsed & 255,
+    };
+  };
+
+  const a = parseHex(colorA);
+  const b = parseHex(colorB);
+  if (!a || !b) {
+    return fallback;
+  }
+
+  const toHex = (channel: number) => channel.toString(16).padStart(2, '0');
+  return `#${toHex(Math.round((a.r + b.r) / 2))}${toHex(Math.round((a.g + b.g) / 2))}${toHex(
+    Math.round((a.b + b.b) / 2),
+  )}`;
+}
+
 const EXPORT_ASPECTS = {
   landscape: { width: 1600, height: 900 },
   square: { width: 1080, height: 1080 },
@@ -831,6 +865,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               const outerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
 
               if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+                const derivedSweepColor = blendHexColors(innerOrbit.color, outerOrbit.color);
                 const previousProgress = Math.min(previousElapsedBeats / SWEEP_COMPLETION_BEATS, 1);
                 const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
                 const previousIndex = Math.floor(previousProgress * SWEEP_STEPS);
@@ -855,7 +890,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                     traceCtx.lineCap = 'round';
                     traceCtx.lineJoin = 'round';
                     traceCtx.globalAlpha = 0.72;
-                    traceCtx.strokeStyle = SWEEP_TRACE_COLOR;
+                    traceCtx.strokeStyle = derivedSweepColor;
                     traceCtx.lineWidth = 1;
                     traceCtx.beginPath();
                     traceCtx.moveTo(previousSample.x, previousSample.y);
@@ -873,6 +908,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               const outerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitBId);
 
               if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
+                const derivedInterferenceColor = blendHexColors(innerOrbit.color, outerOrbit.color);
                 const substeps = getAdaptiveTraceSteps([innerOrbit, outerOrbit], deltaBeats);
                 const traceOpacityBudget = state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY;
                 const previousInnerPoint = resonancePositionAtBeats(innerOrbit, previousElapsedBeats, cx, cy);
@@ -905,7 +941,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   traceCtx.lineCap = 'round';
                   traceCtx.lineJoin = 'round';
                   traceCtx.globalAlpha = traceOpacityBudget / substeps;
-                  traceCtx.strokeStyle = INTERFERENCE_TRACE_COLOR;
+                  traceCtx.strokeStyle = derivedInterferenceColor;
                   traceCtx.lineWidth = 1;
                   traceCtx.beginPath();
                   traceCtx.moveTo(previousPoint.x, previousPoint.y);
@@ -986,6 +1022,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           : currentInnerPoint && currentOuterPoint
             ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
             : null;
+        const derivedPairColor = blendHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color);
 
         const visibleOrbits =
           (isInterferenceMode || isSweepMode) && currentInnerOrbit && currentOuterOrbit
@@ -1155,9 +1192,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             currentInterferencePoint.y,
             16,
           );
-          grad.addColorStop(0, '#32CD32AA');
-          grad.addColorStop(0.5, '#32CD3233');
-          grad.addColorStop(1, '#32CD3200');
+          grad.addColorStop(0, `${derivedPairColor}AA`);
+          grad.addColorStop(0.5, `${derivedPairColor}33`);
+          grad.addColorStop(1, `${derivedPairColor}00`);
           ctx.fillStyle = grad;
           ctx.beginPath();
           ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 16, 0, TAU);
@@ -1167,7 +1204,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.save();
           ctx.beginPath();
           ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 3, 0, TAU);
-          ctx.fillStyle = isSweepMode ? SWEEP_TRACE_COLOR : INTERFERENCE_TRACE_COLOR;
+          ctx.fillStyle = derivedPairColor;
           ctx.fill();
           ctx.restore();
         }

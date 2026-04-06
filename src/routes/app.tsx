@@ -2697,6 +2697,7 @@ function OrbitalPolymeter() {
             quickOrbitControls={desktopQuickOrbitControls}
             onAdjustQuickOrbit={handleAdjustQuickOrbit}
             onSetQuickOrbit={handleSetQuickOrbit}
+            onOpenOrbitEditor={handleOpenOrbitEditor}
             onGeometryModeChange={handleGeometryModeChange}
             onReverseDirections={handleReverseDirections}
             onAllClockwise={handleAllClockwise}
@@ -3866,6 +3867,7 @@ function OrbitalPolymeter() {
           quickOrbitControls={desktopQuickOrbitControls}
           onAdjustQuickOrbit={handleAdjustQuickOrbit}
           onSetQuickOrbit={handleSetQuickOrbit}
+          onOpenOrbitEditor={handleOpenOrbitEditor}
           onGeometryModeChange={handleGeometryModeChange}
           onReverseDirections={handleReverseDirections}
           onAllClockwise={handleAllClockwise}

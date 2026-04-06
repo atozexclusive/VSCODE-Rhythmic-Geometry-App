@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState } from 'react';
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
@@ -31,6 +31,7 @@ interface TransportBarProps {
   }>;
   onAdjustQuickOrbit: (orbitId: string, delta: number) => void;
   onSetQuickOrbit: (orbitId: string, pulseCount: number) => void;
+  onOpenOrbitEditor: (orbitId: string) => void;
   onGeometryModeChange: (mode: GeometryMode) => void;
   onReverseDirections: () => void;
   onAllClockwise: () => void;
@@ -72,6 +73,7 @@ export default function TransportBar({
   quickOrbitControls,
   onAdjustQuickOrbit,
   onSetQuickOrbit,
+  onOpenOrbitEditor,
   onGeometryModeChange,
   onReverseDirections,
   onAllClockwise,
@@ -489,9 +491,31 @@ export default function TransportBar({
                           }}
                         >
                           <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: orbit.color }}>
-                              {orbit.label}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onOpenOrbitEditor(orbit.id)}
+                                className="text-[10px] font-mono uppercase tracking-wider"
+                                style={{ color: orbit.color }}
+                                title={`Edit ${orbit.label} color`}
+                              >
+                                {orbit.label}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onOpenOrbitEditor(orbit.id)}
+                                className="flex h-6 w-6 items-center justify-center rounded-md"
+                                style={{
+                                  color: orbit.color,
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                                }}
+                                title={`Open ${orbit.label} color picker`}
+                                aria-label={`Open ${orbit.label} color picker`}
+                              >
+                                <Palette size={12} />
+                              </button>
+                            </div>
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
