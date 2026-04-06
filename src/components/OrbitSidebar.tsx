@@ -1111,6 +1111,55 @@ export default function OrbitSidebar({
                     </select>
                   </div>
 
+                  {geometryMode === 'sweep' && orbits.length >= 3 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        Sweep C
+                      </label>
+                      <select
+                        value={interferenceSettings.sourceOrbitCId ?? ''}
+                        onChange={(e) => onInterferenceSettingsChange({ sourceOrbitCId: e.target.value || null })}
+                        className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
+                        style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                      >
+                        <option value="" style={{ background: '#181820' }}>
+                          None · Keep pair sweep
+                        </option>
+                        {orbits.map((orbit, index) => (
+                          <option key={orbit.id} value={orbit.id} style={{ background: '#181820' }}>
+                            Orbit {index + 1} · {orbit.pulseCount} pulses
+                          </option>
+                        ))}
+                      </select>
+                      {interferenceSettings.sourceOrbitCId ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => onInterferenceSettingsChange({ sourceOrbitCId: null })}
+                            className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                            style={{
+                              background: 'rgba(255, 170, 0, 0.08)',
+                              border: '1px solid rgba(255, 170, 0, 0.2)',
+                              color: '#FFAA00',
+                            }}
+                          >
+                            Disable Triad
+                          </button>
+                          <button
+                            onClick={() => onDeleteOrbit(interferenceSettings.sourceOrbitCId!)}
+                            className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                            style={{
+                              background: 'rgba(255, 70, 110, 0.08)',
+                              border: '1px solid rgba(255, 70, 110, 0.18)',
+                              color: 'rgba(255, 120, 150, 0.92)',
+                            }}
+                          >
+                            Delete Sweep C
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
                   <button
                     onClick={() => onInterferenceSettingsChange({ showConnectors: !interferenceSettings.showConnectors })}
                     className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"

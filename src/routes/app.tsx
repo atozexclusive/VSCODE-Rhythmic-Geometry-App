@@ -183,6 +183,7 @@ type SceneOrbitSnapshot = Omit<Orbit, 'id' | 'phase' | 'lastTriggerBeat'>;
 interface SceneInterferenceSettings {
   sourceOrbitAIndex: number | null;
   sourceOrbitBIndex: number | null;
+  sourceOrbitCIndex?: number | null;
   showConnectors: boolean;
 }
 
@@ -547,6 +548,45 @@ function buildModeAwarePulses(
   const cap = options?.extended ? 100 : 10;
 
   if (mode === 'sweep') {
+    if (count >= 3) {
+      const strategy = randomInt(0, 4);
+      if (strategy === 0) {
+        const low = randomInt(2, options?.extended ? 10 : 4);
+        const mid = randomInt(options?.extended ? 12 : 5, options?.extended ? 34 : 7);
+        const high = randomInt(options?.extended ? 40 : 7, cap);
+        return [low, mid, high].sort((a, b) => a - b);
+      }
+      if (strategy === 1) {
+        const values = pickSpacedRandomValues(3, {
+          min: 2,
+          max: cap,
+          minGap: options?.extended ? 8 : 2,
+          bias: options?.extended ? 'mixed' : 'high',
+        });
+        return values.sort((a, b) => a - b);
+      }
+      if (strategy === 2) {
+        const base = randomInt(options?.extended ? 6 : 3, options?.extended ? 16 : 5);
+        const step = randomInt(options?.extended ? 6 : 2, options?.extended ? 18 : 3);
+        return [
+          base,
+          clamp(base + step, base + 1, cap - 1),
+          clamp(base + step * 2, base + 2, cap),
+        ].sort((a, b) => a - b);
+      }
+      if (strategy === 3) {
+        const low = randomInt(2, options?.extended ? 8 : 3);
+        const high = randomInt(options?.extended ? 45 : 7, cap);
+        const mid = clamp(Math.round((low + high) / 2), low + 1, high - 1);
+        return [low, mid, high].sort((a, b) => a - b);
+      }
+      return buildBroadRandomPulseCounts(count, {
+        extended: options?.extended,
+      })
+        .slice(0, count)
+        .sort((a, b) => a - b);
+    }
+
     const strategy = randomInt(0, 4);
     if (strategy === 0) {
       return [randomInt(2, options?.extended ? 10 : 4), randomInt(options?.extended ? 78 : 7, cap)].sort((a, b) => a - b);
@@ -1393,6 +1433,7 @@ function normalizeSceneInterferenceSettings(
     return {
       sourceOrbitAIndex: null,
       sourceOrbitBIndex: null,
+      sourceOrbitCIndex: null,
       showConnectors: settings?.showConnectors ?? true,
     };
   }
@@ -1401,6 +1442,7 @@ function normalizeSceneInterferenceSettings(
     return {
       sourceOrbitAIndex: 0,
       sourceOrbitBIndex: null,
+      sourceOrbitCIndex: null,
       showConnectors: settings?.showConnectors ?? true,
     };
   }
@@ -1410,14 +1452,23 @@ function normalizeSceneInterferenceSettings(
 
   let sourceOrbitAIndex = safeIndex(settings?.sourceOrbitAIndex) ?? 0;
   let sourceOrbitBIndex = safeIndex(settings?.sourceOrbitBIndex) ?? 1;
+  let sourceOrbitCIndex = safeIndex(settings?.sourceOrbitCIndex) ?? null;
 
   if (sourceOrbitAIndex === sourceOrbitBIndex) {
     sourceOrbitBIndex = sourceOrbitAIndex === 0 ? 1 : 0;
   }
 
+  if (
+    sourceOrbitCIndex != null &&
+    (sourceOrbitCIndex === sourceOrbitAIndex || sourceOrbitCIndex === sourceOrbitBIndex)
+  ) {
+    sourceOrbitCIndex = null;
+  }
+
   return {
     sourceOrbitAIndex,
     sourceOrbitBIndex,
+    sourceOrbitCIndex,
     showConnectors: settings?.showConnectors ?? true,
   };
 }
@@ -1432,6 +1483,8 @@ function resolveLiveInterferenceSettings(
       normalizedScene.sourceOrbitAIndex != null ? orbits[normalizedScene.sourceOrbitAIndex]?.id ?? null : null,
     sourceOrbitBId:
       normalizedScene.sourceOrbitBIndex != null ? orbits[normalizedScene.sourceOrbitBIndex]?.id ?? null : null,
+    sourceOrbitCId:
+      normalizedScene.sourceOrbitCIndex != null ? orbits[normalizedScene.sourceOrbitCIndex]?.id ?? null : null,
     showConnectors: normalizedScene.showConnectors,
   });
 }
@@ -1444,6 +1497,10 @@ function serializeInterferenceSettings(
   return normalizeSceneInterferenceSettings(orbits.length, {
     sourceOrbitAIndex: orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitAId),
     sourceOrbitBIndex: orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitBId),
+    sourceOrbitCIndex:
+      normalized.sourceOrbitCId != null
+        ? orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitCId)
+        : null,
     showConnectors: normalized.showConnectors,
   });
 }
@@ -2041,9 +2098,11 @@ function OrbitalPolymeter() {
     (id: string) => {
       engineState.orbits = engineState.orbits.filter((o) => o.id !== id);
       setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
+      resetEngine(engineState);
+      handleClearTraces();
       rerender();
     },
-    [engineState, rerender],
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleAddOrbit = useCallback(() => {
@@ -2065,9 +2124,19 @@ function OrbitalPolymeter() {
       harmonyRegister: 0,
     });
     engineState.orbits.push(newOrbit);
-    setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
+    setInterferenceSettings((current) =>
+      normalizeInterferenceSettings(engineState.orbits, {
+        ...current,
+        sourceOrbitCId:
+          geometryMode === 'sweep' && !current.sourceOrbitCId
+            ? newOrbit.id
+            : current.sourceOrbitCId,
+      }),
+    );
+    resetEngine(engineState);
+    handleClearTraces();
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, geometryMode, handleClearTraces, rerender]);
 
   const handleLoadPreset = useCallback(
     (ratios: number[]) => {
@@ -2117,9 +2186,11 @@ function OrbitalPolymeter() {
           ...updates,
         }),
       );
+      resetEngine(engineState);
       handleClearTraces();
+      rerender();
     },
-    [engineState.orbits, handleClearTraces],
+    [engineState, handleClearTraces, rerender],
   );
 
   const handleReverseDirections = useCallback(() => {
@@ -2215,12 +2286,22 @@ function OrbitalPolymeter() {
     const isExtended = Boolean(options?.extended);
     const isSweepMode = geometryMode === 'sweep';
     const isPatternMode = geometryMode === 'interference-trace';
+    const normalizedCurrentSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+    const hasSweepTriad =
+      isSweepMode &&
+      normalizedCurrentSettings.sourceOrbitCId != null &&
+      normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitAId &&
+      normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitBId;
     const historyKey = `${geometryMode}:${isExtended ? 'plus' : 'base'}`;
     const recentEntries = recentRandomSignaturesRef.current[historyKey] ?? [];
     const nextCount =
       geometryMode === 'standard-trace'
         ? (isExtended ? randomInt(3, 5) : randomInt(3, 5))
-        : 2;
+        : isSweepMode
+          ? hasSweepTriad
+            ? 3
+            : 2
+          : 2;
 
     if (geometryMode === 'standard-trace') {
       if (engineState.orbits.length < nextCount) {
@@ -2255,7 +2336,9 @@ function OrbitalPolymeter() {
       const hasEnoughSpread =
         geometryMode === 'standard-trace'
           ? uniqueNumbers(pulses).length >= Math.max(3, engineState.orbits.length - 1) && maxGap(pulses) >= (isExtended ? 5 : 2)
-          : Math.abs(pulses[1]! - pulses[0]!) >= (isExtended ? 4 : 2);
+          : isSweepMode && engineState.orbits.length >= 3
+            ? uniqueNumbers(pulses).length >= 3 && maxGap(pulses) >= (isExtended ? 8 : 2)
+            : Math.abs(pulses[1]! - pulses[0]!) >= (isExtended ? 4 : 2);
       if (hasEnoughSpread && !shouldRejectCandidate(candidate, recentEntries)) {
         break;
       }
@@ -2281,10 +2364,14 @@ function OrbitalPolymeter() {
     const useManualOrbitRoles = useKeyedHarmony && (isExtended ? Math.random() > 0.7 : Math.random() > 0.45);
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
     const harmonyAssignments = buildHarmonyAssignments(engineState.orbits.length, scaleLength, options);
-    const pairCandidates =
-      engineState.orbits.length <= 2
-        ? [0, Math.max(1, engineState.orbits.length - 1)]
-        : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index)).slice(0, 2).sort((a, b) => a - b);
+    const selectedCandidates =
+      geometryMode === 'standard-trace'
+        ? []
+        : engineState.orbits.length <= 2
+          ? [0, Math.max(1, engineState.orbits.length - 1)]
+          : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index))
+              .slice(0, isSweepMode && hasSweepTriad ? 3 : 2)
+              .sort((a, b) => a - b);
 
     engineState.orbits.forEach((orbit, index) => {
       orbit.pulseCount = pulses[index];
@@ -2309,8 +2396,12 @@ function OrbitalPolymeter() {
     setInterferenceSettings((current) =>
       normalizeInterferenceSettings(engineState.orbits, {
         ...current,
-        sourceOrbitAId: engineState.orbits[pairCandidates[0]]?.id,
-        sourceOrbitBId: engineState.orbits[pairCandidates[1]]?.id,
+        sourceOrbitAId: engineState.orbits[selectedCandidates[0]]?.id,
+        sourceOrbitBId: engineState.orbits[selectedCandidates[1]]?.id,
+        sourceOrbitCId:
+          isSweepMode && hasSweepTriad
+            ? engineState.orbits[selectedCandidates[2] ?? 2]?.id ?? null
+            : null,
         showConnectors: isSweepMode ? false : isPatternMode ? true : isExtended ? Math.random() > 0.35 : Math.random() > 0.5,
       }),
     );
@@ -2322,7 +2413,7 @@ function OrbitalPolymeter() {
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     rerender();
-  }, [engineState, geometryMode, handleClearTraces, rerender]);
+  }, [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender]);
 
   const handleRandomPattern = useCallback(() => {
     applyRandomPattern();
@@ -2595,10 +2686,23 @@ function OrbitalPolymeter() {
   }, []);
 
   const normalizedPairSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+  const hasSweepTriad =
+    geometryMode === 'sweep' &&
+    normalizedPairSettings.sourceOrbitCId != null &&
+    normalizedPairSettings.sourceOrbitCId !== normalizedPairSettings.sourceOrbitAId &&
+    normalizedPairSettings.sourceOrbitCId !== normalizedPairSettings.sourceOrbitBId;
+  const canAddSweepOrbit =
+    geometryMode === 'sweep' &&
+    !hasSweepTriad &&
+    engineState.orbits.length < 6;
   const activePairControls = (
     geometryMode === 'standard-trace'
       ? []
-      : [normalizedPairSettings.sourceOrbitAId, normalizedPairSettings.sourceOrbitBId]
+      : [
+          normalizedPairSettings.sourceOrbitAId,
+          normalizedPairSettings.sourceOrbitBId,
+          ...(hasSweepTriad ? [normalizedPairSettings.sourceOrbitCId] : []),
+        ]
           .filter((orbitId): orbitId is string => Boolean(orbitId))
           .map((orbitId, index) => {
             const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
@@ -2607,7 +2711,16 @@ function OrbitalPolymeter() {
             }
             return {
               id: orbit.id,
-              label: index === 0 ? 'Pair A' : 'Pair B',
+              label:
+                geometryMode === 'sweep'
+                  ? index === 0
+                    ? 'Sweep A'
+                    : index === 1
+                      ? 'Sweep B'
+                      : 'Sweep C'
+                  : index === 0
+                    ? 'Pair A'
+                    : 'Pair B',
               pulseCount: orbit.pulseCount,
               color: orbit.color,
             };
@@ -2650,7 +2763,9 @@ function OrbitalPolymeter() {
       ? 'Shared multi-orbit string field.'
       : geometryMode === 'interference-trace'
         ? 'Live derived path from the selected pair.'
-        : 'Finite sampled sweep from the selected pair.';
+        : hasSweepTriad
+          ? 'Finite sampled sweep from the selected triad.'
+          : 'Finite sampled sweep from the selected pair.';
   const allClockwise = engineState.orbits.every((orbit) => orbit.direction === 1);
   const presentationSoundLabel = muted
     ? 'Muted'
@@ -2985,12 +3100,12 @@ function OrbitalPolymeter() {
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
                       Layers
                     </div>
-                    {geometryMode === 'standard-trace' && (
+                    {(geometryMode === 'standard-trace' || canAddSweepOrbit) && (
                       <button
                         onClick={handleAddOrbit}
                         className="h-10 w-10 rounded-xl flex items-center justify-center"
                         style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
-                        title="Add layer"
+                        title={geometryMode === 'sweep' ? 'Add sweep layer' : 'Add layer'}
                       >
                         <Plus size={16} />
                       </button>
@@ -3065,6 +3180,16 @@ function OrbitalPolymeter() {
                                 className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
                                 style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                                 title={`Remove ${layerLabel}`}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                            {geometryMode === 'sweep' && orbit.label === 'Sweep C' && (
+                              <button
+                                onClick={() => handleDeleteOrbit(orbit.id)}
+                                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                                style={{ color: 'rgba(255,120,150,0.92)', background: 'rgba(255,70,110,0.08)', border: '1px solid rgba(255,70,110,0.16)' }}
+                                title={`Delete ${layerLabel}`}
                               >
                                 <Trash2 size={14} />
                               </button>

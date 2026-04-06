@@ -35,7 +35,9 @@ const SWEEP_STEPS = 3000;
 const SWEEP_COMPLETION_BEATS = 48;
 const SWEEP_INNER_RADIUS = 1;
 const SWEEP_OUTER_RADIUS = 2;
+const SWEEP_THIRD_RADIUS = 3;
 const SWEEP_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS;
+const SWEEP_TRIAD_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS + SWEEP_THIRD_RADIUS;
 const MAX_BLOOM_SPEED = 3;
 
 function blendHexColors(colorA?: string, colorB?: string): string {
@@ -70,6 +72,14 @@ function blendHexColors(colorA?: string, colorB?: string): string {
   return `#${toHex(Math.round((a.r + b.r) / 2))}${toHex(Math.round((a.g + b.g) / 2))}${toHex(
     Math.round((a.b + b.b) / 2),
   )}`;
+}
+
+function blendMultipleHexColors(...colors: Array<string | null | undefined>): string {
+  const filtered = colors.filter((color): color is string => Boolean(color));
+  if (filtered.length === 0) {
+    return INTERFERENCE_TRACE_COLOR;
+  }
+  return filtered.slice(1).reduce((mixed, color) => blendHexColors(mixed, color), filtered[0]);
 }
 
 const EXPORT_ASPECTS = {
@@ -193,9 +203,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       [],
     );
 
-    const getSweepScale = useCallback((width: number, height: number) => {
+    const getSweepScale = useCallback((width: number, height: number, modelRadius: number = SWEEP_MAX_MODEL_RADIUS) => {
       const margin = 36;
-      return Math.max(1, (Math.min(width, height) / 2 - margin) / SWEEP_MAX_MODEL_RADIUS);
+      return Math.max(1, (Math.min(width, height) / 2 - margin) / modelRadius);
     }, []);
 
     const getStandardLayoutMetrics = useCallback(
@@ -225,7 +235,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const baseVisualRadius =
           geometryModeRef.current === 'interference-trace'
             ? Math.max(maxRadius, interferenceRadiusBudget)
-            : maxRadius;
+            : geometryModeRef.current === 'sweep'
+              ? normalizeInterferenceSettings(engineRef.current.orbits, interferenceSettingsRef.current).sourceOrbitCId
+                ? SWEEP_TRIAD_MAX_MODEL_RADIUS
+                : SWEEP_MAX_MODEL_RADIUS
+              : maxRadius;
         const effectiveVisualRadius = baseVisualRadius + 16;
         const orbitScale = Math.min(1, targetRadius / effectiveVisualRadius);
 
@@ -273,6 +287,52 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         };
 
         return { innerPoint, outerPoint, sweepPoint };
+      },
+      [],
+    );
+
+    const getSweepTriadPositions = useCallback(
+      (
+        firstOrbit: Orbit,
+        secondOrbit: Orbit,
+        thirdOrbit: Orbit,
+        t: number,
+        centerX: number,
+        centerY: number,
+        scale: number,
+      ) => {
+        const firstAngle = firstOrbit.direction * firstOrbit.pulseCount * t - Math.PI / 2;
+        const secondAngle = secondOrbit.direction * secondOrbit.pulseCount * t - Math.PI / 2;
+        const thirdAngle = thirdOrbit.direction * thirdOrbit.pulseCount * t - Math.PI / 2;
+
+        const firstPoint = {
+          x: centerX + SWEEP_INNER_RADIUS * Math.cos(firstAngle) * scale,
+          y: centerY + SWEEP_INNER_RADIUS * Math.sin(firstAngle) * scale,
+        };
+        const secondPoint = {
+          x: centerX + SWEEP_OUTER_RADIUS * Math.cos(secondAngle) * scale,
+          y: centerY + SWEEP_OUTER_RADIUS * Math.sin(secondAngle) * scale,
+        };
+        const thirdPoint = {
+          x: centerX + SWEEP_THIRD_RADIUS * Math.cos(thirdAngle) * scale,
+          y: centerY + SWEEP_THIRD_RADIUS * Math.sin(thirdAngle) * scale,
+        };
+        const sweepPoint = {
+          x:
+            centerX +
+            (SWEEP_INNER_RADIUS * Math.cos(firstAngle) -
+              SWEEP_OUTER_RADIUS * Math.cos(secondAngle) +
+              SWEEP_THIRD_RADIUS * Math.cos(thirdAngle)) *
+              scale,
+          y:
+            centerY +
+            (SWEEP_INNER_RADIUS * Math.sin(firstAngle) -
+              SWEEP_OUTER_RADIUS * Math.sin(secondAngle) +
+              SWEEP_THIRD_RADIUS * Math.sin(thirdAngle)) *
+              scale,
+        };
+
+        return { firstPoint, secondPoint, thirdPoint, sweepPoint };
       },
       [],
     );
@@ -698,7 +758,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const isSweepMode = geometryModeRef.current === 'sweep';
         const selectedInterferenceOrbitIds = new Set(
           isInterferenceMode || isSweepMode
-            ? [normalizedInterferenceSettings.sourceOrbitAId, normalizedInterferenceSettings.sourceOrbitBId].filter(
+            ? [
+                normalizedInterferenceSettings.sourceOrbitAId,
+                normalizedInterferenceSettings.sourceOrbitBId,
+                normalizedInterferenceSettings.sourceOrbitCId,
+              ].filter(
                 (orbitId): orbitId is string => Boolean(orbitId),
               )
             : [],
@@ -706,6 +770,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         const selectedInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
         const selectedOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
+        const selectedThirdOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitCId);
+        const isSweepTriad = Boolean(
+          isSweepMode &&
+            selectedInnerOrbit &&
+            selectedOuterOrbit &&
+            selectedThirdOrbit &&
+            new Set([selectedInnerOrbit.id, selectedOuterOrbit.id, selectedThirdOrbit.id]).size === 3,
+        );
 
         // Physics tick — returns triggers for every 12 o'clock crossing
         const triggers = tick(state, timestamp, cx, cy);
@@ -758,8 +830,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ) {
           const previousT = (previousElapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
           const currentT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
-          const sweepScale = getSweepScale(w, h);
-          const selectedSweepOrbits = [selectedInnerOrbit, selectedOuterOrbit];
+          const sweepScale = getSweepScale(
+            w,
+            h,
+            isSweepTriad ? SWEEP_TRIAD_MAX_MODEL_RADIUS : SWEEP_MAX_MODEL_RADIUS,
+          );
+          const selectedSweepOrbits = isSweepTriad && selectedThirdOrbit
+            ? [selectedInnerOrbit, selectedOuterOrbit, selectedThirdOrbit]
+            : [selectedInnerOrbit, selectedOuterOrbit];
 
           for (const sweepOrbit of selectedSweepOrbits) {
             const previousRotationCount = Math.floor((Math.abs(sweepOrbit.pulseCount) * previousT) / TAU);
@@ -770,18 +848,35 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
               for (let rotationIndex = previousRotationCount + 1; rotationIndex <= currentRotationCount; rotationIndex++) {
                 const triggerT = (rotationIndex * TAU) / Math.abs(sweepOrbit.pulseCount);
-                const sweepPositions = getSweepPositions(
-                  selectedInnerOrbit,
-                  selectedOuterOrbit,
-                  triggerT,
-                  cx,
-                  cy,
-                  sweepScale,
-                );
                 const triggerPoint =
-                  sweepOrbit.id === selectedInnerOrbit.id
-                    ? sweepPositions.innerPoint
-                    : sweepPositions.outerPoint;
+                  isSweepTriad && selectedThirdOrbit
+                    ? (() => {
+                        const triadPositions = getSweepTriadPositions(
+                          selectedInnerOrbit,
+                          selectedOuterOrbit,
+                          selectedThirdOrbit,
+                          triggerT,
+                          cx,
+                          cy,
+                          sweepScale,
+                        );
+                        return sweepOrbit.id === selectedInnerOrbit.id
+                          ? triadPositions.firstPoint
+                          : sweepOrbit.id === selectedOuterOrbit.id
+                            ? triadPositions.secondPoint
+                            : triadPositions.thirdPoint;
+                      })()
+                    : (() => {
+                        const pairPositions = getSweepPositions(
+                          selectedInnerOrbit,
+                          selectedOuterOrbit,
+                          triggerT,
+                          cx,
+                          cy,
+                          sweepScale,
+                        );
+                        return sweepOrbit.id === selectedInnerOrbit.id ? pairPositions.innerPoint : pairPositions.outerPoint;
+                      })();
 
                 if (orbitIndex >= 0) {
                   playResonanceBeep(
@@ -791,7 +886,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                       radius:
                         sweepOrbit.id === selectedInnerOrbit.id
                           ? SWEEP_INNER_RADIUS * sweepScale
-                          : SWEEP_OUTER_RADIUS * sweepScale,
+                          : sweepOrbit.id === selectedOuterOrbit.id
+                            ? SWEEP_OUTER_RADIUS * sweepScale
+                            : SWEEP_THIRD_RADIUS * sweepScale,
                       color: sweepOrbit.color,
                       harmonyDegree: sweepOrbit.harmonyDegree,
                       harmonyRegister: sweepOrbit.harmonyRegister,
@@ -863,28 +960,53 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             if (isSweepMode) {
               const innerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
               const outerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
+              const thirdOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitCId);
+              const hasSweepTriad = Boolean(
+                innerOrbit &&
+                  outerOrbit &&
+                  thirdOrbit &&
+                  new Set([innerOrbit.id, outerOrbit.id, thirdOrbit.id]).size === 3,
+              );
 
               if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
-                const derivedSweepColor = blendHexColors(innerOrbit.color, outerOrbit.color);
+                const derivedSweepColor = hasSweepTriad && thirdOrbit
+                  ? blendMultipleHexColors(innerOrbit.color, outerOrbit.color, thirdOrbit.color)
+                  : blendHexColors(innerOrbit.color, outerOrbit.color);
                 const previousProgress = Math.min(previousElapsedBeats / SWEEP_COMPLETION_BEATS, 1);
                 const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
                 const previousIndex = Math.floor(previousProgress * SWEEP_STEPS);
                 const currentIndex = Math.floor(currentProgress * SWEEP_STEPS);
-                const sweepScale = getSweepScale(w, h);
+                const sweepScale = getSweepScale(
+                  w,
+                  h,
+                  hasSweepTriad ? SWEEP_TRIAD_MAX_MODEL_RADIUS : SWEEP_MAX_MODEL_RADIUS,
+                );
 
                 if (currentIndex > previousIndex) {
-                  let previousSample = getSweepPositions(
-                    innerOrbit,
-                    outerOrbit,
-                    (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
-                    cx,
-                    cy,
-                    sweepScale,
-                  ).sweepPoint;
+                  let previousSample = hasSweepTriad && thirdOrbit
+                    ? getSweepTriadPositions(
+                        innerOrbit,
+                        outerOrbit,
+                        thirdOrbit,
+                        (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
+                        cx,
+                        cy,
+                        sweepScale,
+                      ).sweepPoint
+                    : getSweepPositions(
+                        innerOrbit,
+                        outerOrbit,
+                        (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
+                        cx,
+                        cy,
+                        sweepScale,
+                      ).sweepPoint;
 
                   for (let sampleIndex = previousIndex + 1; sampleIndex <= currentIndex; sampleIndex++) {
                     const t = (sampleIndex / SWEEP_STEPS) * SWEEP_DURATION;
-                    const currentSample = getSweepPositions(innerOrbit, outerOrbit, t, cx, cy, sweepScale).sweepPoint;
+                    const currentSample = hasSweepTriad && thirdOrbit
+                      ? getSweepTriadPositions(innerOrbit, outerOrbit, thirdOrbit, t, cx, cy, sweepScale).sweepPoint
+                      : getSweepPositions(innerOrbit, outerOrbit, t, cx, cy, sweepScale).sweepPoint;
 
                     traceCtx.save();
                     traceCtx.lineCap = 'round';
@@ -1005,29 +1127,50 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         const currentInnerOrbit = selectedInnerOrbit;
         const currentOuterOrbit = selectedOuterOrbit;
-        const sweepScale = getSweepScale(w, h);
+        const currentThirdOrbit = selectedThirdOrbit;
+        const sweepScale = getSweepScale(
+          w,
+          h,
+          isSweepTriad ? SWEEP_TRIAD_MAX_MODEL_RADIUS : SWEEP_MAX_MODEL_RADIUS,
+        );
         const sweepT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
-        const sweepPositions =
+        const pairSweepPositions =
           isSweepMode && currentInnerOrbit && currentOuterOrbit && currentInnerOrbit.id !== currentOuterOrbit.id
             ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, cx, cy, sweepScale)
             : null;
+        const triadSweepPositions =
+          isSweepTriad && currentInnerOrbit && currentOuterOrbit && currentThirdOrbit
+            ? getSweepTriadPositions(currentInnerOrbit, currentOuterOrbit, currentThirdOrbit, sweepT, cx, cy, sweepScale)
+            : null;
+        const sweepPositions = triadSweepPositions ?? pairSweepPositions;
         const currentInnerPoint = currentInnerOrbit
-          ? sweepPositions?.innerPoint ?? scalePointFromCenter(resonancePosition(currentInnerOrbit, cx, cy), cx, cy, orbitScale)
+          ? (triadSweepPositions?.firstPoint ?? pairSweepPositions?.innerPoint) ??
+            scalePointFromCenter(resonancePosition(currentInnerOrbit, cx, cy), cx, cy, orbitScale)
           : null;
         const currentOuterPoint = currentOuterOrbit
-          ? sweepPositions?.outerPoint ?? scalePointFromCenter(resonancePosition(currentOuterOrbit, cx, cy), cx, cy, orbitScale)
+          ? (triadSweepPositions?.secondPoint ?? pairSweepPositions?.outerPoint) ??
+            scalePointFromCenter(resonancePosition(currentOuterOrbit, cx, cy), cx, cy, orbitScale)
+          : null;
+        const currentThirdPoint = currentThirdOrbit
+          ? (triadSweepPositions?.thirdPoint ?? null) ??
+            scalePointFromCenter(resonancePosition(currentThirdOrbit, cx, cy), cx, cy, orbitScale)
           : null;
         const currentInterferencePoint = sweepPositions
           ? sweepPositions.sweepPoint
           : currentInnerPoint && currentOuterPoint
             ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
             : null;
-        const derivedPairColor = blendHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color);
+        const derivedPairColor = isSweepTriad
+          ? blendMultipleHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color, currentThirdOrbit?.color)
+          : blendHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color);
 
         const visibleOrbits =
           (isInterferenceMode || isSweepMode) && currentInnerOrbit && currentOuterOrbit
             ? state.orbits.filter(
-                (orbit) => orbit.id === currentInnerOrbit.id || orbit.id === currentOuterOrbit.id,
+                (orbit) =>
+                  orbit.id === currentInnerOrbit.id ||
+                  orbit.id === currentOuterOrbit.id ||
+                  (isSweepTriad && orbit.id === currentThirdOrbit?.id),
               )
             : state.orbits;
         const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
@@ -1040,6 +1183,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ? SWEEP_INNER_RADIUS * sweepScale
             : isSweepOuterOrbit
               ? SWEEP_OUTER_RADIUS * sweepScale
+              : isSweepMode && currentThirdOrbit?.id === orbit.id
+                ? SWEEP_THIRD_RADIUS * sweepScale
               : orbit.radius * orbitScale;
           const isHoveredOrbit = hoveredOrbitId === orbit.id;
 
@@ -1088,6 +1233,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               ? currentInnerPoint
               : orbit.id === currentOuterOrbit?.id && currentOuterPoint
                 ? currentOuterPoint
+                : orbit.id === currentThirdOrbit?.id && currentThirdPoint
+                  ? currentThirdPoint
                 : scalePointFromCenter(resonancePosition(orbit, cx, cy), cx, cy, orbitScale);
 
           if (isHoveredOrbit) {
@@ -1179,6 +1326,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.moveTo(currentOuterPoint.x, currentOuterPoint.y);
           ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
           ctx.stroke();
+          if (isSweepTriad && currentThirdPoint) {
+            ctx.strokeStyle = currentThirdOrbit?.color ?? '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(currentThirdPoint.x, currentThirdPoint.y);
+            ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
+            ctx.stroke();
+          }
           ctx.restore();
         }
 
