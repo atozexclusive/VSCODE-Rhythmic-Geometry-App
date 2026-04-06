@@ -1633,8 +1633,10 @@ function OrbitalPolymeter() {
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
+  const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const guideCalloutRef = useRef<HTMLDivElement | null>(null);
   const captureLoadedRef = useRef(false);
   const siteSceneLoadedRef = useRef(false);
   const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
@@ -1647,10 +1649,16 @@ function OrbitalPolymeter() {
         minHeight: '540px',
       } as const)
     : undefined;
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const guideCalloutHeight = isMobile ? 230 : 220;
+  const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
+  const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
+  const guideCalloutHeight = isMobile ? guideMeasuredHeight : 220;
   const guideCalloutWidth = isMobile ? Math.max(320, viewportWidth - 24) : 360;
+  const mobileChevronButtonBaseStyle = {
+    background: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.14)',
+    color: 'rgba(255,255,255,0.88)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  } as const;
   const guideCalloutStyle = (() => {
     const base = {
       background: 'rgba(17, 17, 22, 0.92)',
@@ -1665,15 +1673,31 @@ function OrbitalPolymeter() {
     }
 
     if (isMobile) {
-      const fitsBelow = guideRect.bottom + guideCalloutHeight + 28 < viewportHeight;
-      return {
-        ...base,
-        left: 12,
-        right: 12,
-        top: fitsBelow ? Math.min(viewportHeight - guideCalloutHeight - 24, guideRect.bottom + 18) : undefined,
-        bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
-      };
-    }
+      const safePadding = 12;
+      const maxHeight = Math.max(220, viewportHeight - safePadding * 2);
+      const preferredBelowTop = guideRect.bottom + 18;
+      const preferredAboveTop = guideRect.top - guideCalloutHeight - 18;
+      const fitsBelow = preferredBelowTop + guideCalloutHeight <= viewportHeight - safePadding;
+      const fitsAbove = preferredAboveTop >= safePadding;
+      const preferredTop = fitsBelow
+        ? preferredBelowTop
+        : fitsAbove
+          ? preferredAboveTop
+          : guideRect.top + guideRect.height / 2 - guideCalloutHeight / 2;
+      const clampedTop = Math.min(
+        Math.max(safePadding, preferredTop),
+        Math.max(safePadding, viewportHeight - guideCalloutHeight - safePadding),
+      );
+
+        return {
+          ...base,
+          left: 12,
+          right: 12,
+          top: clampedTop,
+          maxHeight,
+          overflowY: 'auto' as const,
+        };
+      }
 
     const canFitRight = guideRect.right + guideCalloutWidth + 32 < viewportWidth;
     const canFitLeft = guideRect.left - guideCalloutWidth - 32 > 0;
@@ -1796,6 +1820,27 @@ function OrbitalPolymeter() {
     return () => {
       window.removeEventListener('resize', updateGuideRect);
       window.removeEventListener('scroll', updateGuideRect, true);
+    };
+  }, [currentGuideStep, helpOpen]);
+
+  useEffect(() => {
+    if (!helpOpen) {
+      return;
+    }
+
+    const updateGuideHeight = () => {
+      const nextHeight = guideCalloutRef.current?.getBoundingClientRect().height;
+      if (nextHeight) {
+        setGuideMeasuredHeight(nextHeight);
+      }
+    };
+
+    updateGuideHeight();
+    window.addEventListener('resize', updateGuideHeight);
+    window.visualViewport?.addEventListener('resize', updateGuideHeight);
+    return () => {
+      window.removeEventListener('resize', updateGuideHeight);
+      window.visualViewport?.removeEventListener('resize', updateGuideHeight);
     };
   }, [currentGuideStep, helpOpen]);
 
@@ -2848,11 +2893,17 @@ function OrbitalPolymeter() {
                       event.stopPropagation();
                       setMobileCustomizeOpen((open) => !open);
                     }}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: mobileCustomizeOpen ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
+                      border: mobileCustomizeOpen ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
+                      color: mobileCustomizeOpen ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
+                    }}
                     aria-label={mobileCustomizeOpen ? 'Collapse customize pattern' : 'Expand customize pattern'}
+                    title={mobileCustomizeOpen ? 'Collapse section' : 'Expand section'}
                   >
-                    {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                      {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
                 </div>
               </div>
@@ -3085,12 +3136,20 @@ function OrbitalPolymeter() {
                     Random+
                   </button>
                   <button
-                    onClick={() => setMobileScenesOpen((open) => !open)}
                     type="button"
-                    onClickCapture={(event) => event.stopPropagation()}
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.62)' }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMobileScenesOpen((open) => !open);
+                    }}
+                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: mobileScenesOpen ? 'rgba(51,136,255,0.12)' : mobileChevronButtonBaseStyle.background,
+                      border: mobileScenesOpen ? '1px solid rgba(51,136,255,0.22)' : mobileChevronButtonBaseStyle.border,
+                      color: mobileScenesOpen ? '#88CCFF' : mobileChevronButtonBaseStyle.color,
+                    }}
                     aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
+                    title={mobileScenesOpen ? 'Collapse section' : 'Expand section'}
                   >
                     {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
@@ -3196,9 +3255,15 @@ function OrbitalPolymeter() {
                       event.stopPropagation();
                       setMobileSoundOpen((open) => !open);
                     }}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: mobileSoundOpen ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
+                      border: mobileSoundOpen ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
+                      color: mobileSoundOpen ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
+                    }}
                     aria-label={mobileSoundOpen ? 'Collapse sound' : 'Expand sound'}
+                    title={mobileSoundOpen ? 'Collapse section' : 'Expand section'}
                   >
                     {mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </button>
@@ -3251,7 +3316,7 @@ function OrbitalPolymeter() {
         {helpOpen && !presentationMode && currentGuideStep && (
           <>
             <div
-              className="fixed inset-0 z-30 bg-black/38 backdrop-blur-[2px]"
+              className="fixed inset-0 z-30 bg-black/42"
               onClick={closeStartGuide}
             />
             {guideRect && (
@@ -3268,6 +3333,7 @@ function OrbitalPolymeter() {
               />
             )}
             <div
+              ref={guideCalloutRef}
               className="fixed z-40 left-3 right-3 rounded-2xl border p-4"
               style={guideCalloutStyle}
             >
@@ -3465,7 +3531,7 @@ function OrbitalPolymeter() {
       {helpOpen && !presentationMode && currentGuideStep && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-black/38 backdrop-blur-[2px]"
+            className="fixed inset-0 z-30 bg-black/42"
             onClick={closeStartGuide}
           />
           {guideRect && (
@@ -3482,6 +3548,7 @@ function OrbitalPolymeter() {
             />
           )}
           <div
+            ref={guideCalloutRef}
             className={`fixed z-40 rounded-2xl border p-4 ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
             style={guideCalloutStyle}
           >
