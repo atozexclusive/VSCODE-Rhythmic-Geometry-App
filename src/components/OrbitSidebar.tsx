@@ -32,6 +32,12 @@ interface OrbitSidebarProps {
     description: string;
     thumbnailDataUrl?: string;
   }>;
+  premiumScenes: Array<{
+    id: string;
+    name: string;
+    description: string;
+    thumbnailDataUrl?: string;
+  }>;
   savedScenes: Array<{
     id: string;
     name: string;
@@ -80,6 +86,7 @@ export default function OrbitSidebar({
   geometryMode,
   interferenceSettings,
   builtInScenes,
+  premiumScenes,
   savedScenes,
   onClose,
   onUpdateOrbit,
@@ -106,6 +113,7 @@ export default function OrbitSidebar({
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
+  const [activeSceneTab, setActiveSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -518,160 +526,245 @@ export default function OrbitSidebar({
                   Scenes
                 </div>
                 <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
-                  Load built-ins or save the current state locally.
+                  Start from built-ins, keep your own saves, or preview pro-only scene packs.
                 </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Built-In Scenes
-                </div>
-                {builtInScenes.map((scene) => (
-                  <div
-                    key={scene.id}
-                    className="rounded-lg border p-3"
-                    style={sceneCardStyle}
-                    >
-                    {scene.thumbnailDataUrl && (
-                      <div className="mb-3 flex justify-center">
-                        <img
-                          src={scene.thumbnailDataUrl}
-                          alt={`${scene.name} thumbnail`}
-                          className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1"
-                          style={{ background: 'rgba(255,255,255,0.02)' }}
-                        />
-                      </div>
-                    )}
-                    <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
-                      {scene.name}
-                    </div>
-                    <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
-                      {scene.description}
-                    </div>
-                    <button
-                      onClick={() => onLoadBuiltInScene(scene.id)}
-                      className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                      style={{
-                        background: 'rgba(0, 255, 170, 0.08)',
-                        border: '1px solid rgba(0, 255, 170, 0.2)',
-                        color: '#00FFAA',
-                      }}
-                    >
-                      Load Scene
-                    </button>
-                  </div>
+              <div className="rounded-xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+                {[
+                  { key: 'built-in' as const, label: 'Scenes', color: '#00FFAA' },
+                  { key: 'saved' as const, label: 'Saved', color: '#88CCFF' },
+                  { key: 'premium' as const, label: 'Premium', color: '#FFAA00' },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveSceneTab(tab.key)}
+                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
+                    style={{
+                      background: activeSceneTab === tab.key ? `${tab.color}16` : 'transparent',
+                      border: `1px solid ${activeSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
+                      color: activeSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.46)',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
                 ))}
               </div>
 
-              <div className="space-y-3 rounded-lg border p-3" style={sceneCardStyle}>
-                <input
-                  type="text"
-                  value={sceneName}
-                  onChange={(e) => setSceneName(e.target.value)}
-                  placeholder="Scene name"
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                  style={{ color: 'rgba(255, 255, 255, 0.8)' }}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      onSaveSceneAs(sceneName);
-                      setSceneName('');
-                    }}
-                    className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                    style={{
-                      background: 'rgba(0, 255, 170, 0.12)',
-                      border: '1px solid rgba(0, 255, 170, 0.3)',
-                      color: '#00FFAA',
-                    }}
-                  >
-                  Save Scene
-                </button>
-                  <button
-                    onClick={onSaveScene}
-                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: 'rgba(255, 255, 255, 0.7)',
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-[10px] font-mono uppercase tracking-[0.18em] pt-1" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                  Saved Scenes
-                </div>
-                {savedScenes.length === 0 ? (
-                  <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
-                    No saved scenes yet.
-                  </p>
-                ) : (
-                  savedScenes.map((scene) => (
+              {activeSceneTab === 'built-in' && (
+                <div className="space-y-3">
+                  {builtInScenes.map((scene) => (
                     <div
                       key={scene.id}
                       className="rounded-lg border p-3"
-                      style={baseCardStyle}
+                      style={sceneCardStyle}
                     >
                       {scene.thumbnailDataUrl && (
                         <div className="mb-3 flex justify-center">
                           <img
                             src={scene.thumbnailDataUrl}
                             alt={`${scene.name} thumbnail`}
-                            className="w-20 h-20 rounded-lg object-contain border border-white/10 p-1"
+                            className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1"
+                            style={{ background: 'rgba(255,255,255,0.02)' }}
+                          />
+                        </div>
+                      )}
+                      <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
+                        {scene.name}
+                      </div>
+                      <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
+                        {scene.description}
+                      </div>
+                      <button
+                        onClick={() => onLoadBuiltInScene(scene.id)}
+                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(0, 255, 170, 0.08)',
+                          border: '1px solid rgba(0, 255, 170, 0.2)',
+                          color: '#00FFAA',
+                        }}
+                      >
+                        Load Scene
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeSceneTab === 'saved' && (
+                <div className="space-y-3">
+                  <div className="space-y-3 rounded-lg border p-3" style={sceneCardStyle}>
+                    <input
+                      type="text"
+                      value={sceneName}
+                      onChange={(e) => setSceneName(e.target.value)}
+                      placeholder="Scene name"
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          onSaveSceneAs(sceneName);
+                          setSceneName('');
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(0, 255, 170, 0.12)',
+                          border: '1px solid rgba(0, 255, 170, 0.3)',
+                          color: '#00FFAA',
+                        }}
+                      >
+                        Save Scene
+                      </button>
+                      <button
+                        onClick={onSaveScene}
+                        className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          color: 'rgba(255, 255, 255, 0.7)',
+                        }}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  {savedScenes.length === 0 ? (
+                    <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                      No saved scenes yet.
+                    </p>
+                  ) : (
+                    savedScenes.map((scene) => (
+                      <div
+                        key={scene.id}
+                        className="rounded-lg border p-3"
+                        style={baseCardStyle}
+                      >
+                        {scene.thumbnailDataUrl && (
+                          <div className="mb-3 flex justify-center">
+                            <img
+                              src={scene.thumbnailDataUrl}
+                              alt={`${scene.name} thumbnail`}
+                              className="w-20 h-20 rounded-lg object-contain border border-white/10 p-1"
+                              style={{ background: 'rgba(255,255,255,0.02)' }}
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                              {scene.name}
+                            </div>
+                            <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                              {new Date(scene.updatedAt).toLocaleString()}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => onDeleteScene(scene.id)}
+                            className="p-1 rounded transition-colors hover:bg-red-500/10"
+                            style={{ color: 'rgba(255, 99, 132, 0.8)' }}
+                            title="Delete scene"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => onLoadScene(scene.id)}
+                            className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              color: 'rgba(255, 255, 255, 0.7)',
+                            }}
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => onExportScene(scene.id)}
+                            className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                            style={{
+                              background: 'rgba(0, 255, 170, 0.08)',
+                              border: '1px solid rgba(0, 255, 170, 0.2)',
+                              color: '#00FFAA',
+                            }}
+                          >
+                            Export
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeSceneTab === 'premium' && (
+                <div className="space-y-3">
+                  <div
+                    className="rounded-lg border p-3"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,170,0,0.08), rgba(255,255,255,0.025))',
+                      borderColor: 'rgba(255, 170, 0, 0.16)',
+                    }}
+                  >
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: '#FFAA00' }}>
+                      Pro Scenes
+                    </div>
+                    <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
+                      Premium scenes are marked for Pro, but they can still be loaded here as teaser studies.
+                    </p>
+                  </div>
+                  {premiumScenes.map((scene) => (
+                    <div
+                      key={scene.id}
+                      className="rounded-lg border p-3"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.025))',
+                        borderColor: 'rgba(255, 170, 0, 0.14)',
+                      }}
+                    >
+                      {scene.thumbnailDataUrl && (
+                        <div className="mb-3 flex justify-center">
+                          <img
+                            src={scene.thumbnailDataUrl}
+                            alt={`${scene.name} thumbnail`}
+                            className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1 opacity-90"
                             style={{ background: 'rgba(255,255,255,0.02)' }}
                           />
                         </div>
                       )}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                          <div className="text-xs font-mono truncate" style={{ color: 'rgba(255,255,255,0.84)' }}>
                             {scene.name}
                           </div>
-                          <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
-                            {new Date(scene.updatedAt).toLocaleString()}
+                          <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                            {scene.description}
                           </div>
                         </div>
+                        <div
+                          className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.14em]"
+                          style={{ background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)', color: '#FFAA00' }}
+                        >
+                          Pro
+                        </div>
+                      </div>
                       <button
-                        onClick={() => onDeleteScene(scene.id)}
-                        className="p-1 rounded transition-colors hover:bg-red-500/10"
-                          style={{ color: 'rgba(255, 99, 132, 0.8)' }}
-                          title="Delete scene"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => onLoadScene(scene.id)}
-                          className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: 'rgba(255, 255, 255, 0.7)',
-                          }}
-                        >
-                          Load
-                        </button>
-                        <button
-                          onClick={() => onExportScene(scene.id)}
-                          className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                          style={{
-                            background: 'rgba(0, 255, 170, 0.08)',
-                            border: '1px solid rgba(0, 255, 170, 0.2)',
-                            color: '#00FFAA',
-                          }}
-                        >
-                          Export
-                        </button>
-                      </div>
+                        onClick={() => onLoadBuiltInScene(scene.id)}
+                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(255, 170, 0, 0.1)',
+                          border: '1px solid rgba(255, 170, 0, 0.22)',
+                          color: '#FFAA00',
+                        }}
+                      >
+                        Load Preview
+                      </button>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

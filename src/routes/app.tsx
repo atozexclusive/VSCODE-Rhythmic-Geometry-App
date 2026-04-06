@@ -1117,7 +1117,268 @@ export const BUILT_IN_SCENES: BuiltInScene[] = [
   },
 ];
 
-for (const scene of BUILT_IN_SCENES) {
+export const PREMIUM_SCENES: BuiltInScene[] = [
+  {
+    id: 'fib_cascade',
+    name: 'Fib Cascade',
+    description: 'A golden-ratio staircase: 2, 3, 5, 8, 13, 21, 34 arranged into a clean luminous expansion.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 2, radius: 74, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 3, radius: 112, direction: -1, color: '#7CE7FF', harmonyDegree: 1, harmonyRegister: -1 },
+        { pulseCount: 5, radius: 150, direction: 1, color: '#FF6AA2', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 8, radius: 188, direction: -1, color: '#9B7BFF', harmonyDegree: 3, harmonyRegister: 0 },
+        { pulseCount: 13, radius: 226, direction: 1, color: '#6BF5D0', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 21, radius: 264, direction: -1, color: '#FFD166', harmonyDegree: 5, harmonyRegister: 1 },
+        { pulseCount: 34, radius: 302, direction: 1, color: '#3388FF', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.2,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'F',
+        scaleName: 'lydian',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 2, sourceOrbitBIndex: 5, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'auric_bloom',
+    name: 'Velvet Hex',
+    description: 'A six-layer premium field built from soft non-Fibonacci spacing so the weave stays plush and readable.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 6, radius: 82, direction: 1, color: '#72F1B8', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 10, radius: 128, direction: -1, color: '#FF7A7A', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 15, radius: 174, direction: 1, color: '#6CC8FF', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 22, radius: 220, direction: -1, color: '#C084FC', harmonyDegree: 5, harmonyRegister: 0 },
+        { pulseCount: 30, radius: 266, direction: 1, color: '#FFC857', harmonyDegree: 6, harmonyRegister: 1 },
+        { pulseCount: 41, radius: 312, direction: -1, color: '#FF88C2', harmonyDegree: 1, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.2,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'A',
+        scaleName: 'majorPentatonic',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 1, sourceOrbitBIndex: 3, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'cathedral_89',
+    name: 'Meridian Drift',
+    description: 'A tall, glassy premium field built from widening non-Fibonacci gaps that keep the outer skin clean.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 4, radius: 78, direction: 1, color: '#A7F3D0', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 9, radius: 124, direction: -1, color: '#7DD3FC', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 16, radius: 170, direction: 1, color: '#F9A8D4', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 27, radius: 216, direction: -1, color: '#C4B5FD', harmonyDegree: 5, harmonyRegister: 0 },
+        { pulseCount: 43, radius: 262, direction: 1, color: '#FDE68A', harmonyDegree: 6, harmonyRegister: 1 },
+        { pulseCount: 68, radius: 308, direction: -1, color: '#88CCFF', harmonyDegree: 1, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.0,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'C',
+        scaleName: 'lydian',
+        mappingMode: 'pulse-count',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 2, sourceOrbitBIndex: 5, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'prime_constellation_x',
+    name: 'Prime Constellation',
+    description: 'Prime-number spacing with a bright outer starfield and tighter inner lattice.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 2, radius: 80, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 3, radius: 126, direction: -1, color: '#3388FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 5, radius: 172, direction: 1, color: '#FF3366', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 11, radius: 218, direction: -1, color: '#FFD166', harmonyDegree: 6, harmonyRegister: 0 },
+        { pulseCount: 17, radius: 264, direction: 1, color: '#6BF5D0', harmonyDegree: 1, harmonyRegister: 1 },
+        { pulseCount: 29, radius: 310, direction: -1, color: '#9B7BFF', harmonyDegree: 3, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.3,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'A',
+        scaleName: 'dorian',
+        mappingMode: 'pulse-count',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 1, sourceOrbitBIndex: 5, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'tidal_55',
+    name: 'Harmonic Ladder',
+    description: 'A premium harmonic climb that feels architectural rather than chaotic, even with longer cycles.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 6, radius: 90, direction: 1, color: '#6AF0FF', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 12, radius: 138, direction: -1, color: '#FF9B7A', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 18, radius: 186, direction: 1, color: '#7D9CFF', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 27, radius: 234, direction: -1, color: '#72FFE1', harmonyDegree: 5, harmonyRegister: 0 },
+        { pulseCount: 39, radius: 282, direction: 1, color: '#FFE17A', harmonyDegree: 6, harmonyRegister: 1 },
+        { pulseCount: 54, radius: 330, direction: -1, color: '#FF7C8F', harmonyDegree: 1, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 1.9,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'G',
+        scaleName: 'minorPentatonic',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 1, sourceOrbitBIndex: 4, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'centennial_halo',
+    name: 'Twin Comet',
+    description: 'A two-orbit premium interference study with a long uneven pair that stays bright and easy to read.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 24, radius: 154, direction: 1, color: '#7FD7FF', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 73, radius: 292, direction: -1, color: '#FF6699', harmonyDegree: 4, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.7,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'B',
+        scaleName: 'dorian',
+        mappingMode: 'orbit-index',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'interference-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'aurora_interference',
+    name: 'Aurora Interference',
+    description: 'A premium pair study where 34 and 55 weave a luminous interference braid.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 34, radius: 140, direction: 1, color: '#72F1B8', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 55, radius: 260, direction: 1, color: '#88CCFF', harmonyDegree: 4, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.6,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'B',
+        scaleName: 'lydian',
+        mappingMode: 'orbit-index',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'interference-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'sweep_arc_89',
+    name: 'Sweep Arc 89',
+    description: 'A high-range sweep built from 55 and 89 for a clean dramatic figure instead of random clutter.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 55, radius: 150, direction: 1, color: '#FFAA00', harmonyDegree: 0, harmonyRegister: 0 },
+        { pulseCount: 89, radius: 290, direction: 1, color: '#3388FF', harmonyDegree: 4, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.8,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'D',
+        scaleName: 'wholeTone',
+        mappingMode: 'pulse-count',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'sweep',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: false },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'spiral_ledger',
+    name: 'Spiral Ledger',
+    description: 'Asymmetric higher-ratio spacing that still resolves into a readable premium field.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 7, radius: 86, direction: 1, color: '#A2FFE3', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 12, radius: 132, direction: -1, color: '#7AD7FF', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 19, radius: 178, direction: 1, color: '#FFA3CF', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 31, radius: 224, direction: -1, color: '#A58BFF', harmonyDegree: 5, harmonyRegister: 0 },
+        { pulseCount: 48, radius: 270, direction: 1, color: '#FFE29D', harmonyDegree: 6, harmonyRegister: 1 },
+        { pulseCount: 77, radius: 316, direction: -1, color: '#4FB4FF', harmonyDegree: 1, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 2.1,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'F#',
+        scaleName: 'dorian',
+        mappingMode: 'radius',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 4, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+  {
+    id: 'nocturne_97',
+    name: 'Mirror Well',
+    description: 'A darker premium field with asymmetrical spacing and one deep long-cycle outer ring.',
+    snapshot: {
+      orbits: [
+        { pulseCount: 7, radius: 88, direction: 1, color: '#6CC8FF', harmonyDegree: 0, harmonyRegister: -1 },
+        { pulseCount: 18, radius: 150, direction: -1, color: '#FF4488', harmonyDegree: 2, harmonyRegister: 0 },
+        { pulseCount: 32, radius: 212, direction: 1, color: '#72F1B8', harmonyDegree: 4, harmonyRegister: 0 },
+        { pulseCount: 49, radius: 274, direction: -1, color: '#FFCC00', harmonyDegree: 5, harmonyRegister: 0 },
+        { pulseCount: 73, radius: 336, direction: 1, color: '#7D89FF', harmonyDegree: 6, harmonyRegister: 1 },
+      ],
+      speedMultiplier: 1.8,
+      traceMode: true,
+      harmonySettings: {
+        tonePreset: 'scale-quantized',
+        rootNote: 'F',
+        scaleName: 'aeolian',
+        mappingMode: 'color-hue',
+        manualOrbitRoles: true,
+      },
+      geometryMode: 'standard-trace',
+      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 3, showConnectors: true },
+    },
+    thumbnailDataUrl: '',
+  },
+];
+
+for (const scene of [...BUILT_IN_SCENES, ...PREMIUM_SCENES]) {
   scene.thumbnailDataUrl = BUILT_IN_SCENE_ASSET_MAP[scene.id] ?? createScenePreviewDataUrl(scene.snapshot);
 }
 
@@ -2186,7 +2447,7 @@ function OrbitalPolymeter() {
 
   const handleLoadBuiltInScene = useCallback(
     (sceneId: string) => {
-      const scene = BUILT_IN_SCENES.find((entry) => entry.id === sceneId);
+      const scene = [...BUILT_IN_SCENES, ...PREMIUM_SCENES].find((entry) => entry.id === sceneId);
       if (!scene) {
         return;
       }
@@ -3069,6 +3330,7 @@ function OrbitalPolymeter() {
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
           builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
+          premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
           savedScenes={savedScenes}
           onClose={() => setSidebarOpen(false)}
           onUpdateOrbit={handleUpdateOrbit}
@@ -3510,6 +3772,7 @@ function OrbitalPolymeter() {
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
         builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
+        premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
         savedScenes={savedScenes}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
