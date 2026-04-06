@@ -1381,8 +1381,9 @@ function OrbitalPolymeter() {
   const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
   const mobileCanvasFrameStyle = isMobile
     ? ({
-        width: 'min(calc(100vw - 24px), 460px)',
-        height: 'min(calc((100vw - 24px) * 1.16), 540px)',
+        width: '100%',
+        height: 'min(76svh, 640px)',
+        minHeight: '540px',
       } as const)
     : undefined;
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -2338,27 +2339,25 @@ function OrbitalPolymeter() {
     return (
       <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-3 pb-8 select-none">
         <div className="space-y-3">
-          <div className="px-3">
-            <div
-              data-guide="mobile-colors"
-              className="relative mx-auto overflow-hidden"
-              style={mobileCanvasFrameStyle}
-            >
-              <OrbitalCanvas
-                ref={canvasRef}
-                engineState={engineState}
-                traceMode={traceMode}
-                showPlanets={showPlanets}
-                showHudStats={canvasHudVisible}
-                onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
-                harmonySettings={harmonySettings}
-                geometryMode={geometryMode}
-                interferenceSettings={interferenceSettings}
-                presentationMode={presentationMode}
-                onOrbitLongPress={handleOrbitLongPress}
-                className="absolute inset-0 w-full h-full"
-              />
-            </div>
+          <div
+            data-guide="mobile-colors"
+            className="relative overflow-hidden"
+            style={mobileCanvasFrameStyle}
+          >
+            <OrbitalCanvas
+              ref={canvasRef}
+              engineState={engineState}
+              traceMode={traceMode}
+              showPlanets={showPlanets}
+              showHudStats={canvasHudVisible}
+              onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
+              harmonySettings={harmonySettings}
+              geometryMode={geometryMode}
+              interferenceSettings={interferenceSettings}
+              presentationMode={presentationMode}
+              onOrbitLongPress={handleOrbitLongPress}
+              className="absolute inset-0 w-full h-full"
+            />
           </div>
 
           <div className="px-4 space-y-4">
