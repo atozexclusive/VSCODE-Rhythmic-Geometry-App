@@ -83,6 +83,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
     const presentationModeRef = useRef(presentationMode);
+    const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
     const hoverOrbitIdRef = useRef<string | null>(null);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +91,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const touchStartRef = useRef<{ x: number; y: number } | null>(null);
     const pressHandledRef = useRef(false);
     const previousElapsedBeatsRef = useRef(engineState.elapsedBeats);
+    const lastMobileLayoutRef = useRef<{
+      width: number;
+      height: number;
+      cx: number;
+      cy: number;
+      orbitScale: number;
+    } | null>(null);
     const [, forceUpdate] = useState(0);
 
     // Keep refs in sync
@@ -101,6 +109,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     geometryModeRef.current = geometryMode;
     interferenceSettingsRef.current = interferenceSettings;
     presentationModeRef.current = presentationMode;
+    isMobileRef.current = isMobile;
 
     // Clear traces externally
     const clearTraces = useCallback(() => {
@@ -158,29 +167,31 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const getStandardLayoutMetrics = useCallback(
       (orbits: Orbit[], width: number, height: number) => {
         const cx = width / 2;
-        if (!isMobile || orbits.length === 0) {
-          return { cx, cy: height / 2, orbitScale: 1 };
+        if (!isMobileRef.current || orbits.length === 0) {
+          const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 0);
+          return {
+            cx,
+            cy: height / 2,
+            orbitScale: 1,
+            targetRadius: Math.min(width, height) / 2,
+            maxRadius,
+            effectiveVisualRadius: maxRadius,
+          };
         }
 
-        const cy = isMobile ? height * 0.39 : height / 2;
+        const smallPhone = width <= 390;
+        const mediumPhone = width <= 430;
+        const sidePadding = smallPhone ? 20 : mediumPhone ? 18 : 16;
+        const visualAllowance = smallPhone ? 18 : mediumPhone ? 16 : 14;
+        const targetRadius = Math.max(1, Math.min(width, height) / 2 - sidePadding - visualAllowance);
+        const cy = height / 2;
         const maxRadius = Math.max(...orbits.map((orbit) => orbit.radius), 1);
-        const labelAllowance = 88;
-        const edgePadding = 52;
-        const targetDiameter = Math.min(width * 0.74, height * 0.52);
-        const availableHorizontalRadius = Math.max(24, Math.min(cx, width - cx) - edgePadding);
-        const availableVerticalRadius = Math.max(24, Math.min(cy, height - cy) - edgePadding);
-        const targetRadius = Math.max(24, targetDiameter / 2);
-        const fitScale = Math.min(
-          1,
-          targetRadius / (maxRadius + labelAllowance),
-          availableHorizontalRadius / (maxRadius + labelAllowance),
-          availableVerticalRadius / (maxRadius + labelAllowance),
-        );
-        const orbitScale = fitScale * 0.68;
+        const effectiveVisualRadius = maxRadius + 16;
+        const orbitScale = Math.min(1, targetRadius / effectiveVisualRadius);
 
-        return { cx, cy, orbitScale };
+        return { cx, cy, orbitScale, targetRadius, maxRadius, effectiveVisualRadius };
       },
-      [isMobile],
+      [],
     );
 
     const scalePointFromCenter = useCallback(
@@ -397,7 +408,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
         const state = engineRef.current;
-        const { cx, cy, orbitScale } = getStandardLayoutMetrics(state.orbits, w, h);
+        const {
+          cx,
+          cy,
+          orbitScale,
+          targetRadius,
+          maxRadius,
+          effectiveVisualRadius,
+        } = getStandardLayoutMetrics(state.orbits, w, h);
         const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
         const pointHitRadius = isCoarsePointer ? 28 : 20;
         const ringHitRadius = isCoarsePointer ? 18 : 12;
@@ -610,7 +628,31 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const previousElapsedBeats = previousElapsedBeatsRef.current;
         const w = canvas.width / dpr;
         const h = canvas.height / dpr;
-        const { cx, cy, orbitScale } = getStandardLayoutMetrics(state.orbits, w, h);
+        const {
+          cx,
+          cy,
+          orbitScale,
+          targetRadius,
+          maxRadius,
+          effectiveVisualRadius,
+        } = getStandardLayoutMetrics(state.orbits, w, h);
+        if (isMobileRef.current) {
+          const previousLayout = lastMobileLayoutRef.current;
+          if (
+            previousLayout &&
+            (Math.abs(previousLayout.width - w) > 0.5 ||
+              Math.abs(previousLayout.height - h) > 0.5 ||
+              Math.abs(previousLayout.cx - cx) > 0.5 ||
+              Math.abs(previousLayout.cy - cy) > 0.5 ||
+              Math.abs(previousLayout.orbitScale - orbitScale) > 0.001)
+          ) {
+            clearTraces();
+            bloomsRef.current = [];
+          }
+          lastMobileLayoutRef.current = { width: w, height: h, cx, cy, orbitScale };
+        } else {
+          lastMobileLayoutRef.current = null;
+        }
         const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
         const isInterferenceMode = geometryModeRef.current === 'interference-trace';
         const isSweepMode = geometryModeRef.current === 'sweep';
@@ -948,7 +990,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 (orbit) => orbit.id === currentInnerOrbit.id || orbit.id === currentOuterOrbit.id,
               )
             : state.orbits;
-        const hoveredOrbitId = !isMobile && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
+        const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
 
         // ---- Orbit rings ----
         for (const orbit of visibleOrbits) {
@@ -1060,7 +1102,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.restore();
           }
 
-          if (showPlanetsRef.current) {
+          if (showPlanetsRef.current && !isMobileRef.current) {
             // Pulse count label
             ctx.save();
             ctx.globalAlpha = 0.35;
