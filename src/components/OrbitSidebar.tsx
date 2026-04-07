@@ -3,11 +3,12 @@
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
-import { X, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, RotateCcw } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Orbit } from '../lib/orbitalEngine';
 import { PRESET_RATIOS } from '../lib/orbitalEngine';
 import InfoTip from './InfoTip';
+import AccountPanel from './AccountPanel';
 import {
   NOTE_NAMES,
   SCALE_PRESETS,
@@ -65,6 +66,7 @@ interface OrbitSidebarProps {
   onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
   onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
   isRecordingVideo: boolean;
+  onHardReset: () => void;
 }
 
 const COLORS = [
@@ -110,6 +112,7 @@ export default function OrbitSidebar({
   onExportPng,
   onExportVideo,
   isRecordingVideo,
+  onHardReset,
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
@@ -911,6 +914,37 @@ export default function OrbitSidebar({
                   {exportNotice}
                 </div>
               )}
+
+              <div
+                className="rounded-lg border p-3"
+                style={{
+                  background: 'rgba(255,255,255,0.025)',
+                  borderColor: 'rgba(255,90,120,0.12)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                      Reset Everything
+                    </div>
+                    <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                      Restore defaults.
+                    </div>
+                  </div>
+                  <button
+                    onClick={onHardReset}
+                    className="shrink-0 px-3 py-2 rounded-lg text-[10px] font-mono transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+                    style={{
+                      background: 'rgba(255,70,110,0.08)',
+                      border: '1px solid rgba(255,70,110,0.16)',
+                      color: 'rgba(255,160,180,0.92)',
+                    }}
+                  >
+                    <RotateCcw size={13} />
+                    Hard Refresh
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1249,6 +1283,10 @@ export default function OrbitSidebar({
 
             </div>
           )}
+        </div>
+
+        <div className={`border-t border-white/8 ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}>
+          <AccountPanel />
         </div>
       </div>
 

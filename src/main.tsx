@@ -5,6 +5,7 @@ import './index.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider } from './components/auth-provider'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -29,8 +30,10 @@ if (!rootElement.innerHTML) {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <RouterProvider router={router} />
-        <Toaster />
+        <AuthProvider>
+          <RouterProvider router={router} />
+          <Toaster />
+        </AuthProvider>
       </ThemeProvider>
       </QueryClientProvider>
     </StrictMode>,

@@ -212,6 +212,28 @@ interface ImportedSceneFile {
   scene: SavedScene;
 }
 
+const DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
+  orbits: DEFAULT_ORBITS.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
+    pulseCount,
+    radius,
+    direction,
+    color,
+    harmonyDegree,
+    harmonyRegister,
+  })),
+  speedMultiplier: 1,
+  traceMode: true,
+  harmonySettings: { ...DEFAULT_HARMONY_SETTINGS },
+  geometryMode: 'standard-trace',
+  interferenceSettings: {
+    sourceOrbitAIndex: null,
+    sourceOrbitBIndex: null,
+    sourceOrbitCIndex: null,
+    sourceOrbitDIndex: null,
+    showConnectors: DEFAULT_INTERFERENCE_SETTINGS.showConnectors,
+  },
+};
+
 export interface BuiltInScene {
   id: string;
   name: string;
@@ -2271,6 +2293,36 @@ function OrbitalPolymeter() {
     rerender();
   }, [engineState, handleClearTraces, rerender]);
 
+  const handleHardReset = useCallback(() => {
+    stopAllAudio();
+    if (getAudioMuted()) {
+      toggleAudioMute();
+    }
+    setMuted(false);
+    setSidebarOpen(false);
+    setHelpOpen(false);
+    setPresentationMode(false);
+    setTraceMode(DEFAULT_SCENE_SNAPSHOT.traceMode);
+    setShowPlanets(true);
+    setTopStatusVisible(true);
+    setCanvasHudVisible(true);
+    setMobileScenesOpen(false);
+    setMobileCustomizeOpen(false);
+    setMobileSoundOpen(false);
+    setHelpStepIndex(0);
+    setRadialMenu(null);
+    applySceneSnapshot(
+      engineState,
+      DEFAULT_SCENE_SNAPSHOT,
+      setTraceMode,
+      setHarmonySettings,
+      setGeometryMode,
+      setInterferenceSettings,
+      handleClearTraces,
+    );
+    rerender();
+  }, [engineState, handleClearTraces, rerender]);
+
   const handleStepForward = useCallback(() => {
     const canvasEl = canvasRef.current;
     if (!canvasEl) {
@@ -3806,6 +3858,37 @@ function OrbitalPolymeter() {
                 </div>
               )}
             </div>
+
+            <div
+              className="rounded-[22px] border px-3 py-3"
+              style={{
+                background: 'rgba(17,17,22,0.82)',
+                borderColor: 'rgba(255,90,120,0.12)',
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                    Reset Everything
+                  </div>
+                  <div className="mt-1 text-[11px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                    Restore defaults.
+                  </div>
+                </div>
+                <button
+                  onClick={handleHardReset}
+                  className="shrink-0 px-3 py-2 rounded-xl flex items-center justify-center gap-1.5"
+                  style={{
+                    background: 'rgba(255,70,110,0.1)',
+                    border: '1px solid rgba(255,70,110,0.18)',
+                    color: 'rgba(255,160,180,0.92)',
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  <span className="text-[10px] font-mono uppercase tracking-[0.12em]">Hard Refresh</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3917,6 +4000,7 @@ function OrbitalPolymeter() {
           onExportPng={handleExportPng}
           onExportVideo={handleExportVideo}
           isRecordingVideo={recordingVideo}
+          onHardReset={handleHardReset}
         />
 
         {radialMenu && (
@@ -4361,6 +4445,7 @@ function OrbitalPolymeter() {
         onExportPng={handleExportPng}
         onExportVideo={handleExportVideo}
         isRecordingVideo={recordingVideo}
+        onHardReset={handleHardReset}
       />
 
       {/* Radial Menu */}

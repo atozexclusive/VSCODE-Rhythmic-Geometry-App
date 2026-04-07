@@ -22,7 +22,33 @@ Before you begin, ensure you have the following installed:
 bun install
 ```
 
-### 2. Run the Development Server
+### 2. Configure Accounts (Optional in local dev)
+
+Copy `.env.example` to `.env.local` and add your Supabase values:
+
+```bash
+cp .env.example .env.local
+```
+
+Required vars:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+If these vars are missing, the app still runs, but account features stay disabled.
+
+Apply the included migration in your Supabase project:
+
+- [supabase/migrations/20260407_create_users_table.sql](/Users/marcdeblasie/Desktop/Orbital-Polymeter-Shipper-3a7c1ed059ce0222269ce4d939b199e8ae3442d7/supabase/migrations/20260407_create_users_table.sql)
+
+This creates the `public.users` table used for:
+
+- account identity
+- future free/pro plan metadata
+- comped access
+- onboarding state
+
+### 3. Run the Development Server
 
 ```bash
 bun dev
