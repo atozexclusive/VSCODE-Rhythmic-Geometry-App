@@ -45,6 +45,18 @@ interface OrbitSidebarProps {
     updatedAt: string;
     thumbnailDataUrl?: string;
   }>;
+  exportRecords: Array<{
+    id: string;
+    type: string;
+    sceneName?: string | null;
+    aspect?: string | null;
+    scale?: number | null;
+    durationSeconds?: number | null;
+    createdAt: string;
+  }>;
+  signedIn: boolean;
+  accountPersistenceLoading: boolean;
+  localSceneCount: number;
   onClose: () => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
   onDeleteOrbit: (id: string) => void;
@@ -58,6 +70,7 @@ interface OrbitSidebarProps {
   onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
   onSaveScene: () => void;
   onSaveSceneAs: (name: string) => void;
+  onImportLocalScenes: () => void;
   onLoadScene: (sceneId: string) => void;
   onLoadBuiltInScene: (sceneId: string) => void;
   onDeleteScene: (sceneId: string) => void;
@@ -91,6 +104,10 @@ export default function OrbitSidebar({
   builtInScenes,
   premiumScenes,
   savedScenes,
+  exportRecords,
+  signedIn,
+  accountPersistenceLoading,
+  localSceneCount,
   onClose,
   onUpdateOrbit,
   onDeleteOrbit,
@@ -104,6 +121,7 @@ export default function OrbitSidebar({
   onHarmonyChange,
   onSaveScene,
   onSaveSceneAs,
+  onImportLocalScenes,
   onLoadScene,
   onLoadBuiltInScene,
   onDeleteScene,
@@ -598,6 +616,18 @@ export default function OrbitSidebar({
               {activeSceneTab === 'saved' && (
                 <div className="space-y-3">
                   <div className="space-y-3 rounded-lg border p-3" style={sceneCardStyle}>
+                    <div
+                      className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
+                      style={{
+                        background: signedIn ? 'rgba(0,255,170,0.06)' : 'rgba(255,255,255,0.035)',
+                        border: `1px solid ${signedIn ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.08)'}`,
+                        color: signedIn ? 'rgba(208,255,240,0.78)' : 'rgba(255,255,255,0.5)',
+                      }}
+                    >
+                      {signedIn
+                        ? 'Saved scenes sync to your account.'
+                        : 'Saved scenes stay on this device until you sign in.'}
+                    </div>
                     <input
                       type="text"
                       value={sceneName}
@@ -633,10 +663,27 @@ export default function OrbitSidebar({
                         Save
                       </button>
                     </div>
+                    {signedIn && localSceneCount > 0 && (
+                      <button
+                        onClick={onImportLocalScenes}
+                        className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        style={{
+                          background: 'rgba(51, 136, 255, 0.08)',
+                          border: '1px solid rgba(51, 136, 255, 0.16)',
+                          color: '#88CCFF',
+                        }}
+                      >
+                        Import {localSceneCount} Local Scene{localSceneCount === 1 ? '' : 's'}
+                      </button>
+                    )}
                   </div>
-                  {savedScenes.length === 0 ? (
+                  {accountPersistenceLoading ? (
                     <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
-                      No saved scenes yet.
+                      Loading saved scenes…
+                    </p>
+                  ) : savedScenes.length === 0 ? (
+                    <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                      {signedIn ? 'No account scenes yet.' : 'No saved scenes yet.'}
                     </p>
                   ) : (
                     savedScenes.map((scene) => (
@@ -914,6 +961,71 @@ export default function OrbitSidebar({
                   {exportNotice}
                 </div>
               )}
+
+              <div
+                className="rounded-lg border p-3 space-y-3"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  borderColor: 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                    Export History
+                  </div>
+                  <div
+                    className="rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: signedIn ? 'rgba(0,255,170,0.08)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${signedIn ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.08)'}`,
+                      color: signedIn ? '#00FFAA' : 'rgba(255,255,255,0.5)',
+                    }}
+                  >
+                    {signedIn ? 'Account' : 'Local Only'}
+                  </div>
+                </div>
+                {!signedIn ? (
+                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                    Sign in to keep export history attached to your account.
+                  </div>
+                ) : accountPersistenceLoading ? (
+                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                    Loading export history…
+                  </div>
+                ) : exportRecords.length === 0 ? (
+                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
+                    No account exports yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {exportRecords.map((record) => (
+                      <div
+                        key={record.id}
+                        className="rounded-lg px-3 py-2"
+                        style={{
+                          background: 'rgba(255,255,255,0.025)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                            {record.sceneName || 'Current Scene'}
+                          </div>
+                          <div className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                            {record.type}
+                          </div>
+                        </div>
+                        <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                          {new Date(record.createdAt).toLocaleString()}
+                          {record.aspect ? ` · ${record.aspect}` : ''}
+                          {record.scale ? ` · ${record.scale}x` : ''}
+                          {record.durationSeconds ? ` · ${record.durationSeconds}s` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div
                 className="rounded-lg border p-3"

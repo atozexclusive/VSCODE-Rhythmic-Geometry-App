@@ -6,10 +6,12 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import TransportBar from '../components/TransportBar';
 import RadialMenu from '../components/RadialMenu';
+import { useAuth } from '../components/auth-provider';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
   DEFAULT_HARMONY_SETTINGS,
@@ -40,6 +42,15 @@ import {
   type GeometryMode,
   type InterferenceSettings,
 } from '../lib/geometry';
+import {
+  createExportRecord,
+  deleteSavedSceneRecord,
+  listExportRecords,
+  listSavedSceneRecords,
+  upsertSavedSceneRecord,
+  type StoredExportRecord,
+  type StoredSceneRecord,
+} from '../lib/account-storage';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
@@ -204,6 +215,26 @@ interface SavedScene {
   updatedAt: string;
   snapshot: SceneSnapshot;
   thumbnailDataUrl?: string;
+}
+
+interface ExportRecord {
+  id: string;
+  type: string;
+  sceneName?: string | null;
+  aspect?: string | null;
+  scale?: number | null;
+  durationSeconds?: number | null;
+  createdAt: string;
+}
+
+function sortSavedScenesByUpdatedAt(scenes: SavedScene[]): SavedScene[] {
+  return [...scenes].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+}
+
+function upsertSavedScene(scenes: SavedScene[], scene: SavedScene): SavedScene[] {
+  return sortSavedScenesByUpdatedAt([scene, ...scenes.filter((entry) => entry.id !== scene.id)]);
 }
 
 interface ImportedSceneFile {
@@ -1765,6 +1796,55 @@ function persistSavedScenes(scenes: SavedScene[]): void {
   window.localStorage.setItem(SCENES_STORAGE_KEY, JSON.stringify(scenes));
 }
 
+function mapStoredSceneRecord(record: StoredSceneRecord): SavedScene | null {
+  const snapshot = record.snapshot as Partial<SceneSnapshot> | null;
+  if (
+    !snapshot ||
+    !Array.isArray(snapshot.orbits) ||
+    typeof snapshot.speedMultiplier !== 'number' ||
+    typeof snapshot.traceMode !== 'boolean' ||
+    !snapshot.harmonySettings ||
+    typeof snapshot.harmonySettings !== 'object'
+  ) {
+    return null;
+  }
+
+  return {
+    id: record.id,
+    name: record.name,
+    updatedAt: record.updated_at,
+    thumbnailDataUrl: record.thumbnail_data_url ?? undefined,
+    snapshot: {
+      orbits: snapshot.orbits as SceneOrbitSnapshot[],
+      speedMultiplier: snapshot.speedMultiplier,
+      traceMode: snapshot.traceMode,
+      harmonySettings: snapshot.harmonySettings as HarmonySettings,
+      geometryMode:
+        snapshot.geometryMode === 'interference-trace'
+          ? 'interference-trace'
+          : snapshot.geometryMode === 'sweep'
+            ? 'sweep'
+            : 'standard-trace',
+      interferenceSettings: normalizeSceneInterferenceSettings(
+        snapshot.orbits.length,
+        snapshot.interferenceSettings as Partial<SceneInterferenceSettings> | undefined,
+      ),
+    },
+  };
+}
+
+function mapStoredExportRecord(record: StoredExportRecord): ExportRecord {
+  return {
+    id: record.id,
+    type: record.type,
+    sceneName: record.scene_name,
+    aspect: record.aspect,
+    scale: record.scale,
+    durationSeconds: record.duration_seconds,
+    createdAt: record.created_at,
+  };
+}
+
 function downloadSceneFile(scene: SavedScene): void {
   if (typeof window === 'undefined') {
     return;
@@ -1885,6 +1965,7 @@ function launchLoadedState(
 }
 
 function OrbitalPolymeter() {
+  const { user, enabled: authEnabled, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const captureMode = searchParams?.get('captureMode') === '1';
@@ -1915,7 +1996,10 @@ function OrbitalPolymeter() {
   const [interferenceSettings, setInterferenceSettings] = useState<InterferenceSettings>(() =>
     normalizeInterferenceSettings(engineState.orbits, DEFAULT_INTERFERENCE_SETTINGS),
   );
+  const [localSavedScenes, setLocalSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
   const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
+  const [exportRecords, setExportRecords] = useState<ExportRecord[]>([]);
+  const [cloudPersistenceLoading, setCloudPersistenceLoading] = useState(false);
   const [recordingVideo, setRecordingVideo] = useState(false);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
@@ -1928,6 +2012,7 @@ function OrbitalPolymeter() {
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
+  const isSignedIn = Boolean(authEnabled && user);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const guideCalloutRef = useRef<HTMLDivElement | null>(null);
@@ -2052,6 +2137,67 @@ function OrbitalPolymeter() {
     }
     window.localStorage.setItem(CANVAS_HUD_VISIBLE_STORAGE_KEY, canvasHudVisible ? '1' : '0');
   }, [canvasHudVisible]);
+
+  useEffect(() => {
+    persistSavedScenes(localSavedScenes);
+  }, [localSavedScenes]);
+
+  const refreshAccountPersistence = useCallback(async () => {
+    if (!user?.id) {
+      setSavedScenes(localSavedScenes);
+      setExportRecords([]);
+      return;
+    }
+
+    const [sceneRecords, exportRows] = await Promise.all([
+      listSavedSceneRecords(user.id),
+      listExportRecords(user.id),
+    ]);
+
+    setSavedScenes(
+      sceneRecords
+        .map(mapStoredSceneRecord)
+        .filter((scene): scene is SavedScene => Boolean(scene)),
+    );
+    setExportRecords(exportRows.map(mapStoredExportRecord));
+  }, [localSavedScenes, user?.id]);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      setSavedScenes(localSavedScenes);
+      setExportRecords([]);
+      setCloudPersistenceLoading(false);
+      return;
+    }
+
+    let active = true;
+    setCloudPersistenceLoading(true);
+
+    void refreshAccountPersistence()
+      .then(() => {
+        if (!active) {
+          return;
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!active) {
+          return;
+        }
+        toast.error('Could not load account scenes.');
+        setSavedScenes([]);
+        setExportRecords([]);
+      })
+      .finally(() => {
+        if (active) {
+          setCloudPersistenceLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isSignedIn, refreshAccountPersistence]);
 
   useEffect(() => {
     if (!presentationMode) {
@@ -2801,26 +2947,79 @@ function OrbitalPolymeter() {
     rerender();
   }, [engineState, geometryMode, handleClearTraces, rerender]);
 
+  const buildCurrentSceneSnapshot = useCallback((): SceneSnapshot => ({
+    orbits: engineState.orbits.map(
+      ({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
+        pulseCount,
+        radius,
+        direction,
+        color,
+        harmonyDegree,
+        harmonyRegister,
+      }),
+    ),
+    speedMultiplier: engineState.speedMultiplier,
+    traceMode,
+    harmonySettings,
+    geometryMode,
+    interferenceSettings: serializeInterferenceSettings(
+      engineState.orbits,
+      interferenceSettings,
+    ),
+  }), [
+    engineState.orbits,
+    engineState.speedMultiplier,
+    geometryMode,
+    harmonySettings,
+    interferenceSettings,
+    traceMode,
+  ]);
+
+  const captureSceneThumbnail = useCallback(async () => {
+    return (canvasRef.current as any)?.__captureThumbnail?.();
+  }, []);
+
+  const recordExportForAccount = useCallback(
+    async (record: {
+      type: string;
+      sceneName?: string | null;
+      snapshot?: SceneSnapshot | null;
+      aspect?: string | null;
+      scale?: number | null;
+      durationSeconds?: number | null;
+    }) => {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        const created = await createExportRecord(user.id, {
+          type: record.type,
+          scene_name: record.sceneName ?? null,
+          snapshot: record.snapshot ?? null,
+          aspect: record.aspect ?? null,
+          scale: record.scale ?? null,
+          duration_seconds: record.durationSeconds ?? null,
+        });
+
+        setExportRecords((current) => [
+          mapStoredExportRecord(created),
+          ...current.filter((entry) => entry.id !== created.id),
+        ].slice(0, 12));
+      } catch (error) {
+        console.error(error);
+        toast.error('Could not save export history to your account.');
+      }
+    },
+    [user?.id],
+  );
+
   const handleSaveScene = useCallback(() => {
     const run = async () => {
       const now = new Date().toISOString();
       const defaultName = `Scene ${savedScenes.length + 1}`;
-      const snapshot: SceneSnapshot = {
-        orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
-          pulseCount,
-          radius,
-          direction,
-          color,
-          harmonyDegree,
-          harmonyRegister,
-        })),
-        speedMultiplier: engineState.speedMultiplier,
-        traceMode,
-        harmonySettings,
-        geometryMode,
-        interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
-      };
-      const thumbnailDataUrl = await (canvasRef.current as any)?.__captureThumbnail?.();
+      const snapshot = buildCurrentSceneSnapshot();
+      const thumbnailDataUrl = await captureSceneThumbnail();
 
       const newScene: SavedScene = {
         id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
@@ -2830,15 +3029,35 @@ function OrbitalPolymeter() {
         thumbnailDataUrl,
       };
 
-      setSavedScenes((current) => {
-        const next = [newScene, ...current];
-        persistSavedScenes(next);
+      if (isSignedIn && user?.id) {
+        try {
+          const stored = await upsertSavedSceneRecord(user.id, {
+            id: newScene.id,
+            name: newScene.name,
+            snapshot: newScene.snapshot,
+            thumbnail_data_url: newScene.thumbnailDataUrl ?? null,
+            updated_at: newScene.updatedAt,
+          });
+          const mapped = mapStoredSceneRecord(stored) ?? newScene;
+          setSavedScenes((current) => upsertSavedScene(current, mapped));
+          toast.success('Scene saved to your account.');
+        } catch (error) {
+          console.error(error);
+          toast.error('Could not save scene to your account.');
+        }
+        return;
+      }
+
+      setLocalSavedScenes((current) => {
+        const next = upsertSavedScene(current, newScene);
+        setSavedScenes(next);
         return next;
       });
+      toast.success('Scene saved on this device.');
     };
 
     void run();
-  }, [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode]);
+  }, [buildCurrentSceneSnapshot, captureSceneThumbnail, isSignedIn, savedScenes.length, user?.id]);
 
   const handleSaveSceneAs = useCallback(
     (name: string) => {
@@ -2846,22 +3065,8 @@ function OrbitalPolymeter() {
         const trimmedName = name.trim();
         const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
         const now = new Date().toISOString();
-        const snapshot: SceneSnapshot = {
-          orbits: engineState.orbits.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
-            pulseCount,
-            radius,
-            direction,
-            color,
-            harmonyDegree,
-            harmonyRegister,
-          })),
-          speedMultiplier: engineState.speedMultiplier,
-          traceMode,
-          harmonySettings,
-          geometryMode,
-          interferenceSettings: serializeInterferenceSettings(engineState.orbits, interferenceSettings),
-        };
-        const thumbnailDataUrl = await (canvasRef.current as any)?.__captureThumbnail?.();
+        const snapshot = buildCurrentSceneSnapshot();
+        const thumbnailDataUrl = await captureSceneThumbnail();
 
         const newScene: SavedScene = {
           id: globalThis.crypto?.randomUUID?.() ?? `scene-${Date.now()}`,
@@ -2871,16 +3076,36 @@ function OrbitalPolymeter() {
           thumbnailDataUrl,
         };
 
-        setSavedScenes((current) => {
-          const next = [newScene, ...current];
-          persistSavedScenes(next);
+        if (isSignedIn && user?.id) {
+          try {
+            const stored = await upsertSavedSceneRecord(user.id, {
+              id: newScene.id,
+              name: newScene.name,
+              snapshot: newScene.snapshot,
+              thumbnail_data_url: newScene.thumbnailDataUrl ?? null,
+              updated_at: newScene.updatedAt,
+            });
+            const mapped = mapStoredSceneRecord(stored) ?? newScene;
+            setSavedScenes((current) => upsertSavedScene(current, mapped));
+            toast.success('Scene saved to your account.');
+          } catch (error) {
+            console.error(error);
+            toast.error('Could not save scene to your account.');
+          }
+          return;
+        }
+
+        setLocalSavedScenes((current) => {
+          const next = upsertSavedScene(current, newScene);
+          setSavedScenes(next);
           return next;
         });
+        toast.success('Scene saved on this device.');
       };
 
       void run();
     },
-    [engineState.orbits, engineState.speedMultiplier, geometryMode, harmonySettings, interferenceSettings, savedScenes.length, traceMode],
+    [buildCurrentSceneSnapshot, captureSceneThumbnail, isSignedIn, savedScenes.length, user?.id],
   );
 
   const handleLoadScene = useCallback(
@@ -2924,19 +3149,41 @@ function OrbitalPolymeter() {
   );
 
   const handleDeleteScene = useCallback((sceneId: string) => {
-    setSavedScenes((current) => {
-      const next = current.filter((scene) => scene.id !== sceneId);
-      persistSavedScenes(next);
-      return next;
-    });
-  }, []);
+    const run = async () => {
+      if (isSignedIn && user?.id) {
+        try {
+          await deleteSavedSceneRecord(user.id, sceneId);
+          setSavedScenes((current) => current.filter((scene) => scene.id !== sceneId));
+        } catch (error) {
+          console.error(error);
+          toast.error('Could not delete account scene.');
+        }
+        return;
+      }
+
+      setLocalSavedScenes((current) => {
+        const next = current.filter((scene) => scene.id !== sceneId);
+        setSavedScenes(next);
+        return next;
+      });
+    };
+
+    void run();
+  }, [isSignedIn, user?.id]);
 
   const handleExportPng = useCallback((options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
     const canvasEl = canvasRef.current;
     if (canvasEl && (canvasEl as any).__exportPng) {
       (canvasEl as any).__exportPng(options);
+      void recordExportForAccount({
+        type: 'png',
+        sceneName: 'Current Scene',
+        snapshot: buildCurrentSceneSnapshot(),
+        aspect: options.aspect,
+        scale: options.scale,
+      });
     }
-  }, []);
+  }, [buildCurrentSceneSnapshot, recordExportForAccount]);
 
   const handleExportVideo = useCallback(
     async (options: { durationSeconds: 8 | 12 }) => {
@@ -2956,13 +3203,19 @@ function OrbitalPolymeter() {
         rerender();
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         await (canvasEl as any).__exportVideo(options);
+        await recordExportForAccount({
+          type: 'webm',
+          sceneName: 'Current Scene',
+          snapshot: buildCurrentSceneSnapshot(),
+          durationSeconds: options.durationSeconds,
+        });
       } catch (error) {
         console.error(error);
       } finally {
         setRecordingVideo(false);
       }
     },
-    [engineState, handleClearTraces, recordingVideo, rerender],
+    [buildCurrentSceneSnapshot, engineState, handleClearTraces, recordExportForAccount, recordingVideo, rerender],
   );
 
   const handleExportScene = useCallback(
@@ -2973,8 +3226,13 @@ function OrbitalPolymeter() {
       }
 
       downloadSceneFile(scene);
+      void recordExportForAccount({
+        type: 'scene-json',
+        sceneName: scene.name,
+        snapshot: scene.snapshot,
+      });
     },
-    [savedScenes],
+    [recordExportForAccount, savedScenes],
   );
 
   const handleImportScene = useCallback(async (file: File) => {
@@ -2992,15 +3250,64 @@ function OrbitalPolymeter() {
         updatedAt: new Date().toISOString(),
       };
 
-      setSavedScenes((current) => {
-        const next = [sceneWithFreshId, ...current];
-        persistSavedScenes(next);
+      if (isSignedIn && user?.id) {
+        try {
+          const stored = await upsertSavedSceneRecord(user.id, {
+            id: sceneWithFreshId.id,
+            name: sceneWithFreshId.name,
+            snapshot: sceneWithFreshId.snapshot,
+            thumbnail_data_url: sceneWithFreshId.thumbnailDataUrl ?? null,
+            updated_at: sceneWithFreshId.updatedAt,
+          });
+          const mapped = mapStoredSceneRecord(stored) ?? sceneWithFreshId;
+          setSavedScenes((current) => upsertSavedScene(current, mapped));
+          toast.success('Imported to your account scenes.');
+        } catch (error) {
+          console.error(error);
+          toast.error('Could not import scene to your account.');
+        }
+        return;
+      }
+
+      setLocalSavedScenes((current) => {
+        const next = upsertSavedScene(current, sceneWithFreshId);
+        setSavedScenes(next);
         return next;
       });
+      toast.success('Scene imported on this device.');
     } catch {
-      // Ignore invalid import files for now.
+      toast.error('That file could not be imported as a scene.');
     }
-  }, []);
+  }, [isSignedIn, user?.id]);
+
+  const handleImportLocalScenes = useCallback(() => {
+    const run = async () => {
+      if (!user?.id || localSavedScenes.length === 0) {
+        return;
+      }
+
+      try {
+        await Promise.all(
+          localSavedScenes.map((scene) =>
+            upsertSavedSceneRecord(user.id, {
+              id: scene.id,
+              name: scene.name,
+              snapshot: scene.snapshot,
+              thumbnail_data_url: scene.thumbnailDataUrl ?? null,
+              updated_at: scene.updatedAt,
+            }),
+          ),
+        );
+        await refreshAccountPersistence();
+        toast.success('Local scenes imported to your account.');
+      } catch (error) {
+        console.error(error);
+        toast.error('Could not import local scenes.');
+      }
+    };
+
+    void run();
+  }, [localSavedScenes, refreshAccountPersistence, user?.id]);
 
   const normalizedPairSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
   const hasInterferenceTriad =
@@ -3979,6 +4286,10 @@ function OrbitalPolymeter() {
           builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
           premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
           savedScenes={savedScenes}
+          exportRecords={exportRecords}
+          signedIn={isSignedIn}
+          accountPersistenceLoading={authLoading || cloudPersistenceLoading}
+          localSceneCount={localSavedScenes.length}
           onClose={() => setSidebarOpen(false)}
           onUpdateOrbit={handleUpdateOrbit}
           onDeleteOrbit={handleDeleteOrbit}
@@ -3992,6 +4303,7 @@ function OrbitalPolymeter() {
           onHarmonyChange={handleHarmonyChange}
           onSaveScene={handleSaveScene}
           onSaveSceneAs={handleSaveSceneAs}
+          onImportLocalScenes={handleImportLocalScenes}
           onLoadScene={handleLoadScene}
           onLoadBuiltInScene={handleLoadBuiltInScene}
           onDeleteScene={handleDeleteScene}
@@ -4424,6 +4736,10 @@ function OrbitalPolymeter() {
         builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
         premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
         savedScenes={savedScenes}
+        exportRecords={exportRecords}
+        signedIn={isSignedIn}
+        accountPersistenceLoading={authLoading || cloudPersistenceLoading}
+        localSceneCount={localSavedScenes.length}
         onClose={() => setSidebarOpen(false)}
         onUpdateOrbit={handleUpdateOrbit}
         onDeleteOrbit={handleDeleteOrbit}
@@ -4437,6 +4753,7 @@ function OrbitalPolymeter() {
         onHarmonyChange={handleHarmonyChange}
         onSaveScene={handleSaveScene}
         onSaveSceneAs={handleSaveSceneAs}
+        onImportLocalScenes={handleImportLocalScenes}
         onLoadScene={handleLoadScene}
         onLoadBuiltInScene={handleLoadBuiltInScene}
         onDeleteScene={handleDeleteScene}
