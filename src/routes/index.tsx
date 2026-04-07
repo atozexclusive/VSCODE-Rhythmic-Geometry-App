@@ -268,8 +268,8 @@ function OrbitalPolymeterLanding() {
       <header className="sticky top-0 z-40 border-b border-white/6 bg-[#090a10]/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link to="/" className="group block">
-            <div className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/72 transition-colors group-hover:text-white">Orbital Polymeter</div>
-            <div className="mt-1 text-[11px] font-mono text-white/34 transition-colors group-hover:text-white/54">Rhythmic structure generator</div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/72 transition-colors group-hover:text-white">Rhythmic Geometry</div>
+            <div className="mt-1 text-[11px] font-mono text-white/34 transition-colors group-hover:text-white/54">Geometry shaped by rhythm, motion, and tone</div>
           </Link>
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
@@ -318,14 +318,14 @@ function OrbitalPolymeterLanding() {
                 Set orbital constraints. Watch lawful forms emerge.
               </p>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/44 sm:text-base">
-                Orbital Polymeter turns pulse ratios, direction, and orbital relationship into living geometry. It feels like a visual instrument, a structure explorer, and a meditative tool for discovering form.
+                Rhythmic Geometry turns pulse ratios, direction, and motion into living form. It behaves like a visual instrument for discovering structure, flow, and pattern.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Link
                   to="/app"
                   className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
                 >
-                  Open Orbital Polymeter
+                  Open Rhythmic Geometry
                   <ArrowRight size={15} />
                 </Link>
                 <a
@@ -342,8 +342,8 @@ function OrbitalPolymeterLanding() {
               <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.4)] backdrop-blur-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Orbital Polymeter</div>
-                    <div className="mt-2 text-[11px] font-mono text-white/38">A tool for discovering structure through rhythmic constraint.</div>
+                    <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Rhythmic Geometry</div>
+                    <div className="mt-2 text-[11px] font-mono text-white/38">A visual instrument for form, motion, and sound.</div>
                   </div>
                   <Link
                     to="/app"
@@ -357,7 +357,7 @@ function OrbitalPolymeterLanding() {
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.02),transparent_62%)]" />
                   <img
                     src={heroImage}
-                    alt="Completed Orbital Polymeter geometry"
+                    alt="Completed Rhythmic Geometry study"
                     className="h-full w-full p-4 object-contain"
                   />
                 </div>
@@ -487,7 +487,7 @@ function OrbitalPolymeterLanding() {
                 Not random decoration. Form from constraint.
               </h2>
               <p className="mt-6 max-w-2xl text-base leading-8 text-white/58">
-                Orbital Polymeter reveals the forms that naturally emerge when rhythm, direction, and orbital relationship are held inside a simple system of constraints.
+                Rhythmic Geometry reveals the forms that emerge when rhythm, direction, and motion are held inside a simple system of constraints.
               </p>
               <div className="mt-8 space-y-4 text-sm leading-7 text-white/52">
                 <p>It behaves like a visual instrument, not a template generator.</p>
@@ -535,14 +535,14 @@ function OrbitalPolymeterLanding() {
           <div className="mx-auto max-w-5xl rounded-[2rem] border border-white/8 bg-white/[0.035] px-6 py-10 text-center sm:px-10 sm:py-14">
             <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Open The Instrument</div>
             <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
-              A tool for discovering structure through rhythmic constraint.
+              A visual instrument for discovering form through rhythmic constraint.
             </h2>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
                 to="/app"
                 className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
               >
-                Open Orbital Polymeter
+                Open Rhythmic Geometry
                 <ArrowRight size={15} />
               </Link>
               <a

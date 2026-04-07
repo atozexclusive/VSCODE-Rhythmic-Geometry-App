@@ -1,5 +1,5 @@
 // ============================================================
-// Orbital Polymeter — High-Performance Canvas Visualizer
+// Rhythmic Geometry — High-Performance Canvas Visualizer
 // 60fps rendering via requestAnimationFrame
 // Clean, original visual style with bulletproof trigger detection
 // ============================================================
@@ -478,7 +478,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const link = document.createElement('a');
           link.href = exportCanvas.toDataURL('image/png');
-          link.download = `orbital-polymeter-${aspect}-${scale}x-${timestamp}.png`;
+          link.download = `rhythmic-geometry-${aspect}-${scale}x-${timestamp}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -573,7 +573,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const link = document.createElement('a');
             link.href = url;
-            link.download = `orbital-polymeter-${durationSeconds}s-${timestamp}.webm`;
+            link.download = `rhythmic-geometry-${durationSeconds}s-${timestamp}.webm`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

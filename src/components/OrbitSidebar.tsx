@@ -32,18 +32,21 @@ interface OrbitSidebarProps {
     name: string;
     description: string;
     thumbnailDataUrl?: string;
+    geometryMode: GeometryMode;
   }>;
   premiumScenes: Array<{
     id: string;
     name: string;
     description: string;
     thumbnailDataUrl?: string;
+    geometryMode: GeometryMode;
   }>;
   savedScenes: Array<{
     id: string;
     name: string;
     updatedAt: string;
     thumbnailDataUrl?: string;
+    geometryMode: GeometryMode;
   }>;
   exportRecords: Array<{
     id: string;
@@ -134,8 +137,9 @@ export default function OrbitSidebar({
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
-  const [activeTab, setActiveTab] = useState<'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
+  const [activeTab, setActiveTab] = useState<'account' | 'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('account');
   const [activeSceneTab, setActiveSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
+  const [activeSceneMode, setActiveSceneMode] = useState<GeometryMode>('standard-trace');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -201,13 +205,28 @@ export default function OrbitSidebar({
     background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
     borderColor: 'rgba(255, 170, 0, 0.12)',
   } as const;
-  const tabMeta: Array<{ key: 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
+  const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
+    { key: 'account', label: 'Account', activeColor: '#FFAA00' },
     { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
     { key: 'geometry', label: 'Ratios', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
     { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
     { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
     { key: 'export', label: 'Export', activeColor: '#FFAA00' },
   ];
+  const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
+    { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
+    { key: 'interference-trace', label: 'Interference', color: '#88CCFF' },
+    { key: 'sweep', label: 'Sweep', color: '#FFAA00' },
+  ];
+  const filteredBuiltInScenes = builtInScenes.filter((scene) => scene.geometryMode === activeSceneMode);
+  const filteredSavedScenes = savedScenes.filter((scene) => scene.geometryMode === activeSceneMode);
+  const filteredPremiumScenes = premiumScenes.filter((scene) => scene.geometryMode === activeSceneMode);
+  const sceneModeLabel =
+    activeSceneMode === 'standard-trace'
+      ? 'Standard'
+      : activeSceneMode === 'interference-trace'
+        ? 'Interference'
+        : 'Sweep';
 
   return (
     <>
@@ -270,6 +289,20 @@ export default function OrbitSidebar({
 
         {/* Content */}
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-4'}`}>
+          {activeTab === 'account' && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                  Account
+                </div>
+                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                  Sign in, review your plan, and manage account access from one place.
+                </p>
+              </div>
+              <AccountPanel />
+            </div>
+          )}
+
           {/* ORBITS TAB */}
           {activeTab === 'orbits' && (
             <div className="space-y-3">
@@ -573,9 +606,30 @@ export default function OrbitSidebar({
                 ))}
               </div>
 
+              <div className="rounded-xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+                {sceneModeTabs.map((mode) => (
+                  <button
+                    key={mode.key}
+                    onClick={() => setActiveSceneMode(mode.key)}
+                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
+                    style={{
+                      background: activeSceneMode === mode.key ? `${mode.color}16` : 'transparent',
+                      border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}45` : 'transparent'}`,
+                      color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.46)',
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
               {activeSceneTab === 'built-in' && (
                 <div className="space-y-3">
-                  {builtInScenes.map((scene) => (
+                  {filteredBuiltInScenes.length === 0 ? (
+                    <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                      No {sceneModeLabel.toLowerCase()} scenes in this set yet.
+                    </p>
+                  ) : filteredBuiltInScenes.map((scene) => (
                     <div
                       key={scene.id}
                       className="rounded-lg border p-3"
@@ -593,6 +647,9 @@ export default function OrbitSidebar({
                       )}
                       <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
                         {scene.name}
+                      </div>
+                      <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                        {sceneModeLabel}
                       </div>
                       <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
                         {scene.description}
@@ -685,8 +742,12 @@ export default function OrbitSidebar({
                     <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
                       {signedIn ? 'No account scenes yet.' : 'No saved scenes yet.'}
                     </p>
+                  ) : filteredSavedScenes.length === 0 ? (
+                    <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                      No saved {sceneModeLabel.toLowerCase()} scenes yet.
+                    </p>
                   ) : (
-                    savedScenes.map((scene) => (
+                    filteredSavedScenes.map((scene) => (
                       <div
                         key={scene.id}
                         className="rounded-lg border p-3"
@@ -706,6 +767,9 @@ export default function OrbitSidebar({
                           <div className="min-w-0">
                             <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                               {scene.name}
+                            </div>
+                            <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                              {sceneModeLabel}
                             </div>
                             <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
                               {new Date(scene.updatedAt).toLocaleString()}
@@ -763,10 +827,14 @@ export default function OrbitSidebar({
                       Pro Scenes
                     </div>
                     <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
-                      Premium scenes are marked for Pro, but they can still be loaded here as teaser studies.
+                      Browse premium scene packs by mode before unlocking the full library.
                     </p>
                   </div>
-                  {premiumScenes.map((scene) => (
+                  {filteredPremiumScenes.length === 0 ? (
+                    <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
+                      No premium {sceneModeLabel.toLowerCase()} scenes yet.
+                    </p>
+                  ) : filteredPremiumScenes.map((scene) => (
                     <div
                       key={scene.id}
                       className="rounded-lg border p-3"
@@ -789,6 +857,9 @@ export default function OrbitSidebar({
                         <div className="min-w-0">
                           <div className="text-xs font-mono truncate" style={{ color: 'rgba(255,255,255,0.84)' }}>
                             {scene.name}
+                          </div>
+                          <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.32)' }}>
+                            {sceneModeLabel}
                           </div>
                           <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
                             {scene.description}
@@ -1395,10 +1466,6 @@ export default function OrbitSidebar({
 
             </div>
           )}
-        </div>
-
-        <div className={`border-t border-white/8 ${isMobile ? 'px-3 py-3' : 'px-4 py-4'}`}>
-          <AccountPanel />
         </div>
       </div>
 

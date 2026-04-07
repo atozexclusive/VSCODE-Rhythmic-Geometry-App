@@ -1,5 +1,5 @@
 // ============================================================
-// Orbital Polymeter — Main Application Route
+// Rhythmic Geometry — Main Application Route
 // Orchestrates engine state, canvas, sidebar, transport bar
 // ============================================================
 
@@ -4971,9 +4971,9 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
-          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
-          premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
-          savedScenes={savedScenes}
+          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+          premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+          savedScenes={savedScenes.map(({ id, name, updatedAt, thumbnailDataUrl, snapshot }) => ({ id, name, updatedAt, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
           exportRecords={exportRecords}
           signedIn={isSignedIn}
           accountPersistenceLoading={authLoading || cloudPersistenceLoading}
@@ -5076,13 +5076,13 @@ function OrbitalPolymeter() {
             className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
             style={{ color: 'rgba(255, 255, 255, 0.25)' }}
           >
-            Orbital Polymeter
+            Rhythmic Geometry
           </h1>
           <p
             className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} mt-1 font-mono transition-colors group-hover:text-white/20`}
             style={{ color: 'rgba(255, 255, 255, 0.12)' }}
           >
-            Polyrhythmic Geometry Explorer
+            Living structure from rhythm
           </p>
         </Link>
       </div>
@@ -5421,9 +5421,9 @@ function OrbitalPolymeter() {
         harmonySettings={harmonySettings}
         geometryMode={geometryMode}
         interferenceSettings={interferenceSettings}
-        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
-        premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl }) => ({ id, name, description, thumbnailDataUrl }))}
-        savedScenes={savedScenes}
+        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+        premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+        savedScenes={savedScenes.map(({ id, name, updatedAt, thumbnailDataUrl, snapshot }) => ({ id, name, updatedAt, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
         exportRecords={exportRecords}
         signedIn={isSignedIn}
         accountPersistenceLoading={authLoading || cloudPersistenceLoading}
