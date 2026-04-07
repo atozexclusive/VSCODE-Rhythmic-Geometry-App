@@ -2068,6 +2068,7 @@ function OrbitalPolymeter() {
   const [mobileScenesOpen, setMobileScenesOpen] = useState(false);
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
+  const [mobileSceneTab, setMobileSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
@@ -3827,6 +3828,10 @@ function OrbitalPolymeter() {
             color: match?.color ?? orbit.color,
           };
         });
+  const mobileQuickOrbitSliderMax = Math.min(
+    getMaxEditableRatio(effectivePlan),
+    geometryMode === 'standard-trace' ? 32 : 100,
+  );
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Shared multi-orbit string field.'
@@ -3853,6 +3858,85 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+  const proPromptOverlay = proPrompt ? (
+    <>
+      <button
+        type="button"
+        aria-label="Close Pro prompt"
+        className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm"
+        onClick={() => setProPrompt(null)}
+      />
+      <div className="fixed inset-x-4 bottom-6 z-[100] mx-auto max-w-md rounded-[1.6rem] border border-white/10 bg-[#10131b]/94 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:bottom-8">
+        <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: '#FFAA00' }}>
+          Pro Feature
+        </div>
+        <div className="mt-3 text-xl font-light text-white">
+          {proPrompt.title}
+        </div>
+        <p className="mt-3 text-sm leading-7 text-white/58">
+          {proPrompt.body}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          {proPrompt.feature === 'scene-editing' && activeSceneSource === 'built-in' ? (
+            <button
+              type="button"
+              onClick={() => {
+                makeEditableCopyFromCurrentScene();
+                toast.message('Built-in scene copied into a free editable state.');
+              }}
+              className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
+            >
+              Make Editable Copy
+            </button>
+          ) : null}
+          {proPrompt.context === 'launch-orbit-lock' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerPatternMutation(() => {
+                    applyRandomPattern();
+                    setActiveSceneSource('custom');
+                    setProPrompt(null);
+                  });
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-[#66CCFF]/24 bg-[#66CCFF]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#88CCFF] transition hover:bg-[#66CCFF]/16"
+              >
+                Random Fresh Canvas
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetToFreeDefaultCanvas();
+                  toast.message('Returned to a clean 3-orbit canvas.');
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
+              >
+                Reset To 3 Orbits
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setProPrompt(null);
+              setSidebarOpen(true);
+            }}
+            className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
+          >
+            Open Account
+          </button>
+          <button
+            type="button"
+            onClick={() => setProPrompt(null)}
+            className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/18 hover:text-white"
+          >
+            Keep Exploring
+          </button>
+        </div>
+      </div>
+    </>
+  ) : null;
   if (isMobile) {
     if (presentationMode) {
       return (
@@ -3912,6 +3996,7 @@ function OrbitalPolymeter() {
             onReset={handleReset}
             onOpenSidebar={() => setSidebarOpen(true)}
           />
+          {proPromptOverlay}
         </div>
       );
     }
@@ -4291,9 +4376,9 @@ function OrbitalPolymeter() {
                           <input
                             type="range"
                             min="1"
-                            max="10"
+                            max={String(mobileQuickOrbitSliderMax)}
                             step="1"
-                            value={Math.min(orbit.pulseCount, 10)}
+                            value={Math.min(orbit.pulseCount, mobileQuickOrbitSliderMax)}
                             onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
                             className="flex-1"
                             style={{ accentColor: orbit.color }}
@@ -4413,37 +4498,176 @@ function OrbitalPolymeter() {
 
               {mobileScenesOpen && (
                 <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
-                    <div className="flex gap-3 px-1 snap-x snap-mandatory">
-                      {BUILT_IN_SCENES.map((scene) => (
-                        <button
-                          key={scene.id}
-                          onClick={() => handleLoadBuiltInScene(scene.id)}
-                          className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
-                          style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            borderColor: 'rgba(255,255,255,0.09)',
-                          }}
-                        >
-                          <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
-                            <img
-                              src={scene.thumbnailDataUrl}
-                              alt={scene.name}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="space-y-1 px-4 py-4">
-                            <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                              {scene.name}
-                            </div>
-                            <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                              {scene.description}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+                    {[
+                      { key: 'built-in' as const, label: 'Scenes', color: '#88CCFF' },
+                      { key: 'saved' as const, label: 'Saved', color: '#00FFAA' },
+                      { key: 'premium' as const, label: 'Pro', color: '#FFAA00' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setMobileSceneTab(tab.key)}
+                        className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: mobileSceneTab === tab.key ? `${tab.color}14` : 'transparent',
+                          border: `1px solid ${mobileSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
+                          color: mobileSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveScene}
+                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.1)', border: '1px solid rgba(0,255,170,0.22)' }}
+                    >
+                      Save Scene
+                    </button>
+                    {isSignedIn && localSavedScenes.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleImportLocalScenes}
+                        className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.1)', border: '1px solid rgba(51,136,255,0.22)' }}
+                      >
+                        Import Local Scenes
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {mobileSceneTab === 'built-in' ? (
+                    <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                      <div className="flex gap-3 px-1 snap-x snap-mandatory">
+                        {BUILT_IN_SCENES.map((scene) => (
+                          <button
+                            key={scene.id}
+                            onClick={() => handleLoadBuiltInScene(scene.id)}
+                            className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              borderColor: 'rgba(255,255,255,0.09)',
+                            }}
+                          >
+                            <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
+                              <img
+                                src={scene.thumbnailDataUrl}
+                                alt={scene.name}
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div className="space-y-1 px-4 py-4">
+                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                                {scene.name}
+                              </div>
+                              <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                {scene.description}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {mobileSceneTab === 'saved' ? (
+                    cloudPersistenceLoading ? (
+                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.44)' }}>
+                        Loading saved scenes…
+                      </div>
+                    ) : savedScenes.length === 0 ? (
+                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.44)' }}>
+                        {isSignedIn ? 'No account scenes yet. Save one to keep it with your account.' : 'No local scenes yet. Save one on this device or sign in for account scenes.'}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {savedScenes.map((scene) => (
+                          <div
+                            key={scene.id}
+                            className="rounded-2xl border overflow-hidden"
+                            style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.09)' }}
+                          >
+                            {scene.thumbnailDataUrl ? (
+                              <div className="aspect-[4/3] w-full overflow-hidden bg-[#0f1016]">
+                                <img src={scene.thumbnailDataUrl} alt={scene.name} className="h-full w-full object-cover" />
+                              </div>
+                            ) : null}
+                            <div className="space-y-2 px-4 py-4">
+                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                                {scene.name}
+                              </div>
+                              <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                {new Date(scene.updatedAt).toLocaleString()}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadScene(scene.id)}
+                                  className="px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                                  style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.1)', border: '1px solid rgba(51,136,255,0.22)' }}
+                                >
+                                  Load
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteScene(scene.id)}
+                                  className="px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                                  style={{ color: 'rgba(255,120,150,0.92)', background: 'rgba(255,70,110,0.08)', border: '1px solid rgba(255,70,110,0.16)' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+
+                  {mobileSceneTab === 'premium' ? (
+                    <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                      <div className="flex gap-3 px-1 snap-x snap-mandatory">
+                        {PREMIUM_SCENES.map((scene) => (
+                          <button
+                            key={scene.id}
+                            onClick={() => handleLoadBuiltInScene(scene.id)}
+                            className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              borderColor: 'rgba(255,170,0,0.12)',
+                            }}
+                          >
+                            <div className="relative aspect-square w-full overflow-hidden bg-[#0f1016]">
+                              <img
+                                src={scene.thumbnailDataUrl}
+                                alt={scene.name}
+                                className="h-full w-full object-cover"
+                              />
+                              <div
+                                className="absolute right-3 top-3 rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
+                                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.24)', color: '#FFAA00' }}
+                              >
+                                Pro
+                              </div>
+                            </div>
+                            <div className="space-y-1 px-4 py-4">
+                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                                {scene.name}
+                              </div>
+                              <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                {scene.description}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -4611,6 +4835,7 @@ function OrbitalPolymeter() {
             </div>
           </div>
         </div>
+        {proPromptOverlay}
 
         {helpOpen && !presentationMode && currentGuideStep && (
           <>
@@ -5198,85 +5423,7 @@ function OrbitalPolymeter() {
         />
       )}
 
-      {proPrompt && (
-        <>
-          <button
-            type="button"
-            aria-label="Close Pro prompt"
-            className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm"
-            onClick={() => setProPrompt(null)}
-          />
-          <div className="fixed inset-x-4 bottom-6 z-[100] mx-auto max-w-md rounded-[1.6rem] border border-white/10 bg-[#10131b]/94 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:bottom-8">
-            <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: '#FFAA00' }}>
-              Pro Feature
-            </div>
-            <div className="mt-3 text-xl font-light text-white">
-              {proPrompt.title}
-            </div>
-            <p className="mt-3 text-sm leading-7 text-white/58">
-              {proPrompt.body}
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {proPrompt.feature === 'scene-editing' && activeSceneSource === 'built-in' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    makeEditableCopyFromCurrentScene();
-                    toast.message('Built-in scene copied into a free editable state.');
-                  }}
-                  className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
-                >
-                  Make Editable Copy
-                </button>
-              ) : null}
-              {proPrompt.context === 'launch-orbit-lock' ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerPatternMutation(() => {
-                        applyRandomPattern();
-                        setActiveSceneSource('custom');
-                        setProPrompt(null);
-                      });
-                    }}
-                    className="inline-flex items-center justify-center rounded-full border border-[#66CCFF]/24 bg-[#66CCFF]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#88CCFF] transition hover:bg-[#66CCFF]/16"
-                  >
-                    Random Fresh Canvas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetToFreeDefaultCanvas();
-                      toast.message('Returned to a clean 3-orbit canvas.');
-                    }}
-                    className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
-                  >
-                    Reset To 3 Orbits
-                  </button>
-                </>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setProPrompt(null);
-                  setSidebarOpen(true);
-                }}
-                className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
-              >
-                Open Account
-              </button>
-              <button
-                type="button"
-                onClick={() => setProPrompt(null)}
-                className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/18 hover:text-white"
-              >
-                Keep Exploring
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      {proPromptOverlay}
     </div>
   );
 }
