@@ -26,6 +26,7 @@ function buildFallbackUserRecord(user: User): UserRecord {
     email: user.email ?? '',
     plan: 'free',
     comped: false,
+    access_source: 'none',
     onboarded: false,
     created_at: now,
     updated_at: now,
@@ -39,10 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<UserRecord | null>(null);
   const [planOverride, setPlanOverrideState] = useState<AccountPlan | null>(() => {
     if (typeof window === 'undefined') {
-      return 'pro';
+      return null;
     }
     const stored = window.localStorage.getItem(PLAN_OVERRIDE_STORAGE_KEY);
-    return stored === 'free' || stored === 'pro' ? stored : 'pro';
+    return stored === 'free' || stored === 'pro' ? stored : null;
   });
 
   const syncUserRecord = useCallback(async (nextUser: User | null) => {

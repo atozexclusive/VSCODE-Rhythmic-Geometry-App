@@ -1,12 +1,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export type AccountPlan = 'free' | 'pro';
+export type AccountAccessSource = 'beta' | 'comped' | 'paid' | 'none';
 
 export interface UserRecord {
   id: string;
   email: string;
   plan: AccountPlan;
   comped: boolean;
+  access_source: AccountAccessSource;
   onboarded: boolean;
   created_at: string;
   updated_at: string;

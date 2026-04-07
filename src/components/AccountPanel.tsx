@@ -18,7 +18,24 @@ export default function AccountPanel() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const accountPlanLabel = account?.plan === 'pro' ? (account.comped ? 'Comped Pro' : 'Pro') : 'Free';
+  const accountPlanLabel =
+    account?.plan === 'pro'
+      ? account.access_source === 'beta'
+        ? 'Beta Pro'
+        : account.access_source === 'comped' || account.comped
+          ? 'Comped Pro'
+          : account.access_source === 'paid'
+            ? 'Paid Pro'
+            : 'Pro'
+      : 'Free';
+  const accessSourceLabel =
+    account?.access_source === 'beta'
+      ? 'beta'
+      : account?.access_source === 'comped'
+        ? 'comped'
+        : account?.access_source === 'paid'
+          ? 'paid'
+          : 'none';
   const planLabel = effectivePlan === 'pro' ? 'Pro' : 'Free';
 
   const handleMagicLink = async () => {
@@ -106,6 +123,38 @@ export default function AccountPanel() {
             className="rounded-lg border px-3 py-3 space-y-2"
             style={{
               background: 'rgba(255,255,255,0.025)',
+              borderColor: 'rgba(255,255,255,0.08)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  Account Plan
+                </div>
+                <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Real entitlement from Supabase.
+                </div>
+              </div>
+              <div
+                className="rounded-full px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
+                style={{
+                  background: account?.plan === 'pro' ? 'rgba(255,170,0,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${account?.plan === 'pro' ? 'rgba(255,170,0,0.16)' : 'rgba(255,255,255,0.08)'}`,
+                  color: account?.plan === 'pro' ? '#FFAA00' : 'rgba(255,255,255,0.58)',
+                }}
+              >
+                {accountPlanLabel}
+              </div>
+            </div>
+            <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+              Source: {accessSourceLabel}
+            </div>
+          </div>
+
+          <div
+            className="rounded-lg border px-3 py-3 space-y-2"
+            style={{
+              background: 'rgba(255,255,255,0.025)',
               borderColor: planOverride ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.08)',
             }}
           >
@@ -115,7 +164,7 @@ export default function AccountPanel() {
                   Pro Preview
                 </div>
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Test future Free vs Pro gating without changing your real account.
+                  Local override for testing. Turn it off to use the real account plan above.
                 </div>
               </div>
               <div
@@ -126,7 +175,7 @@ export default function AccountPanel() {
                   color: planOverride ? '#FFAA00' : 'rgba(255,255,255,0.58)',
                 }}
               >
-                {planOverride ? `${planLabel} test` : accountPlanLabel}
+                {planOverride ? `${planLabel} preview` : 'Using account plan'}
               </div>
             </div>
 
