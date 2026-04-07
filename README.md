@@ -34,6 +34,11 @@ Required vars:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PRICE_ID_PRO`
+- `STRIPE_WEBHOOK_SECRET`
+- `APP_BASE_URL`
 
 If these vars are missing, the app still runs, but account features stay disabled.
 
@@ -42,6 +47,7 @@ Apply the included migrations in your Supabase project:
 - [supabase/migrations/20260407_create_users_table.sql](/Users/marcdeblasie/Desktop/Orbital-Polymeter-Shipper-3a7c1ed059ce0222269ce4d939b199e8ae3442d7/supabase/migrations/20260407_create_users_table.sql)
 - [supabase/migrations/20260407_add_access_source_to_users.sql](/Users/marcdeblasie/Desktop/Orbital-Polymeter-Shipper-3a7c1ed059ce0222269ce4d939b199e8ae3442d7/supabase/migrations/20260407_add_access_source_to_users.sql)
 - [supabase/migrations/20260407_create_saved_scenes_and_export_records.sql](/Users/marcdeblasie/Desktop/Orbital-Polymeter-Shipper-3a7c1ed059ce0222269ce4d939b199e8ae3442d7/supabase/migrations/20260407_create_saved_scenes_and_export_records.sql)
+- [supabase/migrations/20260407_add_stripe_billing_fields_to_users.sql](/Users/marcdeblasie/Desktop/Orbital-Polymeter-Shipper-3a7c1ed059ce0222269ce4d939b199e8ae3442d7/supabase/migrations/20260407_add_stripe_billing_fields_to_users.sql)
 
 This creates the tables used for:
 
@@ -52,6 +58,7 @@ This creates the tables used for:
 - comped access
 - onboarding state
 - entitlement source metadata
+- Stripe billing identity fields
 
 Signed-in behavior:
 
@@ -59,6 +66,7 @@ Signed-in behavior:
 - PNG, WebM, and scene-file exports create account export records
 - the app reads the real account `plan` from `public.users`
 - local `Pro Preview` can still temporarily override that plan for testing
+- paid Stripe checkout can promote accounts to Pro automatically through the webhook
 
 Signed-out behavior:
 
@@ -113,6 +121,45 @@ The application will start and display the local URL in your terminal.
 - `bun dev` - Start development server
 - `bun build` - Build for production
 - `bun lint` - Run linter
+
+## Stripe Setup
+
+Create a recurring Stripe Price for Pro, then set:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PRICE_ID_PRO`
+- `STRIPE_WEBHOOK_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `APP_BASE_URL`
+
+Vercel also needs the public account vars already in use:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Create a Stripe webhook endpoint pointed at:
+
+- `https://your-domain/api/stripe/webhook`
+
+Listen for:
+
+- `checkout.session.completed`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+What the billing flow now does:
+
+- `Upgrade To Pro` creates a Stripe Checkout subscription session
+- `Manage Billing` opens the Stripe billing portal for paid users
+- webhook events update `public.users.plan`
+- paid accounts are marked:
+  - `plan = 'pro'`
+  - `access_source = 'paid'`
+
+If a subscription ends or becomes inactive, the webhook returns the account to:
+
+- `plan = 'free'`
+- `access_source = 'none'`
 
 ## 🏗️ Building for Production
 

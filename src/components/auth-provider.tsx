@@ -14,6 +14,10 @@ interface AuthContextValue {
   planOverride: AccountPlan | null;
   setPlanOverride: (plan: AccountPlan | null) => void;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: Error | null; existingUser: boolean }>;
+  sendPasswordReset: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -143,6 +147,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ?? null };
   }, []);
 
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase auth is not configured.') };
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    return { error: error ?? null };
+  }, []);
+
+  const signUpWithPassword = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase auth is not configured.'), existingUser: false };
+    }
+
+    const redirectTo =
+      typeof window !== 'undefined' ? `${window.location.origin}/app` : undefined;
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: redirectTo },
+    });
+
+    const identityCount = Array.isArray(data.user?.identities) ? data.user.identities.length : null;
+    const existingUser = !error && Boolean(data.user) && identityCount === 0;
+
+    return { error: error ?? null, existingUser };
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase auth is not configured.') };
+    }
+
+    const redirectTo =
+      typeof window !== 'undefined' ? `${window.location.origin}/app` : undefined;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    return { error: error ?? null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase auth is not configured.') };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: error ?? null };
+  }, []);
+
   const signOut = useCallback(async () => {
     if (!supabase) {
       setSession(null);
@@ -171,9 +232,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       planOverride,
       setPlanOverride,
       signInWithMagicLink,
+      signInWithPassword,
+      signUpWithPassword,
+      sendPasswordReset,
+      updatePassword,
       signOut,
     }),
-    [account, effectivePlan, loading, planOverride, session, setPlanOverride, signInWithMagicLink, signOut, user],
+    [account, effectivePlan, loading, planOverride, sendPasswordReset, session, setPlanOverride, signInWithMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePassword, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -51,6 +51,7 @@ import {
   type StoredExportRecord,
   type StoredSceneRecord,
 } from '../lib/account-storage';
+import { startStripeCheckout } from '../lib/billing-client';
 import {
   FREE_SCENE_SAVE_LIMIT,
   canUseProFeature,
@@ -2059,6 +2060,7 @@ function OrbitalPolymeter() {
   const [savedScenes, setSavedScenes] = useState<SavedScene[]>(loadSavedScenes);
   const [exportRecords, setExportRecords] = useState<ExportRecord[]>([]);
   const [cloudPersistenceLoading, setCloudPersistenceLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [recordingVideo, setRecordingVideo] = useState(false);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
@@ -2239,6 +2241,23 @@ function OrbitalPolymeter() {
     },
     [effectivePlan, openProPrompt],
   );
+  const beginStripeUpgrade = useCallback(async () => {
+    if (!isSignedIn) {
+      setSidebarOpen(true);
+      toast.message('Sign in first to unlock Pro.');
+      return;
+    }
+
+    setBillingLoading(true);
+    try {
+      setProPrompt(null);
+      await startStripeCheckout();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not start Stripe checkout.');
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [isSignedIn]);
   const isPremiumSceneEditingLocked =
     (activeSceneSource === 'built-in' || activeSceneSource === 'premium-built-in') &&
     !canUseProFeature(effectivePlan, 'scene-editing');
@@ -2299,6 +2318,32 @@ function OrbitalPolymeter() {
     }
     window.localStorage.setItem(TOP_STATUS_VISIBLE_STORAGE_KEY, topStatusVisible ? '1' : '0');
   }, [topStatusVisible]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    const checkoutState = url.searchParams.get('checkout');
+    const billingState = url.searchParams.get('billing');
+
+    if (!checkoutState && !billingState) {
+      return;
+    }
+
+    if (checkoutState === 'success') {
+      toast.success('Checkout completed. Your Pro plan will sync in a moment.');
+    } else if (checkoutState === 'canceled') {
+      toast.message('Checkout canceled.');
+    } else if (billingState === 'portal') {
+      toast.message('Returned from billing portal.');
+    }
+
+    url.searchParams.delete('checkout');
+    url.searchParams.delete('billing');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -3919,12 +3964,17 @@ function OrbitalPolymeter() {
           <button
             type="button"
             onClick={() => {
+              if (isSignedIn) {
+                void beginStripeUpgrade();
+                return;
+              }
               setProPrompt(null);
               setSidebarOpen(true);
             }}
-            className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
+            disabled={billingLoading}
+            className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16 disabled:opacity-60"
           >
-            Open Account
+            {billingLoading ? 'Opening Checkout…' : isSignedIn ? 'Upgrade To Pro' : 'Open Account'}
           </button>
           <button
             type="button"
