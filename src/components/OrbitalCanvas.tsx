@@ -811,51 +811,55 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const BLOOM_DURATION = 500;
 
       const renderFrame = (timestamp: number) => {
-        const now = timestamp;
-        const state = engineRef.current;
-        const previousElapsedBeats = previousElapsedBeatsRef.current;
-        const w = canvas.width / dpr;
-        const h = canvas.height / dpr;
-        const {
-          cx,
-          cy,
-          orbitScale,
-          targetRadius,
-          maxRadius,
-          effectiveVisualRadius,
-        } = getStandardLayoutMetrics(state.orbits, w, h);
-        if (isMobileRef.current) {
-          const previousLayout = lastMobileLayoutRef.current;
-          if (
-            previousLayout &&
-            (Math.abs(previousLayout.width - w) > 0.5 ||
-              Math.abs(previousLayout.height - h) > 0.5 ||
-              Math.abs(previousLayout.cx - cx) > 0.5 ||
-              Math.abs(previousLayout.cy - cy) > 0.5 ||
-              Math.abs(previousLayout.orbitScale - orbitScale) > 0.001)
-          ) {
-            clearTraces();
-            bloomsRef.current = [];
+        try {
+          const now = timestamp;
+          const state = engineRef.current;
+          if (state.elapsedBeats < previousElapsedBeatsRef.current) {
+            previousElapsedBeatsRef.current = state.elapsedBeats;
           }
-          lastMobileLayoutRef.current = { width: w, height: h, cx, cy, orbitScale };
-        } else {
-          lastMobileLayoutRef.current = null;
-        }
-        const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
-        const isInterferenceMode = geometryModeRef.current === 'interference-trace';
-        const isSweepMode = geometryModeRef.current === 'sweep';
-        const selectedInterferenceOrbitIds = new Set(
-          isInterferenceMode || isSweepMode
-            ? [
-                normalizedInterferenceSettings.sourceOrbitAId,
-                normalizedInterferenceSettings.sourceOrbitBId,
-                normalizedInterferenceSettings.sourceOrbitCId,
-                normalizedInterferenceSettings.sourceOrbitDId,
-              ].filter(
-                (orbitId): orbitId is string => Boolean(orbitId),
-              )
-            : [],
-        );
+          const previousElapsedBeats = previousElapsedBeatsRef.current;
+          const w = canvas.width / dpr;
+          const h = canvas.height / dpr;
+          const {
+            cx,
+            cy,
+            orbitScale,
+            targetRadius,
+            maxRadius,
+            effectiveVisualRadius,
+          } = getStandardLayoutMetrics(state.orbits, w, h);
+          if (isMobileRef.current) {
+            const previousLayout = lastMobileLayoutRef.current;
+            if (
+              previousLayout &&
+              (Math.abs(previousLayout.width - w) > 0.5 ||
+                Math.abs(previousLayout.height - h) > 0.5 ||
+                Math.abs(previousLayout.cx - cx) > 0.5 ||
+                Math.abs(previousLayout.cy - cy) > 0.5 ||
+                Math.abs(previousLayout.orbitScale - orbitScale) > 0.001)
+            ) {
+              clearTraces();
+              bloomsRef.current = [];
+            }
+            lastMobileLayoutRef.current = { width: w, height: h, cx, cy, orbitScale };
+          } else {
+            lastMobileLayoutRef.current = null;
+          }
+          const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
+          const isInterferenceMode = geometryModeRef.current === 'interference-trace';
+          const isSweepMode = geometryModeRef.current === 'sweep';
+          const selectedInterferenceOrbitIds = new Set(
+            isInterferenceMode || isSweepMode
+              ? [
+                  normalizedInterferenceSettings.sourceOrbitAId,
+                  normalizedInterferenceSettings.sourceOrbitBId,
+                  normalizedInterferenceSettings.sourceOrbitCId,
+                  normalizedInterferenceSettings.sourceOrbitDId,
+                ].filter(
+                  (orbitId): orbitId is string => Boolean(orbitId),
+                )
+              : [],
+          );
 
         const selectedInnerOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitAId);
         const selectedOuterOrbit = state.orbits.find((orbit) => orbit.id === normalizedInterferenceSettings.sourceOrbitBId);
@@ -1675,8 +1679,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        previousElapsedBeatsRef.current = state.elapsedBeats;
-        rafRef.current = requestAnimationFrame(renderFrame);
+          previousElapsedBeatsRef.current = state.elapsedBeats;
+        } catch (error) {
+          console.error('OrbitalCanvas render failed', error);
+          clearTraces();
+          bloomsRef.current = [];
+          previousElapsedBeatsRef.current = engineRef.current.elapsedBeats;
+        } finally {
+          rafRef.current = requestAnimationFrame(renderFrame);
+        }
       };
 
       rafRef.current = requestAnimationFrame(renderFrame);

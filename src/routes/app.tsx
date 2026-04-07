@@ -64,6 +64,7 @@ const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
 const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
+const PATTERN_MUTATION_COOLDOWN_MS = 140;
 const INTERFERENCE_PREVIEW_WEIGHTS = [-1, 1, 1, -1] as const;
 interface StartGuideStep {
   target: string;
@@ -576,6 +577,38 @@ function buildBroadRandomPulseCounts(
     minGap,
     bias: style === 4 ? 'high' : 'mid',
   });
+}
+
+function ensurePulseArrayLength(
+  values: number[],
+  count: number,
+  options?: { extended?: boolean },
+): number[] {
+  const cap = options?.extended ? 100 : 10;
+  const minGap = options?.extended ? 4 : 1;
+  const next = uniqueNumbers(values.filter((value) => Number.isFinite(value))).map((value) =>
+    clamp(Math.round(value), 1, cap),
+  );
+
+  let guard = 0;
+  while (next.length < count && guard < 200) {
+    guard += 1;
+    const candidate = randomInt(2, cap);
+    if (next.every((value) => Math.abs(value - candidate) >= minGap)) {
+      next.push(candidate);
+    }
+  }
+
+  while (next.length < count) {
+    const fallback = clamp(2 + next.length * Math.max(1, minGap), 1, cap);
+    if (next.every((value) => Math.abs(value - fallback) >= minGap)) {
+      next.push(fallback);
+    } else {
+      next.push(clamp(fallback + next.length, 1, cap));
+    }
+  }
+
+  return sortAndSeparate(next.slice(0, count), minGap, cap).slice(0, count);
 }
 
 function buildRandomColors(
@@ -2041,11 +2074,13 @@ function OrbitalPolymeter() {
   const isSignedIn = Boolean(authEnabled && user);
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
+  const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const guideCalloutRef = useRef<HTMLDivElement | null>(null);
   const captureLoadedRef = useRef(false);
   const siteSceneLoadedRef = useRef(false);
+  const lastPatternMutationAtRef = useRef(0);
   const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
   const guideSteps = isMobile ? MOBILE_START_GUIDE : DESKTOP_START_GUIDE;
   const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
@@ -2206,9 +2241,10 @@ function OrbitalPolymeter() {
   const isPremiumSceneEditingLocked =
     (activeSceneSource === 'built-in' || activeSceneSource === 'premium-built-in') &&
     !canUseProFeature(effectivePlan, 'scene-editing');
+  const freeOrbitLimit = getOrbitLimitForMode('free', geometryMode);
   const lockedLaunchOrbitId =
-    activeSceneSource === 'default' && !canUseProFeature(effectivePlan, 'extra-orbits')
-      ? engineState.orbits[3]?.id ?? null
+    launchOrbitLockActive && !canUseProFeature(effectivePlan, 'extra-orbits') && engineState.orbits.length > freeOrbitLimit
+      ? engineState.orbits[freeOrbitLimit]?.id ?? null
       : null;
   const requireUnlockedSceneEditing = useCallback(() => {
     if (!isPremiumSceneEditingLocked) {
@@ -2229,6 +2265,18 @@ function OrbitalPolymeter() {
     });
     return true;
   }, [lockedLaunchOrbitId]);
+  const triggerPatternMutation = useCallback((action: () => void) => {
+    const now =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    if (now - lastPatternMutationAtRef.current < PATTERN_MUTATION_COOLDOWN_MS) {
+      return false;
+    }
+    lastPatternMutationAtRef.current = now;
+    action();
+    return true;
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -2593,6 +2641,7 @@ function OrbitalPolymeter() {
       handleClearTraces,
     );
     setActiveSceneSource('default');
+    setLaunchOrbitLockActive(true);
     rerender();
   }, [engineState, handleClearTraces, rerender]);
 
@@ -2607,6 +2656,7 @@ function OrbitalPolymeter() {
       handleClearTraces,
     );
     setActiveSceneSource('custom');
+    setLaunchOrbitLockActive(false);
     setProPrompt(null);
     rerender();
   }, [engineState, handleClearTraces, rerender]);
@@ -2620,6 +2670,7 @@ function OrbitalPolymeter() {
       handleClearTraces();
     }
     setActiveSceneSource('custom');
+    setLaunchOrbitLockActive(false);
     setProPrompt(null);
     rerender();
   }, [engineState, geometryMode, handleClearTraces, rerender]);
@@ -2774,6 +2825,7 @@ function OrbitalPolymeter() {
       engineState.playing = true;
       engineState.lastTimestamp = -1;
       setActiveSceneSource('custom');
+      setLaunchOrbitLockActive(false);
       setSidebarOpen(false);
       rerender();
     },
@@ -3041,7 +3093,11 @@ function OrbitalPolymeter() {
       }
     }
 
-    let pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
+    let pulses = ensurePulseArrayLength(
+      buildModeAwarePulses(geometryMode, engineState.orbits.length, options),
+      engineState.orbits.length,
+      options,
+    );
     let directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
     let colors = isFreeBaseRandom
       ? engineState.orbits.map((orbit) => orbit.color)
@@ -3066,7 +3122,11 @@ function OrbitalPolymeter() {
       if (hasEnoughSpread && !shouldRejectCandidate(candidate, recentEntries)) {
         break;
       }
-      pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
+      pulses = ensurePulseArrayLength(
+        buildModeAwarePulses(geometryMode, engineState.orbits.length, options),
+        engineState.orbits.length,
+        options,
+      );
       directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
       colors = isFreeBaseRandom
         ? engineState.orbits.map((orbit) => orbit.color)
@@ -3164,19 +3224,25 @@ function OrbitalPolymeter() {
   }, [effectivePlan, engineState, geometryMode, handleClearTraces, harmonySettings.tonePreset, interferenceSettings, rerender]);
 
   const handleRandomPattern = useCallback(() => {
-    applyRandomPattern();
-    setActiveSceneSource('custom');
-  }, [applyRandomPattern]);
+    triggerPatternMutation(() => {
+      applyRandomPattern();
+      setActiveSceneSource('custom');
+      setLaunchOrbitLockActive(false);
+    });
+  }, [applyRandomPattern, triggerPatternMutation]);
 
   const handleRandomPatternPlus = useCallback(() => {
     if (requireUnlockedSceneEditing()) {
       return;
     }
     requireProFeature('random-plus', () => {
-      applyRandomPattern({ extended: true });
-      setActiveSceneSource('custom');
+      triggerPatternMutation(() => {
+        applyRandomPattern({ extended: true });
+        setActiveSceneSource('custom');
+        setLaunchOrbitLockActive(false);
+      });
     });
-  }, [applyRandomPattern, requireProFeature, requireUnlockedSceneEditing]);
+  }, [applyRandomPattern, requireProFeature, requireUnlockedSceneEditing, triggerPatternMutation]);
 
   const handleRemixPattern = useCallback(() => {
     if (requireUnlockedSceneEditing()) {
@@ -3184,6 +3250,9 @@ function OrbitalPolymeter() {
     }
     if (!canUseProFeature(effectivePlan, 'remix')) {
       openProPrompt('remix');
+      return;
+    }
+    if (!triggerPatternMutation(() => {})) {
       return;
     }
     const useKeyedHarmony = Math.random() > 0.3;
@@ -3244,8 +3313,9 @@ function OrbitalPolymeter() {
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     setActiveSceneSource('custom');
+    setLaunchOrbitLockActive(false);
     rerender();
-  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender, triggerPatternMutation]);
 
   const buildCurrentSceneSnapshot = useCallback((): SceneSnapshot => ({
     orbits: engineState.orbits.map(
@@ -3433,6 +3503,7 @@ function OrbitalPolymeter() {
       );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
       setActiveSceneSource('saved');
+      setLaunchOrbitLockActive(false);
     },
     [engineState, handleClearTraces, rerender, savedScenes],
   );
@@ -3459,6 +3530,7 @@ function OrbitalPolymeter() {
       );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
       setActiveSceneSource(isPremiumScene ? 'premium-built-in' : 'built-in');
+      setLaunchOrbitLockActive(false);
       if (!isPremiumScene && !canUseProFeature(effectivePlan, 'scene-editing')) {
         toast.message('Built-in scenes are preview-only in Free mode. Pro unlocks editing.');
       }
@@ -5162,9 +5234,11 @@ function OrbitalPolymeter() {
                   <button
                     type="button"
                     onClick={() => {
-                      applyRandomPattern();
-                      setActiveSceneSource('custom');
-                      setProPrompt(null);
+                      triggerPatternMutation(() => {
+                        applyRandomPattern();
+                        setActiveSceneSource('custom');
+                        setProPrompt(null);
+                      });
                     }}
                     className="inline-flex items-center justify-center rounded-full border border-[#66CCFF]/24 bg-[#66CCFF]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#88CCFF] transition hover:bg-[#66CCFF]/16"
                   >
