@@ -134,7 +134,9 @@ export default function TransportBar({
     onAllClockwise();
   };
   const canAddDesktopOrbit =
-    (geometryMode === 'standard-trace' || (geometryMode === 'sweep' && quickOrbitControls.length < 4)) &&
+    (geometryMode === 'standard-trace' ||
+      (geometryMode === 'sweep' && quickOrbitControls.length < 4) ||
+      (geometryMode === 'interference-trace' && quickOrbitControls.length < 4)) &&
     quickOrbitControls.length < 6;
   const canDeleteDesktopOrbit = geometryMode === 'standard-trace' && quickOrbitControls.length > 1;
 
@@ -472,6 +474,12 @@ export default function TransportBar({
                       <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
                         {geometryMode === 'standard-trace'
                           ? 'Adjust pulse counts without opening the menu.'
+                          : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
+                            ? 'Shape the active interference quartet from the main bar.'
+                            : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
+                              ? 'Shape the active interference triad from the main bar.'
+                              : geometryMode === 'interference-trace'
+                                ? 'Add one more orbit to unlock the next interference mode.'
                           : geometryMode === 'sweep' && quickOrbitControls.length > 3
                             ? 'Shape the active sweep quartet from the main bar.'
                             : geometryMode === 'sweep' && quickOrbitControls.length > 2
@@ -567,7 +575,10 @@ export default function TransportBar({
                                 >
                                   ×
                                 </button>
-                              ) : geometryMode === 'sweep' && (orbit.label === 'Sweep C' || orbit.label === 'Sweep D') ? (
+                              ) : (geometryMode === 'sweep' &&
+                                  (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
+                                (geometryMode === 'interference-trace' &&
+                                  (orbit.label === 'Interference C' || orbit.label === 'Interference D')) ? (
                                 <button
                                   onClick={() => onDeleteOrbit(orbit.id)}
                                   className="h-6 w-6 rounded-md text-[11px] font-mono"
@@ -592,7 +603,7 @@ export default function TransportBar({
                         </div>
                       ))}
                       </div>
-                      {geometryMode === 'standard-trace' || geometryMode === 'sweep' ? (
+                      {geometryMode === 'standard-trace' || geometryMode === 'sweep' || geometryMode === 'interference-trace' ? (
                         <div className="mt-2 flex justify-end border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
                           <button
                             onClick={onAddOrbit}
@@ -610,12 +621,22 @@ export default function TransportBar({
                                     ? 'Add a fourth sweep orbit'
                                     : 'Add a third sweep orbit'
                                   : 'Sweep quartet is already active'
+                                : geometryMode === 'interference-trace'
+                                  ? canAddDesktopOrbit
+                                    ? quickOrbitControls.length > 2
+                                      ? 'Add a fourth interference orbit'
+                                      : 'Add a third interference orbit'
+                                    : 'Interference quartet is already active'
                                 : canAddDesktopOrbit
                                   ? 'Add another orbit'
                                   : 'Maximum of 6 orbits'
                             }
                           >
-                            {geometryMode === 'sweep' ? 'Add Sweep Orbit' : 'Add Orbit'}
+                            {geometryMode === 'sweep'
+                              ? 'Add Sweep Orbit'
+                              : geometryMode === 'interference-trace'
+                                ? 'Add Interference Orbit'
+                                : 'Add Orbit'}
                           </button>
                         </div>
                       ) : null}

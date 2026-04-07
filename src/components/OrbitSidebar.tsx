@@ -1112,10 +1112,10 @@ export default function OrbitSidebar({
                     </select>
                   </div>
 
-                  {geometryMode === 'sweep' && orbits.length >= 3 && (
+                  {(geometryMode === 'sweep' || geometryMode === 'interference-trace') && orbits.length >= 3 && (
                     <div className="space-y-2">
                       <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                        Sweep C
+                        {geometryMode === 'sweep' ? 'Sweep C' : 'Interference C'}
                       </label>
                       <select
                         value={interferenceSettings.sourceOrbitCId ?? ''}
@@ -1124,7 +1124,7 @@ export default function OrbitSidebar({
                         style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                       >
                         <option value="" style={{ background: '#181820' }}>
-                          None · Keep pair sweep
+                          {geometryMode === 'sweep' ? 'None · Keep pair sweep' : 'None · Keep pair interference'}
                         </option>
                         {orbits.map((orbit, index) => (
                           <option key={orbit.id} value={orbit.id} style={{ background: '#181820' }}>
@@ -1143,7 +1143,7 @@ export default function OrbitSidebar({
                               color: '#FFAA00',
                             }}
                           >
-                            Disable Triad
+                            {geometryMode === 'sweep' ? 'Disable Triad' : 'Disable Triad'}
                           </button>
                           <button
                             onClick={() => onDeleteOrbit(interferenceSettings.sourceOrbitCId!)}
@@ -1154,17 +1154,19 @@ export default function OrbitSidebar({
                               color: 'rgba(255, 120, 150, 0.92)',
                             }}
                           >
-                            Delete Sweep C
+                            {geometryMode === 'sweep' ? 'Delete Sweep C' : 'Delete Interference C'}
                           </button>
                         </div>
                       ) : null}
                     </div>
                   )}
 
-                  {geometryMode === 'sweep' && orbits.length >= 4 && interferenceSettings.sourceOrbitCId ? (
+                  {(geometryMode === 'sweep' || geometryMode === 'interference-trace') &&
+                  orbits.length >= 4 &&
+                  interferenceSettings.sourceOrbitCId ? (
                     <div className="space-y-2">
                       <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                        Sweep D
+                        {geometryMode === 'sweep' ? 'Sweep D' : 'Interference D'}
                       </label>
                       <select
                         value={interferenceSettings.sourceOrbitDId ?? ''}
@@ -1173,7 +1175,7 @@ export default function OrbitSidebar({
                         style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                       >
                         <option value="" style={{ background: '#181820' }}>
-                          None · Keep triad sweep
+                          {geometryMode === 'sweep' ? 'None · Keep triad sweep' : 'None · Keep triad interference'}
                         </option>
                         {orbits.map((orbit, index) => (
                           <option key={orbit.id} value={orbit.id} style={{ background: '#181820' }}>
@@ -1192,7 +1194,7 @@ export default function OrbitSidebar({
                               color: '#FFAA00',
                             }}
                           >
-                            Disable Quartet
+                            {geometryMode === 'sweep' ? 'Disable Quartet' : 'Disable Quartet'}
                           </button>
                           <button
                             onClick={() => onDeleteOrbit(interferenceSettings.sourceOrbitDId!)}
@@ -1203,7 +1205,7 @@ export default function OrbitSidebar({
                               color: 'rgba(255, 120, 150, 0.92)',
                             }}
                           >
-                            Delete Sweep D
+                            {geometryMode === 'sweep' ? 'Delete Sweep D' : 'Delete Interference D'}
                           </button>
                         </div>
                       ) : null}

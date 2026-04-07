@@ -42,6 +42,7 @@ const SWEEP_TRIAD_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS + S
 const SWEEP_QUAD_MAX_MODEL_RADIUS =
   SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS + SWEEP_THIRD_RADIUS + SWEEP_FOURTH_RADIUS;
 const MAX_BLOOM_SPEED = 3;
+const INTERFERENCE_WEIGHTS = [-1, 1, 1, -1] as const;
 
 function blendHexColors(colorA?: string, colorB?: string): string {
   const fallback = colorA ?? colorB ?? INTERFERENCE_TRACE_COLOR;
@@ -195,13 +196,22 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
     const getInterferencePoint = useCallback(
       (
-        innerPoint: { x: number; y: number },
-        outerPoint: { x: number; y: number },
+        points: Array<{ x: number; y: number }>,
         centerX: number,
         centerY: number,
       ) => ({
-        x: centerX + (outerPoint.x - centerX) - (innerPoint.x - centerX),
-        y: centerY + (outerPoint.y - centerY) - (innerPoint.y - centerY),
+        x:
+          centerX +
+          points.reduce(
+            (sum, point, index) => sum + (point.x - centerX) * (INTERFERENCE_WEIGHTS[index] ?? 1),
+            0,
+          ),
+        y:
+          centerY +
+          points.reduce(
+            (sum, point, index) => sum + (point.y - centerY) * (INTERFERENCE_WEIGHTS[index] ?? 1),
+            0,
+          ),
       }),
       [],
     );
@@ -216,8 +226,24 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const cx = width / 2;
         const sortedRadii = orbits.map((orbit) => orbit.radius).sort((a, b) => b - a);
         const maxRadius = sortedRadii[0] ?? 0;
+        const normalizedInterference = normalizeInterferenceSettings(orbits, interferenceSettingsRef.current);
+        const selectedInterferenceOrbits = [
+          normalizedInterference.sourceOrbitAId,
+          normalizedInterference.sourceOrbitBId,
+          normalizedInterference.sourceOrbitCId,
+          normalizedInterference.sourceOrbitDId,
+        ]
+          .map((orbitId) => orbits.find((orbit) => orbit.id === orbitId))
+          .filter((orbit): orbit is Orbit => Boolean(orbit));
+        const uniqueSelectedInterferenceOrbits = selectedInterferenceOrbits.filter(
+          (orbit, index, collection) => collection.findIndex((candidate) => candidate.id === orbit.id) === index,
+        );
         const interferenceRadiusBudget =
-          sortedRadii.length >= 2 ? sortedRadii[0] + sortedRadii[1] : maxRadius;
+          uniqueSelectedInterferenceOrbits.length >= 2
+            ? uniqueSelectedInterferenceOrbits.reduce((sum, orbit) => sum + orbit.radius, 0)
+            : sortedRadii.length >= 2
+              ? sortedRadii[0] + sortedRadii[1]
+              : maxRadius;
         if (!isMobileRef.current || orbits.length === 0) {
           return {
             cx,
@@ -824,6 +850,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 normalizedInterferenceSettings.sourceOrbitAId,
                 normalizedInterferenceSettings.sourceOrbitBId,
                 normalizedInterferenceSettings.sourceOrbitCId,
+                normalizedInterferenceSettings.sourceOrbitDId,
               ].filter(
                 (orbitId): orbitId is string => Boolean(orbitId),
               )
@@ -843,6 +870,26 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         );
         const isSweepQuad = Boolean(
           isSweepMode &&
+            selectedInnerOrbit &&
+            selectedOuterOrbit &&
+            selectedThirdOrbit &&
+            selectedFourthOrbit &&
+            new Set([
+              selectedInnerOrbit.id,
+              selectedOuterOrbit.id,
+              selectedThirdOrbit.id,
+              selectedFourthOrbit.id,
+            ]).size === 4,
+        );
+        const isInterferenceTriad = Boolean(
+          isInterferenceMode &&
+            selectedInnerOrbit &&
+            selectedOuterOrbit &&
+            selectedThirdOrbit &&
+            new Set([selectedInnerOrbit.id, selectedOuterOrbit.id, selectedThirdOrbit.id]).size === 3,
+        );
+        const isInterferenceQuad = Boolean(
+          isInterferenceMode &&
             selectedInnerOrbit &&
             selectedOuterOrbit &&
             selectedThirdOrbit &&
@@ -1154,18 +1201,32 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               }
             } else if (isInterferenceMode) {
               const normalized = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
-              const innerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitAId);
-              const outerOrbit = state.orbits.find((orbit) => orbit.id === normalized.sourceOrbitBId);
+              const activeInterferenceOrbits = [
+                normalized.sourceOrbitAId,
+                normalized.sourceOrbitBId,
+                normalized.sourceOrbitCId,
+                normalized.sourceOrbitDId,
+              ]
+                .map((orbitId) => state.orbits.find((orbit) => orbit.id === orbitId))
+                .filter((orbit): orbit is Orbit => Boolean(orbit))
+                .filter((orbit, index, collection) => collection.findIndex((candidate) => candidate.id === orbit.id) === index);
 
-              if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
-                const derivedInterferenceColor = blendHexColors(innerOrbit.color, outerOrbit.color);
-                const substeps = getAdaptiveTraceSteps([innerOrbit, outerOrbit], deltaBeats);
+              if (activeInterferenceOrbits.length >= 2) {
+                const derivedInterferenceColor = blendMultipleHexColors(
+                  ...activeInterferenceOrbits.map((orbit) => orbit.color),
+                );
+                const substeps = getAdaptiveTraceSteps(activeInterferenceOrbits, deltaBeats);
                 const traceOpacityBudget = state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY;
-                const previousInnerPoint = resonancePositionAtBeats(innerOrbit, previousElapsedBeats, cx, cy);
-                const previousOuterPoint = resonancePositionAtBeats(outerOrbit, previousElapsedBeats, cx, cy);
+                const previousOrbitPoints = activeInterferenceOrbits.map((orbit) =>
+                  scalePointFromCenter(
+                    resonancePositionAtBeats(orbit, previousElapsedBeats, cx, cy),
+                    cx,
+                    cy,
+                    orbitScale,
+                  ),
+                );
                 let previousPoint = getInterferencePoint(
-                  scalePointFromCenter(previousInnerPoint, cx, cy, orbitScale),
-                  scalePointFromCenter(previousOuterPoint, cx, cy, orbitScale),
+                  previousOrbitPoints,
                   cx,
                   cy,
                 );
@@ -1173,19 +1234,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 for (let step = 1; step <= substeps; step++) {
                   const t = step / substeps;
                   const sampleBeats = previousElapsedBeats + deltaBeats * t;
-                  const innerPoint = scalePointFromCenter(
-                    resonancePositionAtBeats(innerOrbit, sampleBeats, cx, cy),
-                    cx,
-                    cy,
-                    orbitScale,
+                  const sampledOrbitPoints = activeInterferenceOrbits.map((orbit) =>
+                    scalePointFromCenter(
+                      resonancePositionAtBeats(orbit, sampleBeats, cx, cy),
+                      cx,
+                      cy,
+                      orbitScale,
+                    ),
                   );
-                  const outerPoint = scalePointFromCenter(
-                    resonancePositionAtBeats(outerOrbit, sampleBeats, cx, cy),
-                    cx,
-                    cy,
-                    orbitScale,
-                  );
-                  const interferencePoint = getInterferencePoint(innerPoint, outerPoint, cx, cy);
+                  const interferencePoint = getInterferencePoint(sampledOrbitPoints, cx, cy);
 
                   traceCtx.save();
                   traceCtx.lineCap = 'round';
@@ -1308,16 +1365,25 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const currentInterferencePoint = sweepPositions
           ? sweepPositions.sweepPoint
           : currentInnerPoint && currentOuterPoint
-            ? getInterferencePoint(currentInnerPoint, currentOuterPoint, cx, cy)
+            ? getInterferencePoint(
+                [
+                  currentInnerPoint,
+                  currentOuterPoint,
+                  ...(isInterferenceTriad || isInterferenceQuad ? currentThirdPoint ? [currentThirdPoint] : [] : []),
+                  ...(isInterferenceQuad ? currentFourthPoint ? [currentFourthPoint] : [] : []),
+                ],
+                cx,
+                cy,
+              )
             : null;
-        const derivedPairColor = isSweepQuad
+        const derivedPairColor = isSweepQuad || isInterferenceQuad
           ? blendMultipleHexColors(
               currentInnerOrbit?.color,
               currentOuterOrbit?.color,
               currentThirdOrbit?.color,
               currentFourthOrbit?.color,
             )
-          : isSweepTriad
+          : isSweepTriad || isInterferenceTriad
             ? blendMultipleHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color, currentThirdOrbit?.color)
             : blendHexColors(currentInnerOrbit?.color, currentOuterOrbit?.color);
 
@@ -1327,8 +1393,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 (orbit) =>
                   orbit.id === currentInnerOrbit.id ||
                   orbit.id === currentOuterOrbit.id ||
-                  ((isSweepTriad || isSweepQuad) && orbit.id === currentThirdOrbit?.id) ||
-                  (isSweepQuad && orbit.id === currentFourthOrbit?.id),
+                  ((isSweepTriad || isSweepQuad || isInterferenceTriad || isInterferenceQuad) &&
+                    orbit.id === currentThirdOrbit?.id) ||
+                  ((isSweepQuad || isInterferenceQuad) && orbit.id === currentFourthOrbit?.id),
               )
             : state.orbits;
         const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
@@ -1341,8 +1408,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ? SWEEP_INNER_RADIUS * sweepScale
             : isSweepOuterOrbit
               ? SWEEP_OUTER_RADIUS * sweepScale
-              : isSweepMode && currentThirdOrbit?.id === orbit.id
-                ? SWEEP_THIRD_RADIUS * sweepScale
+                : isSweepMode && currentThirdOrbit?.id === orbit.id
+                  ? SWEEP_THIRD_RADIUS * sweepScale
                 : isSweepMode && currentFourthOrbit?.id === orbit.id
                   ? SWEEP_FOURTH_RADIUS * sweepScale
               : orbit.radius * orbitScale;
@@ -1488,14 +1555,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.moveTo(currentOuterPoint.x, currentOuterPoint.y);
           ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
           ctx.stroke();
-          if (isSweepTriad && currentThirdPoint) {
+          if ((isSweepTriad || isInterferenceTriad || isSweepQuad || isInterferenceQuad) && currentThirdPoint) {
             ctx.strokeStyle = currentThirdOrbit?.color ?? '#ffffff';
             ctx.beginPath();
             ctx.moveTo(currentThirdPoint.x, currentThirdPoint.y);
             ctx.lineTo(currentInterferencePoint.x, currentInterferencePoint.y);
             ctx.stroke();
           }
-          if (isSweepQuad && currentFourthPoint) {
+          if ((isSweepQuad || isInterferenceQuad) && currentFourthPoint) {
             ctx.strokeStyle = currentFourthOrbit?.color ?? '#ffffff';
             ctx.beginPath();
             ctx.moveTo(currentFourthPoint.x, currentFourthPoint.y);

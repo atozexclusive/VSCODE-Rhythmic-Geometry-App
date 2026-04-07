@@ -46,6 +46,7 @@ const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
 const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
+const INTERFERENCE_PREVIEW_WEIGHTS = [-1, 1, 1, -1] as const;
 interface StartGuideStep {
   target: string;
   title: string;
@@ -655,6 +656,86 @@ function buildModeAwarePulses(
   }
 
   if (mode === 'interference-trace') {
+    if (count >= 4) {
+      const strategy = randomInt(0, 4);
+      if (strategy === 0) {
+        return pickSpacedRandomValues(4, {
+          min: 2,
+          max: cap,
+          minGap: options?.extended ? 6 : 2,
+          bias: options?.extended ? 'mixed' : 'high',
+        }).sort((a, b) => a - b);
+      }
+      if (strategy === 1) {
+        const low = randomInt(2, options?.extended ? 10 : 4);
+        const high = randomInt(options?.extended ? 42 : 7, cap);
+        const midA = clamp(Math.round(low + (high - low) / 3), low + 1, high - 2);
+        const midB = clamp(Math.round(low + ((high - low) * 2) / 3), midA + 1, high - 1);
+        return [low, midA, midB, high].sort((a, b) => a - b);
+      }
+      if (strategy === 2) {
+        return buildBroadRandomPulseCounts(count, {
+          extended: options?.extended,
+        })
+          .slice(0, count)
+          .sort((a, b) => a - b);
+      }
+      if (strategy === 3) {
+        const base = randomInt(options?.extended ? 4 : 3, options?.extended ? 14 : 6);
+        const step = randomInt(options?.extended ? 4 : 2, options?.extended ? 12 : 3);
+        return [
+          base,
+          clamp(base + step, base + 1, cap - 2),
+          clamp(base + step * 2, base + 2, cap - 1),
+          clamp(base + step * 3, base + 3, cap),
+        ].sort((a, b) => a - b);
+      }
+      return pickSpacedRandomValues(4, {
+        min: 2,
+        max: cap,
+        minGap: options?.extended ? 5 : 2,
+        bias: 'mixed',
+      }).sort((a, b) => a - b);
+    }
+
+    if (count >= 3) {
+      const strategy = randomInt(0, 4);
+      if (strategy === 0) {
+        const low = randomInt(2, options?.extended ? 8 : 4);
+        const mid = randomInt(options?.extended ? 10 : 5, options?.extended ? 28 : 7);
+        const high = randomInt(options?.extended ? 36 : 7, cap);
+        return [low, mid, high].sort((a, b) => a - b);
+      }
+      if (strategy === 1) {
+        return pickSpacedRandomValues(3, {
+          min: 2,
+          max: cap,
+          minGap: options?.extended ? 6 : 2,
+          bias: options?.extended ? 'mixed' : 'high',
+        }).sort((a, b) => a - b);
+      }
+      if (strategy === 2) {
+        const base = randomInt(options?.extended ? 4 : 3, options?.extended ? 14 : 6);
+        const step = randomInt(options?.extended ? 4 : 2, options?.extended ? 12 : 3);
+        return [
+          base,
+          clamp(base + step, base + 1, cap - 1),
+          clamp(base + step * 2, base + 2, cap),
+        ].sort((a, b) => a - b);
+      }
+      if (strategy === 3) {
+        const low = randomInt(2, options?.extended ? 8 : 4);
+        const high = randomInt(options?.extended ? 34 : 7, cap);
+        const mid = clamp(Math.round((low + high) / 2), low + 1, high - 1);
+        return [low, mid, high].sort((a, b) => a - b);
+      }
+      return buildBroadRandomPulseCounts(count, {
+        extended: options?.extended,
+      })
+        .slice(0, count)
+        .sort((a, b) => a - b);
+    }
+
     const strategy = randomInt(0, 4);
     if (strategy === 0) {
       return [randomInt(2, options?.extended ? 18 : 5), randomInt(options?.extended ? 30 : 5, cap)].sort((a, b) => a - b);
@@ -810,12 +891,63 @@ export function createScenePreviewDataUrl(
   }
 
   const getInterferencePoint = (
-    innerPoint: { x: number; y: number },
-    outerPoint: { x: number; y: number },
+    points: Array<{ x: number; y: number }>,
   ) => ({
-    x: center + (outerPoint.x - center) - (innerPoint.x - center),
-    y: center + (outerPoint.y - center) - (innerPoint.y - center),
+    x:
+      center +
+      points.reduce(
+        (sum, point, index) => sum + (point.x - center) * (INTERFERENCE_PREVIEW_WEIGHTS[index] ?? 1),
+        0,
+      ),
+    y:
+      center +
+      points.reduce(
+        (sum, point, index) => sum + (point.y - center) * (INTERFERENCE_PREVIEW_WEIGHTS[index] ?? 1),
+        0,
+      ),
   });
+
+  const blendHexColors = (colorA?: string, colorB?: string) => {
+    const fallback = colorA ?? colorB ?? '#32CD32';
+    if (!colorA || !colorB) {
+      return fallback;
+    }
+
+    const parseHex = (value: string) => {
+      const hex = value.replace('#', '');
+      if (hex.length !== 6) {
+        return null;
+      }
+      const parsed = Number.parseInt(hex, 16);
+      if (Number.isNaN(parsed)) {
+        return null;
+      }
+      return {
+        r: (parsed >> 16) & 255,
+        g: (parsed >> 8) & 255,
+        b: parsed & 255,
+      };
+    };
+
+    const a = parseHex(colorA);
+    const b = parseHex(colorB);
+    if (!a || !b) {
+      return fallback;
+    }
+
+    const toHex = (channel: number) => channel.toString(16).padStart(2, '0');
+    return `#${toHex(Math.round((a.r + b.r) / 2))}${toHex(Math.round((a.g + b.g) / 2))}${toHex(
+      Math.round((a.b + b.b) / 2),
+    )}`;
+  };
+
+  const blendMultipleHexColors = (...colors: Array<string | null | undefined>) => {
+    const filtered = colors.filter((color): color is string => Boolean(color));
+    if (filtered.length === 0) {
+      return '#32CD32';
+    }
+    return filtered.slice(1).reduce((mixed, color) => blendHexColors(mixed, color), filtered[0]);
+  };
 
   const getScenePreviewOrbits = () =>
     snapshot.orbits.map((orbit) => ({
@@ -846,6 +978,14 @@ export function createScenePreviewDataUrl(
           sourceOrbitBId:
             snapshot.interferenceSettings.sourceOrbitBIndex != null
               ? traceOrbits[snapshot.interferenceSettings.sourceOrbitBIndex]?.id ?? null
+              : null,
+          sourceOrbitCId:
+            snapshot.interferenceSettings.sourceOrbitCIndex != null
+              ? traceOrbits[snapshot.interferenceSettings.sourceOrbitCIndex]?.id ?? null
+              : null,
+          sourceOrbitDId:
+            snapshot.interferenceSettings.sourceOrbitDIndex != null
+              ? traceOrbits[snapshot.interferenceSettings.sourceOrbitDIndex]?.id ?? null
               : null,
           showConnectors: snapshot.interferenceSettings.showConnectors,
         }
@@ -913,31 +1053,37 @@ export function createScenePreviewDataUrl(
         ctx.globalAlpha = 1;
       }
     } else if (snapshot.geometryMode === 'interference-trace') {
-      const innerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitAId);
-      const outerOrbit = traceOrbits.find((orbit) => orbit.id === normalizedInterference.sourceOrbitBId);
+      const activeInterferenceOrbits: typeof traceOrbits = [];
+      for (const orbitId of [
+        normalizedInterference.sourceOrbitAId,
+        normalizedInterference.sourceOrbitBId,
+        normalizedInterference.sourceOrbitCId,
+        normalizedInterference.sourceOrbitDId,
+      ]) {
+        const orbit = traceOrbits.find((candidate) => candidate.id === orbitId);
+        if (orbit && !activeInterferenceOrbits.some((candidate) => candidate.id === orbit.id)) {
+          activeInterferenceOrbits.push(orbit);
+        }
+      }
       let previousPoint: { x: number; y: number } | null = null;
       const beatsWindow = Math.max(24, cycleBeats * cycleFactor);
       const steps = Math.min(4200, Math.max(1400, beatsWindow * 8));
 
-      if (innerOrbit && outerOrbit && innerOrbit.id !== outerOrbit.id) {
-        ctx.strokeStyle = '#32CD32';
+      if (activeInterferenceOrbits.length >= 2) {
+        ctx.strokeStyle = blendMultipleHexColors(...activeInterferenceOrbits.map((orbit) => orbit.color));
         ctx.lineWidth = Math.max(1, oversample * 0.9);
         ctx.globalAlpha = 0.92;
         for (let i = 0; i <= steps; i++) {
           const beats = (i / steps) * beatsWindow;
-          const innerPoint = resonancePositionAtBeats(
-            { ...innerOrbit, radius: innerOrbit.radius * standardScale },
-            beats,
-            center,
-            center,
+          const sampledPoints = activeInterferenceOrbits.map((orbit) =>
+            resonancePositionAtBeats(
+              { ...orbit, radius: orbit.radius * standardScale },
+              beats,
+              center,
+              center,
+            ),
           );
-          const outerPoint = resonancePositionAtBeats(
-            { ...outerOrbit, radius: outerOrbit.radius * standardScale },
-            beats,
-            center,
-            center,
-          );
-          const point = getInterferencePoint(innerPoint, outerPoint);
+          const point = getInterferencePoint(sampledPoints);
           if (previousPoint) {
             ctx.beginPath();
             ctx.moveTo(previousPoint.x, previousPoint.y);
@@ -2194,11 +2340,13 @@ function OrbitalPolymeter() {
       normalizeInterferenceSettings(engineState.orbits, {
         ...current,
         sourceOrbitCId:
-          geometryMode === 'sweep' && !current.sourceOrbitCId
+          (geometryMode === 'sweep' || geometryMode === 'interference-trace') && !current.sourceOrbitCId
             ? newOrbit.id
             : current.sourceOrbitCId,
         sourceOrbitDId:
-          geometryMode === 'sweep' && current.sourceOrbitCId && !current.sourceOrbitDId
+          (geometryMode === 'sweep' || geometryMode === 'interference-trace') &&
+          current.sourceOrbitCId &&
+          !current.sourceOrbitDId
             ? newOrbit.id
             : current.sourceOrbitDId,
       }),
@@ -2356,10 +2504,21 @@ function OrbitalPolymeter() {
     const isExtended = Boolean(options?.extended);
     const isSweepMode = geometryMode === 'sweep';
     const isPatternMode = geometryMode === 'interference-trace';
-  const normalizedCurrentSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
-  const hasSweepTriad =
-    isSweepMode &&
-    normalizedCurrentSettings.sourceOrbitCId != null &&
+    const normalizedCurrentSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+    const hasInterferenceTriad =
+      isPatternMode &&
+      normalizedCurrentSettings.sourceOrbitCId != null &&
+      normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitAId &&
+      normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitBId;
+    const hasInterferenceQuad =
+      isPatternMode &&
+      normalizedCurrentSettings.sourceOrbitDId != null &&
+      normalizedCurrentSettings.sourceOrbitDId !== normalizedCurrentSettings.sourceOrbitAId &&
+      normalizedCurrentSettings.sourceOrbitDId !== normalizedCurrentSettings.sourceOrbitBId &&
+      normalizedCurrentSettings.sourceOrbitDId !== normalizedCurrentSettings.sourceOrbitCId;
+    const hasSweepTriad =
+      isSweepMode &&
+      normalizedCurrentSettings.sourceOrbitCId != null &&
     normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitAId &&
     normalizedCurrentSettings.sourceOrbitCId !== normalizedCurrentSettings.sourceOrbitBId;
     const hasSweepQuad =
@@ -2379,6 +2538,12 @@ function OrbitalPolymeter() {
             : hasSweepTriad
               ? 3
               : 2
+          : isPatternMode
+            ? hasInterferenceQuad
+              ? 4
+              : hasInterferenceTriad
+                ? 3
+                : 2
           : 2;
 
     if (geometryMode === 'standard-trace') {
@@ -2416,6 +2581,8 @@ function OrbitalPolymeter() {
           ? uniqueNumbers(pulses).length >= Math.max(3, engineState.orbits.length - 1) && maxGap(pulses) >= (isExtended ? 5 : 2)
           : isSweepMode && engineState.orbits.length >= 3
             ? uniqueNumbers(pulses).length >= engineState.orbits.length && maxGap(pulses) >= (isExtended ? 8 : 2)
+            : isPatternMode && engineState.orbits.length >= 3
+              ? uniqueNumbers(pulses).length >= engineState.orbits.length && maxGap(pulses) >= (isExtended ? 6 : 2)
             : Math.abs(pulses[1]! - pulses[0]!) >= (isExtended ? 4 : 2);
       if (hasEnoughSpread && !shouldRejectCandidate(candidate, recentEntries)) {
         break;
@@ -2448,7 +2615,22 @@ function OrbitalPolymeter() {
           : engineState.orbits.length <= 2
             ? [0, Math.max(1, engineState.orbits.length - 1)]
           : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index))
-              .slice(0, isSweepMode ? (hasSweepQuad ? 4 : hasSweepTriad ? 3 : 2) : 2)
+              .slice(
+                0,
+                isSweepMode
+                  ? hasSweepQuad
+                    ? 4
+                    : hasSweepTriad
+                      ? 3
+                      : 2
+                  : isPatternMode
+                    ? hasInterferenceQuad
+                      ? 4
+                      : hasInterferenceTriad
+                        ? 3
+                        : 2
+                    : 2,
+              )
               .sort((a, b) => a - b);
 
     engineState.orbits.forEach((orbit, index) => {
@@ -2477,11 +2659,12 @@ function OrbitalPolymeter() {
         sourceOrbitAId: engineState.orbits[selectedCandidates[0]]?.id,
         sourceOrbitBId: engineState.orbits[selectedCandidates[1]]?.id,
         sourceOrbitCId:
-          isSweepMode && (hasSweepTriad || hasSweepQuad)
+          (isSweepMode && (hasSweepTriad || hasSweepQuad)) ||
+          (isPatternMode && (hasInterferenceTriad || hasInterferenceQuad))
             ? engineState.orbits[selectedCandidates[2] ?? 2]?.id ?? null
             : null,
         sourceOrbitDId:
-          isSweepMode && hasSweepQuad
+          (isSweepMode && hasSweepQuad) || (isPatternMode && hasInterferenceQuad)
             ? engineState.orbits[selectedCandidates[3] ?? 3]?.id ?? null
             : null,
         showConnectors: isSweepMode ? false : isPatternMode ? true : isExtended ? Math.random() > 0.35 : Math.random() > 0.5,
@@ -2768,6 +2951,17 @@ function OrbitalPolymeter() {
   }, []);
 
   const normalizedPairSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+  const hasInterferenceTriad =
+    geometryMode === 'interference-trace' &&
+    normalizedPairSettings.sourceOrbitCId != null &&
+    normalizedPairSettings.sourceOrbitCId !== normalizedPairSettings.sourceOrbitAId &&
+    normalizedPairSettings.sourceOrbitCId !== normalizedPairSettings.sourceOrbitBId;
+  const hasInterferenceQuad =
+    geometryMode === 'interference-trace' &&
+    normalizedPairSettings.sourceOrbitDId != null &&
+    normalizedPairSettings.sourceOrbitDId !== normalizedPairSettings.sourceOrbitAId &&
+    normalizedPairSettings.sourceOrbitDId !== normalizedPairSettings.sourceOrbitBId &&
+    normalizedPairSettings.sourceOrbitDId !== normalizedPairSettings.sourceOrbitCId;
   const hasSweepTriad =
     geometryMode === 'sweep' &&
     normalizedPairSettings.sourceOrbitCId != null &&
@@ -2783,14 +2977,18 @@ function OrbitalPolymeter() {
     geometryMode === 'sweep' &&
     !hasSweepQuad &&
     engineState.orbits.length < 6;
+  const canAddInterferenceOrbit =
+    geometryMode === 'interference-trace' &&
+    !hasInterferenceQuad &&
+    engineState.orbits.length < 6;
   const activePairControls = (
     geometryMode === 'standard-trace'
       ? []
       : [
           normalizedPairSettings.sourceOrbitAId,
           normalizedPairSettings.sourceOrbitBId,
-          ...(hasSweepTriad ? [normalizedPairSettings.sourceOrbitCId] : []),
-          ...(hasSweepQuad ? [normalizedPairSettings.sourceOrbitDId] : []),
+          ...((hasSweepTriad || hasInterferenceTriad) ? [normalizedPairSettings.sourceOrbitCId] : []),
+          ...((hasSweepQuad || hasInterferenceQuad) ? [normalizedPairSettings.sourceOrbitDId] : []),
         ]
           .filter((orbitId): orbitId is string => Boolean(orbitId))
           .map((orbitId, index) => {
@@ -2809,6 +3007,14 @@ function OrbitalPolymeter() {
                       : index === 2
                         ? 'Sweep C'
                         : 'Sweep D'
+                  : geometryMode === 'interference-trace'
+                    ? index === 0
+                      ? 'Interference A'
+                      : index === 1
+                        ? 'Interference B'
+                        : index === 2
+                          ? 'Interference C'
+                          : 'Interference D'
                   : index === 0
                     ? 'Pair A'
                     : 'Pair B',
@@ -2853,7 +3059,11 @@ function OrbitalPolymeter() {
     geometryMode === 'standard-trace'
       ? 'Shared multi-orbit string field.'
       : geometryMode === 'interference-trace'
-        ? 'Live derived path from the selected pair.'
+        ? hasInterferenceQuad
+          ? 'Live derived path from the selected quartet.'
+          : hasInterferenceTriad
+            ? 'Live derived path from the selected triad.'
+            : 'Live derived path from the selected pair.'
         : hasSweepQuad
           ? 'Finite sampled sweep from the selected quartet.'
           : hasSweepTriad
@@ -3193,12 +3403,18 @@ function OrbitalPolymeter() {
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
                       Layers
                     </div>
-                    {(geometryMode === 'standard-trace' || canAddSweepOrbit) && (
+                    {(geometryMode === 'standard-trace' || canAddSweepOrbit || canAddInterferenceOrbit) && (
                       <button
                         onClick={handleAddOrbit}
                         className="h-10 w-10 rounded-xl flex items-center justify-center"
                         style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
-                        title={geometryMode === 'sweep' ? 'Add sweep layer' : 'Add layer'}
+                        title={
+                          geometryMode === 'sweep'
+                            ? 'Add sweep layer'
+                            : geometryMode === 'interference-trace'
+                              ? 'Add interference layer'
+                              : 'Add layer'
+                        }
                       >
                         <Plus size={16} />
                       </button>
@@ -3277,7 +3493,9 @@ function OrbitalPolymeter() {
                                 <Trash2 size={14} />
                               </button>
                             )}
-                            {geometryMode === 'sweep' && (orbit.label === 'Sweep C' || orbit.label === 'Sweep D') && (
+                            {(((geometryMode === 'sweep' && (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
+                              (geometryMode === 'interference-trace' &&
+                                (orbit.label === 'Interference C' || orbit.label === 'Interference D')))) && (
                               <button
                                 onClick={() => handleDeleteOrbit(orbit.id)}
                                 className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
