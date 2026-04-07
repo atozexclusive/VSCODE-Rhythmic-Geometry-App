@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, CircleDot, GalleryVerticalEnd, Layers3, MonitorPlay, Play, Sparkles, SquarePlay, Waves } from 'lucide-react';
+import { ArrowRight, CircleDot, GalleryVerticalEnd, Layers3, LogIn, LogOut, Mail, MonitorPlay, Play, Sparkles, SquarePlay, UserRound, Waves, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { BUILT_IN_SCENES, createScenePreviewDataUrl, type SceneSnapshot } from './app';
+import { useAuth } from '../components/auth-provider';
 
 export const Route = createFileRoute('/')({
   component: OrbitalPolymeterLanding,
@@ -119,8 +122,126 @@ const featureGrid = [
 ] as const;
 
 function OrbitalPolymeterLanding() {
+  const { enabled, loading, user, account, signInWithMagicLink, signOut } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const planLabel = account?.plan === 'pro' ? (account.comped ? 'Comped Pro' : 'Pro') : 'Free';
+
+  const handleMagicLink = async () => {
+    const email = accountEmail.trim();
+    if (!email) {
+      toast.error('Enter an email address first.');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await signInWithMagicLink(email);
+    setSubmitting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success('Magic link sent. Check your email to sign in.');
+  };
+
   return (
     <div className="min-h-screen bg-[#090a10] text-white">
+      {accountOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close account panel"
+            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm"
+            onClick={() => setAccountOpen(false)}
+          />
+          <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-[1.6rem] border border-white/10 bg-[#0d1017]/94 p-5 shadow-[0_40px_120px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/62">Account</div>
+                <div className="mt-2 text-sm text-white/5૪">
+                  {enabled ? 'Use the same account across the website and app.' : 'Accounts are not configured yet.'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAccountOpen(false)}
+                className="rounded-full border border-white/10 p-2 text-white/58 transition hover:border-white/18 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-white/58">
+                Restoring session…
+              </div>
+            ) : !enabled ? (
+              <div className="mt-5 rounded-2xl border border-[#ffaa00]/18 bg-[#ffaa00]/8 px-4 py-3 text-sm leading-7 text-white/62">
+                Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to enable website sign-in.
+              </div>
+            ) : user ? (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+                  <div className="flex items-center gap-2 text-sm text-white/84">
+                    <UserRound size={15} />
+                    <span className="truncate">{user.email ?? 'Signed in'}</span>
+                  </div>
+                  <div className="mt-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    {planLabel} account
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to="/app"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
+                    onClick={() => setAccountOpen(false)}
+                  >
+                    Open App
+                    <ArrowRight size={14} />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white"
+                  >
+                    <LogOut size={14} />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-7 text-white/58">
+                  Sign in with a magic link to keep scenes and export history attached to your account.
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                  <Mail size={15} className="text-white/48" />
+                  <input
+                    type="email"
+                    value={accountEmail}
+                    onChange={(event) => setAccountEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full bg-transparent text-sm text-white focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleMagicLink()}
+                  disabled={submitting}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-3 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 disabled:opacity-60"
+                >
+                  <LogIn size={14} />
+                  {submitting ? 'Sending…' : 'Email Sign In'}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div
           className="absolute inset-0 opacity-80"
@@ -157,6 +278,14 @@ function OrbitalPolymeterLanding() {
             <a href="#export" className="transition-colors hover:text-white">Export</a>
           </nav>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAccountOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white"
+            >
+              {user ? <UserRound size={14} /> : <LogIn size={14} />}
+              {user ? 'Account' : 'Sign In'}
+            </button>
             <a
               href="#modes"
               className="hidden rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white sm:inline-flex"

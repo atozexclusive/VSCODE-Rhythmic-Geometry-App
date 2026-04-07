@@ -51,6 +51,13 @@ import {
   type StoredExportRecord,
   type StoredSceneRecord,
 } from '../lib/account-storage';
+import {
+  FREE_SCENE_SAVE_LIMIT,
+  canUseProFeature,
+  getMaxEditableRatio,
+  getOrbitLimitForMode,
+  isProPlan,
+} from '../lib/entitlements';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
@@ -227,6 +234,20 @@ interface ExportRecord {
   createdAt: string;
 }
 
+interface ProPromptState {
+  feature: import('../lib/entitlements').ProFeature;
+  context?: 'launch-orbit-lock';
+  title: string;
+  body: string;
+}
+
+type ActiveSceneSource =
+  | 'default'
+  | 'built-in'
+  | 'premium-built-in'
+  | 'saved'
+  | 'custom';
+
 function sortSavedScenesByUpdatedAt(scenes: SavedScene[]): SavedScene[] {
   return [...scenes].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -263,6 +284,11 @@ const DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
     sourceOrbitDIndex: null,
     showConnectors: DEFAULT_INTERFERENCE_SETTINGS.showConnectors,
   },
+};
+
+const FREE_DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
+  ...DEFAULT_SCENE_SNAPSHOT,
+  orbits: DEFAULT_SCENE_SNAPSHOT.orbits.slice(0, 3),
 };
 
 export interface BuiltInScene {
@@ -1965,7 +1991,7 @@ function launchLoadedState(
 }
 
 function OrbitalPolymeter() {
-  const { user, enabled: authEnabled, loading: authLoading } = useAuth();
+  const { user, enabled: authEnabled, loading: authLoading, effectivePlan } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const captureMode = searchParams?.get('captureMode') === '1';
@@ -2013,6 +2039,8 @@ function OrbitalPolymeter() {
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
   const isSignedIn = Boolean(authEnabled && user);
+  const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
+  const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const guideCalloutRef = useRef<HTMLDivElement | null>(null);
@@ -2109,6 +2137,98 @@ function OrbitalPolymeter() {
       bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
     };
   })();
+  const openProPrompt = useCallback((feature: import('../lib/entitlements').ProFeature) => {
+    const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
+      'save-scenes': {
+        feature: 'save-scenes',
+        title: 'Save More Scenes With Pro',
+        body: `Free accounts can keep up to ${FREE_SCENE_SAVE_LIMIT} saved scenes. Pro unlocks a larger personal scene library.`,
+      },
+      export: {
+        feature: 'export',
+        title: 'Export Is A Pro Feature',
+        body: 'PNG, WebM, and scene-file export are part of Pro. You can still explore and preview freely.',
+      },
+      'random-plus': {
+        feature: 'random-plus',
+        title: 'Random+ Is A Pro Feature',
+        body: 'Random+ explores wider, more extreme ratios, color families, and speeds than the base Random button.',
+      },
+      remix: {
+        feature: 'remix',
+        title: 'Remix Is A Pro Feature',
+        body: 'Remix refreshes the current structure with new color, direction, sound, and speed while keeping the core pattern.',
+      },
+      'scene-editing': {
+        feature: 'scene-editing',
+        title: 'Scene Editing Needs Pro',
+        body: 'Free can load built-in scenes, but changing their ratios, layers, colors, directions, or sound requires Pro.',
+      },
+      'high-ratios': {
+        feature: 'high-ratios',
+        title: 'Higher Ratios Need Pro',
+        body: 'Free editing goes up to 10. Pro unlocks higher-ratio studies and the longer-cycle geometry they produce.',
+      },
+      'extra-orbits': {
+        feature: 'extra-orbits',
+        title: 'Extra Orbits Need Pro',
+        body: 'Free keeps Standard to 3 orbits and Interference/Sweep to 2. Pro unlocks deeper multi-body geometry.',
+      },
+      'color-editing': {
+        feature: 'color-editing',
+        title: 'Color Editing Needs Pro',
+        body: 'Free can preview scene colors, but Pro unlocks direct orbit color editing and palette shaping.',
+      },
+      'sound-editing': {
+        feature: 'sound-editing',
+        title: 'Sound Editing Needs Pro',
+        body: 'Free can hear the system. Pro unlocks sound mode, key, scale, and orbit-role editing.',
+      },
+      'pro-scenes': {
+        feature: 'pro-scenes',
+        title: 'Pro Scenes',
+        body: 'Premium scenes are included with Pro and cannot be opened in Free mode.',
+      },
+    };
+    setProPrompt(featureCopy[feature]);
+  }, []);
+
+  const requireProFeature = useCallback(
+    (feature: import('../lib/entitlements').ProFeature, action: () => void) => {
+      if (canUseProFeature(effectivePlan, feature)) {
+        action();
+        return;
+      }
+      openProPrompt(feature);
+    },
+    [effectivePlan, openProPrompt],
+  );
+  const isPremiumSceneEditingLocked =
+    (activeSceneSource === 'built-in' || activeSceneSource === 'premium-built-in') &&
+    !canUseProFeature(effectivePlan, 'scene-editing');
+  const lockedLaunchOrbitId =
+    activeSceneSource === 'default' && !canUseProFeature(effectivePlan, 'extra-orbits')
+      ? engineState.orbits[3]?.id ?? null
+      : null;
+  const requireUnlockedSceneEditing = useCallback(() => {
+    if (!isPremiumSceneEditingLocked) {
+      return false;
+    }
+    openProPrompt('scene-editing');
+    return true;
+  }, [isPremiumSceneEditingLocked, openProPrompt]);
+  const requireUnlockedLaunchOrbit = useCallback((orbitId: string) => {
+    if (orbitId !== lockedLaunchOrbitId) {
+      return false;
+    }
+    setProPrompt({
+      feature: 'extra-orbits',
+      context: 'launch-orbit-lock',
+      title: 'That Launch Orbit Needs Pro',
+      body: 'The 4th orbit in the default launch canvas is a Pro teaser. Free can keep the 3-orbit core, randomize into a new pattern, or reset back to a clean 3-orbit canvas.',
+    });
+    return true;
+  }, [lockedLaunchOrbitId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -2428,8 +2548,14 @@ function OrbitalPolymeter() {
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
-    setHarmonySettings((current) => ({ ...current, ...updates }));
-  }, []);
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
+    requireProFeature('sound-editing', () => {
+      setHarmonySettings((current) => ({ ...current, ...updates }));
+      setActiveSceneSource('custom');
+    });
+  }, [requireProFeature, requireUnlockedSceneEditing]);
 
   const handleReset = useCallback(() => {
     stopAllAudio();
@@ -2466,8 +2592,37 @@ function OrbitalPolymeter() {
       setInterferenceSettings,
       handleClearTraces,
     );
+    setActiveSceneSource('default');
     rerender();
   }, [engineState, handleClearTraces, rerender]);
+
+  const resetToFreeDefaultCanvas = useCallback(() => {
+    applySceneSnapshot(
+      engineState,
+      FREE_DEFAULT_SCENE_SNAPSHOT,
+      setTraceMode,
+      setHarmonySettings,
+      setGeometryMode,
+      setInterferenceSettings,
+      handleClearTraces,
+    );
+    setActiveSceneSource('custom');
+    setProPrompt(null);
+    rerender();
+  }, [engineState, handleClearTraces, rerender]);
+
+  const makeEditableCopyFromCurrentScene = useCallback(() => {
+    const freeOrbitLimit = getOrbitLimitForMode('free', geometryMode);
+    if (engineState.orbits.length > freeOrbitLimit) {
+      engineState.orbits = engineState.orbits.slice(0, freeOrbitLimit);
+      setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
+      resetEngine(engineState);
+      handleClearTraces();
+    }
+    setActiveSceneSource('custom');
+    setProPrompt(null);
+    rerender();
+  }, [engineState, geometryMode, handleClearTraces, rerender]);
 
   const handleStepForward = useCallback(() => {
     const canvasEl = canvasRef.current;
@@ -2490,32 +2645,71 @@ function OrbitalPolymeter() {
       id: string,
       updates: Partial<Pick<Orbit, 'pulseCount' | 'radius' | 'direction' | 'color' | 'harmonyDegree' | 'harmonyRegister'>>,
     ) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (requireUnlockedLaunchOrbit(id)) {
+        return;
+      }
+      if (
+        (typeof updates.color === 'string' ||
+          typeof updates.harmonyDegree === 'number' ||
+          typeof updates.harmonyRegister === 'number')
+      ) {
+        const feature =
+          typeof updates.color === 'string' ? 'color-editing' : 'sound-editing';
+        if (!canUseProFeature(effectivePlan, feature)) {
+          openProPrompt(feature);
+          return;
+        }
+      }
+
       const orbit = engineState.orbits.find((o) => o.id === id);
       if (orbit) {
+        if (typeof updates.pulseCount === 'number' && updates.pulseCount > getMaxEditableRatio(effectivePlan)) {
+          openProPrompt('high-ratios');
+          return;
+        }
         Object.assign(orbit, updates);
         setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
         if (typeof updates.direction === 'number' || typeof updates.pulseCount === 'number') {
           resetEngine(engineState);
           handleClearTraces();
         }
+        setActiveSceneSource('custom');
         rerender();
       }
     },
-    [engineState, handleClearTraces, rerender],
+    [effectivePlan, engineState, handleClearTraces, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const handleDeleteOrbit = useCallback(
     (id: string) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (requireUnlockedLaunchOrbit(id)) {
+        return;
+      }
       engineState.orbits = engineState.orbits.filter((o) => o.id !== id);
       setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [engineState, handleClearTraces, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const handleAddOrbit = useCallback(() => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
+    const modeOrbitLimit = getOrbitLimitForMode(effectivePlan, geometryMode);
+    if (engineState.orbits.length >= modeOrbitLimit) {
+      openProPrompt('extra-orbits');
+      return;
+    }
     const colors = [
       '#00FFAA', '#FF3366', '#3388FF', '#FFAA00',
       '#AA44FF', '#FF6600', '#00CCFF', '#FF0088',
@@ -2551,11 +2745,15 @@ function OrbitalPolymeter() {
     );
     resetEngine(engineState);
     handleClearTraces();
+    setActiveSceneSource('custom');
     rerender();
-  }, [engineState, geometryMode, handleClearTraces, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender]);
 
   const handleLoadPreset = useCallback(
     (ratios: number[]) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
       const colors = [
         '#00FFAA', '#FF3366', '#3388FF', '#FFAA00',
         '#AA44FF', '#FF6600', '#00CCFF', '#FF0088',
@@ -2575,27 +2773,43 @@ function OrbitalPolymeter() {
       resumeAudio();
       engineState.playing = true;
       engineState.lastTimestamp = -1;
+      setActiveSceneSource('custom');
       setSidebarOpen(false);
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [engineState, handleClearTraces, requireUnlockedSceneEditing, rerender],
   );
 
   const handleGeometryModeChange = useCallback(
     (mode: GeometryMode) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
       if (geometryMode === mode) {
         return;
       }
       setGeometryMode(mode);
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, geometryMode, handleClearTraces, rerender],
+    [engineState, geometryMode, handleClearTraces, requireUnlockedSceneEditing, rerender],
   );
 
   const handleInterferenceSettingsChange = useCallback(
     (updates: Partial<InterferenceSettings>) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (
+        (geometryMode === 'interference-trace' || geometryMode === 'sweep') &&
+        (updates.sourceOrbitCId != null || updates.sourceOrbitDId != null) &&
+        !canUseProFeature(effectivePlan, 'extra-orbits')
+      ) {
+        openProPrompt('extra-orbits');
+        return;
+      }
       setInterferenceSettings((current) =>
         normalizeInterferenceSettings(engineState.orbits, {
           ...current,
@@ -2604,88 +2818,148 @@ function OrbitalPolymeter() {
       );
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender],
   );
 
   const handleReverseDirections = useCallback(() => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
     engineState.orbits.forEach((orbit) => {
       orbit.direction = orbit.direction === 1 ? -1 : 1;
     });
     resetEngine(engineState);
     handleClearTraces();
+    setActiveSceneSource('custom');
     rerender();
-  }, [engineState, handleClearTraces, rerender]);
+  }, [engineState, handleClearTraces, requireUnlockedSceneEditing, rerender]);
 
   const handleAllClockwise = useCallback(() => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
     engineState.orbits.forEach((orbit) => {
       orbit.direction = 1;
     });
     resetEngine(engineState);
     handleClearTraces();
+    setActiveSceneSource('custom');
     rerender();
-  }, [engineState, handleClearTraces, rerender]);
+  }, [engineState, handleClearTraces, requireUnlockedSceneEditing, rerender]);
 
   const handleAlternateDirections = useCallback(() => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
     engineState.orbits.forEach((orbit, index) => {
       orbit.direction = index % 2 === 0 ? 1 : -1;
     });
     resetEngine(engineState);
     handleClearTraces();
+    setActiveSceneSource('custom');
     rerender();
-  }, [engineState, handleClearTraces, rerender]);
+  }, [engineState, handleClearTraces, requireUnlockedSceneEditing, rerender]);
 
   const handleOrbitLongPress = useCallback(
     (orbitId: string, x: number, y: number) => {
+      if (requireUnlockedLaunchOrbit(orbitId)) {
+        return;
+      }
       setRadialMenu({ orbitId, x, y });
     },
-    [],
+    [requireUnlockedLaunchOrbit],
   );
 
   const handleOpenOrbitEditor = useCallback((orbitId: string) => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
+    if (requireUnlockedLaunchOrbit(orbitId)) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'color-editing')) {
+      openProPrompt('color-editing');
+      return;
+    }
     const x = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
     const y = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
     setRadialMenu({ orbitId, x, y });
-  }, []);
+  }, [effectivePlan, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing]);
 
   const handleRadialColorChange = useCallback(
     (orbitId: string, color: string) => {
+      if (!canUseProFeature(effectivePlan, 'color-editing')) {
+        openProPrompt('color-editing');
+        return;
+      }
       handleUpdateOrbit(orbitId, { color });
     },
-    [handleUpdateOrbit],
+    [effectivePlan, handleUpdateOrbit, openProPrompt],
   );
 
   const handleAdjustQuickOrbit = useCallback(
     (orbitId: string, delta: number) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (requireUnlockedLaunchOrbit(orbitId)) {
+        return;
+      }
       const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
       if (!orbit) {
         return;
       }
-      orbit.pulseCount = Math.max(1, Math.min(1000, orbit.pulseCount + delta));
+      const nextPulseCount = Math.max(1, Math.min(1000, orbit.pulseCount + delta));
+      if (nextPulseCount > getMaxEditableRatio(effectivePlan)) {
+        openProPrompt('high-ratios');
+        return;
+      }
+      orbit.pulseCount = nextPulseCount;
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [effectivePlan, engineState, handleClearTraces, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const handleSetQuickOrbit = useCallback(
     (orbitId: string, pulseCount: number) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (requireUnlockedLaunchOrbit(orbitId)) {
+        return;
+      }
       const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
       if (!orbit) {
         return;
       }
-      orbit.pulseCount = Math.max(1, Math.min(1000, pulseCount));
+      const nextPulseCount = Math.max(1, Math.min(1000, pulseCount));
+      if (nextPulseCount > getMaxEditableRatio(effectivePlan)) {
+        openProPrompt('high-ratios');
+        return;
+      }
+      orbit.pulseCount = nextPulseCount;
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [effectivePlan, engineState, handleClearTraces, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const handleToggleOrbitDirection = useCallback(
     (orbitId: string) => {
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (requireUnlockedLaunchOrbit(orbitId)) {
+        return;
+      }
       const orbit = engineState.orbits.find((entry) => entry.id === orbitId);
       if (!orbit) {
         return;
@@ -2693,13 +2967,15 @@ function OrbitalPolymeter() {
       orbit.direction = orbit.direction === 1 ? -1 : 1;
       resetEngine(engineState);
       handleClearTraces();
+      setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [engineState, handleClearTraces, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const applyRandomPattern = useCallback((options?: { extended?: boolean }) => {
     const isExtended = Boolean(options?.extended);
+    const isFreeBaseRandom = !isExtended && !isProPlan(effectivePlan);
     const isSweepMode = geometryMode === 'sweep';
     const isPatternMode = geometryMode === 'interference-trace';
     const normalizedCurrentSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
@@ -2741,30 +3017,35 @@ function OrbitalPolymeter() {
               ? 4
               : hasInterferenceTriad
                 ? 3
-                : 2
+              : 2
           : 2;
+    const cappedNextCount = isFreeBaseRandom
+      ? Math.min(nextCount, getOrbitLimitForMode('free', geometryMode))
+      : nextCount;
 
     if (geometryMode === 'standard-trace') {
-      if (engineState.orbits.length < nextCount) {
-        while (engineState.orbits.length < nextCount) {
+      if (engineState.orbits.length < cappedNextCount) {
+        while (engineState.orbits.length < cappedNextCount) {
           engineState.orbits.push(createOrbit(DEFAULT_ORBITS[engineState.orbits.length % DEFAULT_ORBITS.length]));
         }
-      } else if (engineState.orbits.length > nextCount) {
-        engineState.orbits = engineState.orbits.slice(0, nextCount);
+      } else if (engineState.orbits.length > cappedNextCount) {
+        engineState.orbits = engineState.orbits.slice(0, cappedNextCount);
       }
     } else {
-      if (engineState.orbits.length < nextCount) {
-        while (engineState.orbits.length < nextCount) {
+      if (engineState.orbits.length < cappedNextCount) {
+        while (engineState.orbits.length < cappedNextCount) {
           engineState.orbits.push(createOrbit(DEFAULT_ORBITS[engineState.orbits.length % DEFAULT_ORBITS.length]));
         }
-      } else if (engineState.orbits.length > nextCount) {
-        engineState.orbits = engineState.orbits.slice(0, nextCount);
+      } else if (engineState.orbits.length > cappedNextCount) {
+        engineState.orbits = engineState.orbits.slice(0, cappedNextCount);
       }
     }
 
     let pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
     let directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
-    let colors = buildRandomColors(engineState.orbits.length, options);
+    let colors = isFreeBaseRandom
+      ? engineState.orbits.map((orbit) => orbit.color)
+      : buildRandomColors(engineState.orbits.length, options);
     let speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
     let candidate: RandomHistoryEntry = {
       pulses,
@@ -2787,7 +3068,9 @@ function OrbitalPolymeter() {
       }
       pulses = buildModeAwarePulses(geometryMode, engineState.orbits.length, options);
       directions = buildModeAwareDirections(geometryMode, engineState.orbits.length, options);
-      colors = buildRandomColors(engineState.orbits.length, options);
+      colors = isFreeBaseRandom
+        ? engineState.orbits.map((orbit) => orbit.color)
+        : buildRandomColors(engineState.orbits.length, options);
       speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
       candidate = {
         pulses,
@@ -2797,7 +3080,7 @@ function OrbitalPolymeter() {
       };
     }
 
-    const useKeyedHarmony = isExtended ? Math.random() > 0.15 : Math.random() > 0.35;
+    const useKeyedHarmony = isFreeBaseRandom ? harmonySettings.tonePreset === 'scale-quantized' : isExtended ? Math.random() > 0.15 : Math.random() > 0.35;
     const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
     const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
     const nextRoot = randomItem(NOTE_NAMES);
@@ -2842,14 +3125,16 @@ function OrbitalPolymeter() {
       orbit.harmonyRegister = harmonyAssignments[index]?.register ?? 0;
     });
 
-    setHarmonySettings((current) => ({
-      ...current,
-      tonePreset: useKeyedHarmony ? 'scale-quantized' : 'original',
-      rootNote: nextRoot,
-      scaleName: nextScale,
-      mappingMode: nextMappingMode,
-      manualOrbitRoles: useManualOrbitRoles,
-    }));
+    if (!isFreeBaseRandom) {
+      setHarmonySettings((current) => ({
+        ...current,
+        tonePreset: useKeyedHarmony ? 'scale-quantized' : 'original',
+        rootNote: nextRoot,
+        scaleName: nextScale,
+        mappingMode: nextMappingMode,
+        manualOrbitRoles: useManualOrbitRoles,
+      }));
+    }
 
     setInterferenceSettings((current) =>
       normalizeInterferenceSettings(engineState.orbits, {
@@ -2876,17 +3161,31 @@ function OrbitalPolymeter() {
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     rerender();
-  }, [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, harmonySettings.tonePreset, interferenceSettings, rerender]);
 
   const handleRandomPattern = useCallback(() => {
     applyRandomPattern();
+    setActiveSceneSource('custom');
   }, [applyRandomPattern]);
 
   const handleRandomPatternPlus = useCallback(() => {
-    applyRandomPattern({ extended: true });
-  }, [applyRandomPattern]);
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
+    requireProFeature('random-plus', () => {
+      applyRandomPattern({ extended: true });
+      setActiveSceneSource('custom');
+    });
+  }, [applyRandomPattern, requireProFeature, requireUnlockedSceneEditing]);
 
   const handleRemixPattern = useCallback(() => {
+    if (requireUnlockedSceneEditing()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'remix')) {
+      openProPrompt('remix');
+      return;
+    }
     const useKeyedHarmony = Math.random() > 0.3;
     const scaleNames = Object.keys(SCALE_PRESETS) as ScaleName[];
     const nextScale = randomItem(scaleNames.filter((scale) => scale !== 'chromatic'));
@@ -2944,8 +3243,9 @@ function OrbitalPolymeter() {
     engineState.speedMultiplier = speedMultiplier;
     engineState.playing = true;
     engineState.lastTimestamp = -1;
+    setActiveSceneSource('custom');
     rerender();
-  }, [engineState, geometryMode, handleClearTraces, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender]);
 
   const buildCurrentSceneSnapshot = useCallback((): SceneSnapshot => ({
     orbits: engineState.orbits.map(
@@ -3016,6 +3316,10 @@ function OrbitalPolymeter() {
 
   const handleSaveScene = useCallback(() => {
     const run = async () => {
+      if (!canUseProFeature(effectivePlan, 'save-scenes') && savedScenes.length >= FREE_SCENE_SAVE_LIMIT) {
+        openProPrompt('save-scenes');
+        return;
+      }
       const now = new Date().toISOString();
       const defaultName = `Scene ${savedScenes.length + 1}`;
       const snapshot = buildCurrentSceneSnapshot();
@@ -3057,11 +3361,15 @@ function OrbitalPolymeter() {
     };
 
     void run();
-  }, [buildCurrentSceneSnapshot, captureSceneThumbnail, isSignedIn, savedScenes.length, user?.id]);
+  }, [buildCurrentSceneSnapshot, captureSceneThumbnail, effectivePlan, isSignedIn, openProPrompt, savedScenes.length, user?.id]);
 
   const handleSaveSceneAs = useCallback(
     (name: string) => {
       const run = async () => {
+        if (!canUseProFeature(effectivePlan, 'save-scenes') && savedScenes.length >= FREE_SCENE_SAVE_LIMIT) {
+          openProPrompt('save-scenes');
+          return;
+        }
         const trimmedName = name.trim();
         const sceneName = trimmedName || `Scene ${savedScenes.length + 1}`;
         const now = new Date().toISOString();
@@ -3105,7 +3413,7 @@ function OrbitalPolymeter() {
 
       void run();
     },
-    [buildCurrentSceneSnapshot, captureSceneThumbnail, isSignedIn, savedScenes.length, user?.id],
+    [buildCurrentSceneSnapshot, captureSceneThumbnail, effectivePlan, isSignedIn, openProPrompt, savedScenes.length, user?.id],
   );
 
   const handleLoadScene = useCallback(
@@ -3124,6 +3432,7 @@ function OrbitalPolymeter() {
         handleClearTraces,
       );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
+      setActiveSceneSource('saved');
     },
     [engineState, handleClearTraces, rerender, savedScenes],
   );
@@ -3132,6 +3441,11 @@ function OrbitalPolymeter() {
     (sceneId: string) => {
       const scene = [...BUILT_IN_SCENES, ...PREMIUM_SCENES].find((entry) => entry.id === sceneId);
       if (!scene) {
+        return;
+      }
+      const isPremiumScene = PREMIUM_SCENES.some((entry) => entry.id === sceneId);
+      if (isPremiumScene && !canUseProFeature(effectivePlan, 'pro-scenes')) {
+        openProPrompt('pro-scenes');
         return;
       }
       applySceneSnapshot(
@@ -3144,8 +3458,12 @@ function OrbitalPolymeter() {
         handleClearTraces,
       );
       launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
+      setActiveSceneSource(isPremiumScene ? 'premium-built-in' : 'built-in');
+      if (!isPremiumScene && !canUseProFeature(effectivePlan, 'scene-editing')) {
+        toast.message('Built-in scenes are preview-only in Free mode. Pro unlocks editing.');
+      }
     },
-    [engineState, handleClearTraces, rerender],
+    [effectivePlan, engineState, handleClearTraces, openProPrompt, rerender],
   );
 
   const handleDeleteScene = useCallback((sceneId: string) => {
@@ -3172,6 +3490,10 @@ function OrbitalPolymeter() {
   }, [isSignedIn, user?.id]);
 
   const handleExportPng = useCallback((options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
+    if (!canUseProFeature(effectivePlan, 'export')) {
+      openProPrompt('export');
+      return;
+    }
     const canvasEl = canvasRef.current;
     if (canvasEl && (canvasEl as any).__exportPng) {
       (canvasEl as any).__exportPng(options);
@@ -3183,10 +3505,14 @@ function OrbitalPolymeter() {
         scale: options.scale,
       });
     }
-  }, [buildCurrentSceneSnapshot, recordExportForAccount]);
+  }, [buildCurrentSceneSnapshot, effectivePlan, openProPrompt, recordExportForAccount]);
 
   const handleExportVideo = useCallback(
     async (options: { durationSeconds: 8 | 12 }) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        openProPrompt('export');
+        return;
+      }
       const canvasEl = canvasRef.current;
       if (!canvasEl || !(canvasEl as any).__exportVideo || recordingVideo) {
         return;
@@ -3215,11 +3541,15 @@ function OrbitalPolymeter() {
         setRecordingVideo(false);
       }
     },
-    [buildCurrentSceneSnapshot, engineState, handleClearTraces, recordExportForAccount, recordingVideo, rerender],
+    [buildCurrentSceneSnapshot, effectivePlan, engineState, handleClearTraces, openProPrompt, recordExportForAccount, recordingVideo, rerender],
   );
 
   const handleExportScene = useCallback(
     (sceneId: string) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        openProPrompt('export');
+        return;
+      }
       const scene = savedScenes.find((entry) => entry.id === sceneId);
       if (!scene) {
         return;
@@ -3232,11 +3562,15 @@ function OrbitalPolymeter() {
         snapshot: scene.snapshot,
       });
     },
-    [recordExportForAccount, savedScenes],
+    [effectivePlan, openProPrompt, recordExportForAccount, savedScenes],
   );
 
   const handleImportScene = useCallback(async (file: File) => {
     try {
+      if (!canUseProFeature(effectivePlan, 'save-scenes') && savedScenes.length >= FREE_SCENE_SAVE_LIMIT) {
+        openProPrompt('save-scenes');
+        return;
+      }
       const raw = await file.text();
       const parsed = JSON.parse(raw);
       const importedScene = normalizeImportedScene(parsed);
@@ -3278,12 +3612,19 @@ function OrbitalPolymeter() {
     } catch {
       toast.error('That file could not be imported as a scene.');
     }
-  }, [isSignedIn, user?.id]);
+  }, [effectivePlan, isSignedIn, openProPrompt, savedScenes.length, user?.id]);
 
   const handleImportLocalScenes = useCallback(() => {
     const run = async () => {
       if (!user?.id || localSavedScenes.length === 0) {
         return;
+      }
+      if (!canUseProFeature(effectivePlan, 'save-scenes')) {
+        const remainingFreeSlots = Math.max(0, FREE_SCENE_SAVE_LIMIT - savedScenes.length);
+        if (remainingFreeSlots <= 0 || localSavedScenes.length > remainingFreeSlots) {
+          openProPrompt('save-scenes');
+          return;
+        }
       }
 
       try {
@@ -3307,7 +3648,7 @@ function OrbitalPolymeter() {
     };
 
     void run();
-  }, [localSavedScenes, refreshAccountPersistence, user?.id]);
+  }, [effectivePlan, localSavedScenes, openProPrompt, refreshAccountPersistence, savedScenes.length, user?.id]);
 
   const normalizedPairSettings = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
   const hasInterferenceTriad =
@@ -4783,6 +5124,84 @@ function OrbitalPolymeter() {
           onDelete={handleDeleteOrbit}
           onClose={() => setRadialMenu(null)}
         />
+      )}
+
+      {proPrompt && (
+        <>
+          <button
+            type="button"
+            aria-label="Close Pro prompt"
+            className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm"
+            onClick={() => setProPrompt(null)}
+          />
+          <div className="fixed inset-x-4 bottom-6 z-[100] mx-auto max-w-md rounded-[1.6rem] border border-white/10 bg-[#10131b]/94 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:bottom-8">
+            <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: '#FFAA00' }}>
+              Pro Feature
+            </div>
+            <div className="mt-3 text-xl font-light text-white">
+              {proPrompt.title}
+            </div>
+            <p className="mt-3 text-sm leading-7 text-white/58">
+              {proPrompt.body}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {proPrompt.feature === 'scene-editing' && activeSceneSource === 'built-in' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    makeEditableCopyFromCurrentScene();
+                    toast.message('Built-in scene copied into a free editable state.');
+                  }}
+                  className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
+                >
+                  Make Editable Copy
+                </button>
+              ) : null}
+              {proPrompt.context === 'launch-orbit-lock' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyRandomPattern();
+                      setActiveSceneSource('custom');
+                      setProPrompt(null);
+                    }}
+                    className="inline-flex items-center justify-center rounded-full border border-[#66CCFF]/24 bg-[#66CCFF]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#88CCFF] transition hover:bg-[#66CCFF]/16"
+                  >
+                    Random Fresh Canvas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetToFreeDefaultCanvas();
+                      toast.message('Returned to a clean 3-orbit canvas.');
+                    }}
+                    className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
+                  >
+                    Reset To 3 Orbits
+                  </button>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setProPrompt(null);
+                  setSidebarOpen(true);
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
+              >
+                Open Account
+              </button>
+              <button
+                type="button"
+                onClick={() => setProPrompt(null)}
+                className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/18 hover:text-white"
+              >
+                Keep Exploring
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

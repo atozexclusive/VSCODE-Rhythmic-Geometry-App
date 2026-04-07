@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured, type UserRecord } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, type AccountPlan, type UserRecord } from '../lib/supabase';
+
+const PLAN_OVERRIDE_STORAGE_KEY = 'orbital-polymeter-plan-override';
 
 interface AuthContextValue {
   enabled: boolean;
@@ -8,6 +10,9 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   account: UserRecord | null;
+  effectivePlan: AccountPlan;
+  planOverride: AccountPlan | null;
+  setPlanOverride: (plan: AccountPlan | null) => void;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -32,6 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<UserRecord | null>(null);
+  const [planOverride, setPlanOverrideState] = useState<AccountPlan | null>(() => {
+    if (typeof window === 'undefined') {
+      return 'pro';
+    }
+    const stored = window.localStorage.getItem(PLAN_OVERRIDE_STORAGE_KEY);
+    return stored === 'free' || stored === 'pro' ? stored : 'pro';
+  });
 
   const syncUserRecord = useCallback(async (nextUser: User | null) => {
     if (!supabase || !nextUser) {
@@ -97,6 +109,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncUserRecord]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (planOverride) {
+      window.localStorage.setItem(PLAN_OVERRIDE_STORAGE_KEY, planOverride);
+      return;
+    }
+
+    window.localStorage.removeItem(PLAN_OVERRIDE_STORAGE_KEY);
+  }, [planOverride]);
+
+  const setPlanOverride = useCallback((plan: AccountPlan | null) => {
+    setPlanOverrideState(plan);
+  }, []);
+
   const signInWithMagicLink = useCallback(async (email: string) => {
     if (!supabase) {
       return { error: new Error('Supabase auth is not configured.') };
@@ -127,6 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccount(null);
   }, []);
 
+  const effectivePlan: AccountPlan =
+    planOverride ?? account?.plan ?? 'free';
+
   const value = useMemo<AuthContextValue>(
     () => ({
       enabled: isSupabaseConfigured,
@@ -134,10 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user,
       account,
+      effectivePlan,
+      planOverride,
+      setPlanOverride,
       signInWithMagicLink,
       signOut,
     }),
-    [account, loading, session, signInWithMagicLink, signOut, user],
+    [account, effectivePlan, loading, planOverride, session, setPlanOverride, signInWithMagicLink, signOut, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
