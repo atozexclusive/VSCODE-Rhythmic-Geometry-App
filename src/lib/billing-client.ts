@@ -52,13 +52,49 @@ async function postBillingRequest(path: string, body?: Record<string, unknown>) 
   return payload.url;
 }
 
+async function postBillingJsonRequest(path: string, body?: Record<string, unknown>) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  const rawBody = await response.text();
+  let payload: { error?: string; ok?: boolean } = {};
+
+  if (rawBody) {
+    try {
+      payload = JSON.parse(rawBody) as { error?: string; ok?: boolean };
+    } catch {
+      payload = {};
+    }
+  }
+
+  if (!response.ok) {
+    const plainTextError = rawBody.trim().replace(/\s+/g, ' ').slice(0, 220);
+    throw new Error(
+      payload.error ||
+        (plainTextError && !plainTextError.startsWith('<!doctype') && !plainTextError.startsWith('<html')
+          ? plainTextError
+          : '') ||
+        `Billing request failed (${response.status}).`,
+    );
+  }
+
+  return payload;
+}
+
 export async function startStripeCheckout() {
   const url = await postBillingRequest('/api/stripe/create-checkout-session');
   window.location.assign(url);
 }
 
 export async function confirmStripeCheckout(sessionId: string) {
-  await postBillingRequest('/api/stripe/confirm-checkout-session', { sessionId });
+  await postBillingJsonRequest('/api/stripe/confirm-checkout-session', { sessionId });
 }
 
 export async function openStripeBillingPortal() {

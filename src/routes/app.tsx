@@ -2258,7 +2258,7 @@ function OrbitalPolymeter() {
 
     if (hasProAccess) {
       setProPrompt(null);
-      toast.message('Pro is already active on this account.');
+      toast.message('Pro is already active on this account. If this screen still looks stale, refresh the page.');
       return;
     }
 
