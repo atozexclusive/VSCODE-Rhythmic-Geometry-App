@@ -1,4 +1,4 @@
-import { requireAuthenticatedUser } from '../_lib/supabase-admin';
+import { requireAuthenticatedUser } from '../_lib/supabase-admin.js';
 
 export const config = {
   runtime: 'nodejs',

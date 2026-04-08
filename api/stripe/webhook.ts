@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
-import { createSupabaseAdminClient } from '../_lib/supabase-admin';
-import { getStripe, getStripeWebhookSecret } from '../_lib/stripe';
+import { createSupabaseAdminClient } from '../_lib/supabase-admin.js';
+import { getStripe, getStripeWebhookSecret } from '../_lib/stripe.js';
 
 export const config = {
   runtime: 'nodejs',

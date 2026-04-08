@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { requireServerEnv } from './env';
+import { requireServerEnv } from './env.js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();

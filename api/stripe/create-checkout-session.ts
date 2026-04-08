@@ -1,6 +1,6 @@
-import { getAppBaseUrl } from '../_lib/env';
-import { createSupabaseAdminClient, requireAuthenticatedUser } from '../_lib/supabase-admin';
-import { getStripe, getStripePriceId } from '../_lib/stripe';
+import { getAppBaseUrl } from '../_lib/env.js';
+import { createSupabaseAdminClient, requireAuthenticatedUser } from '../_lib/supabase-admin.js';
+import { getStripe, getStripePriceId } from '../_lib/stripe.js';
 
 export const config = {
   runtime: 'nodejs',
