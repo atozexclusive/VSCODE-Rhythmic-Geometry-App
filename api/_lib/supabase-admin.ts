@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { requireServerEnv } from './env.js';
+import { getRequestHeader, requireServerEnv } from './env.js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim();
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim() || process.env.SUPABASE_ANON_KEY?.trim();
@@ -31,7 +31,7 @@ export function createSupabaseAdminClient() {
 }
 
 export async function requireAuthenticatedUser(request: Request) {
-  const authorization = request.headers.get('authorization');
+  const authorization = getRequestHeader(request, 'authorization');
   if (!authorization?.startsWith('Bearer ')) {
     throw new Error('Missing bearer token.');
   }

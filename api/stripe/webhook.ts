@@ -1,4 +1,5 @@
 import type Stripe from 'stripe';
+import { getRequestHeader, getRequestText } from '../_lib/env.js';
 import { createSupabaseAdminClient } from '../_lib/supabase-admin.js';
 import { getStripe, getStripeWebhookSecret } from '../_lib/stripe.js';
 
@@ -49,12 +50,12 @@ export default async function handler(request: Request) {
 
   try {
     const stripe = getStripe();
-    const signature = request.headers.get('stripe-signature');
+    const signature = getRequestHeader(request, 'stripe-signature');
     if (!signature) {
       throw new Error('Missing stripe-signature header.');
     }
 
-    const body = await request.text();
+    const body = await getRequestText(request);
     const event = await stripe.webhooks.constructEventAsync(body, signature, getStripeWebhookSecret());
 
     switch (event.type) {
