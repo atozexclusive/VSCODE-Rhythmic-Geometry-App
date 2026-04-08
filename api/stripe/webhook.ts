@@ -7,6 +7,11 @@ export const config = {
   runtime: 'nodejs',
 };
 
+type ApiResponse = {
+  status: (code: number) => ApiResponse;
+  json: (body: unknown) => void;
+};
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id ?? session.client_reference_id;
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
@@ -43,9 +48,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
-export default async function handler(request: Request) {
+export default async function handler(request: Request, response: ApiResponse) {
   if (request.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed.' }, { status: 405 });
+    response.status(405).json({ error: 'Method not allowed.' });
+    return;
   }
 
   try {
@@ -66,11 +72,12 @@ export default async function handler(request: Request) {
         break;
     }
 
-    return Response.json({ received: true });
+    response.status(200).json({ received: true });
+    return;
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : 'Webhook processing failed.' },
-      { status: 400 },
-    );
+    response.status(400).json({
+      error: error instanceof Error ? error.message : 'Webhook processing failed.',
+    });
+    return;
   }
 }

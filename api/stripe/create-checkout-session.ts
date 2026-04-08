@@ -6,9 +6,15 @@ export const config = {
   runtime: 'nodejs',
 };
 
-export default async function handler(request: Request) {
+type ApiResponse = {
+  status: (code: number) => ApiResponse;
+  json: (body: unknown) => void;
+};
+
+export default async function handler(request: Request, response: ApiResponse) {
   if (request.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed.' }, { status: 405 });
+    response.status(405).json({ error: 'Method not allowed.' });
+    return;
   }
 
   try {
@@ -95,12 +101,13 @@ export default async function handler(request: Request) {
 
     console.log('[stripe-checkout] checkout session ready');
 
-    return Response.json({ url: session.url });
+    response.status(200).json({ url: session.url });
+    return;
   } catch (error) {
     console.error('[stripe-checkout] failed', error);
-    return Response.json(
-      { error: error instanceof Error ? error.message : 'Failed to create checkout session.' },
-      { status: 400 },
-    );
+    response.status(400).json({
+      error: error instanceof Error ? error.message : 'Failed to create checkout session.',
+    });
+    return;
   }
 }
