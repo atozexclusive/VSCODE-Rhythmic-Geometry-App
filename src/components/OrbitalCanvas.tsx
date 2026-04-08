@@ -216,10 +216,31 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       [],
     );
 
-    const getSweepScale = useCallback((width: number, height: number, modelRadius: number = SWEEP_MAX_MODEL_RADIUS) => {
-      const margin = 36;
-      return Math.max(1, (Math.min(width, height) / 2 - margin) / modelRadius);
-    }, []);
+    const getSweepLayoutMetrics = useCallback(
+      (width: number, height: number, modelRadius: number = SWEEP_MAX_MODEL_RADIUS) => {
+        if (isMobileRef.current) {
+          const margin = 36;
+          return {
+            cx: width / 2,
+            cy: height / 2,
+            scale: Math.max(1, (Math.min(width, height) / 2 - margin) / modelRadius),
+          };
+        }
+
+        const sidePadding = 52;
+        const topPadding = 42;
+        const bottomPadding = 116;
+        const safeWidth = Math.max(1, width - sidePadding * 2);
+        const safeHeight = Math.max(1, height - topPadding - bottomPadding);
+
+        return {
+          cx: width / 2,
+          cy: topPadding + safeHeight / 2,
+          scale: Math.max(1, Math.min(safeWidth / 2, safeHeight / 2) / modelRadius),
+        };
+      },
+      [],
+    );
 
     const getStandardLayoutMetrics = useCallback(
       (orbits: Orbit[], width: number, height: number) => {
@@ -905,6 +926,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               selectedFourthOrbit.id,
             ]).size === 4,
         );
+        const sweepModelRadius = isSweepQuad
+          ? SWEEP_QUAD_MAX_MODEL_RADIUS
+          : isSweepTriad
+            ? SWEEP_TRIAD_MAX_MODEL_RADIUS
+            : SWEEP_MAX_MODEL_RADIUS;
+        const sweepLayout = getSweepLayoutMetrics(w, h, sweepModelRadius);
+        const renderCx = isSweepMode ? sweepLayout.cx : cx;
+        const renderCy = isSweepMode ? sweepLayout.cy : cy;
+        const sweepScale = sweepLayout.scale;
 
         // Physics tick — returns triggers for every 12 o'clock crossing
         const triggers = tick(state, timestamp, cx, cy);
@@ -957,15 +987,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ) {
           const previousT = (previousElapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
           const currentT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
-          const sweepScale = getSweepScale(
-            w,
-            h,
-            isSweepQuad
-              ? SWEEP_QUAD_MAX_MODEL_RADIUS
-              : isSweepTriad
-                ? SWEEP_TRIAD_MAX_MODEL_RADIUS
-                : SWEEP_MAX_MODEL_RADIUS,
-          );
+          const sweepModelRadius = isSweepQuad
+            ? SWEEP_QUAD_MAX_MODEL_RADIUS
+            : isSweepTriad
+              ? SWEEP_TRIAD_MAX_MODEL_RADIUS
+              : SWEEP_MAX_MODEL_RADIUS;
+          const sweepLayout = getSweepLayoutMetrics(w, h, sweepModelRadius);
+          const sweepCx = sweepLayout.cx;
+          const sweepCy = sweepLayout.cy;
+          const sweepScale = sweepLayout.scale;
           const selectedSweepOrbits =
             isSweepQuad && selectedThirdOrbit && selectedFourthOrbit
               ? [selectedInnerOrbit, selectedOuterOrbit, selectedThirdOrbit, selectedFourthOrbit]
@@ -991,8 +1021,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                           selectedThirdOrbit,
                           selectedFourthOrbit,
                           triggerT,
-                          cx,
-                          cy,
+                          sweepCx,
+                          sweepCy,
                           sweepScale,
                         );
                         return sweepOrbit.id === selectedInnerOrbit.id
@@ -1010,8 +1040,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                           selectedOuterOrbit,
                           selectedThirdOrbit,
                           triggerT,
-                          cx,
-                          cy,
+                          sweepCx,
+                          sweepCy,
                           sweepScale,
                         );
                         return sweepOrbit.id === selectedInnerOrbit.id
@@ -1025,8 +1055,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                           selectedInnerOrbit,
                           selectedOuterOrbit,
                           triggerT,
-                          cx,
-                          cy,
+                          sweepCx,
+                          sweepCy,
                           sweepScale,
                         );
                         return sweepOrbit.id === selectedInnerOrbit.id ? pairPositions.innerPoint : pairPositions.outerPoint;
@@ -1089,10 +1119,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, h);
-        ctx.moveTo(0, cy);
-        ctx.lineTo(w, cy);
+        ctx.moveTo(renderCx, 0);
+        ctx.lineTo(renderCx, h);
+        ctx.moveTo(0, renderCy);
+        ctx.lineTo(w, renderCy);
         ctx.stroke();
         ctx.restore();
 
@@ -1103,8 +1133,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 8]);
         ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx, 0);
+        ctx.moveTo(renderCx, renderCy);
+        ctx.lineTo(renderCx, 0);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
@@ -1142,11 +1172,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 const currentProgress = Math.min(state.elapsedBeats / SWEEP_COMPLETION_BEATS, 1);
                 const previousIndex = Math.floor(previousProgress * SWEEP_STEPS);
                 const currentIndex = Math.floor(currentProgress * SWEEP_STEPS);
-                const sweepScale = getSweepScale(
-                  w,
-                  h,
-                  hasSweepQuad ? SWEEP_QUAD_MAX_MODEL_RADIUS : hasSweepTriad ? SWEEP_TRIAD_MAX_MODEL_RADIUS : SWEEP_MAX_MODEL_RADIUS,
-                );
+                const sweepCx = renderCx;
+                const sweepCy = renderCy;
 
                 if (currentIndex > previousIndex) {
                   let previousSample = hasSweepQuad && thirdOrbit && fourthOrbit
@@ -1156,8 +1183,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                         thirdOrbit,
                         fourthOrbit,
                         (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
-                        cx,
-                        cy,
+                        sweepCx,
+                        sweepCy,
                         sweepScale,
                       ).sweepPoint
                     : hasSweepTriad && thirdOrbit
@@ -1166,26 +1193,26 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                         outerOrbit,
                         thirdOrbit,
                         (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
-                        cx,
-                        cy,
+                        sweepCx,
+                        sweepCy,
                         sweepScale,
                       ).sweepPoint
                     : getSweepPositions(
                         innerOrbit,
                         outerOrbit,
                         (previousIndex / SWEEP_STEPS) * SWEEP_DURATION,
-                        cx,
-                        cy,
+                        sweepCx,
+                        sweepCy,
                         sweepScale,
                       ).sweepPoint;
 
                   for (let sampleIndex = previousIndex + 1; sampleIndex <= currentIndex; sampleIndex++) {
                     const t = (sampleIndex / SWEEP_STEPS) * SWEEP_DURATION;
                     const currentSample = hasSweepQuad && thirdOrbit && fourthOrbit
-                      ? getSweepQuadPositions(innerOrbit, outerOrbit, thirdOrbit, fourthOrbit, t, cx, cy, sweepScale).sweepPoint
+                      ? getSweepQuadPositions(innerOrbit, outerOrbit, thirdOrbit, fourthOrbit, t, sweepCx, sweepCy, sweepScale).sweepPoint
                       : hasSweepTriad && thirdOrbit
-                        ? getSweepTriadPositions(innerOrbit, outerOrbit, thirdOrbit, t, cx, cy, sweepScale).sweepPoint
-                        : getSweepPositions(innerOrbit, outerOrbit, t, cx, cy, sweepScale).sweepPoint;
+                        ? getSweepTriadPositions(innerOrbit, outerOrbit, thirdOrbit, t, sweepCx, sweepCy, sweepScale).sweepPoint
+                        : getSweepPositions(innerOrbit, outerOrbit, t, sweepCx, sweepCy, sweepScale).sweepPoint;
 
                     traceCtx.save();
                     traceCtx.lineCap = 'round';
@@ -1318,23 +1345,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const currentOuterOrbit = selectedOuterOrbit;
         const currentThirdOrbit = selectedThirdOrbit;
         const currentFourthOrbit = selectedFourthOrbit;
-        const sweepScale = getSweepScale(
-          w,
-          h,
-          isSweepQuad
-            ? SWEEP_QUAD_MAX_MODEL_RADIUS
-            : isSweepTriad
-              ? SWEEP_TRIAD_MAX_MODEL_RADIUS
-              : SWEEP_MAX_MODEL_RADIUS,
-        );
         const sweepT = (state.elapsedBeats / SWEEP_COMPLETION_BEATS) * SWEEP_DURATION;
         const pairSweepPositions =
           isSweepMode && currentInnerOrbit && currentOuterOrbit && currentInnerOrbit.id !== currentOuterOrbit.id
-            ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, cx, cy, sweepScale)
+            ? getSweepPositions(currentInnerOrbit, currentOuterOrbit, sweepT, renderCx, renderCy, sweepScale)
             : null;
         const triadSweepPositions =
           isSweepTriad && currentInnerOrbit && currentOuterOrbit && currentThirdOrbit
-            ? getSweepTriadPositions(currentInnerOrbit, currentOuterOrbit, currentThirdOrbit, sweepT, cx, cy, sweepScale)
+            ? getSweepTriadPositions(currentInnerOrbit, currentOuterOrbit, currentThirdOrbit, sweepT, renderCx, renderCy, sweepScale)
             : null;
         const quadSweepPositions =
           isSweepQuad && currentInnerOrbit && currentOuterOrbit && currentThirdOrbit && currentFourthOrbit
@@ -1344,8 +1362,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 currentThirdOrbit,
                 currentFourthOrbit,
                 sweepT,
-                cx,
-                cy,
+                renderCx,
+                renderCy,
                 sweepScale,
               )
             : null;
@@ -1422,7 +1440,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           // Ring
           ctx.save();
           ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, TAU);
+          ctx.arc(renderCx, renderCy, r, 0, TAU);
           ctx.strokeStyle = orbit.color;
           ctx.globalAlpha = 0.18;
           ctx.lineWidth = 1;
@@ -1432,7 +1450,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           if (isHoveredOrbit) {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, TAU);
+            ctx.arc(renderCx, renderCy, r, 0, TAU);
             ctx.strokeStyle = orbit.color;
             ctx.globalAlpha = 0.34;
             ctx.lineWidth = 2.2;
@@ -1451,8 +1469,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               const innerR = r - 4;
               const outerR = r + 4;
               ctx.beginPath();
-              ctx.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
-              ctx.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+              ctx.moveTo(renderCx + innerR * Math.cos(angle), renderCy + innerR * Math.sin(angle));
+              ctx.lineTo(renderCx + outerR * Math.cos(angle), renderCy + outerR * Math.sin(angle));
               ctx.stroke();
             }
             ctx.restore();
@@ -1468,7 +1486,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   ? currentThirdPoint
                   : orbit.id === currentFourthOrbit?.id && currentFourthPoint
                     ? currentFourthPoint
-                : scalePointFromCenter(resonancePosition(orbit, cx, cy), cx, cy, orbitScale);
+                : scalePointFromCenter(resonancePosition(orbit, renderCx, renderCy), renderCx, renderCy, orbitScale);
 
           if (isHoveredOrbit) {
             ctx.save();
@@ -1516,7 +1534,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.strokeStyle = orbit.color;
             ctx.lineWidth = 0.5;
             ctx.beginPath();
-            ctx.moveTo(cx, cy);
+            ctx.moveTo(renderCx, renderCy);
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             ctx.restore();
@@ -1531,8 +1549,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.textAlign = 'center';
             ctx.fillText(
               `${orbit.pulseCount}`,
-              cx + (r + 18) * Math.cos(-Math.PI / 4),
-              cy + (r + 18) * Math.sin(-Math.PI / 4),
+              renderCx + (r + 18) * Math.cos(-Math.PI / 4),
+              renderCy + (r + 18) * Math.sin(-Math.PI / 4),
             );
             ctx.restore();
           }
