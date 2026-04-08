@@ -25,9 +25,26 @@ async function postBillingRequest(path: string) {
     },
   });
 
-  const payload = (await response.json().catch(() => ({}))) as { error?: string; url?: string };
+  const rawBody = await response.text();
+  let payload: { error?: string; url?: string } = {};
+
+  if (rawBody) {
+    try {
+      payload = JSON.parse(rawBody) as { error?: string; url?: string };
+    } catch {
+      payload = {};
+    }
+  }
+
   if (!response.ok || !payload.url) {
-    throw new Error(payload.error || 'Billing request failed.');
+    const plainTextError = rawBody.trim().replace(/\s+/g, ' ').slice(0, 220);
+    throw new Error(
+      payload.error ||
+        (plainTextError && !plainTextError.startsWith('<!doctype') && !plainTextError.startsWith('<html')
+          ? plainTextError
+          : '') ||
+        `Billing request failed (${response.status}).`,
+    );
   }
 
   return payload.url;

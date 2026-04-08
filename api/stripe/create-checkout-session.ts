@@ -23,7 +23,11 @@ export default async function handler(request: Request) {
       .eq('id', user.id)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      throw new Error(`User profile lookup failed: ${profileError.message}`);
+    }
+
+    if (!profile) {
       throw new Error('User profile not found.');
     }
 
@@ -38,10 +42,14 @@ export default async function handler(request: Request) {
       });
       stripeCustomerId = customer.id;
 
-      await supabaseAdmin
+      const { error: updateCustomerError } = await supabaseAdmin
         .from('users')
         .update({ stripe_customer_id: stripeCustomerId })
         .eq('id', user.id);
+
+      if (updateCustomerError) {
+        throw new Error(`Failed to store Stripe customer: ${updateCustomerError.message}`);
+      }
     }
 
     const session = await stripe.checkout.sessions.create({
