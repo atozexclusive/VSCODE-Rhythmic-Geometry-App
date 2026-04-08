@@ -2061,6 +2061,7 @@ function OrbitalPolymeter() {
   const [exportRecords, setExportRecords] = useState<ExportRecord[]>([]);
   const [cloudPersistenceLoading, setCloudPersistenceLoading] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [checkoutSyncing, setCheckoutSyncing] = useState(false);
   const [recordingVideo, setRecordingVideo] = useState(false);
   const [radialMenu, setRadialMenu] = useState<{
     orbitId: string;
@@ -2075,6 +2076,7 @@ function OrbitalPolymeter() {
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
   const isSignedIn = Boolean(authEnabled && user);
+  const hasProAccess = isProPlan(effectivePlan);
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
   const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
@@ -2248,6 +2250,18 @@ function OrbitalPolymeter() {
       return;
     }
 
+    if (checkoutSyncing) {
+      setProPrompt(null);
+      toast.message('Your purchase is still processing. Give it a moment, then refresh if Pro does not appear.');
+      return;
+    }
+
+    if (hasProAccess) {
+      setProPrompt(null);
+      toast.message('Pro is already active on this account.');
+      return;
+    }
+
     setBillingLoading(true);
     try {
       setProPrompt(null);
@@ -2257,7 +2271,7 @@ function OrbitalPolymeter() {
     } finally {
       setBillingLoading(false);
     }
-  }, [isSignedIn]);
+  }, [checkoutSyncing, hasProAccess, isSignedIn]);
   const isPremiumSceneEditingLocked =
     (activeSceneSource === 'built-in' || activeSceneSource === 'premium-built-in') &&
     !canUseProFeature(effectivePlan, 'scene-editing');
@@ -2335,12 +2349,20 @@ function OrbitalPolymeter() {
 
     void (async () => {
       if (checkoutState === 'success' && sessionId) {
+        setCheckoutSyncing(true);
+        toast.message('Payment received. Pro is syncing now. This can take a moment.');
         try {
           await confirmStripeCheckout(sessionId);
           await refreshAccount();
-          toast.success('Pro unlocked.');
+          toast.success('Pro unlocked. Refreshing…');
+          window.setTimeout(() => {
+            window.location.replace(url.pathname);
+          }, 900);
+          return;
         } catch (error) {
           toast.error(error instanceof Error ? error.message : 'Could not confirm checkout.');
+        } finally {
+          setCheckoutSyncing(false);
         }
       } else if (checkoutState === 'success') {
         toast.success('Checkout completed. Your Pro plan will sync in a moment.');
@@ -2356,6 +2378,13 @@ function OrbitalPolymeter() {
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     })();
   }, [refreshAccount]);
+
+  useEffect(() => {
+    if (!proPrompt || !hasProAccess) {
+      return;
+    }
+    setProPrompt(null);
+  }, [hasProAccess, proPrompt]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -3976,17 +4005,27 @@ function OrbitalPolymeter() {
           <button
             type="button"
             onClick={() => {
-              if (isSignedIn) {
+              if (isSignedIn && !hasProAccess) {
                 void beginStripeUpgrade();
                 return;
               }
               setProPrompt(null);
-              setSidebarOpen(true);
+              if (!isSignedIn) {
+                setSidebarOpen(true);
+              }
             }}
-            disabled={billingLoading}
+            disabled={billingLoading || checkoutSyncing}
             className="inline-flex items-center justify-center rounded-full border border-[#FFAA00]/24 bg-[#FFAA00]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16 disabled:opacity-60"
           >
-            {billingLoading ? 'Opening Checkout…' : isSignedIn ? 'Upgrade To Pro' : 'Open Account'}
+            {billingLoading
+              ? 'Opening Checkout…'
+              : checkoutSyncing
+                ? 'Processing Purchase…'
+                : hasProAccess
+                  ? 'Pro Active'
+                  : isSignedIn
+                    ? 'Upgrade To Pro'
+                    : 'Open Account'}
           </button>
           <button
             type="button"
