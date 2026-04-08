@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { KeyRound, LogIn, LogOut, Mail, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './auth-provider';
-import { openStripeBillingPortal, startStripeCheckout } from '../lib/billing-client';
+import { startStripeCheckout } from '../lib/billing-client';
 
 export default function AccountPanel() {
   const {
@@ -148,17 +148,6 @@ export default function AccountPanel() {
     }
   };
 
-  const handleManageBilling = async () => {
-    setBillingSubmitting(true);
-    try {
-      await openStripeBillingPortal();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not open Stripe billing.');
-    } finally {
-      setBillingSubmitting(false);
-    }
-  };
-
   return (
     <div
       className="rounded-xl border p-3 space-y-3"
@@ -292,19 +281,16 @@ export default function AccountPanel() {
                 {billingSubmitting ? 'Opening…' : 'Upgrade'}
               </button>
             ) : account?.access_source === 'paid' ? (
-              <button
-                onClick={() => void handleManageBilling()}
-                disabled={billingSubmitting}
-                className="w-full rounded-lg px-3 py-2 text-[11px] font-mono uppercase tracking-[0.14em] flex items-center justify-center gap-2 disabled:opacity-60"
+              <div
+                className="w-full rounded-lg px-3 py-2 text-[11px] font-mono uppercase tracking-[0.14em] flex items-center justify-center"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.82)',
+                  background: 'rgba(255,170,0,0.08)',
+                  border: '1px solid rgba(255,170,0,0.16)',
+                  color: '#FFAA00',
                 }}
               >
-                <KeyRound size={14} />
-                {billingSubmitting ? 'Opening…' : 'Billing'}
-              </button>
+                Purchased
+              </div>
             ) : (
               <div />
             )}

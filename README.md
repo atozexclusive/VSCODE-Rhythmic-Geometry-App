@@ -116,15 +116,27 @@ bun dev
 
 The application will start and display the local URL in your terminal.
 
+For frontend-only work, `bun dev` is enough.
+
+For auth, Stripe, and any `/api/*` route testing, use the full local stack:
+
+```bash
+bun run dev:full
+```
+
+That runs the app through Vercel so the local serverless routes are available.
+If `vercel` is not installed yet, install the Vercel CLI first.
+
 ## 📜 Available Scripts
 
-- `bun dev` - Start development server
+- `bun dev` - Start the frontend-only Vite dev server
+- `bun run dev:full` - Start the full local app with Vercel serverless routes
 - `bun build` - Build for production
 - `bun lint` - Run linter
 
 ## Stripe Setup
 
-Create a recurring Stripe Price for Pro, then set:
+Create a one-time Stripe Price for Pro, then set:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PRICE_ID_PRO`
@@ -144,22 +156,33 @@ Create a Stripe webhook endpoint pointed at:
 Listen for:
 
 - `checkout.session.completed`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
 
 What the billing flow now does:
 
-- `Upgrade To Pro` creates a Stripe Checkout subscription session
-- `Manage Billing` opens the Stripe billing portal for paid users
-- webhook events update `public.users.plan`
+- `Upgrade To Pro` creates a Stripe Checkout one-time payment session
+- `checkout.session.completed` updates `public.users.plan`
 - paid accounts are marked:
   - `plan = 'pro'`
   - `access_source = 'paid'`
 
-If a subscription ends or becomes inactive, the webhook returns the account to:
+There is no recurring subscription state in the current Pro flow.
 
-- `plan = 'free'`
-- `access_source = 'none'`
+### Local Billing Testing
+
+`bun dev` does not run the Stripe API routes, so local checkout requests will fail there.
+
+To test billing locally:
+
+1. set all Stripe and Supabase server env vars in your local environment
+2. run:
+
+```bash
+bun run dev:full
+```
+
+3. use the local URL served by Vercel
+
+For the simplest end-to-end billing test, use the deployed app instead of localhost.
 
 ## 🏗️ Building for Production
 

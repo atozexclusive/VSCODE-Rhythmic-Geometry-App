@@ -1,45 +1,25 @@
 import type Stripe from 'stripe';
 import { createSupabaseAdminClient } from '../_lib/supabase-admin';
-import { getStripe, getStripeWebhookSecret, subscriptionStatusGrantsPro } from '../_lib/stripe';
+import { getStripe, getStripeWebhookSecret } from '../_lib/stripe';
 
 export const config = {
   runtime: 'nodejs',
 };
-
-async function updateUserPlanFromSubscription(subscription: Stripe.Subscription) {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id;
-  const priceId = subscription.items.data[0]?.price?.id ?? null;
-  const isPro = subscriptionStatusGrantsPro(subscription.status);
-
-  const plan = isPro ? 'pro' : 'free';
-  const accessSource = isPro ? 'paid' : 'none';
-
-  const { error } = await supabaseAdmin
-    .from('users')
-    .update({
-      plan,
-      comped: false,
-      access_source: accessSource,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      stripe_price_id: priceId,
-    })
-    .eq('stripe_customer_id', customerId);
-
-  if (error) {
-    throw error;
-  }
-}
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id ?? session.client_reference_id;
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
   const subscriptionId =
     typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
+  const paymentStatus = session.payment_status ?? null;
+  const priceId = session.metadata?.price_id ?? null;
 
   if (!userId) {
     throw new Error('Checkout session did not include a user id.');
+  }
+
+  if (paymentStatus && paymentStatus !== 'paid' && paymentStatus !== 'no_payment_required') {
+    throw new Error(`Checkout completed without a paid status: ${paymentStatus}`);
   }
 
   const supabaseAdmin = createSupabaseAdminClient();
@@ -49,6 +29,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     access_source: 'paid',
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
+    stripe_price_id: priceId,
   };
 
   const { error } = await supabaseAdmin
@@ -79,10 +60,6 @@ export default async function handler(request: Request) {
     switch (event.type) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
-        break;
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted':
-        await updateUserPlanFromSubscription(event.data.object as Stripe.Subscription);
         break;
       default:
         break;
