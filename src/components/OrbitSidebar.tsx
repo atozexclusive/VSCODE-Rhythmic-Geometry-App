@@ -241,7 +241,7 @@ export default function OrbitSidebar({
 
       {/* Sidebar */}
       <div
-        className={`fixed z-50 flex flex-col overflow-hidden ${isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-80'}`}
+        className={`fixed z-50 flex flex-col overflow-hidden ${isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[31.5rem]'}`}
         style={{
           background: 'linear-gradient(135deg, rgba(20, 20, 28, 0.95), rgba(30, 30, 40, 0.95))',
           backdropFilter: 'blur(20px)',
@@ -268,13 +268,13 @@ export default function OrbitSidebar({
         </div>
 
         {/* Tabs */}
-        <div className={`overflow-x-auto border-b border-white/5 ${isMobile ? 'px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'}`}>
-          <div className="flex min-w-max gap-1">
+        <div className={`${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
+          <div className={`${isMobile ? 'flex min-w-max gap-1' : 'flex flex-wrap gap-1.5'}`}>
           {tabMeta.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-t-lg text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-2.5 py-2'}`}
+              className={`shrink-0 rounded-t-lg text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-3 py-2.5'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderBottom: activeTab === tab.key ? `2px solid ${tab.activeColor}` : 'none',
@@ -1478,7 +1478,7 @@ export default function OrbitSidebar({
             opacity: 1;
           }
         }
-        input[type='range']::-webkit-slider-thumb {
+        input[type='range']:not(.touch-slider)::-webkit-slider-thumb {
           appearance: none;
           width: 12px;
           height: 12px;
@@ -1487,7 +1487,7 @@ export default function OrbitSidebar({
           cursor: pointer;
           box-shadow: 0 0 6px currentColor;
         }
-        input[type='range']::-moz-range-thumb {
+        input[type='range']:not(.touch-slider)::-moz-range-thumb {
           width: 12px;
           height: 12px;
           border-radius: 50%;

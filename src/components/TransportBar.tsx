@@ -847,10 +847,11 @@ export default function TransportBar({
                 step="0.1"
                 value={speedMultiplier}
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-                className="w-full h-1 rounded-full appearance-none cursor-pointer"
+                className="touch-slider w-full cursor-pointer"
                 style={{
-                  background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
+                  background: 'transparent',
                   WebkitAppearance: 'none',
+                  ['--slider-accent' as string]: '#00FFAA',
                 }}
                 title="Speed multiplier (0.1x to 10.0x)"
               />
@@ -1188,7 +1189,7 @@ export default function TransportBar({
 
       {/* Custom range input styling */}
       <style>{`
-        input[type='range']::-webkit-slider-thumb {
+        input[type='range']:not(.touch-slider)::-webkit-slider-thumb {
           appearance: none;
           width: 14px;
           height: 14px;
@@ -1198,12 +1199,12 @@ export default function TransportBar({
           box-shadow: 0 0 8px rgba(0, 255, 170, 0.6);
           transition: all 0.2s;
         }
-        input[type='range']::-webkit-slider-thumb:hover {
+        input[type='range']:not(.touch-slider)::-webkit-slider-thumb:hover {
           width: 18px;
           height: 18px;
           box-shadow: 0 0 12px rgba(0, 255, 170, 0.8);
         }
-        input[type='range']::-moz-range-thumb {
+        input[type='range']:not(.touch-slider)::-moz-range-thumb {
           width: 14px;
           height: 14px;
           border-radius: 50%;
@@ -1213,7 +1214,7 @@ export default function TransportBar({
           box-shadow: 0 0 8px rgba(0, 255, 170, 0.6);
           transition: all 0.2s;
         }
-        input[type='range']::-moz-range-thumb:hover {
+        input[type='range']:not(.touch-slider)::-moz-range-thumb:hover {
           width: 18px;
           height: 18px;
           box-shadow: 0 0 12px rgba(0, 255, 170, 0.8);

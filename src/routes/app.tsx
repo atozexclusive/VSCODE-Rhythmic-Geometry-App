@@ -2071,6 +2071,7 @@ function OrbitalPolymeter() {
   const [mobileScenesOpen, setMobileScenesOpen] = useState(false);
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
+  const [activeMobileSliderId, setActiveMobileSliderId] = useState<string | null>(null);
   const [mobileSceneTab, setMobileSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
@@ -4211,7 +4212,13 @@ function OrbitalPolymeter() {
                   step="0.1"
                   value={engineState.speedMultiplier}
                   onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                  className="w-full accent-white"
+                  onPointerDown={() => setActiveMobileSliderId('speed')}
+                  onPointerUp={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
+                  onPointerCancel={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
+                  onBlur={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
+                  data-dragging={activeMobileSliderId === 'speed'}
+                  className="touch-slider w-full"
+                  style={{ ['--slider-accent' as string]: '#ffffff' }}
                 />
               </div>
             </div>
@@ -4481,8 +4488,13 @@ function OrbitalPolymeter() {
                             step="1"
                             value={Math.min(orbit.pulseCount, mobileQuickOrbitSliderMax)}
                             onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                            className="flex-1"
-                            style={{ accentColor: orbit.color }}
+                            onPointerDown={() => setActiveMobileSliderId(`orbit-${orbit.id}`)}
+                            onPointerUp={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
+                            onPointerCancel={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
+                            onBlur={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
+                            data-dragging={activeMobileSliderId === `orbit-${orbit.id}`}
+                            className="touch-slider flex-1"
+                            style={{ ['--slider-accent' as string]: orbit.color }}
                           />
                           <button
                             onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
