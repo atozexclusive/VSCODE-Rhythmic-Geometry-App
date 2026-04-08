@@ -51,7 +51,7 @@ import {
   type StoredExportRecord,
   type StoredSceneRecord,
 } from '../lib/account-storage';
-import { startStripeCheckout } from '../lib/billing-client';
+import { confirmStripeCheckout, startStripeCheckout } from '../lib/billing-client';
 import {
   FREE_SCENE_SAVE_LIMIT,
   canUseProFeature,
@@ -2025,7 +2025,7 @@ function launchLoadedState(
 }
 
 function OrbitalPolymeter() {
-  const { user, enabled: authEnabled, loading: authLoading, effectivePlan } = useAuth();
+  const { user, enabled: authEnabled, loading: authLoading, effectivePlan, refreshAccount } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const captureMode = searchParams?.get('captureMode') === '1';
@@ -2326,24 +2326,36 @@ function OrbitalPolymeter() {
 
     const url = new URL(window.location.href);
     const checkoutState = url.searchParams.get('checkout');
+    const sessionId = url.searchParams.get('session_id');
     const billingState = url.searchParams.get('billing');
 
     if (!checkoutState && !billingState) {
       return;
     }
 
-    if (checkoutState === 'success') {
-      toast.success('Checkout completed. Your Pro plan will sync in a moment.');
-    } else if (checkoutState === 'canceled') {
-      toast.message('Checkout canceled.');
-    } else if (billingState === 'portal') {
-      toast.message('Returned from billing portal.');
-    }
+    void (async () => {
+      if (checkoutState === 'success' && sessionId) {
+        try {
+          await confirmStripeCheckout(sessionId);
+          await refreshAccount();
+          toast.success('Pro unlocked.');
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not confirm checkout.');
+        }
+      } else if (checkoutState === 'success') {
+        toast.success('Checkout completed. Your Pro plan will sync in a moment.');
+      } else if (checkoutState === 'canceled') {
+        toast.message('Checkout canceled.');
+      } else if (billingState === 'portal') {
+        toast.message('Returned from billing portal.');
+      }
 
-    url.searchParams.delete('checkout');
-    url.searchParams.delete('billing');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-  }, []);
+      url.searchParams.delete('checkout');
+      url.searchParams.delete('session_id');
+      url.searchParams.delete('billing');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    })();
+  }, [refreshAccount]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

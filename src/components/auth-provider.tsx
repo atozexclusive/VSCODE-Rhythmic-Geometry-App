@@ -10,6 +10,7 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   account: UserRecord | null;
+  refreshAccount: () => Promise<void>;
   effectivePlan: AccountPlan;
   planOverride: AccountPlan | null;
   setPlanOverride: (plan: AccountPlan | null) => void;
@@ -218,6 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccount(null);
   }, []);
 
+  const refreshAccount = useCallback(async () => {
+    await syncUserRecord(user);
+  }, [syncUserRecord, user]);
+
   const effectivePlan: AccountPlan =
     planOverride ?? account?.plan ?? 'free';
 
@@ -228,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user,
       account,
+      refreshAccount,
       effectivePlan,
       planOverride,
       setPlanOverride,
@@ -238,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       signOut,
     }),
-    [account, effectivePlan, loading, planOverride, sendPasswordReset, session, setPlanOverride, signInWithMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePassword, user],
+    [account, effectivePlan, loading, planOverride, refreshAccount, sendPasswordReset, session, setPlanOverride, signInWithMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePassword, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

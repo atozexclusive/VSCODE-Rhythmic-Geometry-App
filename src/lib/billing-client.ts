@@ -16,13 +16,15 @@ async function getAccessToken() {
   return session.access_token;
 }
 
-async function postBillingRequest(path: string) {
+async function postBillingRequest(path: string, body?: Record<string, unknown>) {
   const accessToken = await getAccessToken();
   const response = await fetch(path, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
   const rawBody = await response.text();
@@ -53,6 +55,10 @@ async function postBillingRequest(path: string) {
 export async function startStripeCheckout() {
   const url = await postBillingRequest('/api/stripe/create-checkout-session');
   window.location.assign(url);
+}
+
+export async function confirmStripeCheckout(sessionId: string) {
+  await postBillingRequest('/api/stripe/confirm-checkout-session', { sessionId });
 }
 
 export async function openStripeBillingPortal() {

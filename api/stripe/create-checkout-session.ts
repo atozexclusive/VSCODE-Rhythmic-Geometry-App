@@ -31,7 +31,7 @@ export default async function handler(request: Request, response: ApiResponse) {
     console.log('[stripe-checkout] loading user profile');
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('users')
-      .select('id,email,stripe_customer_id')
+      .select('id,email,plan,access_source,stripe_customer_id')
       .eq('id', user.id)
       .single();
 
@@ -46,8 +46,14 @@ export default async function handler(request: Request, response: ApiResponse) {
     console.log('[stripe-checkout] user profile loaded', {
       userId: profile.id,
       hasEmail: Boolean(profile.email),
+      plan: profile.plan,
+      accessSource: profile.access_source,
       hasStripeCustomerId: Boolean(profile.stripe_customer_id),
     });
+
+    if (profile.plan === 'pro') {
+      throw new Error('Pro is already active on this account.');
+    }
 
     let stripeCustomerId = profile.stripe_customer_id as string | null;
 
@@ -91,7 +97,7 @@ export default async function handler(request: Request, response: ApiResponse) {
         user_id: user.id,
         price_id: getStripePriceId(),
       },
-      success_url: `${baseUrl}/app?checkout=success`,
+      success_url: `${baseUrl}/app?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/app?checkout=canceled`,
     });
 
