@@ -3,11 +3,12 @@
 // Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { useState } from 'react';
+import { useCallback, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
+import { getRangeValueFromClientX } from '../lib/touchSlider';
 import InfoTip from './InfoTip';
 
 interface TransportBarProps {
@@ -100,6 +101,7 @@ export default function TransportBar({
 }: TransportBarProps) {
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
+  const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
@@ -126,6 +128,45 @@ export default function TransportBar({
           : 'standard-trace',
     );
   };
+
+  const handleTouchSliderPointerDown = useCallback(
+    (
+      event: ReactPointerEvent<HTMLInputElement>,
+      sliderId: string,
+      onValueChange: (value: number) => void,
+    ) => {
+      if (!isMobile || event.pointerType === 'mouse') {
+        return;
+      }
+
+      event.preventDefault();
+      const input = event.currentTarget;
+      input.setPointerCapture?.(event.pointerId);
+      setActiveTouchSlider(sliderId);
+      onValueChange(getRangeValueFromClientX(input, event.clientX));
+    },
+    [isMobile],
+  );
+
+  const handleTouchSliderPointerMove = useCallback(
+    (
+      event: ReactPointerEvent<HTMLInputElement>,
+      sliderId: string,
+      onValueChange: (value: number) => void,
+    ) => {
+      if (activeTouchSlider !== sliderId) {
+        return;
+      }
+
+      event.preventDefault();
+      onValueChange(getRangeValueFromClientX(event.currentTarget, event.clientX));
+    },
+    [activeTouchSlider],
+  );
+
+  const clearTouchSlider = useCallback((sliderId: string) => {
+    setActiveTouchSlider((current) => (current === sliderId ? null : current));
+  }, []);
   const togglePresentationDirections = () => {
     if (allClockwise) {
       onAlternateDirections();
@@ -847,6 +888,16 @@ export default function TransportBar({
                 step="0.1"
                 value={speedMultiplier}
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+                onPointerDown={(event) =>
+                  handleTouchSliderPointerDown(event, 'mobile-speed', (value) => onSpeedChange(value))
+                }
+                onPointerMove={(event) =>
+                  handleTouchSliderPointerMove(event, 'mobile-speed', (value) => onSpeedChange(value))
+                }
+                onPointerUp={() => clearTouchSlider('mobile-speed')}
+                onPointerCancel={() => clearTouchSlider('mobile-speed')}
+                onBlur={() => clearTouchSlider('mobile-speed')}
+                data-dragging={activeTouchSlider === 'mobile-speed'}
                 className="touch-slider w-full cursor-pointer"
                 style={{
                   background: 'transparent',

@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
@@ -59,6 +59,7 @@ import {
   getOrbitLimitForMode,
   isProPlan,
 } from '../lib/entitlements';
+import { getRangeValueFromClientX } from '../lib/touchSlider';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
@@ -2079,6 +2080,44 @@ function OrbitalPolymeter() {
   const isSignedIn = Boolean(authEnabled && user);
   const hasProAccess = isProPlan(effectivePlan);
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
+  const handleMobileSliderPointerDown = useCallback(
+    (
+      event: ReactPointerEvent<HTMLInputElement>,
+      sliderId: string,
+      onValueChange: (value: number) => void,
+    ) => {
+      if (!isMobile || event.pointerType === 'mouse') {
+        return;
+      }
+
+      event.preventDefault();
+      const input = event.currentTarget;
+      input.setPointerCapture?.(event.pointerId);
+      setActiveMobileSliderId(sliderId);
+      onValueChange(getRangeValueFromClientX(input, event.clientX));
+    },
+    [isMobile],
+  );
+
+  const handleMobileSliderPointerMove = useCallback(
+    (
+      event: ReactPointerEvent<HTMLInputElement>,
+      sliderId: string,
+      onValueChange: (value: number) => void,
+    ) => {
+      if (activeMobileSliderId !== sliderId) {
+        return;
+      }
+
+      event.preventDefault();
+      onValueChange(getRangeValueFromClientX(event.currentTarget, event.clientX));
+    },
+    [activeMobileSliderId],
+  );
+
+  const clearActiveMobileSlider = useCallback((sliderId: string) => {
+    setActiveMobileSliderId((current) => (current === sliderId ? null : current));
+  }, []);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
   const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
 
@@ -4212,10 +4251,15 @@ function OrbitalPolymeter() {
                   step="0.1"
                   value={engineState.speedMultiplier}
                   onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                  onPointerDown={() => setActiveMobileSliderId('speed')}
-                  onPointerUp={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
-                  onPointerCancel={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
-                  onBlur={() => setActiveMobileSliderId((current) => (current === 'speed' ? null : current))}
+                  onPointerDown={(event) =>
+                    handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
+                  }
+                  onPointerMove={(event) =>
+                    handleMobileSliderPointerMove(event, 'speed', (value) => handleSpeedChange(value))
+                  }
+                  onPointerUp={() => clearActiveMobileSlider('speed')}
+                  onPointerCancel={() => clearActiveMobileSlider('speed')}
+                  onBlur={() => clearActiveMobileSlider('speed')}
                   data-dragging={activeMobileSliderId === 'speed'}
                   className="touch-slider w-full"
                   style={{ ['--slider-accent' as string]: '#ffffff' }}
@@ -4488,10 +4532,19 @@ function OrbitalPolymeter() {
                             step="1"
                             value={Math.min(orbit.pulseCount, mobileQuickOrbitSliderMax)}
                             onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                            onPointerDown={() => setActiveMobileSliderId(`orbit-${orbit.id}`)}
-                            onPointerUp={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
-                            onPointerCancel={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
-                            onBlur={() => setActiveMobileSliderId((current) => (current === `orbit-${orbit.id}` ? null : current))}
+                            onPointerDown={(event) =>
+                              handleMobileSliderPointerDown(event, `orbit-${orbit.id}`, (value) =>
+                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
+                              )
+                            }
+                            onPointerMove={(event) =>
+                              handleMobileSliderPointerMove(event, `orbit-${orbit.id}`, (value) =>
+                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
+                              )
+                            }
+                            onPointerUp={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
+                            onPointerCancel={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
+                            onBlur={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
                             data-dragging={activeMobileSliderId === `orbit-${orbit.id}`}
                             className="touch-slider flex-1"
                             style={{ ['--slider-accent' as string]: orbit.color }}
