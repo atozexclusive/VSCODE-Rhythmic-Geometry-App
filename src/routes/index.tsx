@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, CircleDot, GalleryVerticalEnd, Layers3, LogIn, LogOut, Mail, MonitorPlay, Play, Sparkles, SquarePlay, UserRound, Waves, X } from 'lucide-react';
+import { ArrowRight, CircleDot, GalleryVerticalEnd, KeyRound, Layers3, LogIn, LogOut, Mail, MonitorPlay, Play, Sparkles, SquarePlay, UserRound, Waves, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { BUILT_IN_SCENES, createScenePreviewDataUrl, type SceneSnapshot } from './app';
 import { useAuth } from '../components/auth-provider';
@@ -113,30 +113,60 @@ const modePreviews = modeCards.map((mode) => ({
 }));
 
 const featureGrid = [
-  { icon: GalleryVerticalEnd, title: 'Scenes', text: 'Built-in Scenes, saved scenes, thumbnails, and quick recall.' },
-  { icon: SquarePlay, title: 'Square + Story Export', text: 'Clean still export for posts, wallpapers, and vertical stories.' },
-  { icon: MonitorPlay, title: 'Short Loop Capture', text: 'Record short WebM loops directly from the artwork.' },
-  { icon: Play, title: 'Presentation Mode', text: 'A minimal viewing state for demos, projection, and recording.' },
-  { icon: Layers3, title: 'Desktop + Mobile', text: 'Playable on a large screen or in a focused mobile flow.' },
-  { icon: Waves, title: 'Structure From Constraint', text: 'Ratios, direction, and mode shape the resulting form.' },
+  { icon: GalleryVerticalEnd, title: 'Scene Library', text: 'Return to built-in studies, saved work, and quick visual recall.' },
+  { icon: SquarePlay, title: 'Still Export', text: 'Capture clean images for posts, wallpapers, and printed studies.' },
+  { icon: MonitorPlay, title: 'Loop Capture', text: 'Record short WebM loops directly from the live structure.' },
+  { icon: Play, title: 'Presentation Mode', text: 'A quieter viewing state for demos, projection, and focused playback.' },
+  { icon: Layers3, title: 'Desktop + Mobile', text: 'The same instrument in a wide desktop view or a focused mobile flow.' },
+  { icon: Waves, title: 'Form From Constraint', text: 'Ratios, direction, and geometry mode decide what the system reveals.' },
+] as const;
+
+const proHighlights = [
+  {
+    label: 'Keep',
+    title: 'A Living Library',
+    text: 'Save the studies worth returning to and build a body of work over time.',
+  },
+  {
+    label: 'Bring Out',
+    title: 'Still And Motion',
+    text: 'Carry the form beyond the instrument as clean images and short loops.',
+  },
+  {
+    label: 'Shape',
+    title: 'The Instrument',
+    text: 'Tune color, tone, and structure with a more deliberate hand.',
+  },
+  {
+    label: 'Open',
+    title: 'Richer Studies',
+    text: 'Step into premium scenes, deeper randomization, and broader control.',
+  },
 ] as const;
 
 function OrbitalPolymeterLanding() {
-  const { enabled, loading, user, account, signInWithMagicLink, signOut } = useAuth();
+  const { enabled, loading, user, account, signInWithPassword, signUpWithPassword, sendPasswordReset, signOut } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'sign-in' | 'create-account'>('sign-in');
   const [accountEmail, setAccountEmail] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const planLabel = account?.plan === 'pro' ? (account.comped ? 'Comped Pro' : 'Pro') : 'Free';
+  const planLabel = account?.plan === 'pro' ? (account.comped ? 'Pro Included' : 'Pro') : 'Free';
+  const isCreateMode = authMode === 'create-account';
 
-  const handleMagicLink = async () => {
+  const handleSignIn = async () => {
     const email = accountEmail.trim();
     if (!email) {
       toast.error('Enter an email address first.');
       return;
     }
+    if (!accountPassword) {
+      toast.error('Enter your password first.');
+      return;
+    }
 
     setSubmitting(true);
-    const { error } = await signInWithMagicLink(email);
+    const { error } = await signInWithPassword(email, accountPassword);
     setSubmitting(false);
 
     if (error) {
@@ -144,7 +174,57 @@ function OrbitalPolymeterLanding() {
       return;
     }
 
-    toast.success('Magic link sent. Check your email to sign in.');
+    toast.success('Signed in.');
+    setAccountOpen(false);
+  };
+
+  const handleCreateAccount = async () => {
+    const email = accountEmail.trim();
+    if (!email) {
+      toast.error('Enter an email address first.');
+      return;
+    }
+    if (accountPassword.length < 8) {
+      toast.error('Use at least 8 characters for your password.');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error, existingUser } = await signUpWithPassword(email, accountPassword);
+    setSubmitting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (existingUser) {
+      setAuthMode('sign-in');
+      toast.message('That email already has an account. Sign in or reset your password.');
+      return;
+    }
+
+    toast.success('Account created. Sign in to continue.');
+    setAuthMode('sign-in');
+  };
+
+  const handlePasswordReset = async () => {
+    const email = accountEmail.trim();
+    if (!email) {
+      toast.error('Enter an email address first.');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error } = await sendPasswordReset(email);
+    setSubmitting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success('Password reset email sent.');
   };
 
   return (
@@ -161,8 +241,8 @@ function OrbitalPolymeterLanding() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/62">Account</div>
-                <div className="mt-2 text-sm text-white/5૪">
-                  {enabled ? 'Use the same account across the website and app.' : 'Accounts are not configured yet.'}
+                <div className="mt-2 text-sm text-white/54">
+                  {enabled ? 'Use one account across the site and the instrument.' : 'Accounts are not available yet.'}
                 </div>
               </div>
               <button
@@ -180,7 +260,7 @@ function OrbitalPolymeterLanding() {
               </div>
             ) : !enabled ? (
               <div className="mt-5 rounded-2xl border border-[#ffaa00]/18 bg-[#ffaa00]/8 px-4 py-3 text-sm leading-7 text-white/62">
-                Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to enable website sign-in.
+                Website sign-in is unavailable until the auth environment is connected.
               </div>
             ) : user ? (
               <div className="mt-5 space-y-4">
@@ -190,7 +270,7 @@ function OrbitalPolymeterLanding() {
                     <span className="truncate">{user.email ?? 'Signed in'}</span>
                   </div>
                   <div className="mt-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    {planLabel} account
+                    {planLabel} access
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -215,7 +295,7 @@ function OrbitalPolymeterLanding() {
             ) : (
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-7 text-white/58">
-                  Sign in with a magic link to keep scenes and export history attached to your account.
+                  {isCreateMode ? 'Create an account to keep your work in sync.' : 'Sign in to return to your saved work and Pro access.'}
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
                   <Mail size={15} className="text-white/48" />
@@ -227,15 +307,44 @@ function OrbitalPolymeterLanding() {
                     className="w-full bg-transparent text-sm text-white focus:outline-none"
                   />
                 </div>
+                <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                  <KeyRound size={15} className="text-white/48" />
+                  <input
+                    type="password"
+                    value={accountPassword}
+                    onChange={(event) => setAccountPassword(event.target.value)}
+                    placeholder="Password"
+                    className="w-full bg-transparent text-sm text-white focus:outline-none"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => void handleMagicLink()}
+                  onClick={() => void (isCreateMode ? handleCreateAccount() : handleSignIn())}
                   disabled={submitting}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-3 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 disabled:opacity-60"
                 >
                   <LogIn size={14} />
-                  {submitting ? 'Sending…' : 'Email Sign In'}
+                  {submitting ? 'Working…' : isCreateMode ? 'Create Account' : 'Sign In'}
                 </button>
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode(isCreateMode ? 'sign-in' : 'create-account')}
+                    className="text-[10px] font-mono uppercase tracking-[0.14em] text-[#88CCFF]"
+                  >
+                    {isCreateMode ? 'Already have an account? Sign in' : 'Need an account? Create one'}
+                  </button>
+                  {!isCreateMode ? (
+                    <button
+                      type="button"
+                      onClick={() => void handlePasswordReset()}
+                      disabled={submitting}
+                      className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/58 disabled:opacity-60"
+                    >
+                      Forgot password?
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
           </div>
@@ -268,8 +377,9 @@ function OrbitalPolymeterLanding() {
       <header className="sticky top-0 z-40 border-b border-white/6 bg-[#090a10]/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link to="/" className="group block">
-            <div className="text-[11px] font-medium uppercase tracking-[0.32em] text-white/72 transition-colors group-hover:text-white">Rhythmic Geometry</div>
-            <div className="mt-1 text-[11px] font-mono text-white/34 transition-colors group-hover:text-white/54">Geometry shaped by rhythm, motion, and tone</div>
+            <div className="text-[15px] font-medium uppercase tracking-[0.34em] text-white/82 transition-colors group-hover:text-white sm:text-[17px]">
+              Rhythmic Geometry
+            </div>
           </Link>
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
@@ -304,21 +414,21 @@ function OrbitalPolymeterLanding() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden px-5 pb-18 pt-18 sm:px-8 sm:pb-24 sm:pt-24">
+        <section className="relative overflow-hidden px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
           <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
-                Form from rhythmic constraint
+                A visual instrument for rhythmic form
               </div>
-              <h1 className="mt-8 max-w-4xl text-5xl font-light tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-                A rhythmic structure generator for geometry, motion, and sound.
+              <h1 className="mt-8 max-w-3xl text-5xl font-light tracking-[-0.058em] leading-[0.98] text-white sm:text-6xl lg:text-[4.9rem]">
+                Shape structure, motion, and tone through rhythm.
               </h1>
               <p className="mt-6 max-w-xl text-base leading-8 text-white/62 sm:text-lg">
-                Set orbital constraints. Watch lawful forms emerge.
+                Set the constraints. Watch the structure appear.
               </p>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/44 sm:text-base">
-                Rhythmic Geometry turns pulse ratios, direction, and motion into living form. It behaves like a visual instrument for discovering structure, flow, and pattern.
+                Rhythmic Geometry turns pulse ratios, direction, and motion into living form. Free is for play and discovery. Pro gives the work permanence, control, and a way out of the instrument.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Link
@@ -343,7 +453,7 @@ function OrbitalPolymeterLanding() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Rhythmic Geometry</div>
-                    <div className="mt-2 text-[11px] font-mono text-white/38">A visual instrument for form, motion, and sound.</div>
+                    <div className="mt-2 text-[11px] font-mono text-white/38">A visual instrument for form, motion, and tone.</div>
                   </div>
                   <Link
                     to="/app"
@@ -353,12 +463,12 @@ function OrbitalPolymeterLanding() {
                   </Link>
                 </div>
 
-                <div className="relative mt-8 aspect-[1/1] overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10]">
+                <div className="relative mt-5 aspect-[1/1] overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10]">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.02),transparent_62%)]" />
                   <img
                     src={heroImage}
                     alt="Completed Rhythmic Geometry study"
-                    className="h-full w-full p-4 object-contain"
+                    className="h-full w-full p-2 object-contain object-top"
                   />
                 </div>
 
@@ -384,7 +494,7 @@ function OrbitalPolymeterLanding() {
             <div className="max-w-2xl">
               <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Visual Studies</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Finished structures that feel discovered, not designed.
+                Structures that feel discovered, not decorated.
               </h2>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -416,7 +526,7 @@ function OrbitalPolymeterLanding() {
             <div className="max-w-2xl">
               <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">How It Works</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Three moves. One system of constraint.
+                Three moves. One living system.
               </h2>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-3">
@@ -484,15 +594,15 @@ function OrbitalPolymeterLanding() {
             <div>
               <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Why It Matters</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Not random decoration. Form from constraint.
+                Not decoration. A structure you can steer.
               </h2>
               <p className="mt-6 max-w-2xl text-base leading-8 text-white/58">
-                Rhythmic Geometry reveals the forms that emerge when rhythm, direction, and motion are held inside a simple system of constraints.
+                Rhythmic Geometry reveals what appears when rhythm, direction, and motion are held inside a simple system of rules.
               </p>
               <div className="mt-8 space-y-4 text-sm leading-7 text-white/52">
-                <p>It behaves like a visual instrument, not a template generator.</p>
-                <p>It is interactive, mathematically grounded, musically expressive, and visually meditative.</p>
-                <p>The resulting structures feel lawful because they are consequences, not decorations.</p>
+                <p>It behaves like an instrument, not a template.</p>
+                <p>It is interactive, mathematically grounded, and visually musical.</p>
+                <p>The resulting forms feel inevitable because they are consequences, not decoration.</p>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -516,7 +626,7 @@ function OrbitalPolymeterLanding() {
             <div className="max-w-2xl">
               <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Tools Around The Form</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Save scenes, export stills, record loops, and present the system cleanly.
+                Keep what you find, export what you make, and present it cleanly.
               </h2>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -531,11 +641,56 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
+        <section className="px-5 py-8 sm:px-8 sm:py-10">
+          <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.1rem] border border-white/8 bg-[#0d1017]/88 shadow-[0_30px_120px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <div className="grid gap-0 lg:grid-cols-[0.92fr_1.08fr]">
+              <div className="relative px-6 py-8 sm:px-8 sm:py-10">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,170,0,0.12),transparent_30%),radial-gradient(circle_at_76%_72%,rgba(0,255,170,0.08),transparent_28%)]" />
+                <div className="relative">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFAA00]">Pro Mode</div>
+                  <h2 className="mt-4 max-w-lg text-3xl font-light tracking-[-0.04em] text-white sm:text-[2.65rem] sm:leading-[1.02]">
+                    For the forms you want to keep.
+                  </h2>
+                  <p className="mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
+                    Pro is where discovery becomes authorship. Save what you find, shape the instrument more deeply, and carry the work out as stills, loops, and a lasting library of studies.
+                  </p>
+                  <p className="mt-4 max-w-xl text-[13px] leading-7 text-white/42 sm:text-sm">
+                    Free is for exploration. Pro is for keeping, refining, and releasing the work.
+                  </p>
+                  <div className="mt-8 flex flex-wrap items-center gap-4">
+                    <Link
+                      to="/app"
+                      className="inline-flex items-center gap-2 rounded-full border border-[#FFAA00]/25 bg-[#FFAA00]/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
+                    >
+                      {account?.plan === 'pro' ? 'Open Pro In App' : 'Unlock Pro In App'}
+                      <ArrowRight size={15} />
+                    </Link>
+                    <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-white/42">
+                      {account?.plan === 'pro' ? 'Pro already active on this account' : 'One-time unlock inside the app'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-white/8 px-6 py-8 sm:px-8 sm:py-10 lg:border-l lg:border-t-0">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {proHighlights.map((item) => (
+                    <div key={item.title} className="rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-5">
+                      <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FFAA00]/84">{item.label}</div>
+                      <div className="mt-3 text-xl font-light text-white">{item.title}</div>
+                      <p className="mt-3 text-sm leading-7 text-white/52">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="px-5 pb-20 pt-8 sm:px-8 sm:pb-28">
           <div className="mx-auto max-w-5xl rounded-[2rem] border border-white/8 bg-white/[0.035] px-6 py-10 text-center sm:px-10 sm:py-14">
             <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Open The Instrument</div>
             <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
-              A visual instrument for discovering form through rhythmic constraint.
+              A visual instrument for exploring form through rhythmic constraint.
             </h2>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link

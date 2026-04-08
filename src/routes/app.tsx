@@ -2181,53 +2181,53 @@ function OrbitalPolymeter() {
     const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
       'save-scenes': {
         feature: 'save-scenes',
-        title: 'Save More Scenes With Pro',
-        body: `Free accounts can keep up to ${FREE_SCENE_SAVE_LIMIT} saved scenes. Pro unlocks a larger personal scene library.`,
+        title: 'Save More With Pro',
+        body: `Free keeps up to ${FREE_SCENE_SAVE_LIMIT} saved scenes. Pro turns Rhythmic Geometry into a lasting personal sketchbook.`,
       },
       export: {
         feature: 'export',
-        title: 'Export Is A Pro Feature',
-        body: 'PNG, WebM, and scene-file export are part of Pro. You can still explore and preview freely.',
+        title: 'Export Belongs To Pro',
+        body: 'Pro unlocks stills, loops, and scene exports so what you make can leave the canvas.',
       },
       'random-plus': {
         feature: 'random-plus',
-        title: 'Random+ Is A Pro Feature',
-        body: 'Random+ explores wider, more extreme ratios, color families, and speeds than the base Random button.',
+        title: 'Random+ Goes Further',
+        body: 'Random+ opens a wider field of ratios, color movement, and motion than base Random.',
       },
       remix: {
         feature: 'remix',
-        title: 'Remix Is A Pro Feature',
-        body: 'Remix refreshes the current structure with new color, direction, sound, and speed while keeping the core pattern.',
+        title: 'Remix Needs Pro',
+        body: 'Remix reshapes the current study while keeping its core identity intact.',
       },
       'scene-editing': {
         feature: 'scene-editing',
-        title: 'Scene Editing Needs Pro',
-        body: 'Free can load built-in scenes, but changing their ratios, layers, colors, directions, or sound requires Pro.',
+        title: 'Editing Opens Up In Pro',
+        body: 'Free is for exploring finished scenes. Pro unlocks shaping, tuning, and making them your own.',
       },
       'high-ratios': {
         feature: 'high-ratios',
-        title: 'Higher Ratios Need Pro',
-        body: 'Free editing goes up to 10. Pro unlocks higher-ratio studies and the longer-cycle geometry they produce.',
+        title: 'Deeper Ratios Need Pro',
+        body: 'Free editing goes to 10. Pro opens the longer cycles and stranger balance points beyond it.',
       },
       'extra-orbits': {
         feature: 'extra-orbits',
-        title: 'Extra Orbits Need Pro',
-        body: 'Free keeps Standard to 3 orbits and Interference/Sweep to 2. Pro unlocks deeper multi-body geometry.',
+        title: 'More Bodies, More Structure',
+        body: 'Free keeps the system tight. Pro opens deeper multi-body studies across every mode.',
       },
       'color-editing': {
         feature: 'color-editing',
-        title: 'Color Editing Needs Pro',
-        body: 'Free can preview scene colors, but Pro unlocks direct orbit color editing and palette shaping.',
+        title: 'Color Shaping Needs Pro',
+        body: 'Pro unlocks direct color control so the image feels authored, not just discovered.',
       },
       'sound-editing': {
         feature: 'sound-editing',
-        title: 'Sound Editing Needs Pro',
-        body: 'Free can hear the system. Pro unlocks sound mode, key, scale, and orbit-role editing.',
+        title: 'Sound Control Needs Pro',
+        body: 'Free lets you hear the system. Pro lets you tune it with key, scale, tone, and role control.',
       },
       'pro-scenes': {
         feature: 'pro-scenes',
-        title: 'Pro Scenes',
-        body: 'Premium scenes are included with Pro and cannot be opened in Free mode.',
+        title: 'This Study Is Included With Pro',
+        body: 'Pro scenes are part of the full instrument and open only with Pro access.',
       },
     };
     setProPrompt(featureCopy[feature]);
@@ -2246,19 +2246,19 @@ function OrbitalPolymeter() {
   const beginStripeUpgrade = useCallback(async () => {
     if (!isSignedIn) {
       setSidebarOpen(true);
-      toast.message('Sign in first to unlock Pro.');
+      toast.message('Sign in to unlock Pro and keep it with your account.');
       return;
     }
 
     if (checkoutSyncing) {
       setProPrompt(null);
-      toast.message('Your purchase is still processing. Give it a moment, then refresh if Pro does not appear.');
+      toast.message('Your purchase is still settling. Give it a moment, then refresh if Pro does not appear.');
       return;
     }
 
     if (hasProAccess) {
       setProPrompt(null);
-      toast.message('Pro is already active on this account. If this screen still looks stale, refresh the page.');
+      toast.message('Pro is already active on this account. If this still looks stale, refresh the page.');
       return;
     }
 
@@ -2350,7 +2350,7 @@ function OrbitalPolymeter() {
     void (async () => {
       if (checkoutState === 'success' && sessionId) {
         setCheckoutSyncing(true);
-        toast.message('Payment received. Pro is syncing now. This can take a moment.');
+        toast.message('Payment received. Unlocking Pro now. This can take a moment.');
         try {
           await confirmStripeCheckout(sessionId);
           await refreshAccount();
@@ -2365,11 +2365,11 @@ function OrbitalPolymeter() {
           setCheckoutSyncing(false);
         }
       } else if (checkoutState === 'success') {
-        toast.success('Checkout completed. Your Pro plan will sync in a moment.');
+        toast.success('Purchase complete. Pro should appear in a moment.');
       } else if (checkoutState === 'canceled') {
         toast.message('Checkout canceled.');
       } else if (billingState === 'portal') {
-        toast.message('Returned from billing portal.');
+        toast.message('Returned to your account.');
       }
 
       url.searchParams.delete('checkout');
@@ -3954,7 +3954,7 @@ function OrbitalPolymeter() {
       />
       <div className="fixed inset-x-4 bottom-6 z-[100] mx-auto max-w-md rounded-[1.6rem] border border-white/10 bg-[#10131b]/94 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:bottom-8">
         <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: '#FFAA00' }}>
-          Pro Feature
+          Go Further
         </div>
         <div className="mt-3 text-xl font-light text-white">
           {proPrompt.title}
@@ -3968,7 +3968,7 @@ function OrbitalPolymeter() {
               type="button"
               onClick={() => {
                 makeEditableCopyFromCurrentScene();
-                toast.message('Built-in scene copied into a free editable state.');
+                toast.message('Scene copied into a free editable study.');
               }}
               className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
             >
@@ -3994,7 +3994,7 @@ function OrbitalPolymeter() {
                 type="button"
                 onClick={() => {
                   resetToFreeDefaultCanvas();
-                  toast.message('Returned to a clean 3-orbit canvas.');
+                  toast.message('Returned to a clean 3-orbit study.');
                 }}
                 className="inline-flex items-center justify-center rounded-full border border-[#00FFAA]/24 bg-[#00FFAA]/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00FFAA] transition hover:bg-[#00FFAA]/16"
               >
@@ -4024,7 +4024,7 @@ function OrbitalPolymeter() {
                 : hasProAccess
                   ? 'Pro Active'
                   : isSignedIn
-                    ? 'Upgrade To Pro'
+                    ? 'Unlock Pro'
                     : 'Open Account'}
           </button>
           <button
@@ -4032,7 +4032,7 @@ function OrbitalPolymeter() {
             onClick={() => setProPrompt(null)}
             className="inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/18 hover:text-white"
           >
-            Keep Exploring
+            Stay In Free
           </button>
         </div>
       </div>
