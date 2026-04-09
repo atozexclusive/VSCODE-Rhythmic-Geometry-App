@@ -11,6 +11,8 @@ import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar from '../components/PolyrhythmSidebar';
+import RiffCycleCanvas from '../components/RiffCycleCanvas';
+import RiffCycleSidebar from '../components/RiffCycleSidebar';
 import TransportBar from '../components/TransportBar';
 import RadialMenu from '../components/RadialMenu';
 import { useAuth } from '../components/auth-provider';
@@ -65,13 +67,35 @@ import {
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESETS,
   cloneStudy,
+  countActiveSteps,
   createDefaultPolyrhythmStudy,
   createPolyrhythmLayer,
+  invertLayerSteps,
+  rotateLayer,
   toggleLayerStep,
   updateLayerBeatCount,
   type PolyrhythmLayer,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
+import { resumePolyrhythmAudio } from '../lib/polyrhythmAudio';
+import {
+  DEFAULT_RIFF_CYCLE_PRESET_ID,
+  RIFF_CYCLE_PRESETS,
+  clearRiffSteps,
+  cloneRiffCycleStudy,
+  createDefaultRiffCycleStudy,
+  getDisplayStepCount,
+  invertRiffSteps,
+  rotateRiffSteps,
+  setRiffStepActive,
+  toggleRiffAccent,
+  toggleRiffStep,
+  updateRiffStepCount,
+  type ReferenceMeter,
+  type RiffCycleStudy,
+  type RiffPhrase,
+} from '../lib/riffCycleStudy';
+import { resumeRiffCycleAudio } from '../lib/riffCycleAudio';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
@@ -265,7 +289,12 @@ type ActiveSceneSource =
   | 'saved'
   | 'custom';
 
-type AppSurface = 'orbital' | 'polyrhythm-study';
+type AppSurface = 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
+
+interface PolyrhythmStepSelection {
+  layerId: string;
+  stepIndex: number;
+}
 
 function sortSavedScenesByUpdatedAt(scenes: SavedScene[]): SavedScene[] {
   return [...scenes].sort(
@@ -2097,6 +2126,19 @@ function OrbitalPolymeter() {
   const [activePolyrhythmPresetId, setActivePolyrhythmPresetId] = useState<string | null>(
     DEFAULT_POLYRHYTHM_PRESET_ID,
   );
+  const [riffCycleStudy, setRiffCycleStudy] = useState<RiffCycleStudy>(() =>
+    createDefaultRiffCycleStudy(),
+  );
+  const [activeRiffCyclePresetId, setActiveRiffCyclePresetId] = useState<string | null>(
+    DEFAULT_RIFF_CYCLE_PRESET_ID,
+  );
+  const [selectedPolyrhythmLayerId, setSelectedPolyrhythmLayerId] = useState<string | null>(
+    null,
+  );
+  const [selectedPolyrhythmStep, setSelectedPolyrhythmStep] =
+    useState<PolyrhythmStepSelection | null>(null);
+  const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
+  const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
@@ -2156,13 +2198,22 @@ function OrbitalPolymeter() {
       setRadialMenu(null);
       setProPrompt(null);
 
-      if (nextSurface === 'polyrhythm-study') {
+      if (nextSurface === 'polyrhythm-study' || nextSurface === 'riff-cycle-study') {
         stopAllAudio();
         engineState.playing = false;
         engineState.lastTimestamp = -1;
         rerender();
-      } else {
+      }
+
+      if (nextSurface !== 'polyrhythm-study') {
         setPolyrhythmStudy((current) => ({
+          ...current,
+          playing: false,
+        }));
+      }
+
+      if (nextSurface !== 'riff-cycle-study') {
+        setRiffCycleStudy((current) => ({
           ...current,
           playing: false,
         }));
@@ -2179,8 +2230,11 @@ function OrbitalPolymeter() {
       return;
     }
 
-    setPolyrhythmStudy(cloneStudy(preset.study));
+    const nextStudy = cloneStudy(preset.study);
+    setPolyrhythmStudy(nextStudy);
     setActivePolyrhythmPresetId(preset.id);
+    setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
+    setSelectedPolyrhythmStep(null);
   }, []);
 
   const handleResetPolyrhythmStudy = useCallback(() => {
@@ -2190,14 +2244,21 @@ function OrbitalPolymeter() {
       POLYRHYTHM_PRESETS[0];
 
     if (!preset) {
-      setPolyrhythmStudy(createDefaultPolyrhythmStudy());
+      const nextStudy = createDefaultPolyrhythmStudy();
+      setPolyrhythmStudy(nextStudy);
+      setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
+      setSelectedPolyrhythmStep(null);
       return;
     }
 
-    setPolyrhythmStudy(cloneStudy(preset.study));
+    const nextStudy = cloneStudy(preset.study);
+    setPolyrhythmStudy(nextStudy);
+    setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
+    setSelectedPolyrhythmStep(null);
   }, [activePolyrhythmPresetId]);
 
   const handleTogglePolyrhythmPlayback = useCallback(() => {
+    resumePolyrhythmAudio();
     setPolyrhythmStudy((current) => ({
       ...current,
       playing: !current.playing,
@@ -2226,7 +2287,16 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleTogglePolyrhythmSound = useCallback(() => {
+    resumePolyrhythmAudio();
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      soundEnabled: !current.soundEnabled,
+    }));
+  }, []);
+
   const handleAddPolyrhythmLayer = useCallback(() => {
+    let nextLayerId: string | null = null;
     setPolyrhythmStudy((current) => {
       const lastLayer = current.layers[current.layers.length - 1];
       const nextLayerIndex = current.layers.length;
@@ -2234,19 +2304,27 @@ function OrbitalPolymeter() {
       const nextRadius = Math.max(78, (lastLayer?.radius ?? 230) - 34);
       const nextColor =
         POLYRHYTHM_LAYER_COLORS[nextLayerIndex % POLYRHYTHM_LAYER_COLORS.length];
+      const nextLayer = createPolyrhythmLayer(nextBeatCount, {
+        radius: nextRadius,
+        rotationOffset: (nextLayerIndex * 12) % 360,
+        color: nextColor,
+        pitchHz: Math.min(960, 180 + nextLayerIndex * 66),
+        gain: Math.max(0.04, 0.12 - nextLayerIndex * 0.01),
+      });
+      nextLayerId = nextLayer.id;
 
       return {
         ...current,
         layers: [
           ...current.layers,
-          createPolyrhythmLayer(nextBeatCount, {
-            radius: nextRadius,
-            rotationOffset: (nextLayerIndex * 12) % 360,
-            color: nextColor,
-          }),
+          nextLayer,
         ],
       };
     });
+    if (nextLayerId) {
+      setSelectedPolyrhythmLayerId(nextLayerId);
+      setSelectedPolyrhythmStep(null);
+    }
   }, []);
 
   const handleRemovePolyrhythmLayer = useCallback((layerId: string) => {
@@ -2260,6 +2338,7 @@ function OrbitalPolymeter() {
         layers: current.layers.filter((layer) => layer.id !== layerId),
       };
     });
+    setSelectedPolyrhythmStep((current) => (current?.layerId === layerId ? null : current));
   }, []);
 
   const handleUpdatePolyrhythmLayer = useCallback(
@@ -2282,6 +2361,14 @@ function OrbitalPolymeter() {
               updates.rotationOffset == null
                 ? layer.rotationOffset
                 : ((updates.rotationOffset % 360) + 360) % 360,
+            pitchHz:
+              updates.pitchHz == null
+                ? layer.pitchHz
+                : Math.max(90, Math.min(1400, Math.round(updates.pitchHz))),
+            gain:
+              updates.gain == null
+                ? layer.gain
+                : Math.max(0.02, Math.min(0.28, Number(updates.gain))),
           };
         }),
       }));
@@ -2297,6 +2384,12 @@ function OrbitalPolymeter() {
           layer.id === layerId ? updateLayerBeatCount(layer, beatCount) : layer,
         ),
       }));
+      setSelectedPolyrhythmStep((current) => {
+        if (!current || current.layerId !== layerId) {
+          return current;
+        }
+        return null;
+      });
     },
     [],
   );
@@ -2312,6 +2405,217 @@ function OrbitalPolymeter() {
     },
     [],
   );
+
+  const handleSelectPolyrhythmLayer = useCallback((layerId: string) => {
+    setSelectedPolyrhythmLayerId(layerId);
+  }, []);
+
+  const handleSelectPolyrhythmStep = useCallback(
+    (selection: PolyrhythmStepSelection | null) => {
+      setSelectedPolyrhythmStep(selection);
+      if (selection) {
+        setSelectedPolyrhythmLayerId(selection.layerId);
+      }
+    },
+    [],
+  );
+
+  const handleClearPolyrhythmSelection = useCallback(() => {
+    setSelectedPolyrhythmStep(null);
+  }, []);
+
+  const handleRotatePolyrhythmLayer = useCallback((layerId: string, stepOffset: number) => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) =>
+        layer.id === layerId ? rotateLayer(layer, stepOffset) : layer,
+      ),
+    }));
+  }, []);
+
+  const handleInvertPolyrhythmLayerSteps = useCallback((layerId: string) => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) =>
+        layer.id === layerId ? invertLayerSteps(layer) : layer,
+      ),
+    }));
+  }, []);
+  const handleLoadRiffCyclePreset = useCallback((presetId: string) => {
+    const preset = RIFF_CYCLE_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) {
+      return;
+    }
+    setRiffCycleStudy(cloneRiffCycleStudy(preset.study));
+    setActiveRiffCyclePresetId(preset.id);
+    setSelectedRiffCycleStep(null);
+  }, []);
+
+  const handleResetRiffCycleStudy = useCallback(() => {
+    setRiffCycleRestartToken((value) => value + 1);
+  }, []);
+
+  const handleToggleRiffCyclePlayback = useCallback(() => {
+    resumeRiffCycleAudio();
+    setRiffCycleStudy((current) => ({
+      ...current,
+      playing: !current.playing,
+    }));
+  }, []);
+
+  const handleToggleRiffCycleSound = useCallback(() => {
+    resumeRiffCycleAudio();
+    setRiffCycleStudy((current) => ({
+      ...current,
+      soundEnabled: !current.soundEnabled,
+    }));
+  }, []);
+
+  const handleUpdateRiffReference = useCallback((updates: Partial<ReferenceMeter>) => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      reference: {
+        ...current.reference,
+        ...updates,
+        numerator:
+          updates.numerator == null
+            ? current.reference.numerator
+            : Math.max(2, Math.min(11, Math.round(updates.numerator))),
+        denominator:
+          updates.denominator == null
+            ? current.reference.denominator
+            : updates.denominator === 8
+              ? 8
+              : 4,
+        subdivision:
+          updates.subdivision == null
+            ? current.reference.subdivision
+            : ([8, 12, 16, 32] as const).includes(updates.subdivision as 8 | 12 | 16 | 32)
+              ? (updates.subdivision as 8 | 12 | 16 | 32)
+              : current.reference.subdivision,
+        bpm:
+          updates.bpm == null
+            ? current.reference.bpm
+            : Math.max(45, Math.min(220, Math.round(updates.bpm))),
+        barCountForDisplay:
+          updates.barCountForDisplay == null
+            ? current.reference.barCountForDisplay
+            : Math.max(1, Math.min(8, Math.round(updates.barCountForDisplay))),
+        backbeatBeat:
+          updates.backbeatBeat == null
+            ? current.reference.backbeatBeat
+            : Math.max(1, Math.min(
+                updates.numerator == null ? current.reference.numerator : Math.round(updates.numerator),
+                Math.round(updates.backbeatBeat),
+              )),
+      },
+    }));
+  }, []);
+
+  const handleUpdateRiffPhrase = useCallback((updates: Partial<RiffPhrase>) => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      riff: {
+        ...current.riff,
+        ...updates,
+        rotationOffset:
+          updates.rotationOffset == null
+            ? current.riff.rotationOffset
+            : ((updates.rotationOffset % 360) + 360) % 360,
+        pitchHz:
+          updates.pitchHz == null
+            ? current.riff.pitchHz
+            : Math.max(80, Math.min(1600, Math.round(updates.pitchHz))),
+        gain:
+          updates.gain == null
+            ? current.riff.gain
+            : Math.max(0.02, Math.min(0.32, Number(updates.gain))),
+        resetBars:
+          updates.resetBars == null
+            ? current.riff.resetBars
+            : Math.max(1, Math.min(8, Math.round(updates.resetBars))),
+      },
+    }));
+  }, []);
+
+  const handleSetRiffPhraseStepCount = useCallback((stepCount: number) => {
+    setRiffCycleStudy((current) => updateRiffStepCount(current, stepCount));
+    setSelectedRiffCycleStep((current) =>
+      current != null && current >= Math.max(3, Math.min(64, Math.round(stepCount || 0)))
+        ? null
+        : current,
+    );
+  }, []);
+
+  const handleToggleRiffCycleStep = useCallback((stepIndex: number) => {
+    setRiffCycleStudy((current) => toggleRiffStep(current, stepIndex));
+  }, []);
+
+  const handleSetRiffCycleStepActive = useCallback((stepIndex: number, active: boolean) => {
+    setRiffCycleStudy((current) => setRiffStepActive(current, stepIndex, active));
+  }, []);
+
+  const handleSelectRiffCycleStep = useCallback((stepIndex: number | null) => {
+    setSelectedRiffCycleStep(stepIndex);
+  }, []);
+
+  const handleToggleRiffCycleAccent = useCallback((stepIndex: number) => {
+    setRiffCycleStudy((current) => toggleRiffAccent(current, stepIndex));
+  }, []);
+
+  const handleRotateRiffCycle = useCallback((stepOffset: number) => {
+    setRiffCycleStudy((current) => rotateRiffSteps(current, stepOffset));
+  }, []);
+
+  const handleInvertRiffCycle = useCallback(() => {
+    setRiffCycleStudy((current) => invertRiffSteps(current));
+  }, []);
+
+  const handleClearRiffCycle = useCallback(() => {
+    setRiffCycleStudy((current) => clearRiffSteps(current));
+  }, []);
+
+  const handleToggleRiffViewMode = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      viewMode: current.viewMode === 'unwrapped' ? 'circular' : 'unwrapped',
+    }));
+  }, []);
+
+  const handleToggleRiffAlignmentMarkers = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showAlignmentMarkers: !current.showAlignmentMarkers,
+    }));
+  }, []);
+
+  const handleToggleRiffDriftTrail = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showDriftTrail: !current.showDriftTrail,
+    }));
+  }, []);
+
+  const handleToggleRiffStepLabels = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showStepLabels: !current.showStepLabels,
+    }));
+  }, []);
+
+  const handleToggleRiffPhraseBody = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showPhraseRing: !current.showPhraseRing,
+    }));
+  }, []);
+
+  const handleToggleRiffEmphasisMode = useCallback(() => {
+    setRiffCycleStudy((current) => ({
+      ...current,
+      emphasisMode: current.emphasisMode === 'analysis' ? 'groove' : 'analysis',
+    }));
+  }, []);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
   const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
 
@@ -2340,6 +2644,43 @@ function OrbitalPolymeter() {
     color: 'rgba(255,255,255,0.88)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   } as const;
+
+  useEffect(() => {
+    const firstLayer = polyrhythmStudy.layers[0];
+    if (!firstLayer) {
+      setSelectedPolyrhythmLayerId(null);
+      setSelectedPolyrhythmStep(null);
+      return;
+    }
+
+    const selectedLayerStillExists = polyrhythmStudy.layers.some(
+      (layer) => layer.id === selectedPolyrhythmLayerId,
+    );
+
+    if (!selectedLayerStillExists) {
+      setSelectedPolyrhythmLayerId(firstLayer.id);
+    }
+
+    setSelectedPolyrhythmStep((current) => {
+      if (!current) {
+        return current;
+      }
+      const layer = polyrhythmStudy.layers.find((entry) => entry.id === current.layerId);
+      if (!layer || current.stepIndex >= layer.beatCount) {
+        return null;
+      }
+      return current;
+    });
+  }, [polyrhythmStudy.layers, selectedPolyrhythmLayerId]);
+
+  useEffect(() => {
+    setSelectedRiffCycleStep((current) => {
+      if (current == null) {
+        return current;
+      }
+      return current >= riffCycleStudy.riff.stepCount ? null : current;
+    });
+  }, [riffCycleStudy.riff.stepCount]);
   const guideCalloutStyle = (() => {
     const base = {
       background: 'rgba(17, 17, 22, 0.92)',
@@ -4284,6 +4625,7 @@ function OrbitalPolymeter() {
         {([
           ['orbital', 'Orbital'],
           ['polyrhythm-study', 'Study'],
+          ['riff-cycle-study', 'Riff Lab'],
         ] as const).map(([surfaceId, label]) => {
           const active = appSurface === surfaceId;
           return (
@@ -4312,9 +4654,39 @@ function OrbitalPolymeter() {
   );
   const polyrhythmActiveCount = polyrhythmStudy.layers.reduce(
     (count, layer) =>
-      count + layer.activeSteps.reduce((layerCount, step) => layerCount + (step ? 1 : 0), 0),
+      count + countActiveSteps(layer),
     0,
   );
+  const selectedPolyrhythmLayer =
+    polyrhythmStudy.layers.find((layer) => layer.id === selectedPolyrhythmLayerId) ??
+    polyrhythmStudy.layers[0] ??
+    null;
+  const selectedPolyrhythmStepActive =
+    selectedPolyrhythmLayer &&
+    selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
+      ? Boolean(selectedPolyrhythmLayer.activeSteps[selectedPolyrhythmStep.stepIndex])
+      : null;
+  const riffDisplaySteps = getDisplayStepCount(riffCycleStudy);
+  const riffReferenceSummary = `${riffCycleStudy.reference.numerator}/${riffCycleStudy.reference.denominator} reference on a ${riffCycleStudy.reference.subdivision}th-note grid`;
+  const riffPhraseSummary = `${riffCycleStudy.riff.stepCount}-step phrase`;
+  const riffStepsPerBar = Math.max(
+    1,
+    Math.round(
+      (riffCycleStudy.reference.numerator * riffCycleStudy.reference.subdivision) /
+        riffCycleStudy.reference.denominator,
+    ),
+  );
+  const riffDriftPerBar = riffStepsPerBar % riffCycleStudy.riff.stepCount;
+  const riffRealignmentSummary =
+    riffCycleStudy.riff.resetMode === 'free'
+      ? `Phrase runs freely and drifts by ${riffDriftPerBar} step${riffDriftPerBar === 1 ? '' : 's'} per bar.`
+      : riffCycleStudy.riff.resetMode === 'per-bar'
+        ? 'Phrase is forced back to beat 1 on every bar.'
+        : riffCycleStudy.riff.resetMode === 'every-2-bars'
+          ? 'Phrase is cut and realigned to beat 1 every 2 bars.'
+          : riffCycleStudy.riff.resetMode === 'every-4-bars'
+            ? 'Phrase is cut and realigned to beat 1 every 4 bars.'
+            : `Phrase is cut and realigned to beat 1 every ${riffCycleStudy.riff.resetBars} bars.`;
   if (!captureMode && appSurface === 'polyrhythm-study') {
     return (
       <div
@@ -4324,7 +4696,15 @@ function OrbitalPolymeter() {
             : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
         }
       >
-        <PolyrhythmCanvas study={polyrhythmStudy} />
+        <PolyrhythmCanvas
+          study={polyrhythmStudy}
+          selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+          selectedStep={selectedPolyrhythmStep}
+          onSelectLayer={handleSelectPolyrhythmLayer}
+          onSelectStep={handleSelectPolyrhythmStep}
+          onToggleStep={handleTogglePolyrhythmLayerStep}
+          onClearSelection={handleClearPolyrhythmSelection}
+        />
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/35 via-black/12 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/90 to-transparent" />
 
@@ -4352,7 +4732,9 @@ function OrbitalPolymeter() {
             className={`font-mono leading-relaxed ${isMobile ? 'text-center text-[9px]' : 'text-right text-[10px]'}`}
             style={{ color: 'rgba(255,255,255,0.15)' }}
           >
-            {isMobile ? 'Open Menu to reshape each ring.' : <>toggle steps in menu to shape each ring<br />polygons reveal the active mask</>}
+            {isMobile
+              ? 'Tap a ring to select it. Tap a selected point to switch it on or off.'
+              : <>tap a ring to select it<br />tap a selected point again to switch it on or off</>}
           </p>
         </div>
 
@@ -4397,6 +4779,78 @@ function OrbitalPolymeter() {
                 </div>
               ))}
             </div>
+            {selectedPolyrhythmLayer ? (
+              <div
+                className="mt-4 rounded-2xl border px-3 py-3"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  borderColor: `${selectedPolyrhythmLayer.color}33`,
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: selectedPolyrhythmLayer.color }}>
+                      Selected Ring
+                    </div>
+                    <div className="mt-1 text-[14px] font-light text-white">
+                      {countActiveSteps(selectedPolyrhythmLayer)} active on {selectedPolyrhythmLayer.beatCount} steps
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPolyrhythmStep(null)}
+                    className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Clear Step
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div
+                    className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background: `${selectedPolyrhythmLayer.color}14`,
+                      borderColor: `${selectedPolyrhythmLayer.color}33`,
+                      color: selectedPolyrhythmLayer.color,
+                    }}
+                  >
+                    {Math.round(selectedPolyrhythmLayer.rotationOffset)}° rotation
+                  </div>
+                  <div
+                    className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    {selectedPolyrhythmLayer.pitchHz} Hz
+                  </div>
+                  {selectedPolyrhythmStep ? (
+                    <div
+                      className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{
+                        background: selectedPolyrhythmStepActive
+                          ? `${selectedPolyrhythmLayer.color}14`
+                          : 'rgba(255,255,255,0.03)',
+                        borderColor: selectedPolyrhythmStepActive
+                          ? `${selectedPolyrhythmLayer.color}33`
+                          : 'rgba(255,255,255,0.08)',
+                        color: selectedPolyrhythmStepActive
+                          ? selectedPolyrhythmLayer.color
+                          : 'rgba(255,255,255,0.58)',
+                      }}
+                    >
+                      Step {selectedPolyrhythmStep.stepIndex + 1} {selectedPolyrhythmStepActive ? 'On' : 'Off'}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -4457,6 +4911,23 @@ function OrbitalPolymeter() {
                 {polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />}
                 {polyrhythmStudy.playing ? 'Pause' : 'Play'}
               </button>
+              <button
+                type="button"
+                onClick={handleTogglePolyrhythmSound}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: polyrhythmStudy.soundEnabled
+                    ? 'rgba(127,215,255,0.14)'
+                    : 'rgba(255,255,255,0.04)',
+                  borderColor: polyrhythmStudy.soundEnabled
+                    ? 'rgba(127,215,255,0.24)'
+                    : 'rgba(255,255,255,0.08)',
+                  color: polyrhythmStudy.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                }}
+              >
+                {polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                {polyrhythmStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
+              </button>
             </div>
 
             <div
@@ -4502,18 +4973,225 @@ function OrbitalPolymeter() {
           isOpen={sidebarOpen}
           study={polyrhythmStudy}
           activePresetId={activePolyrhythmPresetId}
+          selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+          selectedStep={selectedPolyrhythmStep}
           onClose={() => setSidebarOpen(false)}
           onLoadPreset={handleLoadPolyrhythmPreset}
           onResetStudy={handleResetPolyrhythmStudy}
           onTogglePlay={handleTogglePolyrhythmPlayback}
           onBpmChange={handlePolyrhythmBpmChange}
+          onToggleStudySound={handleTogglePolyrhythmSound}
           onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
           onToggleStepLabels={handleTogglePolyrhythmStepLabels}
           onAddLayer={handleAddPolyrhythmLayer}
+          onSelectLayer={handleSelectPolyrhythmLayer}
+          onSelectStep={handleSelectPolyrhythmStep}
           onRemoveLayer={handleRemovePolyrhythmLayer}
+          onRotateLayer={handleRotatePolyrhythmLayer}
+          onInvertLayerSteps={handleInvertPolyrhythmLayerSteps}
           onUpdateLayer={handleUpdatePolyrhythmLayer}
           onSetLayerBeatCount={handleSetPolyrhythmLayerBeatCount}
           onToggleLayerStep={handleTogglePolyrhythmLayerStep}
+        />
+      </div>
+    );
+  }
+  if (!captureMode && appSurface === 'riff-cycle-study') {
+    return (
+      <div
+        className={
+          isMobile
+            ? 'relative min-h-[100svh] overflow-hidden bg-[#111116] select-none'
+            : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
+        }
+      >
+        <RiffCycleCanvas
+          study={riffCycleStudy}
+          selectedStep={selectedRiffCycleStep}
+          restartToken={riffCycleRestartToken}
+          onSelectStep={handleSelectRiffCycleStep}
+          onSetStepActive={handleSetRiffCycleStepActive}
+          onToggleAccent={handleToggleRiffCycleAccent}
+        />
+        <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/42 via-black/14 to-transparent" />
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/92 to-transparent" />
+
+        <div className={`fixed z-20 ${isMobile ? 'left-1/2 top-3 -translate-x-1/2 text-center' : 'left-5 top-4'}`}>
+          <Link to="/" className="group inline-block">
+            <h1
+              className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
+              style={{ color: 'rgba(255, 255, 255, 0.25)' }}
+            >
+              Rhythmic Geometry
+            </h1>
+            <p
+              className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} mt-1 font-mono uppercase tracking-[0.18em] transition-colors group-hover:text-white/20`}
+              style={{ color: 'rgba(255, 255, 255, 0.12)' }}
+            >
+              Riff cycle study
+            </p>
+          </Link>
+        </div>
+
+        {appSurfaceToggle}
+
+        <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-5 top-16 max-w-[34rem]'}`}>
+          <div
+            className={`rounded-[1.35rem] border ${isMobile ? 'px-4 py-3' : 'px-4 py-3.5'}`}
+            style={{
+              background: 'linear-gradient(180deg, rgba(17,17,22,0.82), rgba(17,17,22,0.68))',
+              borderColor: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(14px)',
+            }}
+          >
+            <div className={`flex flex-wrap gap-2 ${isMobile ? '' : 'items-center'}`}>
+              {[
+                riffReferenceSummary,
+                riffPhraseSummary,
+                `Backbeat on ${riffCycleStudy.reference.backbeatBeat ?? '—'}`,
+                `${riffDisplaySteps} displayed steps`,
+              ].map((label, index) => (
+                <div
+                  key={label}
+                  className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background: index === 1 ? `${riffCycleStudy.riff.color}14` : 'rgba(255,255,255,0.04)',
+                    borderColor: index === 1 ? `${riffCycleStudy.riff.color}33` : 'rgba(255,255,255,0.08)',
+                    color: index === 1 ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.56)',
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className={`${isMobile ? 'mt-2 space-y-1' : 'mt-2 flex items-baseline justify-between gap-4'}`}>
+              <p className="text-[13px] leading-relaxed text-white/58">
+                {riffRealignmentSummary}
+              </p>
+              {selectedRiffCycleStep != null ? (
+                <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: riffCycleStudy.riff.color }}>
+                  Step {selectedRiffCycleStep + 1} {riffCycleStudy.riff.activeSteps[selectedRiffCycleStep] ? 'active' : 'rest'}
+                </div>
+              ) : (
+                <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/32">
+                  Tap the lower phrase lane to write the mask
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={`fixed z-20 pointer-events-none ${isMobile ? 'right-3 top-[7.4rem]' : 'right-5 top-16 max-w-[20rem]'}`}>
+          <div
+            className={`${isMobile ? 'rounded-2xl px-3 py-2' : 'rounded-[1.2rem] px-3.5 py-3'} border`}
+            style={{
+              background: 'rgba(17,17,22,0.72)',
+              borderColor: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(14px)',
+            }}
+          >
+            <p
+              className={`font-mono leading-relaxed ${isMobile ? 'text-right text-[9px]' : 'text-right text-[10px]'}`}
+              style={{ color: 'rgba(255,255,255,0.18)' }}
+            >
+              {isMobile
+                ? 'Outer polygon stays fixed as the bar. Lower lane writes the phrase. Use the menu for accents.'
+                : <>outer polygon stays fixed as the bar<br />lower lane writes the phrase, accents live in the menu or a modifier click</>}
+            </p>
+          </div>
+        </div>
+
+        <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'right-5 bottom-6'}`}>
+          <div
+            className={`rounded-[1.6rem] border px-4 py-3 ${
+              isMobile ? 'space-y-3' : 'flex items-center gap-3'
+            }`}
+            style={{
+              background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
+              borderColor: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.72)',
+                }}
+              >
+                Menu
+              </button>
+              <button
+                type="button"
+                onClick={handleResetRiffCycleStudy}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: 'rgba(255,170,0,0.12)',
+                  borderColor: 'rgba(255,170,0,0.22)',
+                  color: '#FFAA00',
+                }}
+              >
+                Restart On 1
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleRiffCyclePlayback}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: riffCycleStudy.playing ? 'rgba(255,51,102,0.16)' : 'rgba(114,241,184,0.14)',
+                  borderColor: riffCycleStudy.playing ? 'rgba(255,51,102,0.28)' : 'rgba(114,241,184,0.22)',
+                  color: riffCycleStudy.playing ? '#FF3366' : '#72F1B8',
+                }}
+              >
+                {riffCycleStudy.playing ? <Pause size={15} /> : <Play size={15} />}
+                {riffCycleStudy.playing ? 'Pause' : 'Play'}
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleRiffCycleSound}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: riffCycleStudy.soundEnabled ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.04)',
+                  borderColor: riffCycleStudy.soundEnabled ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                  color: riffCycleStudy.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                }}
+              >
+                {riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <RiffCycleSidebar
+          isOpen={sidebarOpen}
+          study={riffCycleStudy}
+          activePresetId={activeRiffCyclePresetId}
+          selectedStep={selectedRiffCycleStep}
+          onClose={() => setSidebarOpen(false)}
+          onLoadPreset={handleLoadRiffCyclePreset}
+          onResetStudy={handleResetRiffCycleStudy}
+          onTogglePlay={handleToggleRiffCyclePlayback}
+          onToggleSound={handleToggleRiffCycleSound}
+          onUpdateReference={handleUpdateRiffReference}
+          onUpdateRiff={handleUpdateRiffPhrase}
+          onSetRiffStepCount={handleSetRiffPhraseStepCount}
+          onToggleStep={handleToggleRiffCycleStep}
+          onToggleAccent={handleToggleRiffCycleAccent}
+          onSelectStep={handleSelectRiffCycleStep}
+          onRotateRiff={handleRotateRiffCycle}
+          onInvertRiff={handleInvertRiffCycle}
+          onClearRiff={handleClearRiffCycle}
+          onToggleViewMode={handleToggleRiffViewMode}
+          onToggleAlignmentMarkers={handleToggleRiffAlignmentMarkers}
+          onToggleDriftTrail={handleToggleRiffDriftTrail}
+          onToggleStepLabels={handleToggleRiffStepLabels}
+          onTogglePhraseBody={handleToggleRiffPhraseBody}
+          onToggleEmphasisMode={handleToggleRiffEmphasisMode}
         />
       </div>
     );

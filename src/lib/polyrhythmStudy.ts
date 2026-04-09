@@ -7,6 +7,9 @@ export interface PolyrhythmLayer {
   radius: number;
   rotationOffset: number; // degrees
   color: string;
+  soundEnabled: boolean;
+  pitchHz: number;
+  gain: number;
 }
 
 export interface PolyrhythmStudy {
@@ -16,6 +19,7 @@ export interface PolyrhythmStudy {
   layers: PolyrhythmLayer[];
   playing: boolean;
   bpm: number;
+  soundEnabled: boolean;
   showInactiveSteps: boolean;
   showStepLabels: boolean;
 }
@@ -64,6 +68,14 @@ function normalizeBeatCount(beatCount: number): number {
 function normalizeRotationOffset(rotationOffset: number): number {
   const normalized = rotationOffset % 360;
   return normalized < 0 ? normalized + 360 : normalized;
+}
+
+function normalizePitchHz(pitchHz: number): number {
+  return clamp(Math.round(pitchHz || 0), 90, 1400);
+}
+
+function normalizeGain(gain: number): number {
+  return clamp(Number.isFinite(gain) ? gain : 0.12, 0.02, 0.28);
 }
 
 export function createEvenPulseMask(
@@ -132,11 +144,18 @@ export function createPolyrhythmLayer(
     radius: overrides.radius ?? 220,
     rotationOffset: normalizeRotationOffset(overrides.rotationOffset ?? 0),
     color: overrides.color ?? POLYRHYTHM_LAYER_COLORS[0],
+    soundEnabled: overrides.soundEnabled ?? true,
+    pitchHz: normalizePitchHz(overrides.pitchHz ?? 220),
+    gain: normalizeGain(overrides.gain ?? 0.12),
   };
 }
 
 export function getActiveStepIndices(layer: PolyrhythmLayer): number[] {
   return layer.activeSteps.flatMap((step, index) => (step ? [index] : []));
+}
+
+export function countActiveSteps(layer: PolyrhythmLayer): number {
+  return layer.activeSteps.reduce((count, step) => count + (step ? 1 : 0), 0);
 }
 
 export function toggleLayerStep(layer: PolyrhythmLayer, index: number): PolyrhythmLayer {
@@ -177,6 +196,13 @@ export function rotateLayer(
   return {
     ...layer,
     activeSteps: nextActiveSteps,
+  };
+}
+
+export function invertLayerSteps(layer: PolyrhythmLayer): PolyrhythmLayer {
+  return {
+    ...layer,
+    activeSteps: layer.activeSteps.map((step) => !step),
   };
 }
 
@@ -231,15 +257,20 @@ const THREE_FIVE_BASIC_STUDY: PolyrhythmStudy = {
       radius: 260,
       color: '#72F1B8',
       activeSteps: createEvenPulseMask(15, 3),
+      pitchHz: 196,
+      gain: 0.12,
     }),
     createPolyrhythmLayer(15, {
       radius: 200,
       color: '#7FD7FF',
       activeSteps: createEvenPulseMask(15, 5),
+      pitchHz: 294,
+      gain: 0.1,
     }),
   ],
   playing: true,
   bpm: 92,
+  soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
 };
@@ -253,35 +284,48 @@ const THREE_FIVE_NESTED_STUDY: PolyrhythmStudy = {
       radius: 300,
       color: '#72F1B8',
       activeSteps: createEvenPulseMask(15, 3),
+      pitchHz: 196,
+      gain: 0.12,
     }),
     createPolyrhythmLayer(15, {
       radius: 270,
       color: '#FF88C2',
       activeSteps: createEvenPulseMask(15, 5),
+      pitchHz: 246,
+      gain: 0.11,
     }),
     createPolyrhythmLayer(30, {
       radius: 215,
       color: '#7FD7FF',
       activeSteps: createEvenPulseMask(30, 6),
+      pitchHz: 293,
+      gain: 0.09,
     }),
     createPolyrhythmLayer(30, {
       radius: 188,
       color: '#FFD166',
       activeSteps: createEvenPulseMask(30, 10),
+      pitchHz: 370,
+      gain: 0.08,
     }),
     createPolyrhythmLayer(60, {
       radius: 138,
       color: '#B6A0FF',
       activeSteps: createEvenPulseMask(60, 12),
+      pitchHz: 440,
+      gain: 0.07,
     }),
     createPolyrhythmLayer(60, {
       radius: 112,
       color: '#8AD8FF',
       activeSteps: createEvenPulseMask(60, 20),
+      pitchHz: 554,
+      gain: 0.06,
     }),
   ],
   playing: true,
   bpm: 84,
+  soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
 };
@@ -295,15 +339,20 @@ const FIVE_OVER_EIGHT_STUDY: PolyrhythmStudy = {
       radius: 260,
       color: '#7FD7FF',
       activeSteps: createEvenPulseMask(40, 8),
+      pitchHz: 220,
+      gain: 0.11,
     }),
     createPolyrhythmLayer(40, {
       radius: 195,
       color: '#72F1B8',
       activeSteps: createEvenPulseMask(40, 5),
+      pitchHz: 330,
+      gain: 0.1,
     }),
   ],
   playing: true,
   bpm: 96,
+  soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
 };
@@ -317,16 +366,21 @@ const TEN_STEP_SYNCOPATION_STUDY: PolyrhythmStudy = {
       radius: 245,
       color: '#FFD166',
       activeSteps: [true, false, true, false, true, false, true, false, true, false],
+      pitchHz: 196,
+      gain: 0.12,
     }),
     createPolyrhythmLayer(10, {
       radius: 180,
       color: '#FF88C2',
       rotationOffset: 18,
       activeSteps: [true, false, false, true, false, true, false, false, true, false],
+      pitchHz: 293,
+      gain: 0.1,
     }),
   ],
   playing: true,
   bpm: 104,
+  soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: true,
 };
