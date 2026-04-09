@@ -3,6 +3,7 @@ const TAU = Math.PI * 2;
 export type RiffCycleSubdivision = 8 | 12 | 16 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
 export type RiffCycleEmphasisMode = 'groove' | 'analysis';
+export type LandingOverrideState = 'inherit' | 'rest' | 'on' | 'accent';
 export type RiffPhraseResetMode =
   | 'free'
   | 'per-bar'
@@ -45,6 +46,13 @@ export interface RiffCycleStudy {
   riff: RiffPhrase;
   playing: boolean;
   soundEnabled: boolean;
+  referenceSoundEnabled: boolean;
+  backbeatSoundEnabled: boolean;
+  tailEditEnabled: boolean;
+  tailLength: number;
+  landingEditEnabled: boolean;
+  landingLength: number;
+  landingOverrides: LandingOverrideState[];
   showReferenceRing: boolean;
   showPhraseRing: boolean;
   showStepLabels: boolean;
@@ -76,6 +84,15 @@ export const RIFF_CYCLE_COLORS = [
   '#FF88C2',
   '#7FD7FF',
   '#FF7A7A',
+  '#B6A0FF',
+  '#9BE7FF',
+  '#FFB86B',
+  '#8EF0D0',
+  '#C9A7FF',
+  '#7CE7D6',
+  '#F6A36B',
+  '#9FE870',
+  '#6FA8FF',
 ] as const;
 
 function generateId(prefix: string): string {
@@ -121,6 +138,24 @@ function normalizeBars(value: number): number {
   return clamp(Math.round(value || 0), 1, 8);
 }
 
+function normalizeTailLength(value: number, stepCount: number): number {
+  return clamp(Math.round(value || 0), 1, normalizeBeatCount(stepCount));
+}
+
+function normalizeLandingLength(value: number, stepCount: number): number {
+  return clamp(Math.round(value || 0), 1, Math.max(1, stepCount));
+}
+
+function normalizeLandingOverrides(
+  overrides: LandingOverrideState[] | undefined,
+  length: number,
+): LandingOverrideState[] {
+  return Array.from({ length }, (_, index) => {
+    const value = overrides?.[index];
+    return value === 'rest' || value === 'on' || value === 'accent' ? value : 'inherit';
+  });
+}
+
 function normalizeSteps(mask: boolean[], stepCount: number): boolean[] {
   const normalizedStepCount = normalizeBeatCount(stepCount);
   return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask[index]));
@@ -129,6 +164,51 @@ function normalizeSteps(mask: boolean[], stepCount: number): boolean[] {
 function normalizeAccents(mask: boolean[], stepCount: number): boolean[] {
   const normalizedStepCount = normalizeBeatCount(stepCount);
   return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask[index]));
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomChoice<T>(items: readonly T[]): T {
+  return items[randomInt(0, items.length - 1)] as T;
+}
+
+function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'plus'): {
+  activeSteps: boolean[];
+  accents: boolean[];
+} {
+  const grooveTemplates = [
+    [0, 3, 6, 8, 11],
+    [0, 4, 7, 10],
+    [0, 3, 5, 8, 11],
+    [0, 2, 5, 8, 10],
+    [0, 4, 6, 9, 12],
+    [0, 3, 7, 9, 12],
+  ] as const;
+  const template = randomChoice(grooveTemplates);
+  const activeSteps = Array.from({ length: stepCount }, () => false);
+  template.forEach((index) => {
+    activeSteps[index % stepCount] = true;
+  });
+  const extraHits =
+    intensity === 'plus' ? randomInt(1, Math.max(1, Math.floor(stepCount / 8))) : intensity === 'remix' ? randomInt(0, 2) : randomInt(0, 1);
+  for (let hit = 0; hit < extraHits; hit += 1) {
+    activeSteps[randomInt(0, stepCount - 1)] = true;
+  }
+  const accents = Array.from({ length: stepCount }, (_, index) => {
+    if (!activeSteps[index]) {
+      return false;
+    }
+    return index === 0 || index % 4 === 0 || (intensity === 'plus' && Math.random() < 0.12);
+  });
+  if (!accents.some(Boolean)) {
+    const firstHit = activeSteps.findIndex(Boolean);
+    if (firstHit >= 0) {
+      accents[firstHit] = true;
+    }
+  }
+  return { activeSteps, accents };
 }
 
 export function createEvenMask(stepCount: number, activeCount: number, offset = 0): boolean[] {
@@ -192,6 +272,7 @@ export function createRiffPhrase(
 export function createRiffCycleStudy(
   overrides: Partial<RiffCycleStudy> = {},
 ): RiffCycleStudy {
+  const riff = createRiffPhrase(overrides.riff?.stepCount ?? 17, overrides.riff);
   return {
     id: overrides.id ?? generateId('riff-study'),
     name: overrides.name ?? 'Riff Cycle',
@@ -199,9 +280,25 @@ export function createRiffCycleStudy(
       overrides.description ??
       'A reference bar, a displaced phrase, and a controlled realignment.',
     reference: createReferenceMeter(overrides.reference),
-    riff: createRiffPhrase(overrides.riff?.stepCount ?? 17, overrides.riff),
+    riff,
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
+    referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
+    backbeatSoundEnabled: overrides.backbeatSoundEnabled ?? true,
+    tailEditEnabled: overrides.tailEditEnabled ?? false,
+    tailLength: normalizeTailLength(overrides.tailLength ?? 4, riff.stepCount),
+    landingEditEnabled: overrides.landingEditEnabled ?? false,
+    landingLength: normalizeLandingLength(
+      overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(createReferenceMeter(overrides.reference)) * 2),
+      getReferenceStepsPerBar(createReferenceMeter(overrides.reference)),
+    ),
+    landingOverrides: normalizeLandingOverrides(
+      overrides.landingOverrides,
+      normalizeLandingLength(
+        overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(createReferenceMeter(overrides.reference)) * 2),
+        getReferenceStepsPerBar(createReferenceMeter(overrides.reference)),
+      ),
+    ),
     showReferenceRing: overrides.showReferenceRing ?? true,
     showPhraseRing: overrides.showPhraseRing ?? true,
     showStepLabels: overrides.showStepLabels ?? false,
@@ -221,6 +318,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       activeSteps: [...study.riff.activeSteps],
       accents: [...study.riff.accents],
     },
+    landingOverrides: [...study.landingOverrides],
   };
 }
 
@@ -345,6 +443,97 @@ export function getDriftStepOffsets(study: RiffCycleStudy): number[] {
   const resetBars = getResetBarCount(study.riff) ?? study.reference.barCountForDisplay;
   const count = Math.min(study.reference.barCountForDisplay, resetBars);
   return Array.from({ length: count }, (_, index) => (index * stepsPerBar) % study.riff.stepCount);
+}
+
+export function getLandingStepCount(study: RiffCycleStudy): number {
+  return Math.min(
+    Math.max(1, getReferenceStepsPerBar(study.reference)),
+    normalizeLandingLength(study.landingLength, getReferenceStepsPerBar(study.reference)),
+  );
+}
+
+export function getLandingWindowLength(study: RiffCycleStudy): number {
+  return getResetStepCount(study) ?? getReferenceStepsPerBar(study.reference);
+}
+
+export function getLandingSlotAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): number | null {
+  const windowLength = getLandingWindowLength(study);
+  const landingLength = getLandingStepCount(study);
+  const normalizedStep = Math.max(0, Math.floor(referenceStep));
+  const stepWithinWindow = ((normalizedStep % windowLength) + windowLength) % windowLength;
+  const landingStart = windowLength - landingLength;
+  if (stepWithinWindow < landingStart) {
+    return null;
+  }
+  return stepWithinWindow - landingStart;
+}
+
+export function isLandingReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): boolean {
+  return getLandingSlotAtReferenceStep(study, referenceStep) != null;
+}
+
+export function getEffectiveRiffStepStateAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): {
+  phraseIndex: number;
+  active: boolean;
+  accented: boolean;
+  landingSlot: number | null;
+  overridden: boolean;
+} {
+  const phraseIndex = getRiffStepIndexAtReferenceStep(study, referenceStep);
+  const landingSlot = study.landingEditEnabled
+    ? getLandingSlotAtReferenceStep(study, referenceStep)
+    : null;
+  const landingOverride =
+    landingSlot == null ? 'inherit' : study.landingOverrides[landingSlot] ?? 'inherit';
+
+  if (landingOverride === 'rest') {
+    return { phraseIndex, landingSlot, active: false, accented: false, overridden: true };
+  }
+
+  if (landingOverride === 'on') {
+    return { phraseIndex, landingSlot, active: true, accented: false, overridden: true };
+  }
+
+  if (landingOverride === 'accent') {
+    return { phraseIndex, landingSlot, active: true, accented: true, overridden: true };
+  }
+
+  return {
+    phraseIndex,
+    landingSlot,
+    active: Boolean(study.riff.activeSteps[phraseIndex]),
+    accented: Boolean(study.riff.accents[phraseIndex]),
+    overridden: false,
+  };
+}
+
+export function getTailStepStartIndex(study: RiffCycleStudy): number {
+  return Math.max(0, study.riff.stepCount - normalizeTailLength(study.tailLength, study.riff.stepCount));
+}
+
+export function getTailStepIndices(study: RiffCycleStudy): number[] {
+  const startIndex = getTailStepStartIndex(study);
+  return Array.from(
+    { length: Math.max(0, study.riff.stepCount - startIndex) },
+    (_, index) => startIndex + index,
+  );
+}
+
+export function isTailStep(study: RiffCycleStudy, stepIndex: number): boolean {
+  return stepIndex >= getTailStepStartIndex(study) && stepIndex < study.riff.stepCount;
+}
+
+export function canEditRiffStep(_study: RiffCycleStudy, _stepIndex: number): boolean {
+  return true;
 }
 
 export function getRiffPhrasePoints(
@@ -482,6 +671,218 @@ export function updateRiffStepCount(study: RiffCycleStudy, stepCount: number): R
       activeSteps: nextSteps,
       accents: nextAccents,
     },
+    tailLength: normalizeTailLength(study.tailLength, normalizedStepCount),
+  };
+}
+
+export function setTailLength(study: RiffCycleStudy, tailLength: number): RiffCycleStudy {
+  return {
+    ...study,
+    tailLength: normalizeTailLength(tailLength, study.riff.stepCount),
+  };
+}
+
+export function setLandingLength(study: RiffCycleStudy, landingLength: number): RiffCycleStudy {
+  const nextLandingLength = normalizeLandingLength(
+    landingLength,
+    getReferenceStepsPerBar(study.reference),
+  );
+  return {
+    ...study,
+    landingLength: nextLandingLength,
+    landingOverrides: normalizeLandingOverrides(study.landingOverrides, nextLandingLength),
+  };
+}
+
+export function setLandingOverride(
+  study: RiffCycleStudy,
+  slotIndex: number,
+  nextState: LandingOverrideState,
+): RiffCycleStudy {
+  return {
+    ...study,
+    landingOverrides: study.landingOverrides.map((state, index) =>
+      index === slotIndex ? nextState : state,
+    ),
+  };
+}
+
+export function clearLandingOverrides(study: RiffCycleStudy): RiffCycleStudy {
+  return {
+    ...study,
+    landingOverrides: study.landingOverrides.map(() => 'inherit'),
+  };
+}
+
+export function applyLandingStateToLastSlots(
+  study: RiffCycleStudy,
+  count: number,
+  nextState: Exclude<LandingOverrideState, 'inherit'>,
+): RiffCycleStudy {
+  const landingLength = getLandingStepCount(study);
+  const clampedCount = clamp(Math.round(count || 0), 1, landingLength);
+  const startIndex = Math.max(0, landingLength - clampedCount);
+  return {
+    ...study,
+    landingOverrides: study.landingOverrides.map((state, index) =>
+      index >= startIndex ? nextState : state,
+    ),
+  };
+}
+
+export function clearRiffTail(study: RiffCycleStudy): RiffCycleStudy {
+  const tailStart = getTailStepStartIndex(study);
+  return {
+    ...study,
+    riff: {
+      ...study.riff,
+      activeSteps: study.riff.activeSteps.map((step, index) =>
+        index >= tailStart ? false : step,
+      ),
+      accents: study.riff.accents.map((accent, index) =>
+        index >= tailStart ? false : accent,
+      ),
+    },
+  };
+}
+
+export function accentRiffTail(study: RiffCycleStudy): RiffCycleStudy {
+  const tailStart = getTailStepStartIndex(study);
+  return {
+    ...study,
+    riff: {
+      ...study.riff,
+      activeSteps: study.riff.activeSteps.map((step, index) =>
+        index >= tailStart ? true : step,
+      ),
+      accents: study.riff.accents.map((accent, index) =>
+        index >= tailStart ? true : accent,
+      ),
+    },
+  };
+}
+
+function createRandomReference(intensity: 'random' | 'plus'): ReferenceMeter {
+  const numerator =
+    intensity === 'plus'
+      ? randomChoice([4, 5, 5, 6, 6, 7] as const)
+      : randomChoice([3, 4, 4, 4, 3] as const);
+  const denominator = 4;
+  const subdivision = intensity === 'plus' ? randomChoice([16, 16, 32] as const) : randomChoice([16, 16, 16, 12] as const);
+  return createReferenceMeter({
+    numerator,
+    denominator,
+    subdivision,
+    bpm: intensity === 'plus' ? randomInt(86, 132) : randomInt(88, 120),
+    barCountForDisplay: numerator >= 5 ? 3 : 4,
+    backbeatBeat: Math.min(numerator, numerator >= 4 ? 3 : 2),
+  });
+}
+
+function createReturnMode(intensity: 'random' | 'remix' | 'plus', current?: RiffPhraseResetMode): {
+  resetMode: RiffPhraseResetMode;
+  resetBars: number;
+} {
+  if (intensity === 'remix' && current && Math.random() < 0.7) {
+    return {
+      resetMode: current,
+      resetBars: current === 'custom-cycle' ? randomInt(2, 6) : 4,
+    };
+  }
+  const resetMode =
+    intensity === 'plus'
+      ? randomChoice(['every-2-bars', 'every-4-bars', 'custom-cycle', 'free', 'per-bar'] as const)
+      : randomChoice(['free', 'every-2-bars', 'every-4-bars', 'per-bar'] as const);
+  return {
+    resetMode,
+    resetBars: resetMode === 'custom-cycle' ? randomInt(2, 6) : resetMode === 'every-2-bars' ? 2 : 4,
+  };
+}
+
+export function createRandomRiffCycleStudy(intensity: 'random' | 'plus' = 'random'): RiffCycleStudy {
+  const reference = createRandomReference(intensity);
+  const stepCount =
+    intensity === 'plus'
+      ? randomChoice([11, 13, 15, 17, 19, 21, 23] as const)
+      : randomChoice([9, 11, 13, 15, 17] as const);
+  const mask = createPhraseMask(stepCount, intensity);
+  const returnMode = createReturnMode(intensity);
+  return createRiffCycleStudy({
+    name: intensity === 'plus' ? 'Random+ Riff Cycle' : 'Random Riff Cycle',
+    description:
+      intensity === 'plus'
+        ? 'A bolder phrase-against-bar study with stronger drift and return tension.'
+        : 'A fresh phrase-against-bar study with readable displacement and return.',
+    reference,
+    riff: createRiffPhrase(stepCount, {
+      ...mask,
+      resetMode: returnMode.resetMode,
+      resetBars: returnMode.resetBars,
+      color: randomChoice(RIFF_CYCLE_COLORS),
+      pitchHz: intensity === 'plus' ? randomInt(88, 152) : randomInt(98, 142),
+      gain: intensity === 'plus' ? 0.14 : 0.12,
+      rotationOffset: 0,
+    }),
+    landingEditEnabled: false,
+    landingLength: Math.min(getReferenceStepsPerBar(reference), intensity === 'plus' ? randomInt(3, 6) : randomInt(2, 4)),
+    landingOverrides: [],
+    showDriftTrail: true,
+    viewMode: 'unwrapped',
+    emphasisMode: intensity === 'plus' ? 'groove' : 'analysis',
+  });
+}
+
+export function remixRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
+  const next = cloneRiffCycleStudy(study);
+  const stepDelta = randomChoice([-1, 0, 0, 1] as const);
+  const nextStepCount = clamp(next.riff.stepCount + stepDelta, 5, 32);
+  const remapped = updateRiffStepCount(next, nextStepCount);
+  const mask = createPhraseMask(remapped.riff.stepCount, 'remix');
+  const returnMode = createReturnMode('remix', remapped.riff.resetMode);
+  let result = {
+    ...remapped,
+    name: `${study.name} Remix`,
+    description: 'A variation that keeps the bar relationship while changing phrase shape and return.',
+    reference: {
+      ...remapped.reference,
+      bpm: clamp(remapped.reference.bpm + randomInt(-6, 6), 45, 220),
+    },
+    riff: {
+      ...remapped.riff,
+      activeSteps: Math.random() < 0.75 ? mask.activeSteps : remapped.riff.activeSteps,
+      accents: Math.random() < 0.75 ? mask.accents : remapped.riff.accents,
+      resetMode: returnMode.resetMode,
+      resetBars: returnMode.resetBars,
+      rotationOffset: 0,
+    },
+  };
+  if (Math.random() < 0.6) {
+    result = setLandingLength(result, clamp(result.landingLength + randomChoice([-1, 1] as const), 1, getReferenceStepsPerBar(result.reference)));
+  }
+  if (result.landingEditEnabled && Math.random() < 0.55) {
+    result = applyLandingStateToLastSlots(result, Math.min(2, result.landingOverrides.length || 1), Math.random() < 0.5 ? 'rest' : 'accent');
+  }
+  return result;
+}
+
+export function createRandomPlusRiffCycleStudy(): RiffCycleStudy {
+  const next = createRandomRiffCycleStudy('plus');
+  const landingLength = Math.min(getReferenceStepsPerBar(next.reference), randomInt(3, 7));
+  const overrideCount = randomInt(1, Math.min(4, landingLength));
+  return {
+    ...setLandingLength(next, landingLength),
+    landingEditEnabled: true,
+    emphasisMode: 'groove',
+    landingOverrides: normalizeLandingOverrides(
+      Array.from({ length: landingLength }, (_, index) =>
+        index >= landingLength - overrideCount
+          ? randomChoice(['rest', 'accent', 'on'] as const)
+          : Math.random() < 0.15
+            ? 'on'
+            : 'inherit',
+      ),
+      landingLength,
+    ),
   };
 }
 

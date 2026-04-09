@@ -48,6 +48,11 @@ export const POLYRHYTHM_LAYER_COLORS = [
   '#8AD8FF',
   '#FF7A7A',
   '#9BE7FF',
+  '#C7B8FF',
+  '#FFA97A',
+  '#7CE7D6',
+  '#F6C667',
+  '#9FE870',
 ] as const;
 
 function generateStudyId(): string {
@@ -76,6 +81,23 @@ function normalizePitchHz(pitchHz: number): number {
 
 function normalizeGain(gain: number): number {
   return clamp(Number.isFinite(gain) ? gain : 0.12, 0.02, 0.28);
+}
+
+function randomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomChoice<T>(items: readonly T[]): T {
+  return items[randomInt(0, items.length - 1)] as T;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(0, index);
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
 }
 
 export function createEvenPulseMask(
@@ -244,6 +266,135 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       ...layer,
       id: generateStudyId(),
       activeSteps: [...layer.activeSteps],
+    })),
+  };
+}
+
+function createLayerMask(beatCount: number, intensity: 'random' | 'remix' | 'plus'): boolean[] {
+  const minimum = beatCount <= 8 ? 2 : 3;
+  const maxActive =
+    intensity === 'plus'
+      ? Math.max(minimum + 1, Math.ceil(beatCount * 0.6))
+      : intensity === 'remix'
+        ? Math.max(minimum + 1, Math.ceil(beatCount * 0.5))
+        : Math.max(minimum, Math.ceil(beatCount * 0.42));
+  const activeCount = clamp(randomInt(minimum, maxActive), minimum, beatCount);
+  const base = createEvenPulseMask(beatCount, activeCount, randomInt(0, beatCount - 1));
+  const mutationCount =
+    intensity === 'plus' ? randomInt(1, Math.max(1, Math.floor(beatCount / 5))) : randomInt(0, Math.max(1, Math.floor(beatCount / 7)));
+  const indices = shuffle(Array.from({ length: beatCount }, (_, index) => index)).slice(0, mutationCount);
+  const next = [...base];
+  indices.forEach((index) => {
+    next[index] = !next[index];
+  });
+  if (!next.some(Boolean)) {
+    next[randomInt(0, beatCount - 1)] = true;
+  }
+  return next;
+}
+
+function getLayerRadius(layerIndex: number, layerCount: number): number {
+  const outer = 290;
+  const inner = 118;
+  if (layerCount <= 1) {
+    return outer;
+  }
+  const ratio = layerIndex / Math.max(1, layerCount - 1);
+  return outer - ratio * (outer - inner);
+}
+
+function createStudyName(prefix: string, layerCount: number): string {
+  return `${prefix} ${layerCount} Layer${layerCount === 1 ? '' : 's'}`;
+}
+
+export function createRandomPolyrhythmStudy(intensity: 'random' | 'plus' = 'random'): PolyrhythmStudy {
+  const curatedFamilies =
+    intensity === 'plus'
+      ? [
+          { base: 12, layers: [3, 4, 6, 12, 24] },
+          { base: 15, layers: [3, 5, 6, 10, 15, 30] },
+          { base: 16, layers: [4, 8, 16, 32] },
+          { base: 20, layers: [4, 5, 10, 20] },
+        ]
+      : [
+          { base: 12, layers: [3, 4, 6, 12] },
+          { base: 15, layers: [3, 5, 15] },
+          { base: 16, layers: [4, 8, 16] },
+          { base: 20, layers: [4, 5, 10, 20] },
+        ];
+  const family = randomChoice(curatedFamilies);
+  const layerCount = intensity === 'plus' ? randomInt(3, Math.min(6, family.layers.length)) : randomInt(2, Math.min(4, family.layers.length));
+  const layerBeatCounts = family.layers.slice(0, layerCount);
+  const colorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
+  const layers = Array.from({ length: layerCount }, (_, index) => {
+    const beatCount = layerBeatCounts[index] ?? family.base;
+    return createPolyrhythmLayer(beatCount, {
+      radius: getLayerRadius(index, layerCount),
+      color:
+        POLYRHYTHM_LAYER_COLORS[
+          (index + colorOffset) % POLYRHYTHM_LAYER_COLORS.length
+        ],
+      rotationOffset:
+        index === 0 ? 0 : intensity === 'plus' ? randomChoice([0, 0, 0, 15, 30, 45] as const) : randomChoice([0, 0, 0, 15, 30] as const),
+      activeSteps: createLayerMask(beatCount, intensity),
+      pitchHz: clamp(180 + index * 72 + randomInt(-20, 24), 90, 1200),
+      gain: clamp(0.13 - index * 0.012, 0.05, 0.18),
+    });
+  });
+
+  return {
+    id: generateStudyId(),
+    name: createStudyName(intensity === 'plus' ? 'Random+ Study' : 'Random Study', layerCount),
+    description:
+      intensity === 'plus'
+        ? 'A denser nested pulse study with broader ratios and stronger offsets.'
+        : 'A fresh nested pulse study with readable masks and shared geometry.',
+    layers,
+    playing: true,
+    bpm: intensity === 'plus' ? randomInt(82, 128) : randomInt(72, 112),
+    soundEnabled: true,
+    showInactiveSteps: true,
+    showStepLabels: intensity === 'plus' ? layerCount <= 3 : false,
+  };
+}
+
+export function remixPolyrhythmStudy(study: PolyrhythmStudy): PolyrhythmStudy {
+  const next = cloneStudy(study);
+  return {
+    ...next,
+    name: `${study.name} Remix`,
+    description: 'A variation that keeps the layer stack but changes mask shape and offset.',
+    bpm: clamp(study.bpm + randomInt(-8, 8), 48, 180),
+    layers: next.layers.map((layer, index) => {
+      let updated = layer;
+      if (Math.random() < 0.55) {
+        updated = rotateLayer(updated, randomChoice([-1, 0, 0, 1, 2] as const));
+      }
+      if (Math.random() < 0.5) {
+        updated = {
+          ...updated,
+          activeSteps: createLayerMask(updated.beatCount, 'remix'),
+        };
+      }
+      return {
+        ...updated,
+        radius: getLayerRadius(index, next.layers.length),
+        color: POLYRHYTHM_LAYER_COLORS[index % POLYRHYTHM_LAYER_COLORS.length],
+      };
+    }),
+  };
+}
+
+export function createRandomPlusPolyrhythmStudy(): PolyrhythmStudy {
+  const next = createRandomPolyrhythmStudy('plus');
+  return {
+    ...next,
+    bpm: clamp(next.bpm + randomInt(4, 14), 48, 180),
+    layers: next.layers.map((layer, index) => ({
+      ...layer,
+      rotationOffset:
+        index === 0 ? 0 : randomChoice([0, 15, 30, 45, 60, 75, 90] as const),
+      activeSteps: createLayerMask(layer.beatCount, 'plus'),
     })),
   };
 }

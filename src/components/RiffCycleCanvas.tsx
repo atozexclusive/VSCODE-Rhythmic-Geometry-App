@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  type MutableRefObject,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -12,10 +13,13 @@ import {
   getRiffCycleCanvasMetrics,
 } from '../lib/riffCycleLayout';
 import {
+  canEditRiffStep,
   getDisplayStepCount,
-  getDriftStepOffsets,
+  getEffectiveRiffStepStateAtReferenceStep,
+  getLandingSlotAtReferenceStep,
   getPhraseProgressAtReferenceProgress,
   getReferenceStepsPerBar,
+  getReferenceStepsPerBeat,
   getRiffStepIndexAtReferenceStep,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
@@ -24,6 +28,7 @@ import {
   type RiffCycleStudy,
 } from '../lib/riffCycleStudy';
 import {
+  triggerBackbeatAccent,
   triggerReferencePulse,
   triggerResetCue,
   triggerRiffPulse,
@@ -35,9 +40,12 @@ interface RiffCycleCanvasProps {
   study: RiffCycleStudy;
   selectedStep: number | null;
   restartToken: number;
+  externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
   onToggleAccent: (stepIndex: number) => void;
+  onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
+  onToggleLandingAccent: (slotIndex: number) => void;
   className?: string;
 }
 
@@ -66,13 +74,30 @@ function drawTriangleMarker(
   ctx.closePath();
 }
 
+function drawDiamondMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.lineTo(x + size, y);
+  ctx.lineTo(x, y + size);
+  ctx.lineTo(x - size, y);
+  ctx.closePath();
+}
+
 export default function RiffCycleCanvas({
   study,
   selectedStep,
   restartToken,
+  externalCanvasRef,
   onSelectStep,
   onSetStepActive,
   onToggleAccent,
+  onSetLandingStepActive,
+  onToggleLandingAccent,
   className,
 }: RiffCycleCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -81,6 +106,7 @@ export default function RiffCycleCanvas({
   const referenceProgressRef = useRef(0);
   const lastTimestampRef = useRef<number | null>(null);
   const previousReferenceStepRef = useRef(0);
+  const wasPlayingRef = useRef(study.playing);
   const resetFlashUntilRef = useRef(0);
   const riffAttackUntilRef = useRef<number[]>([]);
   const isMobile = useIsMobile();
@@ -88,6 +114,16 @@ export default function RiffCycleCanvas({
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
   const paintedStepsRef = useRef<Set<number>>(new Set());
+  const pendingLongPressRef = useRef<{
+    pointerId: number;
+    stepIndex: number;
+    landingSlot: number | null;
+    x: number;
+    y: number;
+    nextActive: boolean;
+    longPressed: boolean;
+  } | null>(null);
+  const longPressTimeoutRef = useRef<number | null>(null);
 
   studyRef.current = study;
   selectedStepRef.current = selectedStep;
@@ -104,7 +140,8 @@ export default function RiffCycleCanvas({
       return;
     }
 
-    const dpr = window.devicePixelRatio || 1;
+    const rawDpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(rawDpr, isMobileRef.current ? 1.75 : 2);
     const nextWidth = Math.round(rect.width * dpr);
     const nextHeight = Math.round(rect.height * dpr);
 
@@ -130,9 +167,11 @@ export default function RiffCycleCanvas({
     );
     const totalDisplaySteps = getDisplayStepCount(currentStudy);
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
+    const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
     const referenceProgress = referenceProgressRef.current;
     const currentReferenceStep = Math.floor(referenceProgress) % totalDisplaySteps;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
+    const beatProgress = stepWithinBar / stepsPerBeat;
     const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
     const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, referenceProgress);
     const phraseAngle =
@@ -160,11 +199,27 @@ export default function RiffCycleCanvas({
     });
     const activeRiffPoints = riffPoints.filter((point) => point.active);
     const currentRiffStep = getRiffStepIndexAtReferenceStep(currentStudy, currentReferenceStep);
+    const currentRiffStepState = getEffectiveRiffStepStateAtReferenceStep(
+      currentStudy,
+      currentReferenceStep,
+    );
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const selectedPoint =
       selectedStepRef.current == null ? null : riffPoints[selectedStepRef.current] ?? null;
+    const phraseRestartSteps: number[] = [];
+    for (let step = 0; step < metrics.totalDisplaySteps; step += 1) {
+      if (isPhraseRestartAtReferenceStep(currentStudy, step)) {
+        phraseRestartSteps.push(step);
+      }
+    }
+    const latestLandingStep =
+      [...phraseRestartSteps].reverse().find((step) => step <= currentReferenceStep) ??
+      phraseRestartSteps[phraseRestartSteps.length - 1] ??
+      0;
+    const nextLandingStep =
+      phraseRestartSteps.find((step) => step > currentReferenceStep) ?? phraseRestartSteps[0] ?? 0;
 
     riffAttackUntilRef.current.length = currentStudy.riff.stepCount;
 
@@ -196,10 +251,19 @@ export default function RiffCycleCanvas({
       ctx.restore();
 
       metrics.referenceVertices.forEach((vertex, index) => {
+        const beatDistance = Math.min(
+          Math.abs(beatProgress - index),
+          currentStudy.reference.numerator - Math.abs(beatProgress - index),
+        );
+        const beatFocus = Math.max(0, 1 - beatDistance);
+        const isBackbeatVertex =
+          currentStudy.reference.showBackbeat &&
+          currentStudy.reference.backbeatBeat === index + 1;
+        const vertexRadius = (index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) + beatFocus * 1.9;
+
         ctx.save();
         ctx.strokeStyle =
-          currentStudy.reference.showBackbeat &&
-          currentStudy.reference.backbeatBeat === index + 1
+          isBackbeatVertex
             ? 'rgba(255,136,194,0.24)'
             : 'rgba(255,255,255,0.05)';
         ctx.lineWidth = 1;
@@ -210,11 +274,27 @@ export default function RiffCycleCanvas({
         ctx.restore();
 
         ctx.save();
+        ctx.fillStyle = isBackbeatVertex
+          ? 'rgba(255,136,194,0.9)'
+          : index === 0
+            ? 'rgba(255,255,255,0.9)'
+            : 'rgba(255,255,255,0.52)';
+        ctx.shadowBlur = 8 + beatFocus * 10;
+        ctx.shadowColor = isBackbeatVertex
+          ? 'rgba(255,136,194,0.48)'
+          : 'rgba(255,255,255,0.24)';
+        ctx.beginPath();
+        ctx.arc(vertex.x, vertex.y, vertexRadius, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
         ctx.fillStyle =
-          currentStudy.reference.showBackbeat &&
-          currentStudy.reference.backbeatBeat === index + 1
+          isBackbeatVertex
             ? 'rgba(255,136,194,0.92)'
-            : 'rgba(255,255,255,0.66)';
+            : index === 0
+              ? 'rgba(255,255,255,0.82)'
+              : 'rgba(255,255,255,0.66)';
         ctx.font = '11px "SF Mono", "Fira Code", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -226,7 +306,14 @@ export default function RiffCycleCanvas({
         const isDownbeat = currentStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(currentStudy, index);
         const isBackbeat = isBackbeatStep(currentStudy, index);
-        const pointRadius = isDownbeat ? 5.4 : isBackbeat ? 4.7 : isBeat ? 3.7 : 2.1;
+        const pointDistance = Math.min(
+          Math.abs(stepWithinBar - index),
+          stepsPerBar - Math.abs(stepWithinBar - index),
+        );
+        const pointFocus = Math.max(0, 1 - pointDistance);
+        const pointRadius =
+          (isDownbeat ? 5.8 : isBackbeat ? 5.1 : isBeat ? 4.2 : 2.4) +
+          pointFocus * (isBeat ? 1.4 : 0.8);
 
         ctx.save();
         ctx.fillStyle = isBackbeat
@@ -234,38 +321,46 @@ export default function RiffCycleCanvas({
           : isDownbeat
             ? 'rgba(255,255,255,0.88)'
             : isBeat
-              ? 'rgba(255,255,255,0.42)'
-              : 'rgba(255,255,255,0.14)';
+              ? 'rgba(255,255,255,0.56)'
+              : 'rgba(255,255,255,0.16)';
+        ctx.shadowBlur = isBeat ? 6 + pointFocus * 8 : pointFocus * 5;
+        ctx.shadowColor = isBackbeat
+          ? 'rgba(255,136,194,0.42)'
+          : 'rgba(255,255,255,0.22)';
         ctx.beginPath();
         ctx.arc(point.x, point.y, pointRadius, 0, TAU);
         ctx.fill();
         ctx.restore();
       });
-    }
 
-    if (currentStudy.showDriftTrail) {
-      const driftOffsets = getDriftStepOffsets(currentStudy);
-      driftOffsets.forEach((stepOffset, index) => {
-        const driftAngle =
-          -Math.PI / 2 +
-          ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
-          ((stepOffset % currentStudy.riff.stepCount) / currentStudy.riff.stepCount) * TAU;
-        const trailRadius = metrics.innerRadius + 18 + index * 2;
-
-        ctx.save();
-        ctx.fillStyle = currentStudy.riff.color;
-        ctx.globalAlpha = Math.max(0.14, 0.86 - index * 0.18);
-        ctx.beginPath();
-        ctx.arc(
-          metrics.circleCenterX + Math.cos(driftAngle) * trailRadius,
-          metrics.circleCenterY + Math.sin(driftAngle) * trailRadius,
-          index === 0 ? 4.6 : 3.1,
+      if (flashActive) {
+        const highlightIndices = [
+          metrics.referencePerimeterPoints.length - 2,
+          metrics.referencePerimeterPoints.length - 1,
           0,
-          TAU,
+          1,
+          2,
+        ].filter(
+          (value, index, array) =>
+            value >= 0 && value < metrics.referencePerimeterPoints.length && array.indexOf(value) === index,
         );
-        ctx.fill();
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,209,102,0.82)';
+        ctx.lineWidth = 3.2;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = 'rgba(255,209,102,0.52)';
+        ctx.beginPath();
+        highlightIndices.forEach((pointIndex, index) => {
+          const point = metrics.referencePerimeterPoints[pointIndex];
+          if (index === 0) {
+            ctx.moveTo(point.x, point.y);
+          } else {
+            ctx.lineTo(point.x, point.y);
+          }
+        });
+        ctx.stroke();
         ctx.restore();
-      });
+      }
     }
 
     if (currentStudy.showPhraseRing) {
@@ -317,13 +412,15 @@ export default function RiffCycleCanvas({
       const isSelected = selectedStepRef.current === point.index;
       const isCurrent = currentRiffStep === point.index;
       const isPhraseRestart = point.index === 0;
+      const effectiveActive = isCurrent ? currentRiffStepState.active : point.active;
+      const effectiveAccented = isCurrent ? currentRiffStepState.accented : point.accented;
       const attackRemaining = Math.max(
         0,
         ((riffAttackUntilRef.current[point.index] ?? 0) - now) /
-          (point.accented ? 320 : 220),
+          (effectiveAccented ? 320 : 220),
       );
       const radius =
-        (isSelected ? 8.4 : point.active ? 5.4 : 3) + attackRemaining * (point.accented ? 3 : 1.8);
+        (isSelected ? 8.4 : effectiveActive ? 5.4 : 3) + attackRemaining * (effectiveAccented ? 3 : 1.8);
 
       if (isSelected) {
         ctx.save();
@@ -336,21 +433,23 @@ export default function RiffCycleCanvas({
       }
 
       ctx.save();
-      ctx.fillStyle = point.active ? currentStudy.riff.color : 'rgba(255,255,255,0.18)';
-      ctx.globalAlpha = point.active ? Math.min(1, (isCurrent ? 1 : 0.88) + attackRemaining * 0.3) : 0.26;
-      ctx.shadowBlur = point.active ? (isCurrent ? 16 : 9) + attackRemaining * 18 : 0;
-      ctx.shadowColor = point.active ? currentStudy.riff.color : 'transparent';
+      ctx.fillStyle = effectiveActive
+        ? currentStudy.riff.color
+        : 'rgba(255,255,255,0.18)';
+      ctx.globalAlpha = effectiveActive ? Math.min(1, (isCurrent ? 1 : 0.88) + attackRemaining * 0.3) : 0.26;
+      ctx.shadowBlur = effectiveActive ? (isCurrent ? 16 : 9) + attackRemaining * 18 : 0;
+      ctx.shadowColor = effectiveActive ? currentStudy.riff.color : 'transparent';
       ctx.beginPath();
       ctx.arc(point.x, point.y, radius, 0, TAU);
       ctx.fill();
       ctx.restore();
 
-      if (attackRemaining > 0 && point.active) {
+      if (attackRemaining > 0 && effectiveActive) {
         ctx.save();
-        ctx.strokeStyle = point.accented
+        ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.95)'
           : `${currentStudy.riff.color}CC`;
-        ctx.lineWidth = point.accented ? 2.25 : 1.55;
+        ctx.lineWidth = effectiveAccented ? 2.25 : 1.55;
         ctx.globalAlpha = Math.min(1, attackRemaining + 0.15);
         ctx.beginPath();
         ctx.arc(point.x, point.y, radius + 6 + attackRemaining * 4, 0, TAU);
@@ -358,14 +457,30 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (point.accented || isPhraseRestart) {
+      if (effectiveAccented || isPhraseRestart) {
         ctx.save();
-        ctx.strokeStyle = point.accented
+        ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.88)'
           : 'rgba(255,255,255,0.46)';
-        ctx.lineWidth = point.accented ? 1.9 : 1.2;
+        ctx.lineWidth = effectiveAccented ? 1.9 : 1.2;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + (point.accented ? 3.6 : 2.8), 0, TAU);
+        ctx.arc(point.x, point.y, radius + (effectiveAccented ? 3.6 : 2.8), 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (effectiveAccented && effectiveActive) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,209,102,0.96)';
+        ctx.strokeStyle = 'rgba(17,17,22,0.72)';
+        ctx.lineWidth = 1;
+        drawDiamondMarker(
+          ctx,
+          point.x,
+          point.y,
+          Math.max(2.8, radius * 0.42),
+        );
+        ctx.fill();
         ctx.stroke();
         ctx.restore();
       }
@@ -486,13 +601,15 @@ export default function RiffCycleCanvas({
         const isDownbeat = step % metrics.stepsPerBar === 0;
         const isBeat = isReferenceBeatStart(currentStudy, step);
         const isBackbeat = isBackbeatStep(currentStudy, step);
-        const phraseIndex = getRiffStepIndexAtReferenceStep(currentStudy, step);
-        const phraseActive = currentStudy.riff.activeSteps[phraseIndex];
-        const phraseAccent = currentStudy.riff.accents[phraseIndex];
+        const phraseState = getEffectiveRiffStepStateAtReferenceStep(currentStudy, step);
+        const phraseIndex = phraseState.phraseIndex;
+        const phraseActive = phraseState.active;
+        const phraseAccent = phraseState.accented;
         const phraseRestart = isPhraseRestartAtReferenceStep(currentStudy, step);
         const forcedReset = isForcedResetAtReferenceStep(currentStudy, step);
         const isCurrentStep = step === currentReferenceStep;
         const isSelectedOccurrence = selectedStepRef.current === phraseIndex;
+        const isLandingStep = phraseState.landingSlot != null;
         const attackRemaining = Math.max(
           0,
           ((riffAttackUntilRef.current[phraseIndex] ?? 0) - now) /
@@ -513,12 +630,27 @@ export default function RiffCycleCanvas({
         ctx.save();
         ctx.fillStyle = phraseActive
           ? `${currentStudy.riff.color}${phraseAccent ? 'F0' : 'B8'}`
-          : 'rgba(255,255,255,0.05)';
+          : currentStudy.landingEditEnabled && isLandingStep
+            ? 'rgba(127,215,255,0.08)'
+            : 'rgba(255,255,255,0.05)';
         ctx.globalAlpha = phraseActive ? Math.min(1, 0.86 + attackRemaining * 0.25) : 1;
         ctx.fillRect(stepX, bottomLaneY, Math.max(1, stepWidth - 1), laneHeight);
         if (phraseAccent && phraseActive) {
           ctx.fillStyle = 'rgba(255,209,102,0.92)';
           ctx.fillRect(stepX, bottomLaneY, Math.max(1, stepWidth - 1), 4);
+          drawDiamondMarker(
+            ctx,
+            stepX + Math.max(1, stepWidth - 1) / 2,
+            bottomLaneY + laneHeight * 0.5,
+            Math.max(2.2, Math.min(4.2, stepWidth * 0.18)),
+          );
+          ctx.fill();
+        }
+        if (currentStudy.landingEditEnabled && isLandingStep) {
+          ctx.fillStyle = phraseState.overridden
+            ? 'rgba(127,215,255,0.88)'
+            : 'rgba(127,215,255,0.32)';
+          ctx.fillRect(stepX, bottomLaneY + laneHeight - 6, Math.max(1, stepWidth - 1), 3);
         }
         if (isSelectedOccurrence) {
           ctx.strokeStyle = 'rgba(255,255,255,0.88)';
@@ -588,6 +720,16 @@ export default function RiffCycleCanvas({
       ctx.textBaseline = 'top';
       ctx.fillText('REFERENCE', x + 12, y + 6);
       ctx.fillText('PHRASE', x + 12, bottomLaneY - 16);
+      if (!currentStudy.landingEditEnabled) {
+        ctx.fillStyle = `${currentStudy.riff.color}B8`;
+        ctx.fillText('WRITING PHRASE', x + 58, bottomLaneY - 16);
+      }
+      if (currentStudy.landingEditEnabled) {
+        ctx.fillStyle = 'rgba(127,215,255,0.72)';
+        ctx.fillText('EDITING BAR RETURN', x + 90, bottomLaneY - 16);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.34)';
+      ctx.fillText('LOWER LANE · TAP HIT · HOLD ACCENT', x + 12, bottomLaneY + laneHeight + 10);
       for (let barIndex = 0; barIndex < currentStudy.reference.barCountForDisplay; barIndex += 1) {
         ctx.fillStyle = 'rgba(255,255,255,0.32)';
         ctx.fillText(
@@ -623,22 +765,36 @@ export default function RiffCycleCanvas({
         lastTimestampRef.current = timestamp;
       }
 
+      if (currentStudy.playing && !wasPlayingRef.current) {
+        previousReferenceStepRef.current = -1;
+        lastTimestampRef.current = timestamp;
+      }
+      wasPlayingRef.current = currentStudy.playing;
+
       const currentReferenceStep = Math.floor(referenceProgressRef.current) % displaySteps;
-      if (currentReferenceStep !== previousReferenceStepRef.current) {
-        if (currentStudy.soundEnabled && isReferenceBeatStart(currentStudy, currentReferenceStep)) {
-          triggerReferencePulse(isBackbeatStep(currentStudy, currentReferenceStep));
+      if (currentStudy.playing && currentReferenceStep !== previousReferenceStepRef.current) {
+        const referenceBeatStart = isReferenceBeatStart(currentStudy, currentReferenceStep);
+        const backbeatStep = isBackbeatStep(currentStudy, currentReferenceStep);
+        if (currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
+          triggerReferencePulse();
+        }
+        if (currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled) {
+          triggerBackbeatAccent();
         }
 
-        const riffStepIndex = getRiffStepIndexAtReferenceStep(currentStudy, currentReferenceStep);
-        if (currentStudy.riff.activeSteps[riffStepIndex]) {
-          riffAttackUntilRef.current[riffStepIndex] =
+        const riffStepState = getEffectiveRiffStepStateAtReferenceStep(
+          currentStudy,
+          currentReferenceStep,
+        );
+        if (riffStepState.active) {
+          riffAttackUntilRef.current[riffStepState.phraseIndex] =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
-            (currentStudy.riff.accents[riffStepIndex] ? 320 : 220);
+            (riffStepState.accented ? 320 : 220);
           if (currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
             triggerRiffPulse({
               frequency: currentStudy.riff.pitchHz,
               gain: currentStudy.riff.gain,
-              accented: Boolean(currentStudy.riff.accents[riffStepIndex]),
+              accented: riffStepState.accented,
             });
           }
         }
@@ -663,13 +819,73 @@ export default function RiffCycleCanvas({
   }, [draw]);
 
   useEffect(() => {
-    previousReferenceStepRef.current = 0;
     draw();
   }, [draw, study]);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    (canvas as any).__exportPng = async ({
+      aspect = 'landscape',
+      scale = 2,
+    }: {
+      aspect?: 'landscape' | 'square' | 'portrait' | 'story';
+      scale?: 1 | 2 | 4;
+    } = {}) => {
+      const exportAspects = {
+        landscape: { width: 1920, height: 1080 },
+        square: { width: 1080, height: 1080 },
+        portrait: { width: 1080, height: 1350 },
+        story: { width: 1080, height: 1920 },
+      } as const;
+      const exportSpec = exportAspects[aspect];
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = exportSpec.width * scale;
+      exportCanvas.height = exportSpec.height * scale;
+      const exportCtx = exportCanvas.getContext('2d');
+
+      if (!exportCtx) {
+        return;
+      }
+
+      exportCtx.fillStyle = '#111116';
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+      const sourceWidth = canvas.width;
+      const sourceHeight = canvas.height;
+      const containScale = Math.min(
+        exportCanvas.width / sourceWidth,
+        exportCanvas.height / sourceHeight,
+      );
+      const drawWidth = sourceWidth * containScale;
+      const drawHeight = sourceHeight * containScale;
+      const offsetX = (exportCanvas.width - drawWidth) / 2;
+      const offsetY = (exportCanvas.height - drawHeight) / 2;
+
+      exportCtx.imageSmoothingEnabled = true;
+      exportCtx.imageSmoothingQuality = 'high';
+      exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const link = document.createElement('a');
+      link.href = exportCanvas.toDataURL('image/png');
+      link.download = `riff-cycle-${aspect}-${scale}x-${timestamp}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    return () => {
+      delete (canvas as any).__exportPng;
+    };
+  }, []);
+
+  useEffect(() => {
     referenceProgressRef.current = 0;
-    previousReferenceStepRef.current = 0;
+    previousReferenceStepRef.current = -1;
     lastTimestampRef.current = null;
     resetFlashUntilRef.current =
       (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 260;
@@ -692,14 +908,38 @@ export default function RiffCycleCanvas({
     [onSelectStep, onSetStepActive],
   );
 
+  const applyLandingPaint = useCallback(
+    (slotIndex: number) => {
+      const nextActive = paintActiveRef.current;
+      if (nextActive == null) {
+        return;
+      }
+      if (paintedStepsRef.current.has(slotIndex)) {
+        return;
+      }
+      paintedStepsRef.current.add(slotIndex);
+      onSetLandingStepActive(slotIndex, nextActive);
+    },
+    [onSetLandingStepActive],
+  );
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimeoutRef.current != null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
+
   const clearPointerPaint = useCallback((event?: ReactPointerEvent<HTMLCanvasElement>) => {
+    clearLongPressTimer();
+    pendingLongPressRef.current = null;
     if (event && canvasRef.current?.hasPointerCapture(event.pointerId)) {
       canvasRef.current.releasePointerCapture(event.pointerId);
     }
     activePointerIdRef.current = null;
     paintActiveRef.current = null;
     paintedStepsRef.current.clear();
-  }, []);
+  }, [clearLongPressTimer]);
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -722,21 +962,84 @@ export default function RiffCycleCanvas({
         return;
       }
 
-      if (event.altKey || event.metaKey || event.shiftKey) {
+      const landingSlot =
+        studyRef.current.landingEditEnabled && hit.displayStep != null
+          ? getLandingSlotAtReferenceStep(studyRef.current, hit.displayStep)
+          : null;
+      const editingLanding = landingSlot != null;
+      const editablePhraseStep = canEditRiffStep(studyRef.current, hit.stepIndex);
+
+      if (!editingLanding && !editablePhraseStep) {
         onSelectStep(hit.stepIndex);
-        onToggleAccent(hit.stepIndex);
         clearPointerPaint(event);
         return;
       }
 
-      const nextActive = !Boolean(studyRef.current.riff.activeSteps[hit.stepIndex]);
+      if (event.altKey || event.metaKey || event.shiftKey) {
+        onSelectStep(hit.stepIndex);
+        if (editingLanding) {
+          onToggleLandingAccent(landingSlot);
+        } else {
+          onToggleAccent(hit.stepIndex);
+        }
+        clearPointerPaint(event);
+        return;
+      }
+
+      const nextActive = editingLanding
+        ? getEffectiveRiffStepStateAtReferenceStep(studyRef.current, hit.displayStep ?? hit.stepIndex).active
+          ? false
+          : true
+        : !Boolean(studyRef.current.riff.activeSteps[hit.stepIndex]);
       activePointerIdRef.current = event.pointerId;
       paintActiveRef.current = nextActive;
       paintedStepsRef.current.clear();
       canvas.setPointerCapture(event.pointerId);
-      applyStepPaint(hit.stepIndex);
+
+      const touchLike = isMobileRef.current && event.pointerType !== 'mouse';
+      if (touchLike) {
+        clearLongPressTimer();
+        pendingLongPressRef.current = {
+          pointerId: event.pointerId,
+          stepIndex: hit.stepIndex,
+          landingSlot,
+          x: event.clientX,
+          y: event.clientY,
+          nextActive,
+          longPressed: false,
+        };
+        longPressTimeoutRef.current = window.setTimeout(() => {
+          const pending = pendingLongPressRef.current;
+          if (!pending || pending.pointerId !== event.pointerId) {
+            return;
+          }
+          pending.longPressed = true;
+          onSelectStep(pending.stepIndex);
+          if (editingLanding && pending.landingSlot != null) {
+            onToggleLandingAccent(pending.landingSlot);
+          } else {
+            onToggleAccent(pending.stepIndex);
+          }
+          paintActiveRef.current = null;
+        }, 320);
+        return;
+      }
+
+      if (editingLanding && landingSlot != null) {
+        applyLandingPaint(landingSlot);
+      } else {
+        applyStepPaint(hit.stepIndex);
+      }
     },
-    [applyStepPaint, clearPointerPaint, onSelectStep, onToggleAccent],
+    [
+      applyLandingPaint,
+      applyStepPaint,
+      clearLongPressTimer,
+      clearPointerPaint,
+      onSelectStep,
+      onToggleAccent,
+      onToggleLandingAccent,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -758,18 +1061,53 @@ export default function RiffCycleCanvas({
         event.clientY - rect.top,
       );
 
+      const pending = pendingLongPressRef.current;
+      if (pending && pending.pointerId === event.pointerId && !pending.longPressed) {
+        const distance = Math.hypot(event.clientX - pending.x, event.clientY - pending.y);
+        if (distance > 10) {
+          clearLongPressTimer();
+          pendingLongPressRef.current = null;
+          if (pending.landingSlot != null && studyRef.current.landingEditEnabled) {
+            applyLandingPaint(pending.landingSlot);
+          } else {
+            applyStepPaint(pending.stepIndex);
+          }
+        } else {
+          return;
+        }
+      }
+
       if (hit?.stepIndex != null) {
-        applyStepPaint(hit.stepIndex);
+        const landingSlot =
+          studyRef.current.landingEditEnabled && hit.displayStep != null
+            ? getLandingSlotAtReferenceStep(studyRef.current, hit.displayStep)
+            : null;
+        if (landingSlot != null) {
+          applyLandingPaint(landingSlot);
+        } else {
+          applyStepPaint(hit.stepIndex);
+        }
       }
     },
-    [applyStepPaint],
+    [applyLandingPaint, applyStepPaint, clearLongPressTimer],
   );
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
+      const pending = pendingLongPressRef.current;
+      if (pending && pending.pointerId === event.pointerId && !pending.longPressed) {
+        clearLongPressTimer();
+        pendingLongPressRef.current = null;
+        onSelectStep(pending.stepIndex);
+        if (pending.landingSlot != null && studyRef.current.landingEditEnabled) {
+          onSetLandingStepActive(pending.landingSlot, pending.nextActive);
+        } else {
+          onSetStepActive(pending.stepIndex, pending.nextActive);
+        }
+      }
       clearPointerPaint(event);
     },
-    [clearPointerPaint],
+    [clearLongPressTimer, clearPointerPaint, onSelectStep, onSetLandingStepActive, onSetStepActive],
   );
 
   const handleContextMenu = useCallback(
@@ -790,15 +1128,28 @@ export default function RiffCycleCanvas({
       if (hit?.stepIndex != null) {
         event.preventDefault();
         onSelectStep(hit.stepIndex);
-        onToggleAccent(hit.stepIndex);
+        const landingSlot =
+          studyRef.current.landingEditEnabled && hit.displayStep != null
+            ? getLandingSlotAtReferenceStep(studyRef.current, hit.displayStep)
+            : null;
+        if (landingSlot != null) {
+          onToggleLandingAccent(landingSlot);
+        } else {
+          onToggleAccent(hit.stepIndex);
+        }
       }
     },
-    [onSelectStep, onToggleAccent],
+    [onSelectStep, onToggleAccent, onToggleLandingAccent],
   );
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={(node) => {
+        canvasRef.current = node;
+        if (externalCanvasRef) {
+          externalCanvasRef.current = node;
+        }
+      }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

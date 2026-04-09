@@ -43,6 +43,7 @@ export interface RiffCycleCanvasMetrics {
 export interface RiffCycleHitResult {
   target: 'riff-step' | 'riff-ring';
   stepIndex: number | null;
+  displayStep: number | null;
 }
 
 function lerpPoint(a: RiffCyclePoint, b: RiffCyclePoint, t: number): RiffCyclePoint {
@@ -197,6 +198,7 @@ export function findRiffCycleHit(
     return {
       target: 'riff-step',
       stepIndex: laneHit.stepIndex,
+      displayStep: laneHit.displayStep,
     };
   }
 
@@ -213,6 +215,7 @@ export function findRiffCycleHit(
       return {
         target: 'riff-step',
         stepIndex: point.index,
+        displayStep: null,
       };
     }
   }
@@ -222,6 +225,7 @@ export function findRiffCycleHit(
     return {
       target: 'riff-ring',
       stepIndex: null,
+      displayStep: null,
     };
   }
 

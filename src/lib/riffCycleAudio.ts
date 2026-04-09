@@ -62,14 +62,25 @@ export function resumeRiffCycleAudio(): void {
   }
 }
 
-export function triggerReferencePulse(accented: boolean): void {
+export function triggerReferencePulse(): void {
   withVoice({
-    type: accented ? 'triangle' : 'square',
-    frequency: accented ? 820 : 1660,
-    gain: accented ? 0.12 : 0.055,
+    type: 'square',
+    frequency: 1660,
+    gain: 0.055,
     attack: 0.002,
-    release: accented ? 0.12 : 0.045,
-    filterFrequency: accented ? 1760 : 3000,
+    release: 0.045,
+    filterFrequency: 3000,
+  });
+}
+
+export function triggerBackbeatAccent(): void {
+  withVoice({
+    type: 'triangle',
+    frequency: 820,
+    gain: 0.11,
+    attack: 0.002,
+    release: 0.12,
+    filterFrequency: 1760,
   });
 }
 
