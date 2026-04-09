@@ -9,6 +9,8 @@ import { ChevronDown, ChevronUp, CircleHelp, Maximize2, Menu, Minus, Palette, Pa
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
+import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
+import PolyrhythmSidebar from '../components/PolyrhythmSidebar';
 import TransportBar from '../components/TransportBar';
 import RadialMenu from '../components/RadialMenu';
 import { useAuth } from '../components/auth-provider';
@@ -59,6 +61,17 @@ import {
   getOrbitLimitForMode,
   isProPlan,
 } from '../lib/entitlements';
+import {
+  POLYRHYTHM_LAYER_COLORS,
+  POLYRHYTHM_PRESETS,
+  cloneStudy,
+  createDefaultPolyrhythmStudy,
+  createPolyrhythmLayer,
+  toggleLayerStep,
+  updateLayerBeatCount,
+  type PolyrhythmLayer,
+  type PolyrhythmStudy,
+} from '../lib/polyrhythmStudy';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
@@ -68,6 +81,7 @@ const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
 const PATTERN_MUTATION_COOLDOWN_MS = 140;
 const INTERFERENCE_PREVIEW_WEIGHTS = [-1, 1, 1, -1] as const;
+const DEFAULT_POLYRHYTHM_PRESET_ID = 'three-five-nested';
 interface StartGuideStep {
   target: string;
   title: string;
@@ -250,6 +264,8 @@ type ActiveSceneSource =
   | 'premium-built-in'
   | 'saved'
   | 'custom';
+
+type AppSurface = 'orbital' | 'polyrhythm-study';
 
 function sortSavedScenesByUpdatedAt(scenes: SavedScene[]): SavedScene[] {
   return [...scenes].sort(
@@ -2044,6 +2060,7 @@ function OrbitalPolymeter() {
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
 
+  const [appSurface, setAppSurface] = useState<AppSurface>('orbital');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
@@ -2074,6 +2091,12 @@ function OrbitalPolymeter() {
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
   const [activeMobileSliderId, setActiveMobileSliderId] = useState<string | null>(null);
   const [mobileSceneTab, setMobileSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
+  const [polyrhythmStudy, setPolyrhythmStudy] = useState<PolyrhythmStudy>(() =>
+    createDefaultPolyrhythmStudy(),
+  );
+  const [activePolyrhythmPresetId, setActivePolyrhythmPresetId] = useState<string | null>(
+    DEFAULT_POLYRHYTHM_PRESET_ID,
+  );
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
@@ -2118,6 +2141,177 @@ function OrbitalPolymeter() {
   const clearActiveMobileSlider = useCallback((sliderId: string) => {
     setActiveMobileSliderId((current) => (current === sliderId ? null : current));
   }, []);
+  const handleAppSurfaceChange = useCallback(
+    (nextSurface: AppSurface) => {
+      if (nextSurface === appSurface) {
+        return;
+      }
+
+      setSidebarOpen(false);
+      setHelpOpen(false);
+      setPresentationMode(false);
+      setMobileScenesOpen(false);
+      setMobileCustomizeOpen(false);
+      setMobileSoundOpen(false);
+      setRadialMenu(null);
+      setProPrompt(null);
+
+      if (nextSurface === 'polyrhythm-study') {
+        stopAllAudio();
+        engineState.playing = false;
+        engineState.lastTimestamp = -1;
+        rerender();
+      } else {
+        setPolyrhythmStudy((current) => ({
+          ...current,
+          playing: false,
+        }));
+      }
+
+      setAppSurface(nextSurface);
+    },
+    [appSurface, engineState, rerender],
+  );
+
+  const handleLoadPolyrhythmPreset = useCallback((presetId: string) => {
+    const preset = POLYRHYTHM_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) {
+      return;
+    }
+
+    setPolyrhythmStudy(cloneStudy(preset.study));
+    setActivePolyrhythmPresetId(preset.id);
+  }, []);
+
+  const handleResetPolyrhythmStudy = useCallback(() => {
+    const preset =
+      POLYRHYTHM_PRESETS.find((entry) => entry.id === activePolyrhythmPresetId) ??
+      POLYRHYTHM_PRESETS.find((entry) => entry.id === DEFAULT_POLYRHYTHM_PRESET_ID) ??
+      POLYRHYTHM_PRESETS[0];
+
+    if (!preset) {
+      setPolyrhythmStudy(createDefaultPolyrhythmStudy());
+      return;
+    }
+
+    setPolyrhythmStudy(cloneStudy(preset.study));
+  }, [activePolyrhythmPresetId]);
+
+  const handleTogglePolyrhythmPlayback = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      playing: !current.playing,
+    }));
+  }, []);
+
+  const handlePolyrhythmBpmChange = useCallback((bpm: number) => {
+    const nextBpm = Math.max(40, Math.min(180, Math.round(bpm || 40)));
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      bpm: nextBpm,
+    }));
+  }, []);
+
+  const handleTogglePolyrhythmInactiveSteps = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      showInactiveSteps: !current.showInactiveSteps,
+    }));
+  }, []);
+
+  const handleTogglePolyrhythmStepLabels = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      showStepLabels: !current.showStepLabels,
+    }));
+  }, []);
+
+  const handleAddPolyrhythmLayer = useCallback(() => {
+    setPolyrhythmStudy((current) => {
+      const lastLayer = current.layers[current.layers.length - 1];
+      const nextLayerIndex = current.layers.length;
+      const nextBeatCount = Math.min(32, Math.max(6, (lastLayer?.beatCount ?? 8) + 2));
+      const nextRadius = Math.max(78, (lastLayer?.radius ?? 230) - 34);
+      const nextColor =
+        POLYRHYTHM_LAYER_COLORS[nextLayerIndex % POLYRHYTHM_LAYER_COLORS.length];
+
+      return {
+        ...current,
+        layers: [
+          ...current.layers,
+          createPolyrhythmLayer(nextBeatCount, {
+            radius: nextRadius,
+            rotationOffset: (nextLayerIndex * 12) % 360,
+            color: nextColor,
+          }),
+        ],
+      };
+    });
+  }, []);
+
+  const handleRemovePolyrhythmLayer = useCallback((layerId: string) => {
+    setPolyrhythmStudy((current) => {
+      if (current.layers.length <= 1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        layers: current.layers.filter((layer) => layer.id !== layerId),
+      };
+    });
+  }, []);
+
+  const handleUpdatePolyrhythmLayer = useCallback(
+    (layerId: string, updates: Partial<PolyrhythmLayer>) => {
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        layers: current.layers.map((layer) => {
+          if (layer.id !== layerId) {
+            return layer;
+          }
+
+          return {
+            ...layer,
+            ...updates,
+            radius:
+              updates.radius == null
+                ? layer.radius
+                : Math.max(60, Math.min(320, Math.round(updates.radius))),
+            rotationOffset:
+              updates.rotationOffset == null
+                ? layer.rotationOffset
+                : ((updates.rotationOffset % 360) + 360) % 360,
+          };
+        }),
+      }));
+    },
+    [],
+  );
+
+  const handleSetPolyrhythmLayerBeatCount = useCallback(
+    (layerId: string, beatCount: number) => {
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        layers: current.layers.map((layer) =>
+          layer.id === layerId ? updateLayerBeatCount(layer, beatCount) : layer,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const handleTogglePolyrhythmLayerStep = useCallback(
+    (layerId: string, stepIndex: number) => {
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        layers: current.layers.map((layer) =>
+          layer.id === layerId ? toggleLayerStep(layer, stepIndex) : layer,
+        ),
+      }));
+    },
+    [],
+  );
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
   const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
 
@@ -4078,6 +4272,252 @@ function OrbitalPolymeter() {
       </div>
     </>
   ) : null;
+  const appSurfaceToggle = !captureMode ? (
+    <div
+      className={`fixed z-20 ${
+        isMobile ? 'right-3 top-3' : 'left-1/2 top-4 -translate-x-1/2'
+      }`}
+    >
+      <div
+        className="inline-flex rounded-full border border-white/10 bg-[#111116]/86 p-1 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+      >
+        {([
+          ['orbital', 'Orbital'],
+          ['polyrhythm-study', 'Study'],
+        ] as const).map(([surfaceId, label]) => {
+          const active = appSurface === surfaceId;
+          return (
+            <button
+              key={surfaceId}
+              type="button"
+              onClick={() => handleAppSurfaceChange(surfaceId)}
+              className="rounded-full px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] transition-all"
+              style={{
+                background: active ? 'rgba(114,241,184,0.12)' : 'transparent',
+                color: active ? '#72F1B8' : 'rgba(255,255,255,0.55)',
+                border: active ? '1px solid rgba(114,241,184,0.22)' : '1px solid transparent',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+  const polyrhythmLayerCount = polyrhythmStudy.layers.length;
+  const polyrhythmStepCount = polyrhythmStudy.layers.reduce(
+    (count, layer) => count + layer.beatCount,
+    0,
+  );
+  const polyrhythmActiveCount = polyrhythmStudy.layers.reduce(
+    (count, layer) =>
+      count + layer.activeSteps.reduce((layerCount, step) => layerCount + (step ? 1 : 0), 0),
+    0,
+  );
+  if (!captureMode && appSurface === 'polyrhythm-study') {
+    return (
+      <div
+        className={
+          isMobile
+            ? 'relative min-h-[100svh] overflow-hidden bg-[#111116] select-none'
+            : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
+        }
+      >
+        <PolyrhythmCanvas study={polyrhythmStudy} />
+        <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/35 via-black/12 to-transparent" />
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/90 to-transparent" />
+
+        <div className={`fixed z-20 ${isMobile ? 'left-1/2 top-3 -translate-x-1/2 text-center' : 'left-5 top-4'}`}>
+          <Link to="/" className="group inline-block">
+            <h1
+              className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
+              style={{ color: 'rgba(255, 255, 255, 0.25)' }}
+            >
+              Rhythmic Geometry
+            </h1>
+            <p
+              className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} mt-1 font-mono uppercase tracking-[0.18em] transition-colors group-hover:text-white/20`}
+              style={{ color: 'rgba(255, 255, 255, 0.12)' }}
+            >
+              Nested circular polyrhythm
+            </p>
+          </Link>
+        </div>
+
+        {appSurfaceToggle}
+
+        <div className={`fixed z-20 pointer-events-none ${isMobile ? 'left-1/2 top-16 -translate-x-1/2' : 'right-5 top-4'}`}>
+          <p
+            className={`font-mono leading-relaxed ${isMobile ? 'text-center text-[9px]' : 'text-right text-[10px]'}`}
+            style={{ color: 'rgba(255,255,255,0.15)' }}
+          >
+            {isMobile ? 'Open Menu to reshape each ring.' : <>toggle steps in menu to shape each ring<br />polygons reveal the active mask</>}
+          </p>
+        </div>
+
+        <div
+          className={`fixed z-20 ${
+            isMobile ? 'left-3 right-3 bottom-28' : 'left-5 bottom-6 max-w-[25rem]'
+          }`}
+        >
+          <div
+            className="rounded-[1.75rem] border px-5 py-4"
+            style={{
+              background: 'linear-gradient(180deg, rgba(17,17,22,0.92), rgba(17,17,22,0.82))',
+              borderColor: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(14px)',
+            }}
+          >
+            <div className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: '#72F1B8' }}>
+              Polyrhythm Study
+            </div>
+            <div className="mt-2 text-[20px] font-light text-white">
+              {polyrhythmStudy.name}
+            </div>
+            <p className="mt-2 text-[13px] leading-relaxed text-white/56">
+              {polyrhythmStudy.description}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {[
+                `${polyrhythmLayerCount} ${polyrhythmLayerCount === 1 ? 'layer' : 'layers'}`,
+                `${polyrhythmActiveCount} active steps`,
+                `${polyrhythmStepCount} plotted points`,
+              ].map((label) => (
+                <div
+                  key={label}
+                  className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.52)',
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`fixed z-20 ${
+            isMobile ? 'left-3 right-3 bottom-6' : 'right-5 bottom-6'
+          }`}
+        >
+          <div
+            className={`rounded-[1.6rem] border px-4 py-3 ${
+              isMobile ? 'space-y-3' : 'flex items-center gap-3'
+            }`}
+            style={{
+              background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
+              borderColor: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(16px)',
+            }}
+          >
+            <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.72)',
+                }}
+              >
+                Menu
+              </button>
+              <button
+                type="button"
+                onClick={handleResetPolyrhythmStudy}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: 'rgba(255,170,0,0.12)',
+                  borderColor: 'rgba(255,170,0,0.22)',
+                  color: '#FFAA00',
+                }}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleTogglePolyrhythmPlayback}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border px-4 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: polyrhythmStudy.playing
+                    ? 'rgba(255,51,102,0.16)'
+                    : 'rgba(114,241,184,0.14)',
+                  borderColor: polyrhythmStudy.playing
+                    ? 'rgba(255,51,102,0.28)'
+                    : 'rgba(114,241,184,0.22)',
+                  color: polyrhythmStudy.playing ? '#FF3366' : '#72F1B8',
+                }}
+              >
+                {polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />}
+                {polyrhythmStudy.playing ? 'Pause' : 'Play'}
+              </button>
+            </div>
+
+            <div
+              className={`flex items-center gap-2 rounded-2xl border px-3 py-2 ${
+                isMobile ? 'justify-between' : ''
+              }`}
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handlePolyrhythmBpmChange(polyrhythmStudy.bpm - 2)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/70"
+                style={{ background: 'rgba(255,255,255,0.05)' }}
+                aria-label="Slow down study"
+              >
+                <Minus size={14} />
+              </button>
+              <div className="min-w-[96px] text-center">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                  Tempo
+                </div>
+                <div className="mt-1 text-[15px] font-light text-white">
+                  {polyrhythmStudy.bpm} BPM
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handlePolyrhythmBpmChange(polyrhythmStudy.bpm + 2)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/70"
+                style={{ background: 'rgba(255,255,255,0.05)' }}
+                aria-label="Speed up study"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <PolyrhythmSidebar
+          isOpen={sidebarOpen}
+          study={polyrhythmStudy}
+          activePresetId={activePolyrhythmPresetId}
+          onClose={() => setSidebarOpen(false)}
+          onLoadPreset={handleLoadPolyrhythmPreset}
+          onResetStudy={handleResetPolyrhythmStudy}
+          onTogglePlay={handleTogglePolyrhythmPlayback}
+          onBpmChange={handlePolyrhythmBpmChange}
+          onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
+          onToggleStepLabels={handleTogglePolyrhythmStepLabels}
+          onAddLayer={handleAddPolyrhythmLayer}
+          onRemoveLayer={handleRemovePolyrhythmLayer}
+          onUpdateLayer={handleUpdatePolyrhythmLayer}
+          onSetLayerBeatCount={handleSetPolyrhythmLayerBeatCount}
+          onToggleLayerStep={handleTogglePolyrhythmLayerStep}
+        />
+      </div>
+    );
+  }
   if (isMobile) {
     if (presentationMode) {
       return (
@@ -5203,6 +5643,8 @@ function OrbitalPolymeter() {
         </Link>
       </div>
       )}
+
+      {appSurfaceToggle}
 
       {/* Help hint */}
       {!presentationMode && (
