@@ -12,7 +12,8 @@ import OrbitSidebar from '../components/OrbitSidebar';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar from '../components/PolyrhythmSidebar';
 import RiffCycleCanvas from '../components/RiffCycleCanvas';
-import RiffCycleSidebar from '../components/RiffCycleSidebar';
+import RiffCycleMobileEditor from '../components/RiffCycleMobileEditor';
+import RiffCycleSidebar, { RiffSceneThumbnail } from '../components/RiffCycleSidebar';
 import {
   StudyShellButton,
   StudyShellChip,
@@ -84,6 +85,7 @@ import {
   toggleLayerStep,
   updateLayerBeatCount,
   type PolyrhythmLayer,
+  type PolyrhythmSoundSettings,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 import { resumePolyrhythmAudio } from '../lib/polyrhythmAudio';
@@ -111,6 +113,7 @@ import {
   updateRiffStepCount,
   type ReferenceMeter,
   type RiffCycleStudy,
+  type RiffCycleSoundSettings,
   type RiffPhrase,
 } from '../lib/riffCycleStudy';
 import { resumeRiffCycleAudio } from '../lib/riffCycleAudio';
@@ -253,6 +256,117 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     target: 'desktop-menu',
     title: 'Menu',
     text: 'Open the menu for Scenes, export, and deeper orbit editing.',
+  },
+];
+
+const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
+  {
+    target: 'riff-mobile-edit',
+    title: 'Edit',
+    text: 'Edit is the writing surface on mobile. Open it to switch between Layer 1, Layer 2, and Ending.',
+  },
+  {
+    target: 'riff-layer-1',
+    title: 'Layer 1',
+    text: 'Layer 1 shapes the bar: meter, visible bars, grid, and the backbeat marker.',
+  },
+  {
+    target: 'riff-layer-2',
+    title: 'Layer 2',
+    text: 'Layer 2 shapes the phrase. The mobile lane below the canvas is the main writing surface.',
+  },
+  {
+    target: 'riff-ending',
+    title: 'Ending',
+    text: 'Ending shapes the re-entry zone and gives you quick return tools.',
+  },
+  {
+    target: 'riff-mobile-transport',
+    title: 'Transport',
+    text: 'Play, restart, and the random tools all live here so you can explore quickly.',
+  },
+  {
+    target: 'riff-mobile-tempo',
+    title: 'Tempo And Offset',
+    text: 'Tempo stays centered. Offset nudges the phrase backward or forward one step at a time.',
+  },
+  {
+    target: 'riff-mobile-audio',
+    title: 'Audio',
+    text: 'Audio holds listening focus, sound palette, keyed harmony, and view options.',
+  },
+  {
+    target: 'riff-mobile-scenes',
+    title: 'Scenes',
+    text: 'Scenes load strong starting points without leaving the canvas.',
+  },
+  {
+    target: 'riff-mobile-present',
+    title: 'Present',
+    text: 'Present cleans up the chrome so you can focus on the riff and the fixed bar.',
+  },
+  {
+    target: 'riff-mobile-menu',
+    title: 'Menu',
+    text: 'Open the full menu for scenes, export, and deeper controls.',
+  },
+];
+
+const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
+  {
+    target: 'riff-desktop-transport',
+    title: 'Start Here',
+    text: 'This row drives the study: play, restart, and the random tools are the fastest way to explore new riffs.',
+  },
+  {
+    target: 'riff-desktop-tempo',
+    title: 'Tempo And Offset',
+    text: 'Tempo is the center control. Offset moves the phrase against the bar without rewriting it.',
+  },
+  {
+    target: 'riff-desktop-quick',
+    title: 'Quick Edit',
+    text: 'Use the left card to choose what you are editing right now.',
+  },
+  {
+    target: 'riff-layer-1',
+    title: 'Layer 1',
+    text: 'Layer 1 handles bar structure: meter, visible bars, grid, and bar marker.',
+  },
+  {
+    target: 'riff-layer-2',
+    title: 'Layer 2',
+    text: 'Layer 2 handles the phrase body. The lower lane is still the main writing surface.',
+  },
+  {
+    target: 'riff-ending',
+    title: 'Ending',
+    text: 'Ending shapes the return zone without changing the whole study surface.',
+  },
+  {
+    target: 'riff-desktop-audio',
+    title: 'Audio',
+    text: 'Choose whether you want to hear Layer 1, Layer 2, or both together.',
+  },
+  {
+    target: 'riff-desktop-sound',
+    title: 'Sound',
+    text: 'Original keeps the native Riff voice. Keyed Harmony opens root and scale controls.',
+  },
+  {
+    target: 'riff-desktop-view',
+    title: 'View',
+    text: 'Swap between lane and circle, then use frame fill, labels, or phrase shape only when you need them.',
+  },
+  {
+    target: 'riff-desktop-present',
+    title: 'Present',
+    text: 'Present strips back the chrome for showing, recording, or focused study.',
+  },
+  {
+    target: 'riff-desktop-menu',
+    title: 'Menu',
+    text: 'Use Menu for scenes, export, and the deeper study settings.',
   },
 ];
 
@@ -2185,7 +2299,11 @@ function OrbitalPolymeter() {
     useState<PolyrhythmStepSelection | null>(null);
   const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
-  const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
+  const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>('phrase');
+  const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'audio' | 'sound' | 'view'>('sound');
+  const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes'>('edit');
+  const [riffMobileEditTab, setRiffMobileEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
+  const [riffMobileEditorOpen, setRiffMobileEditorOpen] = useState(false);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
@@ -2341,6 +2459,20 @@ function OrbitalPolymeter() {
       soundEnabled: !current.soundEnabled,
     }));
   }, []);
+
+  const handleUpdatePolyrhythmSoundSettings = useCallback(
+    (updates: Partial<PolyrhythmSoundSettings>) => {
+      resumePolyrhythmAudio();
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        soundSettings: {
+          ...current.soundSettings,
+          ...updates,
+        },
+      }));
+    },
+    [],
+  );
 
   const handleAddPolyrhythmLayer = useCallback(() => {
     let nextLayerId: string | null = null;
@@ -2567,6 +2699,20 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleUpdateRiffSoundSettings = useCallback(
+    (updates: Partial<RiffCycleSoundSettings>) => {
+      resumeRiffCycleAudio();
+      setRiffCycleStudy((current) => ({
+        ...current,
+        soundSettings: {
+          ...current.soundSettings,
+          ...updates,
+        },
+      }));
+    },
+    [],
+  );
+
   const handleUpdateRiffReference = useCallback((updates: Partial<ReferenceMeter>) => {
     setRiffCycleStudy((current) => {
       const nextStudy = {
@@ -2587,8 +2733,8 @@ function OrbitalPolymeter() {
           subdivision:
             updates.subdivision == null
               ? current.reference.subdivision
-              : ([8, 12, 16, 32] as const).includes(updates.subdivision as 8 | 12 | 16 | 32)
-                ? (updates.subdivision as 8 | 12 | 16 | 32)
+              : ([8, 12, 16, 20, 32] as const).includes(updates.subdivision as 8 | 12 | 16 | 20 | 32)
+                ? (updates.subdivision as 8 | 12 | 16 | 20 | 32)
                 : current.reference.subdivision,
           bpm:
             updates.bpm == null
@@ -2818,7 +2964,14 @@ function OrbitalPolymeter() {
   const siteSceneLoadedRef = useRef(false);
   const lastPatternMutationAtRef = useRef(0);
   const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
-  const guideSteps = isMobile ? MOBILE_START_GUIDE : DESKTOP_START_GUIDE;
+  const guideSteps =
+    appSurface === 'riff-cycle-study'
+      ? isMobile
+        ? MOBILE_RIFF_GUIDE
+        : DESKTOP_RIFF_GUIDE
+      : isMobile
+        ? MOBILE_START_GUIDE
+        : DESKTOP_START_GUIDE;
   const currentGuideStep = guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)];
   const mobileCanvasFrameStyle = isMobile
     ? ({
@@ -3281,6 +3434,66 @@ function OrbitalPolymeter() {
       setMobileSoundOpen(true);
     }
   }, [currentGuideStep, helpOpen, isMobile]);
+
+  useEffect(() => {
+    if (!helpOpen || appSurface !== 'riff-cycle-study') {
+      return;
+    }
+
+    if (isMobile && currentGuideStep?.target === 'riff-mobile-edit') {
+      setRiffMobileSection('edit');
+      setRiffMobileEditTab('phrase');
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-layer-1') {
+      if (isMobile) {
+        setRiffMobileSection('edit');
+        setRiffMobileEditTab('bar');
+      } else {
+        setRiffQuickPanel('bar');
+      }
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-layer-2') {
+      if (isMobile) {
+        setRiffMobileSection('edit');
+        setRiffMobileEditTab('phrase');
+      } else {
+        setRiffQuickPanel('phrase');
+      }
+      handleSetRiffEditMode('phrase');
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-ending') {
+      if (isMobile) {
+        setRiffMobileSection('edit');
+        setRiffMobileEditTab('return');
+      } else {
+        setRiffQuickPanel('return');
+      }
+      handleSetRiffEditMode('landing');
+      return;
+    }
+    if (isMobile && currentGuideStep?.target === 'riff-mobile-audio') {
+      setRiffMobileSection('audio');
+      return;
+    }
+    if (isMobile && currentGuideStep?.target === 'riff-mobile-scenes') {
+      setRiffMobileSection('scenes');
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-desktop-audio') {
+      setRiffUtilityPanel('audio');
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-desktop-sound') {
+      setRiffUtilityPanel('sound');
+      return;
+    }
+    if (currentGuideStep?.target === 'riff-desktop-view') {
+      setRiffUtilityPanel('view');
+    }
+  }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile]);
 
   useEffect(() => {
     if (!helpOpen || !currentGuideStep) {
@@ -4825,16 +5038,16 @@ function OrbitalPolymeter() {
   const appSurfaceToggle = !captureMode ? (
     <div
       className={`fixed z-20 ${
-        isMobile ? 'right-3 top-3' : 'left-1/2 top-4 -translate-x-1/2'
+        isMobile ? 'right-2 top-2' : 'left-1/2 top-3 -translate-x-1/2'
       }`}
     >
       <div
-        className="inline-flex rounded-full border border-white/10 bg-[#111116]/86 p-1 shadow-[0_14px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        className="inline-flex rounded-full border border-white/8 bg-[#111116]/70 p-[0.2rem] shadow-[0_8px_22px_rgba(0,0,0,0.22)] backdrop-blur-lg"
       >
         {([
-          ['orbital', 'Orbital'],
+          ['orbital', 'Orbit'],
           ['polyrhythm-study', 'Study'],
-          ['riff-cycle-study', 'Riff Lab'],
+          ['riff-cycle-study', 'Riff'],
         ] as const).map(([surfaceId, label]) => {
           const active = appSurface === surfaceId;
           return (
@@ -4842,11 +5055,11 @@ function OrbitalPolymeter() {
               key={surfaceId}
               type="button"
               onClick={() => handleAppSurfaceChange(surfaceId)}
-              className="rounded-full px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] transition-all"
+              className="rounded-full px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.14em] transition-all"
               style={{
-                background: active ? 'rgba(114,241,184,0.12)' : 'transparent',
-                color: active ? '#72F1B8' : 'rgba(255,255,255,0.55)',
-                border: active ? '1px solid rgba(114,241,184,0.22)' : '1px solid transparent',
+                background: active ? 'rgba(114,241,184,0.1)' : 'transparent',
+                color: active ? '#72F1B8' : 'rgba(255,255,255,0.44)',
+                border: active ? '1px solid rgba(114,241,184,0.18)' : '1px solid transparent',
               }}
             >
               {label}
@@ -4878,32 +5091,26 @@ function OrbitalPolymeter() {
   const riffEditMode: RiffEditMode = riffCycleStudy.landingEditEnabled
     ? 'landing'
     : 'phrase';
-  const riffResetShortLabel =
-    riffCycleStudy.riff.resetMode === 'free'
-      ? 'Free run'
-      : riffCycleStudy.riff.resetMode === 'per-bar'
-        ? 'Every bar'
-        : riffCycleStudy.riff.resetMode === 'every-2-bars'
-          ? 'Every 2 bars'
-          : riffCycleStudy.riff.resetMode === 'every-4-bars'
-            ? 'Every 4 bars'
-            : `Every ${riffCycleStudy.riff.resetBars} bars`;
-  const riffResetCompactLabel =
-    riffCycleStudy.riff.resetMode === 'free'
-      ? 'Free'
-      : riffCycleStudy.riff.resetMode === 'per-bar'
-        ? '1 Bar'
-        : riffCycleStudy.riff.resetMode === 'every-2-bars'
-          ? '2 Bars'
-          : riffCycleStudy.riff.resetMode === 'every-4-bars'
-            ? '4 Bars'
-            : `${riffCycleStudy.riff.resetBars} Bars`;
   const riffSoundFocus =
     riffCycleStudy.referenceSoundEnabled && riffCycleStudy.backbeatSoundEnabled && !riffCycleStudy.riff.soundEnabled
       ? 'bar'
       : !riffCycleStudy.referenceSoundEnabled && !riffCycleStudy.backbeatSoundEnabled && riffCycleStudy.riff.soundEnabled
         ? 'riff'
         : 'full';
+  const riffAudioSummary =
+    riffSoundFocus === 'bar' ? 'L1 Only' : riffSoundFocus === 'riff' ? 'L2 Only' : 'Both On';
+  const riffSoundSummary =
+    riffCycleStudy.soundSettings.pitchMode === 'keyed'
+      ? `${riffCycleStudy.soundSettings.rootNote} ${SCALE_PRESETS[riffCycleStudy.soundSettings.scaleName].label}`
+      : 'Original';
+  const riffViewSummary =
+    riffCycleStudy.viewMode === 'unwrapped'
+      ? 'Lane'
+      : riffCycleStudy.showStepLabels
+        ? 'Labels'
+        : riffCycleStudy.showPhraseRing
+          ? 'Shape'
+          : 'Circle';
   if (!captureMode && appSurface === 'polyrhythm-study') {
     return (
       <div
@@ -5224,6 +5431,7 @@ function OrbitalPolymeter() {
           onTogglePlay={handleTogglePolyrhythmPlayback}
           onBpmChange={handlePolyrhythmBpmChange}
           onToggleStudySound={handleTogglePolyrhythmSound}
+          onUpdateSoundSettings={handleUpdatePolyrhythmSoundSettings}
           onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
           onToggleStepLabels={handleTogglePolyrhythmStepLabels}
           onAddLayer={handleAddPolyrhythmLayer}
@@ -5240,6 +5448,1181 @@ function OrbitalPolymeter() {
     );
   }
   if (!captureMode && appSurface === 'riff-cycle-study') {
+    if (isMobile && !presentationMode) {
+      const activeRiffPreset =
+        RIFF_CYCLE_PRESETS.find((preset) => preset.id === activeRiffCyclePresetId) ?? null;
+      const riffMobileCanvasStyle = {
+        width: '100%',
+        height: 'min(68svh, 540px)',
+        minHeight: '420px',
+      } as const;
+      const riffMobileEditSummary =
+        riffMobileEditTab === 'bar'
+          ? 'Layer 1'
+          : riffMobileEditTab === 'phrase'
+            ? 'Layer 2'
+            : 'Ending';
+      const riffMobileEditDetail =
+        riffMobileEditTab === 'bar'
+          ? `${riffCycleStudy.reference.numerator}/${riffCycleStudy.reference.denominator} · ${riffCycleStudy.reference.barCountForDisplay} bars`
+          : riffMobileEditTab === 'phrase'
+            ? `${riffCycleStudy.riff.stepCount} steps`
+            : `${riffCycleStudy.landingLength} step return`;
+      const riffMobileSoundSummary =
+        riffCycleStudy.soundSettings.pitchMode === 'keyed'
+          ? `${riffCycleStudy.soundSettings.rootNote} ${SCALE_PRESETS[riffCycleStudy.soundSettings.scaleName].label}`
+          : 'Original';
+
+      return (
+        <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+          <div className="space-y-2">
+            <div
+              className="relative overflow-hidden"
+              style={riffMobileCanvasStyle}
+            >
+              <RiffCycleCanvas
+                study={riffCycleStudy}
+                selectedStep={selectedRiffCycleStep}
+                restartToken={riffCycleRestartToken}
+                externalCanvasRef={canvasRef}
+                onSelectStep={handleSelectRiffCycleStep}
+                onSetStepActive={handleSetRiffCycleStepActive}
+                onToggleAccent={handleToggleRiffCycleAccent}
+                onSetLandingStepActive={handleSetRiffLandingStepActive}
+                onToggleLandingAccent={handleToggleRiffLandingAccent}
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
+
+            <div className="px-4 space-y-3">
+              <div
+                data-guide="riff-mobile-transport"
+                className="relative z-10 rounded-[28px] border px-4 py-4 space-y-3"
+                style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/50">
+                    Playback
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      data-guide="riff-mobile-present"
+                      onClick={handleTogglePresentation}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Presentation mode"
+                    >
+                      <Maximize2 size={17} />
+                    </button>
+                    <button
+                      onClick={handleToggleHelpGuide}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label={helpOpen ? 'Close help' : 'Open help'}
+                    >
+                      <CircleHelp size={17} />
+                    </button>
+                    <button
+                      data-guide="riff-mobile-menu"
+                      onClick={() => setSidebarOpen(true)}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Open menu"
+                    >
+                      <Menu size={17} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <StudyShellButton
+                    tone={riffCycleStudy.playing ? 'red' : 'green'}
+                    highlighted
+                    icon={riffCycleStudy.playing ? <Pause size={16} /> : <Play size={16} />}
+                    onClick={handleToggleRiffCyclePlayback}
+                    className="w-full"
+                  >
+                    {riffCycleStudy.playing ? 'Pause' : 'Play'}
+                  </StudyShellButton>
+                  <StudyShellButton
+                    tone="amber"
+                    highlighted
+                    icon={<RotateCcw size={15} />}
+                    onClick={handleResetRiffCycleStudy}
+                    className="w-full"
+                  >
+                    Restart
+                  </StudyShellButton>
+                  <StudyShellButton
+                    tone="blue"
+                    highlighted={riffCycleStudy.soundEnabled}
+                    icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                    onClick={handleToggleRiffCycleSound}
+                    data-guide="riff-mobile-audio"
+                    className="w-full"
+                  >
+                    Audio
+                  </StudyShellButton>
+                </div>
+
+                <div data-guide="riff-mobile-tempo" className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/48">
+                      Speed
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/36">
+                        Offset
+                      </span>
+                      <StudyShellButton
+                        size="square"
+                        icon={<ChevronLeft size={15} />}
+                        onClick={() => handleRotateRiffCycle(-1)}
+                        aria-label="Move phrase back one step"
+                      />
+                      <StudyShellButton
+                        size="square"
+                        icon={<ChevronRight size={15} />}
+                        onClick={() => handleRotateRiffCycle(1)}
+                        aria-label="Move phrase forward one step"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="45"
+                      max="220"
+                      step="1"
+                      value={riffCycleStudy.reference.bpm}
+                      onChange={(event) =>
+                        handleUpdateRiffReference({
+                          bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
+                        })
+                      }
+                      onPointerDown={(event) =>
+                        handleMobileSliderPointerDown(event, 'riff-tempo', (value) =>
+                          handleUpdateRiffReference({ bpm: Math.round(value) }),
+                        )
+                      }
+                      onPointerMove={(event) =>
+                        handleMobileSliderPointerMove(event, 'riff-tempo', (value) =>
+                          handleUpdateRiffReference({ bpm: Math.round(value) }),
+                        )
+                      }
+                      onPointerUp={() => clearActiveMobileSlider('riff-tempo')}
+                      onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
+                      onBlur={() => clearActiveMobileSlider('riff-tempo')}
+                      data-dragging={activeMobileSliderId === 'riff-tempo'}
+                      className="touch-slider w-full"
+                      style={{ ['--slider-accent' as string]: '#ffffff' }}
+                      aria-label="Set riff cycle tempo"
+                    />
+                    <div className="w-12 shrink-0 text-right">
+                      <div className="text-[14px] font-light leading-none text-white">
+                        {riffCycleStudy.reference.bpm}
+                      </div>
+                      <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                        BPM
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                data-guide="riff-mobile-edit"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    riffMobileSection === 'edit'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    riffMobileSection === 'edit'
+                      ? `${riffCycleStudy.riff.color}24`
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  style={{
+                    background:
+                      riffMobileSection === 'edit'
+                        ? `linear-gradient(180deg, ${riffCycleStudy.riff.color}10, rgba(255,255,255,0))`
+                        : 'transparent',
+                    boxShadow:
+                      riffMobileSection === 'edit'
+                        ? `inset 0 1px 0 ${riffCycleStudy.riff.color}14`
+                        : 'none',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setRiffMobileSection((current) => (current === 'edit' ? null : 'edit'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div
+                      className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                      style={{ color: riffMobileSection === 'edit' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.5)' }}
+                    >
+                      Edit
+                    </div>
+                    <div
+                      className="mt-1 text-[12px]"
+                      style={{
+                        color:
+                          riffMobileSection === 'edit'
+                            ? 'rgba(255,255,255,0.62)'
+                            : 'rgba(255,255,255,0.42)',
+                      }}
+                    >
+                      {riffMobileEditDetail}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <button
+                        type="button"
+                        data-guide="riff-layer-1"
+                        onClick={() => {
+                          setRiffMobileEditTab('bar');
+                          setRiffMobileSection('edit');
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                        style={{
+                          background: riffMobileEditTab === 'bar' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                          color: riffMobileEditTab === 'bar' ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        L1
+                      </button>
+                      <button
+                        type="button"
+                        data-guide="riff-layer-2"
+                        onClick={() => {
+                          handleSetRiffEditMode('phrase');
+                          setRiffMobileEditTab('phrase');
+                          setRiffMobileSection('edit');
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                        style={{
+                          background: riffMobileEditTab === 'phrase' ? `${riffCycleStudy.riff.color}16` : 'transparent',
+                          color: riffMobileEditTab === 'phrase' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        L2
+                      </button>
+                      <button
+                        type="button"
+                        data-guide="riff-ending"
+                        onClick={() => {
+                          handleSetRiffEditMode('landing');
+                          setRiffMobileEditTab('return');
+                          setRiffMobileSection('edit');
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                        style={{
+                          background: riffMobileEditTab === 'return' ? 'rgba(127,215,255,0.16)' : 'transparent',
+                          color: riffMobileEditTab === 'return' ? '#7FD7FF' : 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        End
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRiffMobileSection((current) => (current === 'edit' ? null : 'edit'))}
+                      className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                      style={{
+                        ...mobileChevronButtonBaseStyle,
+                        background: riffMobileSection === 'edit' ? `${riffCycleStudy.riff.color}14` : mobileChevronButtonBaseStyle.background,
+                        border: riffMobileSection === 'edit' ? `1px solid ${riffCycleStudy.riff.color}36` : mobileChevronButtonBaseStyle.border,
+                        color: riffMobileSection === 'edit' ? riffCycleStudy.riff.color : mobileChevronButtonBaseStyle.color,
+                      }}
+                      aria-label={riffMobileSection === 'edit' ? 'Collapse edit' : 'Expand edit'}
+                    >
+                      {riffMobileSection === 'edit' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {riffMobileSection === 'edit' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="text-[12px] text-white/42">
+                      {riffMobileEditTab === 'bar'
+                        ? 'Open the editor for meter, bars, grid, and backbeat.'
+                        : riffMobileEditTab === 'phrase'
+                          ? 'Open the editor to write the phrase lane directly.'
+                          : 'Open the editor to shape the ending and return.'}
+                    </div>
+                    <StudyShellButton
+                      tone={riffMobileEditTab === 'bar' ? 'neutral' : riffMobileEditTab === 'phrase' ? 'blue' : 'amber'}
+                      highlighted
+                      onClick={() => setRiffMobileEditorOpen(true)}
+                      className="w-full"
+                    >
+                      Open Editor
+                    </StudyShellButton>
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                data-guide="riff-mobile-audio"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    riffMobileSection === 'audio'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    riffMobileSection === 'audio'
+                      ? 'rgba(0,255,170,0.18)'
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  style={{
+                    background:
+                      riffMobileSection === 'audio'
+                        ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))'
+                        : 'transparent',
+                    boxShadow:
+                      riffMobileSection === 'audio'
+                        ? 'inset 0 1px 0 rgba(0,255,170,0.08)'
+                        : 'none',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setRiffMobileSection((current) => (current === 'audio' ? null : 'audio'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div
+                      className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                      style={{ color: riffMobileSection === 'audio' ? '#00FFAA' : 'rgba(255,255,255,0.5)' }}
+                    >
+                      Sound
+                    </div>
+                    <div
+                      className="mt-1 text-[12px]"
+                      style={{
+                        color:
+                          riffMobileSection === 'audio'
+                            ? 'rgba(255,255,255,0.62)'
+                            : 'rgba(255,255,255,0.42)',
+                      }}
+                    >
+                      {riffAudioSummary} · {riffMobileSoundSummary}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRiffMobileSection((current) => (current === 'audio' ? null : 'audio'))}
+                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: riffMobileSection === 'audio' ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
+                      border: riffMobileSection === 'audio' ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
+                      color: riffMobileSection === 'audio' ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
+                    }}
+                    aria-label={riffMobileSection === 'audio' ? 'Collapse sound' : 'Expand sound'}
+                  >
+                    {riffMobileSection === 'audio' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+                </div>
+
+                {riffMobileSection === 'audio' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Listen</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { id: 'bar', label: 'L1', tone: 'pink' },
+                          { id: 'riff', label: 'L2', tone: 'blue' },
+                          { id: 'full', label: 'Both', tone: 'green' },
+                        ] as const).map((focus) => (
+                          <StudyShellButton
+                            key={focus.id}
+                            size="compact"
+                            tone={focus.tone}
+                            highlighted={riffSoundFocus === focus.id}
+                            onClick={() => handleSetRiffSoundFocus(focus.id)}
+                          >
+                            {focus.label}
+                          </StudyShellButton>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Pitch</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="neutral"
+                          highlighted={riffCycleStudy.soundSettings.pitchMode === 'free'}
+                          onClick={() => handleUpdateRiffSoundSettings({ pitchMode: 'free' })}
+                        >
+                          Original
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="green"
+                          highlighted={riffCycleStudy.soundSettings.pitchMode === 'keyed'}
+                          onClick={() => handleUpdateRiffSoundSettings({ pitchMode: 'keyed' })}
+                        >
+                          Keyed
+                        </StudyShellButton>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1.1fr,0.9fr] gap-2">
+                      <select
+                        value={riffCycleStudy.soundSettings.palette}
+                        onChange={(event) =>
+                          handleUpdateRiffSoundSettings({
+                            palette: event.target.value as RiffCycleSoundSettings['palette'],
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                      >
+                        <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
+                        <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
+                        <option value="muted-djent" style={{ background: '#181820' }}>Muted Djent</option>
+                        <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
+                        <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
+                        <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
+                      </select>
+                      <select
+                        value={riffCycleStudy.soundSettings.register}
+                        onChange={(event) =>
+                          handleUpdateRiffSoundSettings({
+                            register: event.target.value as RiffCycleSoundSettings['register'],
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                      >
+                        <option value="low" style={{ background: '#181820' }}>Low</option>
+                        <option value="mid-low" style={{ background: '#181820' }}>Mid-Low</option>
+                        <option value="wide" style={{ background: '#181820' }}>Wide</option>
+                      </select>
+                    </div>
+
+                    {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
+                      <div className="grid grid-cols-[82px,1fr] gap-2">
+                        <select
+                          value={riffCycleStudy.soundSettings.rootNote}
+                          onChange={(event) =>
+                            handleUpdateRiffSoundSettings({
+                              rootNote: event.target.value as RiffCycleSoundSettings['rootNote'],
+                            })
+                          }
+                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                        >
+                          {NOTE_NAMES.map((note) => (
+                            <option key={note} value={note} style={{ background: '#181820' }}>
+                              {note}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={riffCycleStudy.soundSettings.scaleName}
+                          onChange={(event) =>
+                            handleUpdateRiffSoundSettings({
+                              scaleName: event.target.value as RiffCycleSoundSettings['scaleName'],
+                            })
+                          }
+                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                        >
+                          {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                            <option key={name} value={name} style={{ background: '#181820' }}>
+                              {scale.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">View</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          highlighted={riffCycleStudy.viewMode === 'unwrapped'}
+                          onClick={() => setRiffCycleStudy((current) => ({ ...current, viewMode: 'unwrapped' }))}
+                        >
+                          Lane
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          highlighted={riffCycleStudy.viewMode === 'circular'}
+                          onClick={() => setRiffCycleStudy((current) => ({ ...current, viewMode: 'circular' }))}
+                        >
+                          Circle
+                        </StudyShellButton>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="amber"
+                          highlighted={riffCycleStudy.emphasisMode === 'groove'}
+                          onClick={handleToggleRiffEmphasisMode}
+                        >
+                          Fill
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="amber"
+                          highlighted={Boolean(riffCycleStudy.showStepLabels)}
+                          onClick={handleToggleRiffStepLabels}
+                        >
+                          Labels
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="green"
+                          highlighted={Boolean(riffCycleStudy.showPhraseRing)}
+                          onClick={handleToggleRiffPhraseBody}
+                        >
+                          Shape
+                        </StudyShellButton>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                data-guide="riff-mobile-scenes"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    riffMobileSection === 'scenes'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    riffMobileSection === 'scenes'
+                      ? 'rgba(51,136,255,0.18)'
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  style={{
+                    background:
+                      riffMobileSection === 'scenes'
+                        ? 'linear-gradient(180deg, rgba(51,136,255,0.09), rgba(255,255,255,0))'
+                        : 'transparent',
+                    boxShadow:
+                      riffMobileSection === 'scenes'
+                        ? 'inset 0 1px 0 rgba(51,136,255,0.08)'
+                        : 'none',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setRiffMobileSection((current) => (current === 'scenes' ? null : 'scenes'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div
+                      className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                      style={{ color: riffMobileSection === 'scenes' ? '#88CCFF' : 'rgba(255,255,255,0.5)' }}
+                    >
+                      Scenes
+                    </div>
+                    <div
+                      className="mt-1 text-[12px]"
+                      style={{
+                        color:
+                          riffMobileSection === 'scenes'
+                            ? 'rgba(255,255,255,0.62)'
+                            : 'rgba(255,255,255,0.42)',
+                      }}
+                    >
+                      {activeRiffPreset?.name ?? 'Custom Study'}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRandomRiffCycleStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
+                    >
+                      Random
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRemixRiffCycleStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
+                    >
+                      Remix
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRandomPlusRiffCycleStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                    >
+                      Random+
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiffMobileSection((current) => (current === 'scenes' ? null : 'scenes'))}
+                      className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                      style={{
+                        ...mobileChevronButtonBaseStyle,
+                        background: riffMobileSection === 'scenes' ? 'rgba(51,136,255,0.12)' : mobileChevronButtonBaseStyle.background,
+                        border: riffMobileSection === 'scenes' ? '1px solid rgba(51,136,255,0.22)' : mobileChevronButtonBaseStyle.border,
+                        color: riffMobileSection === 'scenes' ? '#88CCFF' : mobileChevronButtonBaseStyle.color,
+                      }}
+                      aria-label={riffMobileSection === 'scenes' ? 'Collapse scenes' : 'Expand scenes'}
+                    >
+                      {riffMobileSection === 'scenes' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {riffMobileSection === 'scenes' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                      <div className="flex gap-3 px-1 snap-x snap-mandatory">
+                        {RIFF_CYCLE_PRESETS.map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleLoadRiffCyclePreset(preset.id)}
+                            className="min-w-[220px] max-w-[220px] snap-start rounded-2xl border p-3 text-left"
+                            style={{
+                              background:
+                                activeRiffCyclePresetId === preset.id
+                                  ? `${preset.study.riff.color}10`
+                                  : 'rgba(255,255,255,0.04)',
+                              borderColor:
+                                activeRiffCyclePresetId === preset.id
+                                  ? `${preset.study.riff.color}34`
+                                  : 'rgba(255,255,255,0.09)',
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <RiffSceneThumbnail preset={preset} />
+                              <div className="min-w-0 space-y-1">
+                                <div className="text-[12px] font-mono uppercase tracking-[0.16em] text-white/86">
+                                  {preset.name}
+                                </div>
+                                <div className="text-[11px] leading-relaxed text-white/42">
+                                  {preset.description}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton
+                        tone="amber"
+                        highlighted
+                        onClick={() => handleExportRiffCyclePng({ aspect: 'square', scale: 2 })}
+                        className="w-full"
+                      >
+                        Export PNG
+                      </StudyShellButton>
+                      <StudyShellButton
+                        tone="neutral"
+                        highlighted
+                        onClick={handleExportRiffCycleScene}
+                        className="w-full"
+                      >
+                        Export Scene
+                      </StudyShellButton>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {riffMobileEditorOpen ? (
+                <div className="fixed inset-0 z-30 bg-[#111116]/98 backdrop-blur-sm">
+                  <div className="flex h-full flex-col px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/46">
+                          Editor
+                        </div>
+                        <div className="mt-1 text-[13px] text-white/62">
+                          {riffMobileEditSummary}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRiffMobileEditorOpen(false)}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/72"
+                        style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }}
+                      >
+                        Done
+                      </button>
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+                      <button
+                        type="button"
+                        onClick={() => setRiffMobileEditTab('bar')}
+                        className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: riffMobileEditTab === 'bar' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                          border: `1px solid ${riffMobileEditTab === 'bar' ? 'rgba(255,255,255,0.18)' : 'transparent'}`,
+                          color: riffMobileEditTab === 'bar' ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.48)',
+                        }}
+                      >
+                        Layer 1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSetRiffEditMode('phrase');
+                          setRiffMobileEditTab('phrase');
+                        }}
+                        className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: riffMobileEditTab === 'phrase' ? `${riffCycleStudy.riff.color}14` : 'transparent',
+                          border: `1px solid ${riffMobileEditTab === 'phrase' ? `${riffCycleStudy.riff.color}42` : 'transparent'}`,
+                          color: riffMobileEditTab === 'phrase' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.48)',
+                        }}
+                      >
+                        Layer 2
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSetRiffEditMode('landing');
+                          setRiffMobileEditTab('return');
+                        }}
+                        className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: riffMobileEditTab === 'return' ? 'rgba(127,215,255,0.14)' : 'transparent',
+                          border: `1px solid ${riffMobileEditTab === 'return' ? 'rgba(127,215,255,0.32)' : 'transparent'}`,
+                          color: riffMobileEditTab === 'return' ? '#7FD7FF' : 'rgba(255,255,255,0.48)',
+                        }}
+                      >
+                        Ending
+                      </button>
+                    </div>
+
+                    <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                      {riffMobileEditTab === 'bar' ? (
+                        <div className="space-y-4 pb-6">
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Meter</div>
+                            <div className="flex items-center gap-2">
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleUpdateRiffReference({
+                                    numerator: Math.max(2, riffCycleStudy.reference.numerator - 1),
+                                  })
+                                }
+                              >
+                                <Minus size={14} />
+                              </StudyShellButton>
+                              <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                                {riffCycleStudy.reference.numerator}/{riffCycleStudy.reference.denominator}
+                              </div>
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleUpdateRiffReference({
+                                    numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                                  })
+                                }
+                              >
+                                <Plus size={14} />
+                              </StudyShellButton>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Bars</div>
+                            <div className="flex items-center gap-2">
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleUpdateRiffReference({
+                                    barCountForDisplay: Math.max(1, riffCycleStudy.reference.barCountForDisplay - 1),
+                                  })
+                                }
+                              >
+                                <Minus size={14} />
+                              </StudyShellButton>
+                              <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                                {riffCycleStudy.reference.barCountForDisplay}
+                              </div>
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleUpdateRiffReference({
+                                    barCountForDisplay: Math.min(8, riffCycleStudy.reference.barCountForDisplay + 1),
+                                  })
+                                }
+                              >
+                                <Plus size={14} />
+                              </StudyShellButton>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Grid</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[4, 8].map((value) => (
+                                <StudyShellButton
+                                  key={value}
+                                  size="compact"
+                                  highlighted={riffCycleStudy.reference.denominator === value}
+                                  onClick={() =>
+                                    handleUpdateRiffReference({
+                                      denominator: value as ReferenceMeter['denominator'],
+                                    })
+                                  }
+                                >
+                                  /{value}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-5 gap-2">
+                              {[8, 12, 16, 20, 32].map((value) => (
+                                <StudyShellButton
+                                  key={value}
+                                  size="compact"
+                                  highlighted={riffCycleStudy.reference.subdivision === value}
+                                  onClick={() =>
+                                    handleUpdateRiffReference({
+                                      subdivision: value as ReferenceMeter['subdivision'],
+                                    })
+                                  }
+                                >
+                                  {value}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Backbeat</div>
+                            <div className="grid grid-cols-4 gap-2">
+                              <StudyShellButton
+                                size="compact"
+                                tone="pink"
+                                highlighted={!riffCycleStudy.reference.showBackbeat}
+                                onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                              >
+                                Off
+                              </StudyShellButton>
+                              {Array.from(
+                                { length: Math.max(0, Math.min(6, riffCycleStudy.reference.numerator)) },
+                                (_, index) => index + 1,
+                              ).map((beat) => (
+                                <StudyShellButton
+                                  key={beat}
+                                  size="compact"
+                                  tone="pink"
+                                  highlighted={
+                                    riffCycleStudy.reference.showBackbeat &&
+                                    riffCycleStudy.reference.backbeatBeat === beat
+                                  }
+                                  onClick={() =>
+                                    handleUpdateRiffReference({
+                                      showBackbeat: true,
+                                      backbeatBeat: beat,
+                                    })
+                                  }
+                                >
+                                  {beat}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {riffMobileEditTab === 'phrase' ? (
+                        <div className="space-y-4 pb-6">
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Phrase Length</div>
+                            <div className="flex items-center gap-2">
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleSetRiffPhraseStepCount(Math.max(3, riffCycleStudy.riff.stepCount - 1))
+                                }
+                              >
+                                <Minus size={14} />
+                              </StudyShellButton>
+                              <div
+                                className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center text-[14px] font-light"
+                                style={{
+                                  background: `${riffCycleStudy.riff.color}12`,
+                                  borderColor: `${riffCycleStudy.riff.color}30`,
+                                  color: riffCycleStudy.riff.color,
+                                }}
+                              >
+                                {riffCycleStudy.riff.stepCount} steps
+                              </div>
+                              <StudyShellButton
+                                size="square"
+                                onClick={() =>
+                                  handleSetRiffPhraseStepCount(Math.min(64, riffCycleStudy.riff.stepCount + 1))
+                                }
+                              >
+                                <Plus size={14} />
+                              </StudyShellButton>
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Quick Sizes</div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[9, 11, 13, 17].map((value) => (
+                                <StudyShellButton
+                                  key={value}
+                                  size="compact"
+                                  highlighted={riffCycleStudy.riff.stepCount === value}
+                                  onClick={() => handleSetRiffPhraseStepCount(value)}
+                                >
+                                  {value}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                          </div>
+                          <RiffCycleMobileEditor
+                            study={riffCycleStudy}
+                            mode="phrase"
+                            selectedStep={selectedRiffCycleStep}
+                            onSelectStep={handleSelectRiffCycleStep}
+                            onSetStepActive={handleSetRiffCycleStepActive}
+                            onToggleAccent={handleToggleRiffCycleAccent}
+                            onSetLandingStepActive={handleSetRiffLandingStepActive}
+                            onToggleLandingAccent={handleToggleRiffLandingAccent}
+                          />
+                          <StudyShellButton
+                            size="compact"
+                            tone="red"
+                            highlighted={riffCycleStudy.riff.activeSteps.some(Boolean)}
+                            icon={<Trash2 size={13} />}
+                            onClick={handleClearRiffCycle}
+                            className="w-full"
+                          >
+                            Clear Phrase
+                          </StudyShellButton>
+                        </div>
+                      ) : null}
+
+                      {riffMobileEditTab === 'return' ? (
+                        <div className="space-y-4 pb-6">
+                          <div className="space-y-1.5">
+                            <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Return</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { value: 'free', label: 'Free' },
+                                { value: 'per-bar', label: '1 Bar' },
+                                { value: 'every-2-bars', label: '2 Bars' },
+                                { value: 'every-4-bars', label: '4 Bars' },
+                              ].map((option) => (
+                                <StudyShellButton
+                                  key={option.value}
+                                  size="compact"
+                                  tone="amber"
+                                  highlighted={riffCycleStudy.riff.resetMode === option.value}
+                                  onClick={() =>
+                                    handleUpdateRiffPhrase({
+                                      resetMode: option.value as RiffPhrase['resetMode'],
+                                    })
+                                  }
+                                >
+                                  {option.label}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                          </div>
+                          <RiffCycleMobileEditor
+                            study={riffCycleStudy}
+                            mode="landing"
+                            selectedStep={selectedRiffCycleStep}
+                            onSelectStep={handleSelectRiffCycleStep}
+                            onSetStepActive={handleSetRiffCycleStepActive}
+                            onToggleAccent={handleToggleRiffCycleAccent}
+                            onSetLandingStepActive={handleSetRiffLandingStepActive}
+                            onToggleLandingAccent={handleToggleRiffLandingAccent}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <StudyShellButton
+                              size="compact"
+                              tone="blue"
+                              highlighted={riffCycleStudy.landingOverrides.some((value) => value !== 'inherit')}
+                              onClick={() => handleMuteLastLandingSteps(1)}
+                            >
+                              Mute Last
+                            </StudyShellButton>
+                            <StudyShellButton
+                              size="compact"
+                              tone="amber"
+                              highlighted={riffCycleStudy.landingOverrides.some((value) => value === 'accent')}
+                              onClick={() => handleAccentLastLandingSteps(1)}
+                            >
+                              Accent Last
+                            </StudyShellButton>
+                          </div>
+                          <StudyShellButton
+                            size="compact"
+                            tone="blue"
+                            highlighted={riffCycleStudy.landingOverrides.some((value) => value !== 'inherit')}
+                            icon={<RotateCcw size={13} />}
+                            onClick={handleClearRiffLanding}
+                            className="w-full"
+                          >
+                            Clear Ending
+                          </StudyShellButton>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                ) : null}
+            </div>
+          </div>
+
+          {appSurfaceToggle}
+
+          {helpOpen && currentGuideStep ? (
+            <>
+              <div
+                className="fixed inset-0 z-30 bg-black/42"
+                onClick={closeStartGuide}
+              />
+              {guideRect ? (
+                <div
+                  className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
+                  style={{
+                    left: Math.max(8, guideRect.left - 8),
+                    top: Math.max(8, guideRect.top - 8),
+                    width: guideRect.width + 16,
+                    height: guideRect.height + 16,
+                    borderColor: 'rgba(0,255,170,0.42)',
+                    boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
+                  }}
+                />
+              ) : null}
+              <div
+                ref={guideCalloutRef}
+                className="fixed z-40 left-3 right-3 rounded-2xl border p-4"
+                style={guideCalloutStyle}
+              >
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
+                  {helpStepIndex === 0 ? 'Start Guide' : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
+                </div>
+                <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {currentGuideStep.title}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                  {currentGuideStep.text}
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <button
+                    onClick={closeStartGuide}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    Done
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
+                      disabled={helpStepIndex === 0}
+                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{
+                        color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (helpStepIndex >= guideSteps.length - 1) {
+                          closeStartGuide();
+                          return;
+                        }
+                        setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+                      }}
+                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
+                    >
+                      {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          <RiffCycleSidebar
+            isOpen={sidebarOpen}
+            study={riffCycleStudy}
+            activePresetId={activeRiffCyclePresetId}
+            selectedStep={selectedRiffCycleStep}
+            onClose={() => setSidebarOpen(false)}
+            onLoadPreset={handleLoadRiffCyclePreset}
+            onResetStudy={handleResetRiffCycleStudy}
+            onToggleSound={handleToggleRiffCycleSound}
+            onToggleReferenceSound={handleToggleRiffReferenceSound}
+            onToggleBackbeatSound={handleToggleRiffBackbeatSound}
+            onUpdateSoundSettings={handleUpdateRiffSoundSettings}
+            onUpdateReference={handleUpdateRiffReference}
+            onUpdateRiff={handleUpdateRiffPhrase}
+            onSetRiffStepCount={handleSetRiffPhraseStepCount}
+            onToggleStep={handleToggleRiffCycleStep}
+            onToggleAccent={handleToggleRiffCycleAccent}
+            onSelectStep={handleSelectRiffCycleStep}
+            onRotateRiff={handleRotateRiffCycle}
+            onInvertRiff={handleInvertRiffCycle}
+            onClearRiff={handleClearRiffCycle}
+            onToggleViewMode={handleToggleRiffViewMode}
+            onToggleAlignmentMarkers={handleToggleRiffAlignmentMarkers}
+            onToggleStepLabels={handleToggleRiffStepLabels}
+            onTogglePhraseBody={handleToggleRiffPhraseBody}
+            onToggleEmphasisMode={handleToggleRiffEmphasisMode}
+            onSetEditMode={handleSetRiffEditMode}
+            onSetSoundFocus={handleSetRiffSoundFocus}
+            onToggleLandingEdit={handleToggleRiffLandingEdit}
+            onSetLandingLength={handleSetRiffLandingLength}
+            onClearLanding={handleClearRiffLanding}
+            onMuteLastLandingHit={() => handleMuteLastLandingSteps(1)}
+            onMuteLastTwoLandingHits={() => handleMuteLastLandingSteps(2)}
+            onAccentLastLandingHit={() => handleAccentLastLandingSteps(1)}
+            onAccentLastTwoLandingHits={() => handleAccentLastLandingSteps(2)}
+            onExportPng={handleExportRiffCyclePng}
+            onExportScene={handleExportRiffCycleScene}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         className={
@@ -5263,48 +6646,21 @@ function OrbitalPolymeter() {
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/92 to-transparent" />
         {!presentationMode ? appSurfaceToggle : null}
         {!presentationMode ? (
-        <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[20.5rem]'}`}>
-          <StudyShellPanel className="space-y-2.5">
-            <div className="grid grid-cols-2 gap-2">
-              <StudyShellButton
-                size="compact"
-                highlighted={riffEditMode === 'phrase'}
-                tone="green"
-                onClick={() => {
-                  handleSetRiffEditMode('phrase');
-                  setRiffQuickPanel('phrase');
-                }}
-                style={
-                  riffEditMode === 'phrase'
-                    ? {
-                        background: `${riffCycleStudy.riff.color}16`,
-                        borderColor: `${riffCycleStudy.riff.color}36`,
-                        color: riffCycleStudy.riff.color,
-                        boxShadow: `0 0 0 1px ${riffCycleStudy.riff.color}1f inset`,
-                      }
-                    : undefined
-                }
-              >
-                Phrase
-              </StudyShellButton>
-              <StudyShellButton
-                size="compact"
-                highlighted={riffEditMode === 'landing'}
-                tone="blue"
-                onClick={() => {
-                  handleSetRiffEditMode('landing');
-                  setRiffQuickPanel('return');
-                }}
-              >
-                Return
-              </StudyShellButton>
+        <div
+          data-guide={isMobile ? 'riff-mobile-quick' : 'riff-desktop-quick'}
+          className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[16.75rem]'}`}
+        >
+          <StudyShellPanel className="space-y-2">
+            <div className="px-0.5">
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                Quick Edit
+              </div>
             </div>
-
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setRiffQuickPanel((current) => (current === 'bar' ? null : 'bar'))}
-                className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-all"
+                className="flex items-center justify-center rounded-xl border px-3 py-2.5 text-center transition-all"
                 style={{
                   background:
                     riffQuickPanel === 'bar' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
@@ -5313,186 +6669,334 @@ function OrbitalPolymeter() {
                   color: riffQuickPanel === 'bar' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.68)',
                 }}
               >
-                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Bar</div>
-                <div className="text-[13px] font-light text-white">{riffCycleStudy.reference.numerator}/{riffCycleStudy.reference.denominator}</div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em]">Layer 1</span>
               </button>
               <button
                 type="button"
-                onClick={() => setRiffQuickPanel((current) => (current === 'phrase' ? null : 'phrase'))}
-                className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-all"
+                onClick={() => {
+                  handleSetRiffEditMode('phrase');
+                  setRiffQuickPanel((current) => (current === 'phrase' ? null : 'phrase'));
+                }}
+                className="flex items-center justify-center rounded-xl border px-3 py-2.5 text-center transition-all"
                 style={{
                   background:
-                    riffQuickPanel === 'phrase' ? `${riffCycleStudy.riff.color}12` : 'rgba(255,255,255,0.03)',
+                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
+                      ? `${riffCycleStudy.riff.color}12`
+                      : 'rgba(255,255,255,0.03)',
                   borderColor:
-                    riffQuickPanel === 'phrase' ? `${riffCycleStudy.riff.color}36` : 'rgba(255,255,255,0.08)',
-                  color: riffQuickPanel === 'phrase' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.68)',
+                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
+                      ? `${riffCycleStudy.riff.color}36`
+                      : 'rgba(255,255,255,0.08)',
+                  color:
+                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
+                      ? riffCycleStudy.riff.color
+                      : 'rgba(255,255,255,0.68)',
                 }}
               >
-                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Phrase</div>
-                <div className="text-[13px] font-light" style={{ color: riffQuickPanel === 'phrase' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.9)' }}>
-                  {riffCycleStudy.riff.stepCount}
-                </div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em]">Layer 2</span>
               </button>
               <button
                 type="button"
-                onClick={() => setRiffQuickPanel((current) => (current === 'return' ? null : 'return'))}
-                className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-all"
+                onClick={() => {
+                  handleSetRiffEditMode('landing');
+                  setRiffQuickPanel((current) => (current === 'return' ? null : 'return'));
+                }}
+                className="flex items-center justify-center rounded-xl border px-3 py-2.5 text-center transition-all"
                 style={{
                   background:
-                    riffQuickPanel === 'return' ? 'rgba(255,170,0,0.12)' : 'rgba(255,255,255,0.03)',
+                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
+                      ? 'rgba(127,215,255,0.12)'
+                      : 'rgba(255,255,255,0.03)',
                   borderColor:
-                    riffQuickPanel === 'return' ? 'rgba(255,170,0,0.22)' : 'rgba(255,255,255,0.08)',
-                  color: riffQuickPanel === 'return' ? '#FFAA00' : 'rgba(255,255,255,0.68)',
+                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
+                      ? 'rgba(127,215,255,0.24)'
+                      : 'rgba(255,255,255,0.08)',
+                  color:
+                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
+                      ? '#7FD7FF'
+                      : 'rgba(255,255,255,0.68)',
                 }}
               >
-                <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Return</div>
-                <div className="whitespace-nowrap text-[13px] font-light" style={{ color: riffQuickPanel === 'return' ? '#FFAA00' : 'rgba(255,255,255,0.9)' }}>
-                  {riffResetCompactLabel}
-                </div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.16em]">Ending</span>
               </button>
             </div>
 
             {riffQuickPanel === 'bar' ? (
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        numerator: Math.max(2, riffCycleStudy.reference.numerator - 1),
-                      })
-                    }
-                    aria-label="Decrease bar numerator"
-                  >
-                    <Minus size={14} />
-                  </StudyShellButton>
-                  <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
-                    {riffCycleStudy.reference.numerator}/{riffCycleStudy.reference.denominator}
+              <div
+                data-guide="riff-layer-1"
+                className="rounded-xl border border-white/8 bg-white/[0.03] p-2 space-y-2"
+              >
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Meter
                   </div>
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
-                      })
-                    }
-                    aria-label="Increase bar numerator"
-                  >
-                    <Plus size={14} />
-                  </StudyShellButton>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[4, 8].map((value) => (
+                  <div className="flex items-center gap-2">
                     <StudyShellButton
-                      key={value}
+                      size="square"
+                      onClick={() =>
+                        handleUpdateRiffReference({
+                          numerator: Math.max(2, riffCycleStudy.reference.numerator - 1),
+                        })
+                      }
+                      aria-label="Decrease bar numerator"
+                    >
+                      <Minus size={14} />
+                    </StudyShellButton>
+                    <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                      {riffCycleStudy.reference.numerator}/{riffCycleStudy.reference.denominator}
+                    </div>
+                    <StudyShellButton
+                      size="square"
+                      onClick={() =>
+                        handleUpdateRiffReference({
+                          numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                        })
+                      }
+                      aria-label="Increase bar numerator"
+                    >
+                      <Plus size={14} />
+                    </StudyShellButton>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Bars
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StudyShellButton
+                      size="square"
+                      onClick={() =>
+                        handleUpdateRiffReference({
+                          barCountForDisplay: Math.max(1, riffCycleStudy.reference.barCountForDisplay - 1),
+                        })
+                      }
+                      aria-label="Show fewer bars"
+                    >
+                      <Minus size={14} />
+                    </StudyShellButton>
+                    <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                      {riffCycleStudy.reference.barCountForDisplay}
+                    </div>
+                    <StudyShellButton
+                      size="square"
+                      onClick={() =>
+                        handleUpdateRiffReference({
+                          barCountForDisplay: Math.min(8, riffCycleStudy.reference.barCountForDisplay + 1),
+                        })
+                      }
+                      aria-label="Show more bars"
+                    >
+                      <Plus size={14} />
+                    </StudyShellButton>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Grid
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[4, 8].map((value) => (
+                      <StudyShellButton
+                        key={value}
+                        size="compact"
+                        highlighted={riffCycleStudy.reference.denominator === value}
+                        onClick={() => {
+                          handleUpdateRiffReference({
+                            denominator: value as ReferenceMeter['denominator'],
+                          });
+                          setRiffQuickPanel(null);
+                        }}
+                      >
+                        /{value}
+                      </StudyShellButton>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[8, 12, 16, 20, 32].map((value) => (
+                      <StudyShellButton
+                        key={value}
+                        size="compact"
+                        highlighted={riffCycleStudy.reference.subdivision === value}
+                        onClick={() => {
+                          handleUpdateRiffReference({
+                            subdivision: value as ReferenceMeter['subdivision'],
+                          });
+                          setRiffQuickPanel(null);
+                        }}
+                      >
+                        {value}
+                      </StudyShellButton>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Bar Marker
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <StudyShellButton
                       size="compact"
-                      highlighted={riffCycleStudy.reference.denominator === value}
+                      tone="pink"
+                      highlighted={!riffCycleStudy.reference.showBackbeat}
                       onClick={() => {
                         handleUpdateRiffReference({
-                          denominator: value as ReferenceMeter['denominator'],
+                          showBackbeat: false,
                         });
                         setRiffQuickPanel(null);
                       }}
                     >
-                      /{value}
+                      Off
                     </StudyShellButton>
-                  ))}
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[8, 12, 16, 32].map((value) => (
-                    <StudyShellButton
-                      key={value}
-                      size="compact"
-                      highlighted={riffCycleStudy.reference.subdivision === value}
-                      onClick={() => {
-                        handleUpdateRiffReference({
-                          subdivision: value as ReferenceMeter['subdivision'],
-                        });
-                        setRiffQuickPanel(null);
-                      }}
-                    >
-                      {value}
-                    </StudyShellButton>
-                  ))}
+                    {Array.from(
+                      { length: Math.max(0, Math.min(6, riffCycleStudy.reference.numerator)) },
+                      (_, index) => index + 1,
+                    ).map((beat) => (
+                      <StudyShellButton
+                        key={beat}
+                        size="compact"
+                        tone="pink"
+                        highlighted={
+                          riffCycleStudy.reference.showBackbeat &&
+                          riffCycleStudy.reference.backbeatBeat === beat
+                        }
+                        onClick={() => {
+                          handleUpdateRiffReference({
+                            showBackbeat: true,
+                            backbeatBeat: beat,
+                          });
+                          setRiffQuickPanel(null);
+                        }}
+                      >
+                        {beat}
+                      </StudyShellButton>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : null}
 
             {riffQuickPanel === 'phrase' ? (
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleSetRiffPhraseStepCount(Math.max(3, riffCycleStudy.riff.stepCount - 1))
-                    }
-                    aria-label="Shorten phrase"
-                  >
-                    <Minus size={14} />
-                  </StudyShellButton>
-                  <div
-                    className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center text-[14px] font-light"
-                    style={{
-                      background: `${riffCycleStudy.riff.color}12`,
-                      borderColor: `${riffCycleStudy.riff.color}30`,
-                      color: riffCycleStudy.riff.color,
-                    }}
-                  >
-                    {riffCycleStudy.riff.stepCount}
+              <div
+                data-guide="riff-layer-2"
+                className="rounded-xl border border-white/8 bg-white/[0.03] p-2 space-y-2"
+              >
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Phrase Length
                   </div>
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleSetRiffPhraseStepCount(Math.min(64, riffCycleStudy.riff.stepCount + 1))
-                    }
-                    aria-label="Lengthen phrase"
-                  >
-                    <Plus size={14} />
-                  </StudyShellButton>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[9, 11, 13, 17].map((value) => (
+                  <div className="flex items-center gap-2">
                     <StudyShellButton
-                      key={value}
-                      size="compact"
-                      highlighted={riffCycleStudy.riff.stepCount === value}
-                      onClick={() => {
-                        handleSetRiffPhraseStepCount(value);
-                        setRiffQuickPanel(null);
+                      size="square"
+                      onClick={() =>
+                        handleSetRiffPhraseStepCount(Math.max(3, riffCycleStudy.riff.stepCount - 1))
+                      }
+                      aria-label="Shorten phrase"
+                    >
+                      <Minus size={14} />
+                    </StudyShellButton>
+                    <div
+                      className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center text-[14px] font-light"
+                      style={{
+                        background: `${riffCycleStudy.riff.color}12`,
+                        borderColor: `${riffCycleStudy.riff.color}30`,
+                        color: riffCycleStudy.riff.color,
                       }}
                     >
-                      {value}
+                      {riffCycleStudy.riff.stepCount} steps
+                    </div>
+                    <StudyShellButton
+                      size="square"
+                      onClick={() =>
+                        handleSetRiffPhraseStepCount(Math.min(64, riffCycleStudy.riff.stepCount + 1))
+                      }
+                      aria-label="Lengthen phrase"
+                    >
+                      <Plus size={14} />
                     </StudyShellButton>
-                  ))}
+                  </div>
                 </div>
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Quick Sizes
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[9, 11, 13, 17].map((value) => (
+                      <StudyShellButton
+                        key={value}
+                        size="compact"
+                        highlighted={riffCycleStudy.riff.stepCount === value}
+                        onClick={() => {
+                          handleSetRiffPhraseStepCount(value);
+                          setRiffQuickPanel(null);
+                        }}
+                      >
+                        {value}
+                      </StudyShellButton>
+                    ))}
+                  </div>
+                </div>
+                <StudyShellButton
+                  size="compact"
+                  tone="red"
+                  highlighted={riffCycleStudy.riff.activeSteps.some(Boolean)}
+                  icon={<Trash2 size={13} />}
+                  onClick={() => {
+                    handleClearRiffCycle();
+                    setRiffQuickPanel(null);
+                  }}
+                  className="w-full"
+                >
+                  Clear Phrase
+                </StudyShellButton>
               </div>
             ) : null}
 
             {riffQuickPanel === 'return' ? (
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { value: 'free', label: 'Free' },
-                    { value: 'per-bar', label: '1' },
-                    { value: 'every-2-bars', label: '2' },
-                    { value: 'every-4-bars', label: '4' },
-                  ].map((option) => (
-                    <StudyShellButton
-                      key={option.value}
-                      size="compact"
-                      tone="amber"
-                      highlighted={riffCycleStudy.riff.resetMode === option.value}
-                      onClick={() => {
-                        handleUpdateRiffPhrase({
-                          resetMode: option.value as RiffPhrase['resetMode'],
-                        });
-                        setRiffQuickPanel(null);
-                      }}
-                    >
-                      {option.label}
-                    </StudyShellButton>
-                  ))}
+              <div
+                data-guide="riff-ending"
+                className="rounded-xl border border-white/8 bg-white/[0.03] p-2 space-y-2"
+              >
+                <div className="space-y-1">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Return
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { value: 'free', label: 'Free' },
+                      { value: 'per-bar', label: '1 Bar' },
+                      { value: 'every-2-bars', label: '2 Bars' },
+                      { value: 'every-4-bars', label: '4 Bars' },
+                    ].map((option) => (
+                      <StudyShellButton
+                        key={option.value}
+                        size="compact"
+                        tone="amber"
+                        highlighted={riffCycleStudy.riff.resetMode === option.value}
+                        onClick={() => {
+                          handleUpdateRiffPhrase({
+                            resetMode: option.value as RiffPhrase['resetMode'],
+                          });
+                          setRiffQuickPanel(null);
+                        }}
+                      >
+                        {option.label}
+                      </StudyShellButton>
+                    ))}
+                  </div>
                 </div>
+                <StudyShellButton
+                  size="compact"
+                  tone="blue"
+                  highlighted={riffCycleStudy.landingOverrides.some((value) => value !== 'inherit')}
+                  icon={<RotateCcw size={13} />}
+                  onClick={() => {
+                    handleClearRiffLanding();
+                    setRiffQuickPanel(null);
+                  }}
+                  className="w-full"
+                >
+                  Clear Ending
+                </StudyShellButton>
               </div>
             ) : null}
           </StudyShellPanel>
@@ -5500,128 +7004,265 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!isMobile && !presentationMode ? (
-          <div className="fixed right-6 top-20 z-20 w-[18.5rem]">
-            <StudyShellPanel className="space-y-2.5">
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    Hear
+          <div className="fixed right-6 top-20 z-20 w-[18rem]">
+            <StudyShellPanel className="space-y-3">
+              <div data-guide="riff-desktop-audio" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setRiffUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                >
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Audio
+                    </div>
+                    <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">
+                      {riffAudioSummary}
+                    </div>
                   </div>
-                  <StudyShellChip tone="blue" highlighted className="px-2.5 py-0.5">
-                    {riffSoundFocus === 'bar' ? 'Bar' : riffSoundFocus === 'riff' ? 'Riff' : 'Full'}
-                  </StudyShellChip>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { id: 'bar', label: 'Bar', tone: 'pink' },
-                    { id: 'riff', label: 'Riff', tone: 'blue' },
-                    { id: 'full', label: 'Full', tone: 'green' },
-                  ] as const).map((focus) => (
-                    <StudyShellButton
-                      key={focus.id}
-                      size="compact"
-                      tone={focus.tone}
-                      highlighted={riffSoundFocus === focus.id}
-                      onClick={() => handleSetRiffSoundFocus(focus.id)}
-                    >
-                      {focus.label}
-                    </StudyShellButton>
-                  ))}
-                </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {riffUtilityPanel === 'audio' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {riffUtilityPanel === 'audio' ? (
+                  <div className="border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { id: 'bar', label: 'L1', tone: 'pink' },
+                        { id: 'riff', label: 'L2', tone: 'blue' },
+                        { id: 'full', label: 'Both', tone: 'green' },
+                      ] as const).map((focus) => (
+                        <StudyShellButton
+                          key={focus.id}
+                          size="compact"
+                          tone={focus.tone}
+                          highlighted={riffSoundFocus === focus.id}
+                          onClick={() => handleSetRiffSoundFocus(focus.id)}
+                        >
+                          {focus.label}
+                        </StudyShellButton>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    Backbeat
+              <div data-guide="riff-desktop-sound" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setRiffUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                >
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Sound
+                    </div>
+                    <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">
+                      {riffSoundSummary}
+                    </div>
                   </div>
-                  <StudyShellChip tone="pink" highlighted={Boolean(riffCycleStudy.reference.showBackbeat)} className="px-2.5 py-0.5">
-                    {riffCycleStudy.reference.showBackbeat
-                      ? `Beat ${riffCycleStudy.reference.backbeatBeat ?? 3}`
-                      : 'Off'}
-                  </StudyShellChip>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <StudyShellButton
-                    size="compact"
-                    tone="pink"
-                    highlighted={!riffCycleStudy.reference.showBackbeat}
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        showBackbeat: false,
-                      })
-                    }
-                  >
-                    Off
-                  </StudyShellButton>
-                  {Array.from(
-                    { length: Math.max(0, Math.min(6, riffCycleStudy.reference.numerator) - 1) },
-                    (_, index) => index + 2,
-                  ).map((beat) => (
-                    <StudyShellButton
-                      key={beat}
-                      size="compact"
-                      tone="pink"
-                      highlighted={
-                        riffCycleStudy.reference.showBackbeat &&
-                        riffCycleStudy.reference.backbeatBeat === beat
-                      }
-                      onClick={() =>
-                        handleUpdateRiffReference({
-                          showBackbeat: true,
-                          backbeatBeat: beat,
-                        })
-                      }
-                    >
-                      {beat}
-                    </StudyShellButton>
-                  ))}
-                </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {riffUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {riffUtilityPanel === 'sound' ? (
+                  <div className="border-t border-white/8 px-3 pb-3 pt-2 space-y-2">
+                    <div className="grid grid-cols-[1.15fr,0.85fr] gap-2">
+                      <div className="space-y-1">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                          Palette
+                        </div>
+                        <select
+                          value={riffCycleStudy.soundSettings.palette}
+                          onChange={(event) =>
+                            handleUpdateRiffSoundSettings({
+                              palette: event.target.value as RiffCycleSoundSettings['palette'],
+                            })
+                          }
+                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                        >
+                          <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
+                          <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
+                          <option value="muted-djent" style={{ background: '#181820' }}>Muted Djent</option>
+                          <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
+                          <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
+                          <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                          Pitch
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <StudyShellButton
+                            size="compact"
+                            tone="neutral"
+                            highlighted={riffCycleStudy.soundSettings.pitchMode === 'free'}
+                            onClick={() =>
+                              handleUpdateRiffSoundSettings({
+                                pitchMode: 'free',
+                              })
+                            }
+                          >
+                            Original
+                          </StudyShellButton>
+                          <StudyShellButton
+                            size="compact"
+                            tone="green"
+                            highlighted={riffCycleStudy.soundSettings.pitchMode === 'keyed'}
+                            onClick={() =>
+                              handleUpdateRiffSoundSettings({
+                                pitchMode: 'keyed',
+                              })
+                            }
+                          >
+                            Keyed
+                          </StudyShellButton>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                        Register
+                      </div>
+                      <select
+                        value={riffCycleStudy.soundSettings.register}
+                        onChange={(event) =>
+                          handleUpdateRiffSoundSettings({
+                            register: event.target.value as RiffCycleSoundSettings['register'],
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                      >
+                        <option value="low" style={{ background: '#181820' }}>Low</option>
+                        <option value="mid-low" style={{ background: '#181820' }}>Mid-Low</option>
+                        <option value="wide" style={{ background: '#181820' }}>Wide</option>
+                      </select>
+                    </div>
+                    {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
+                      <div className="grid grid-cols-[72px,1fr] gap-2">
+                        <div className="space-y-1">
+                          <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                            Key
+                          </div>
+                          <select
+                            value={riffCycleStudy.soundSettings.rootNote}
+                            onChange={(event) =>
+                              handleUpdateRiffSoundSettings({
+                                rootNote: event.target.value as RiffCycleSoundSettings['rootNote'],
+                              })
+                            }
+                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                          >
+                            {NOTE_NAMES.map((note) => (
+                              <option key={note} value={note} style={{ background: '#181820' }}>
+                                {note}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                            Scale
+                          </div>
+                          <select
+                            value={riffCycleStudy.soundSettings.scaleName}
+                            onChange={(event) =>
+                              handleUpdateRiffSoundSettings({
+                                scaleName: event.target.value as RiffCycleSoundSettings['scaleName'],
+                              })
+                            }
+                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                          >
+                            {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                              <option key={name} value={name} style={{ background: '#181820' }}>
+                                {scale.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    View
+              <div data-guide="riff-desktop-view" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setRiffUtilityPanel((current) => (current === 'view' ? null : 'view'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                >
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      View
+                    </div>
+                    <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">
+                      {riffViewSummary}
+                    </div>
                   </div>
-                  <StudyShellChip tone="green" highlighted className="px-2.5 py-0.5">
-                    {riffCycleStudy.viewMode === 'unwrapped' ? 'Full' : 'Circle'}
-                  </StudyShellChip>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <StudyShellButton
-                    size="compact"
-                    tone="blue"
-                    highlighted={riffCycleStudy.viewMode === 'unwrapped'}
-                    onClick={handleToggleRiffViewMode}
-                  >
-                    {riffCycleStudy.viewMode === 'unwrapped' ? 'Full View' : 'Circle'}
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="amber"
-                    highlighted={riffCycleStudy.emphasisMode === 'analysis'}
-                    onClick={handleToggleRiffEmphasisMode}
-                  >
-                    {riffCycleStudy.emphasisMode === 'analysis' ? 'Analysis' : 'Groove'}
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="amber"
-                    highlighted={Boolean(riffCycleStudy.showStepLabels)}
-                    onClick={handleToggleRiffStepLabels}
-                  >
-                    Labels
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="green"
-                    highlighted={Boolean(riffCycleStudy.showPhraseRing)}
-                    onClick={handleToggleRiffPhraseBody}
-                  >
-                    Phrase shape
-                  </StudyShellButton>
-                </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {riffUtilityPanel === 'view' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {riffUtilityPanel === 'view' ? (
+                  <div className="border-t border-white/8 px-3 pb-3 pt-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        highlighted={riffCycleStudy.viewMode === 'unwrapped'}
+                        onClick={() =>
+                          setRiffCycleStudy((current) => ({
+                            ...current,
+                            viewMode: 'unwrapped',
+                          }))
+                        }
+                      >
+                        Lane
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        highlighted={riffCycleStudy.viewMode === 'circular'}
+                        onClick={() =>
+                          setRiffCycleStudy((current) => ({
+                            ...current,
+                            viewMode: 'circular',
+                          }))
+                        }
+                      >
+                        Circle
+                      </StudyShellButton>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted={riffCycleStudy.emphasisMode === 'groove'}
+                        onClick={handleToggleRiffEmphasisMode}
+                      >
+                        Fill
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted={Boolean(riffCycleStudy.showStepLabels)}
+                        onClick={handleToggleRiffStepLabels}
+                      >
+                        Labels
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="green"
+                        highlighted={Boolean(riffCycleStudy.showPhraseRing)}
+                        onClick={handleToggleRiffPhraseBody}
+                      >
+                        Shape
+                      </StudyShellButton>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </StudyShellPanel>
           </div>
@@ -5632,10 +7273,13 @@ function OrbitalPolymeter() {
             className={
               isMobile
                 ? 'space-y-3'
-                : 'grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3'
+                : 'grid grid-cols-[auto_minmax(24rem,1fr)_auto] items-center gap-3'
             }
           >
-            <div className={`flex flex-wrap items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
+            <div
+              data-guide={isMobile ? 'riff-mobile-transport' : 'riff-desktop-transport'}
+              className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}
+            >
               <StudyShellButton
                 tone={riffCycleStudy.playing ? 'red' : 'green'}
                 highlighted
@@ -5682,61 +7326,58 @@ function OrbitalPolymeter() {
               >
                 Random+
               </StudyShellButton>
-              <StudyShellButton
-                tone="red"
-                highlighted={riffCycleStudy.riff.activeSteps.some(Boolean)}
-                icon={<Trash2 size={15} />}
-                onClick={handleClearRiffCycle}
-              >
-                Clear Phrase
-              </StudyShellButton>
             </div>
 
-            <div className="flex items-center justify-center gap-3">
-              <div
-                className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        bpm: Math.max(45, riffCycleStudy.reference.bpm - 4),
-                      })
-                    }
-                    aria-label="Slow down riff study"
-                  >
-                    <Minus size={14} />
-                  </StudyShellButton>
-                  <div className="min-w-[88px] text-center">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                      Tempo
-                    </div>
-                    <div className="mt-1 text-[15px] font-light text-white">
-                      {riffCycleStudy.reference.bpm}
-                    </div>
-                  </div>
-                  <StudyShellButton
-                    size="square"
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        bpm: Math.min(220, riffCycleStudy.reference.bpm + 4),
-                      })
-                    }
-                    aria-label="Speed up riff study"
-                  >
-                    <Plus size={14} />
-                  </StudyShellButton>
+            <div
+              data-guide={isMobile ? 'riff-mobile-tempo' : 'riff-desktop-tempo'}
+              className={`rounded-2xl border border-white/8 bg-white/[0.03] ${
+                isMobile ? 'px-3 py-2.5' : 'min-w-[30rem] px-4 py-2.5'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                  Tempo
                 </div>
-              </div>
-              <div
-                className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="min-w-[64px] text-center">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                      Offset
-                    </div>
+                <input
+                  type="range"
+                  min="45"
+                  max="220"
+                  step="1"
+                  value={riffCycleStudy.reference.bpm}
+                  onChange={(event) =>
+                    handleUpdateRiffReference({
+                      bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
+                    })
+                  }
+                  onPointerDown={(event) =>
+                    handleMobileSliderPointerDown(event, 'riff-tempo', (value) =>
+                      handleUpdateRiffReference({ bpm: Math.round(value) }),
+                    )
+                  }
+                  onPointerMove={(event) =>
+                    handleMobileSliderPointerMove(event, 'riff-tempo', (value) =>
+                      handleUpdateRiffReference({ bpm: Math.round(value) }),
+                    )
+                  }
+                  onPointerUp={() => clearActiveMobileSlider('riff-tempo')}
+                  onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
+                  onBlur={() => clearActiveMobileSlider('riff-tempo')}
+                  data-dragging={activeMobileSliderId === 'riff-tempo'}
+                  className="touch-slider w-full"
+                  style={{ ['--slider-accent' as string]: '#ffffff' }}
+                  aria-label="Set riff cycle tempo"
+                />
+                <div className="min-w-[54px] shrink-0 text-right">
+                  <div className="text-[16px] font-light leading-none text-white">
+                    {riffCycleStudy.reference.bpm}
+                  </div>
+                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
+                    BPM
+                  </div>
+                </div>
+                <div className="ml-1 flex items-center gap-2 border-l border-white/8 pl-3">
+                  <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                    Offset
                   </div>
                   <StudyShellButton
                     size="square"
@@ -5761,18 +7402,6 @@ function OrbitalPolymeter() {
                 <>
                   <StudyShellButton
                     size="compact"
-                    tone="pink"
-                    highlighted={Boolean(riffCycleStudy.reference.showBackbeat)}
-                    onClick={() =>
-                      handleUpdateRiffReference({
-                        showBackbeat: !riffCycleStudy.reference.showBackbeat,
-                      })
-                    }
-                  >
-                    Backbeat
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
                     tone="amber"
                     highlighted={Boolean(riffCycleStudy.showStepLabels)}
                     onClick={handleToggleRiffStepLabels}
@@ -5786,6 +7415,7 @@ function OrbitalPolymeter() {
                 highlighted={riffCycleStudy.soundEnabled}
                 icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                 onClick={handleToggleRiffCycleSound}
+                data-guide={isMobile ? 'riff-mobile-audio' : undefined}
               >
                 {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
               </StudyShellButton>
@@ -5794,8 +7424,17 @@ function OrbitalPolymeter() {
                 highlighted={presentationMode}
                 icon={<Maximize2 size={15} />}
                 onClick={handleTogglePresentation}
+                data-guide={isMobile ? 'riff-mobile-present' : 'riff-desktop-present'}
               >
                 Present
+              </StudyShellButton>
+              <StudyShellButton
+                tone="neutral"
+                highlighted={helpOpen}
+                icon={<CircleHelp size={15} />}
+                onClick={handleToggleHelpGuide}
+              >
+                Help
               </StudyShellButton>
               <StudyShellButton
                 size="square"
@@ -5804,12 +7443,91 @@ function OrbitalPolymeter() {
                   setRiffQuickPanel(null);
                   setSidebarOpen(true);
                 }}
+                data-guide={isMobile ? 'riff-mobile-menu' : 'riff-desktop-menu'}
                 aria-label="Open riff cycle menu"
                 title="Open riff cycle menu"
               />
             </div>
           </StudyShellDock>
         </div>
+
+        {helpOpen && !presentationMode && currentGuideStep ? (
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/42"
+              onClick={closeStartGuide}
+            />
+            {guideRect ? (
+              <div
+                className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
+                style={{
+                  left: Math.max(8, guideRect.left - 8),
+                  top: Math.max(8, guideRect.top - 8),
+                  width: guideRect.width + 16,
+                  height: guideRect.height + 16,
+                  borderColor: 'rgba(0,255,170,0.42)',
+                  boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
+                }}
+              />
+            ) : null}
+            <div
+              ref={guideCalloutRef}
+              className="fixed z-40 left-3 right-3 rounded-2xl border p-4"
+              style={guideCalloutStyle}
+            >
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
+                {helpStepIndex === 0 ? 'Start Guide' : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
+              </div>
+              <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                {currentGuideStep.title}
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                {currentGuideStep.text}
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  onClick={closeStartGuide}
+                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  Done
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
+                    disabled={helpStepIndex === 0}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (helpStepIndex >= guideSteps.length - 1) {
+                        closeStartGuide();
+                        return;
+                      }
+                      setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+                    }}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
+                  >
+                    {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                  </button>
+                </div>
+              </div>
+              {helpStepIndex === guideSteps.length - 1 ? (
+                <div className="mt-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  You&apos;re ready to explore.
+                </div>
+              ) : null}
+            </div>
+          </>
+        ) : null}
 
         <RiffCycleSidebar
           isOpen={sidebarOpen && !presentationMode}
@@ -5822,6 +7540,7 @@ function OrbitalPolymeter() {
           onToggleSound={handleToggleRiffCycleSound}
           onToggleReferenceSound={handleToggleRiffReferenceSound}
           onToggleBackbeatSound={handleToggleRiffBackbeatSound}
+          onUpdateSoundSettings={handleUpdateRiffSoundSettings}
           onUpdateReference={handleUpdateRiffReference}
           onUpdateRiff={handleUpdateRiffPhrase}
           onSetRiffStepCount={handleSetRiffPhraseStepCount}

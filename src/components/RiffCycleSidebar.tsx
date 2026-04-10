@@ -5,12 +5,14 @@ import {
   X,
 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
+import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
 import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
   getReferenceStepsPerBar,
   type ReferenceMeter,
   type RiffCyclePreset,
+  type RiffCycleSoundSettings,
   type RiffCycleStudy,
   type RiffPhrase,
 } from '../lib/riffCycleStudy';
@@ -26,6 +28,7 @@ interface RiffCycleSidebarProps {
   onToggleSound: () => void;
   onToggleReferenceSound: () => void;
   onToggleBackbeatSound: () => void;
+  onUpdateSoundSettings: (updates: Partial<RiffCycleSoundSettings>) => void;
   onUpdateReference: (updates: Partial<ReferenceMeter>) => void;
   onUpdateRiff: (updates: Partial<RiffPhrase>) => void;
   onSetRiffStepCount: (stepCount: number) => void;
@@ -58,16 +61,25 @@ interface RiffCycleSidebarProps {
 
 type RiffCycleSidebarTab = 'scenes' | 'bar' | 'phrase' | 'ending' | 'sound' | 'export';
 
-const RIFF_CYCLE_SIDEBAR_TABS: Array<{
-  id: RiffCycleSidebarTab;
+const RIFF_SOUND_PALETTES: Array<{
+  id: RiffCycleSoundSettings['palette'];
   label: string;
 }> = [
-  { id: 'scenes', label: 'Scenes' },
-  { id: 'bar', label: 'Bar' },
-  { id: 'phrase', label: 'Phrase' },
-  { id: 'ending', label: 'Ending' },
-  { id: 'sound', label: 'Sound' },
-  { id: 'export', label: 'Export' },
+  { id: 'architectural', label: 'Architectural' },
+  { id: 'deep-architectural', label: 'Deep Arch' },
+  { id: 'muted-djent', label: 'Muted Djent' },
+  { id: 'dry-synth', label: 'Dry Synth' },
+  { id: 'metal-tick', label: 'Metal Tick' },
+  { id: 'low-pulse', label: 'Low Pulse' },
+];
+
+const RIFF_REGISTERS: Array<{
+  id: RiffCycleSoundSettings['register'];
+  label: string;
+}> = [
+  { id: 'low', label: 'Low' },
+  { id: 'mid-low', label: 'Mid-Low' },
+  { id: 'wide', label: 'Wide' },
 ];
 
 const TAU = Math.PI * 2;
@@ -79,15 +91,16 @@ function getPolygonPoints(sides: number, radius: number, centerX = 80, centerY =
   }).join(' ');
 }
 
-function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
+export function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
   const { study } = preset;
   const centerX = 80;
-  const centerY = 80;
-  const outerRadius = 48;
-  const innerRadius = 30;
+  const centerY = 68;
+  const outerRadius = 42;
+  const innerRadius = 27;
   const activeSteps = study.riff.activeSteps
     .map((active, index) => (active ? index : null))
     .filter((value): value is number => value != null);
+  const firstActiveStep = activeSteps[0] ?? 0;
   const activePointValues = activeSteps.map((index) => {
     const angle = -Math.PI / 2 + (index / study.riff.stepCount) * TAU;
     return {
@@ -97,6 +110,20 @@ function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
   });
   const activePolyline = activePointValues.map((point) => `${point.x},${point.y}`).join(' ');
   const gradientId = `riff-thumb-${preset.id}`;
+  const gridId = `riff-thumb-grid-${preset.id}`;
+  const referenceHandAngle = -Math.PI / 2;
+  const phraseHandAngle = -Math.PI / 2 + (firstActiveStep / study.riff.stepCount) * TAU;
+  const laneCellCount = Math.min(16, study.riff.stepCount);
+  const laneX = 18;
+  const laneY = 118;
+  const laneWidth = 124;
+  const laneGap = 3;
+  const laneCellWidth = (laneWidth - laneGap * (laneCellCount - 1)) / laneCellCount;
+  const laneIndices = Array.from({ length: laneCellCount }, (_, index) =>
+    Math.min(study.riff.stepCount - 1, Math.floor((index / laneCellCount) * study.riff.stepCount)),
+  );
+  const landingCellCount =
+    study.riff.resetMode === 'free' ? 0 : Math.min(laneCellCount, Math.max(2, Math.round((study.landingLength / study.riff.stepCount) * laneCellCount)));
 
   return (
     <svg viewBox="0 0 160 160" className="h-24 w-24 rounded-lg border border-white/10 bg-[#14141b]/80">
@@ -105,21 +132,28 @@ function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
           <stop offset="0%" stopColor={`${study.riff.color}55`} />
           <stop offset="100%" stopColor="#111116" />
         </radialGradient>
+        <pattern id={gridId} width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="1" />
+        </pattern>
       </defs>
       <rect x="0" y="0" width="160" height="160" rx="18" fill={`url(#${gradientId})`} />
+      <rect x="0" y="0" width="160" height="160" rx="18" fill={`url(#${gridId})`} opacity="0.42" />
+      <rect x="10" y="108" width="140" height="36" rx="12" fill="rgba(10,12,18,0.82)" stroke="rgba(255,255,255,0.08)" />
+      <line x1={centerX} y1={centerY} x2={centerX + Math.cos(referenceHandAngle) * (outerRadius + 7)} y2={centerY + Math.sin(referenceHandAngle) * (outerRadius + 7)} stroke="rgba(255,255,255,0.42)" strokeWidth="1.3" strokeLinecap="round" />
+      <line x1={centerX} y1={centerY} x2={centerX + Math.cos(phraseHandAngle) * (innerRadius + 7)} y2={centerY + Math.sin(phraseHandAngle) * (innerRadius + 7)} stroke={study.riff.color} strokeWidth="1.9" strokeLinecap="round" />
       <polygon
         points={getPolygonPoints(study.reference.numerator, outerRadius, centerX, centerY)}
-        fill="rgba(255,255,255,0.02)"
-        stroke="rgba(255,255,255,0.22)"
-        strokeWidth="1.5"
+        fill="rgba(255,255,255,0.015)"
+        stroke="rgba(255,255,255,0.24)"
+        strokeWidth="1.4"
       />
       <circle
         cx={centerX}
         cy={centerY}
         r={innerRadius}
         fill="none"
-        stroke={`${study.riff.color}55`}
-        strokeWidth="1.2"
+        stroke={`${study.riff.color}48`}
+        strokeWidth="1.1"
       />
       {activePointValues.length >= 2 ? (
         <polyline
@@ -137,7 +171,7 @@ function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
             key={`beat-${index}`}
             cx={centerX + Math.cos(angle) * outerRadius}
             cy={centerY + Math.sin(angle) * outerRadius}
-            r={index === 0 ? 4.6 : 3.8}
+            r={index === 0 ? 4.5 : 3.4}
             fill={index === 0 ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.58)'}
           />
         );
@@ -157,15 +191,39 @@ function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
           />
         );
       })}
-      <text
-        x="16"
-        y="142"
-        fill="rgba(255,255,255,0.55)"
-        fontSize="10"
-        fontFamily='"SF Mono", "Fira Code", monospace'
-        letterSpacing="1.8"
-      >
+      {laneIndices.map((stepIndex, laneIndex) => {
+        const active = study.riff.activeSteps[stepIndex];
+        const accented = study.riff.accents[stepIndex];
+        const x = laneX + laneIndex * (laneCellWidth + laneGap);
+        const inLanding = landingCellCount > 0 && laneIndex >= laneCellCount - landingCellCount;
+        return (
+          <rect
+            key={`lane-${laneIndex}`}
+            x={x}
+            y={laneY}
+            width={laneCellWidth}
+            height={16}
+            rx="4"
+            fill={
+              accented
+                ? '#FFD166'
+                : active
+                  ? study.riff.color
+                  : inLanding
+                    ? 'rgba(127,215,255,0.18)'
+                    : 'rgba(255,255,255,0.07)'
+            }
+            opacity={active || accented ? 0.95 : 1}
+            stroke={inLanding ? 'rgba(127,215,255,0.35)' : 'rgba(255,255,255,0.06)'}
+            strokeWidth="0.8"
+          />
+        );
+      })}
+      <text x="16" y="30" fill="rgba(255,255,255,0.55)" fontSize="8.8" fontFamily='"SF Mono", "Fira Code", monospace' letterSpacing="1.6">
         {study.reference.numerator}/{study.reference.denominator}
+      </text>
+      <text x="16" y="146" fill="rgba(255,255,255,0.55)" fontSize="8.6" fontFamily='"SF Mono", "Fira Code", monospace' letterSpacing="1.4">
+        {study.riff.stepCount} STEP
       </text>
     </svg>
   );
@@ -178,24 +236,18 @@ export default function RiffCycleSidebar({
   selectedStep,
   onClose,
   onLoadPreset,
-  onResetStudy,
   onToggleSound,
   onToggleReferenceSound,
   onToggleBackbeatSound,
+  onUpdateSoundSettings,
   onUpdateReference,
   onUpdateRiff,
   onSetRiffStepCount,
   onToggleStep,
   onToggleAccent,
-  onSelectStep,
   onRotateRiff,
   onInvertRiff,
   onClearRiff,
-  onToggleViewMode,
-  onToggleAlignmentMarkers,
-  onToggleStepLabels,
-  onTogglePhraseBody,
-  onToggleEmphasisMode,
   onSetEditMode,
   onSetSoundFocus,
   onToggleLandingEdit,
@@ -215,7 +267,14 @@ export default function RiffCycleSidebar({
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
   const selectedStepEditable = selectedStep != null;
-  const activeEditMode = study.landingEditEnabled ? 'landing' : 'phrase';
+  const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = [
+    { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+    { id: 'bar', label: 'Bar', color: '#FF88C2' },
+    { id: 'phrase', label: 'Phrase', color: study.riff.color },
+    { id: 'ending', label: 'Ending', color: '#7FD7FF' },
+    { id: 'sound', label: 'Sound', color: '#88CCFF' },
+    { id: 'export', label: 'Export', color: '#FFAA00' },
+  ];
 
   useEffect(() => {
     if (study.landingEditEnabled) {
@@ -241,38 +300,7 @@ export default function RiffCycleSidebar({
         }}
       >
         <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}>
-          <div>
-            <div className="text-sm font-light uppercase tracking-[0.24em] text-white/70">Riff Cycle</div>
-            <div className="mt-2.5 grid grid-cols-2 gap-2">
-              {([
-                { id: 'phrase', label: 'Phrase', color: study.riff.color },
-                { id: 'landing', label: 'Ending', color: '#7FD7FF' },
-              ] as const).map((mode) => {
-                const active = mode.id === activeEditMode;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => {
-                      onSetEditMode(mode.id);
-                      setActiveTab(mode.id === 'phrase' ? 'phrase' : 'ending');
-                    }}
-                    className="rounded-xl border px-3 py-2.5 text-left"
-                    style={{
-                      background: active ? `${mode.color}18` : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? `${mode.color}44` : 'rgba(255,255,255,0.08)',
-                      color: active ? mode.color : 'rgba(255,255,255,0.6)',
-                      boxShadow: active ? `0 0 0 1px ${mode.color}22 inset` : 'none',
-                    }}
-                  >
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em]">
-                      {mode.label}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <div className="text-sm font-light uppercase tracking-[0.24em] text-white/70">Riff Cycle</div>
           <button
             type="button"
             onClick={onClose}
@@ -293,21 +321,29 @@ export default function RiffCycleSidebar({
             }}
           >
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {RIFF_CYCLE_SIDEBAR_TABS.map((tab) => {
+              {tabMeta.map((tab) => {
                 const active = tab.id === activeTab;
                 return (
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      if (tab.id === 'phrase') {
+                        onSetEditMode('phrase');
+                      }
+                      if (tab.id === 'ending') {
+                        onSetEditMode('landing');
+                      }
+                      setActiveTab(tab.id);
+                    }}
                     className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
                     style={{
                       background: active
-                        ? 'linear-gradient(180deg, rgba(127,215,255,0.16), rgba(127,215,255,0.08))'
+                        ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
                         : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: active ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
-                      boxShadow: active ? '0 0 0 1px rgba(127,215,255,0.18) inset, 0 10px 24px rgba(0,0,0,0.24)' : 'none',
+                      borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
+                      color: active ? tab.color : 'rgba(255,255,255,0.58)',
+                      boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
                     }}
                   >
                     {tab.label}
@@ -376,23 +412,7 @@ export default function RiffCycleSidebar({
 
           {activeTab === 'bar' ? (
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Bar</div>
-              <button type="button" onClick={onResetStudy} className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Restart
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                {study.reference.numerator}/{study.reference.denominator} bar
-              </div>
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                {study.reference.subdivision} grid
-              </div>
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Backbeat {study.reference.backbeatBeat ?? 3}
-              </div>
-            </div>
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#FF88C2]">Bar</div>
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
                 Numerator
@@ -423,7 +443,7 @@ export default function RiffCycleSidebar({
                   onChange={(event) => onUpdateReference({ subdivision: parseInt(event.target.value, 10) as ReferenceMeter['subdivision'] })}
                   className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
                 >
-                  {[8, 12, 16, 32].map((value) => (
+                  {[8, 12, 16, 20, 32].map((value) => (
                     <option key={value} value={value}>
                       {value}
                     </option>
@@ -442,18 +462,7 @@ export default function RiffCycleSidebar({
                 />
               </label>
               <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                BPM
-                <input
-                  type="number"
-                  min="45"
-                  max="220"
-                  value={study.reference.bpm}
-                  onChange={(event) => onUpdateReference({ bpm: parseInt(event.target.value, 10) || 112 })}
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Backbeat
+                Bar Marker
                 <input
                   type="number"
                   min="1"
@@ -469,7 +478,7 @@ export default function RiffCycleSidebar({
                 {study.reference.showDownbeats ? 'Downbeats On' : 'Downbeats Off'}
               </button>
               <button type="button" onClick={() => onUpdateReference({ showBackbeat: !study.reference.showBackbeat })} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.reference.showBackbeat ? 'rgba(255,136,194,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.reference.showBackbeat ? 'rgba(255,136,194,0.26)' : 'rgba(255,255,255,0.08)', color: study.reference.showBackbeat ? '#FF88C2' : 'rgba(255,255,255,0.66)' }}>
-                {study.reference.showBackbeat ? 'Backbeat On' : 'Backbeat Off'}
+                {study.reference.showBackbeat ? 'Marker On' : 'Marker Off'}
               </button>
             </div>
           </section>
@@ -478,46 +487,39 @@ export default function RiffCycleSidebar({
           {activeTab === 'phrase' ? (
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Phrase</div>
+              <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: study.riff.color }}>Phrase</div>
               <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-white/58">
                 Step {selectedStep != null ? selectedStep + 1 : '—'}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Lower lane writes
-              </div>
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Tap hit
-              </div>
-              <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Hold accent
-              </div>
-            </div>
+            <label className="block space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+              Phrase Length
+              <input
+                type="number"
+                min="3"
+                max="64"
+                value={study.riff.stepCount}
+                onChange={(event) => onSetRiffStepCount(parseInt(event.target.value, 10) || 17)}
+                className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
+              />
+            </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Phrase Length
-                <input
-                  type="number"
-                  min="3"
-                  max="64"
-                  value={study.riff.stepCount}
-                  onChange={(event) => onSetRiffStepCount(parseInt(event.target.value, 10) || 17)}
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Rotation
-                <input
-                  type="number"
-                  min="0"
-                  max="359"
-                  value={Math.round(study.riff.rotationOffset)}
-                  onChange={(event) => onUpdateRiff({ rotationOffset: parseInt(event.target.value, 10) || 0 })}
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
-                />
-              </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[9, 11, 13, 17].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onSetRiffStepCount(value)}
+                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background: study.riff.stepCount === value ? `${study.riff.color}14` : 'rgba(255,255,255,0.04)',
+                    borderColor: study.riff.stepCount === value ? `${study.riff.color}36` : 'rgba(255,255,255,0.08)',
+                    color: study.riff.stepCount === value ? study.riff.color : 'rgba(255,255,255,0.66)',
+                  }}
+                >
+                  {value}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">
@@ -533,7 +535,7 @@ export default function RiffCycleSidebar({
                 Invert
               </button>
               <button type="button" onClick={onClearRiff} className="rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                Clear
+                Clear Phrase
               </button>
             </div>
 
@@ -554,59 +556,6 @@ export default function RiffCycleSidebar({
                   />
                 );
               })}
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">Step Grid</div>
-              <div className="grid grid-cols-8 gap-2">
-                {study.riff.activeSteps.map((active, index) => {
-                  const accented = study.riff.accents[index];
-                  const selected = selectedStep === index;
-                  return (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={(event) => {
-                        onSelectStep(index);
-                        if (event.altKey || event.metaKey || event.shiftKey) {
-                          onToggleAccent(index);
-                        } else {
-                          onToggleStep(index);
-                        }
-                      }}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        onSelectStep(index);
-                        onToggleAccent(index);
-                      }}
-                      className="rounded-xl border px-0 py-3 text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.98]"
-                      style={{
-                        background: active
-                          ? `${study.riff.color}${accented ? '22' : '14'}`
-                          : 'rgba(255,255,255,0.04)',
-                        borderColor: selected
-                          ? 'rgba(255,255,255,0.58)'
-                          : accented
-                            ? 'rgba(255,209,102,0.66)'
-                            : active
-                              ? `${study.riff.color}66`
-                              : 'rgba(255,255,255,0.08)',
-                        color: accented
-                          ? '#FFD166'
-                          : active
-                            ? study.riff.color
-                            : 'rgba(255,255,255,0.5)',
-                      }}
-                      title={accented ? 'Accent step' : active ? 'Active step' : 'Rest step'}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        {accented ? '!' : ''}
-                        {index + 1}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {selectedStep != null ? (
@@ -690,9 +639,6 @@ export default function RiffCycleSidebar({
                     Accent
                   </button>
                 </div>
-                <div className="mt-2 text-[11px] leading-relaxed text-white/42">
-                  Tap toggles the hit. Hold, right-click, or use Accent for a stronger attack.
-                </div>
               </div>
             ) : null}
           </section>
@@ -702,7 +648,7 @@ export default function RiffCycleSidebar({
           <>
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Ending</div>
+              <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#7FD7FF]">Ending</div>
               <button
                 type="button"
                 onClick={onToggleLandingEdit}
@@ -809,7 +755,7 @@ export default function RiffCycleSidebar({
             </button>
           </section>
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-            <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Return</div>
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#FFD166]">Return</div>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { value: 'free', label: 'Free' },
@@ -860,27 +806,6 @@ export default function RiffCycleSidebar({
                 />
               </label>
             ) : null}
-          </section>
-
-          <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-            <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Display</div>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={onToggleViewMode} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.viewMode === 'unwrapped' ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.viewMode === 'unwrapped' ? 'rgba(114,241,184,0.24)' : 'rgba(255,255,255,0.08)', color: study.viewMode === 'unwrapped' ? '#72F1B8' : 'rgba(255,255,255,0.66)' }}>
-                {study.viewMode === 'unwrapped' ? 'Circle + Lane' : 'Circle Only'}
-              </button>
-              <button type="button" onClick={onToggleEmphasisMode} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.emphasisMode === 'analysis' ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.emphasisMode === 'analysis' ? 'rgba(255,209,102,0.22)' : 'rgba(255,255,255,0.08)', color: study.emphasisMode === 'analysis' ? '#FFD166' : 'rgba(255,255,255,0.66)' }}>
-                {study.emphasisMode === 'analysis' ? 'Analysis' : 'Groove'}
-              </button>
-              <button type="button" onClick={onToggleAlignmentMarkers} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.showAlignmentMarkers ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.showAlignmentMarkers ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)', color: study.showAlignmentMarkers ? '#7FD7FF' : 'rgba(255,255,255,0.66)' }}>
-                {study.showAlignmentMarkers ? 'Return Marks On' : 'Return Marks Off'}
-              </button>
-              <button type="button" onClick={onToggleStepLabels} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.showStepLabels ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.showStepLabels ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)', color: study.showStepLabels ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.66)' }}>
-                {study.showStepLabels ? 'Labels On' : 'Labels Off'}
-              </button>
-              <button type="button" onClick={onTogglePhraseBody} className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: study.showPhraseRing ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)', borderColor: study.showPhraseRing ? 'rgba(114,241,184,0.24)' : 'rgba(255,255,255,0.08)', color: study.showPhraseRing ? '#72F1B8' : 'rgba(255,255,255,0.66)' }}>
-                {study.showPhraseRing ? 'Phrase Shape On' : 'Phrase Shape Off'}
-              </button>
-            </div>
           </section>
           </>
           ) : null}
@@ -985,12 +910,12 @@ export default function RiffCycleSidebar({
 
           {activeTab === 'sound' ? (
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-            <div className="text-xs font-mono uppercase tracking-[0.2em] text-white/62">Sound</div>
+            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#88CCFF]">Sound</div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'bar', label: 'Bar Only' },
-                { id: 'riff', label: 'Riff Only' },
-                { id: 'full', label: 'Full' },
+                { id: 'bar', label: 'L1' },
+                { id: 'riff', label: 'L2' },
+                { id: 'full', label: 'Both' },
               ].map((focus) => (
                 <button
                   key={focus.id}
@@ -1037,6 +962,184 @@ export default function RiffCycleSidebar({
                   {focus.label}
                 </button>
               ))}
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-2">
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Palette
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {RIFF_SOUND_PALETTES.map((palette) => (
+                  <button
+                    key={palette.id}
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ palette: palette.id })}
+                    className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background:
+                        study.soundSettings.palette === palette.id
+                          ? `${study.riff.color}14`
+                          : 'rgba(255,255,255,0.04)',
+                      borderColor:
+                        study.soundSettings.palette === palette.id
+                          ? `${study.riff.color}36`
+                          : 'rgba(255,255,255,0.08)',
+                      color:
+                        study.soundSettings.palette === palette.id
+                          ? study.riff.color
+                          : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {palette.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Pitch
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'free', label: 'Original' },
+                  { id: 'keyed', label: 'Keyed' },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() =>
+                      onUpdateSoundSettings({
+                        pitchMode: mode.id as RiffCycleSoundSettings['pitchMode'],
+                      })
+                    }
+                    className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background:
+                        study.soundSettings.pitchMode === mode.id
+                          ? 'rgba(127,215,255,0.12)'
+                          : 'rgba(255,255,255,0.04)',
+                      borderColor:
+                        study.soundSettings.pitchMode === mode.id
+                          ? 'rgba(127,215,255,0.24)'
+                          : 'rgba(255,255,255,0.08)',
+                      color:
+                        study.soundSettings.pitchMode === mode.id
+                          ? '#7FD7FF'
+                          : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+              {study.soundSettings.pitchMode === 'keyed' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                    Root
+                    <select
+                      value={study.soundSettings.rootNote}
+                      onChange={(event) =>
+                        onUpdateSoundSettings({
+                          rootNote: event.target.value as RiffCycleSoundSettings['rootNote'],
+                        })
+                      }
+                      className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
+                    >
+                      {NOTE_NAMES.map((note) => (
+                        <option key={note} value={note} style={{ background: '#181820' }}>
+                          {note}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                    Scale
+                    <select
+                      value={study.soundSettings.scaleName}
+                      onChange={(event) =>
+                        onUpdateSoundSettings({
+                          scaleName: event.target.value as RiffCycleSoundSettings['scaleName'],
+                        })
+                      }
+                      className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
+                    >
+                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                        <option key={name} value={name} style={{ background: '#181820' }}>
+                          {scale.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-2">
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Register
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {RIFF_REGISTERS.map((register) => (
+                  <button
+                    key={register.id}
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ register: register.id })}
+                    className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background:
+                        study.soundSettings.register === register.id
+                          ? 'rgba(255,209,102,0.12)'
+                          : 'rgba(255,255,255,0.04)',
+                      borderColor:
+                        study.soundSettings.register === register.id
+                          ? 'rgba(255,209,102,0.24)'
+                          : 'rgba(255,255,255,0.08)',
+                      color:
+                        study.soundSettings.register === register.id
+                          ? '#FFD166'
+                          : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {register.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-2">
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Accent Push
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'soft', label: 'Soft' },
+                  { id: 'strong', label: 'Strong' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() =>
+                      onUpdateSoundSettings({
+                        accentPush: option.id as RiffCycleSoundSettings['accentPush'],
+                      })
+                    }
+                    className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{
+                      background:
+                        study.soundSettings.accentPush === option.id
+                          ? 'rgba(255,136,194,0.12)'
+                          : 'rgba(255,255,255,0.04)',
+                      borderColor:
+                        study.soundSettings.accentPush === option.id
+                          ? 'rgba(255,136,194,0.24)'
+                          : 'rgba(255,255,255,0.08)',
+                      color:
+                        study.soundSettings.accentPush === option.id
+                          ? '#FF88C2'
+                          : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -1087,36 +1190,6 @@ export default function RiffCycleSidebar({
               >
                 {study.riff.soundEnabled ? 'Riff On' : 'Riff Off'}
               </button>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Riff Tone
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Pitch
-                <input
-                  type="number"
-                  min="80"
-                  max="1600"
-                  value={study.riff.pitchHz}
-                  onChange={(event) => onUpdateRiff({ pitchHz: parseInt(event.target.value, 10) || 120 })}
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Gain
-                <input
-                  type="number"
-                  min="0.02"
-                  max="0.32"
-                  step="0.01"
-                  value={study.riff.gain}
-                  onChange={(event) => onUpdateRiff({ gain: parseFloat(event.target.value) || 0.12 })}
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
-                />
-              </label>
-              </div>
             </div>
           </section>
           ) : null}
