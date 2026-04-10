@@ -292,7 +292,7 @@ export default function PolyrhythmCanvas({
           lastTimestampRef.current = timestamp;
         }
 
-        currentStudy.layers.forEach((layer) => {
+        currentStudy.layers.forEach((layer, layerIndex) => {
           const currentStepIndex = getPlaybackStepIndex(layer, progressRef.current);
           const previousStepIndex = previousPlaybackStepsRef.current.get(layer.id);
           previousPlaybackStepsRef.current.set(layer.id, currentStepIndex);
@@ -307,6 +307,9 @@ export default function PolyrhythmCanvas({
             triggerPolyrhythmPulse({
               frequency: layer.pitchHz,
               gain: layer.gain,
+              sound: currentStudy.soundSettings,
+              layerIndex,
+              beatCount: layer.beatCount,
             });
           }
         });

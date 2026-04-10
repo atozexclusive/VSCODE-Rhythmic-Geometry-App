@@ -20,9 +20,11 @@ import {
 interface RiffCycleSidebarProps {
   isOpen: boolean;
   study: RiffCycleStudy;
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
   activePresetId: string | null;
   selectedStep: number | null;
   onClose: () => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
   onLoadPreset: (presetId: string) => void;
   onResetStudy: () => void;
   onToggleSound: () => void;
@@ -232,9 +234,11 @@ export function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
 export default function RiffCycleSidebar({
   isOpen,
   study,
+  currentSurface,
   activePresetId,
   selectedStep,
   onClose,
+  onSurfaceChange,
   onLoadPreset,
   onToggleSound,
   onToggleReferenceSound,
@@ -309,6 +313,38 @@ export default function RiffCycleSidebar({
             <X size={18} />
           </button>
         </div>
+
+        {isMobile ? (
+          <div className="border-b border-white/8 px-4 py-3">
+            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+              Mode
+            </div>
+            <div className="flex gap-2">
+              {([
+                ['orbital', 'Orbit'],
+                ['polyrhythm-study', 'Study'],
+                ['riff-cycle-study', 'Riff'],
+              ] as const).map(([surfaceId, label]) => {
+                const active = currentSurface === surfaceId;
+                return (
+                  <button
+                    key={surfaceId}
+                    type="button"
+                    onClick={() => onSurfaceChange(surfaceId)}
+                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
           <section

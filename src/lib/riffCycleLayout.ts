@@ -100,34 +100,56 @@ export function getRiffCycleCanvasMetrics(
   width: number,
   height: number,
   isMobile: boolean,
+  bottomInset = 0,
 ): RiffCycleCanvasMetrics {
-  const sidePadding = isMobile ? 22 : 44;
-  const topPadding = isMobile ? 56 : 54;
-  const bottomPadding = isMobile ? 136 : 120;
-  const timelineHeight = study.viewMode === 'unwrapped' ? (isMobile ? 120 : 138) : 0;
-  const verticalGap = study.viewMode === 'unwrapped' ? (isMobile ? 18 : 22) : 0;
+  const showingTimeline = study.viewMode === 'unwrapped';
+  const sidePadding = isMobile ? (showingTimeline ? 18 : 12) : 44;
+  const topPadding = isMobile ? (showingTimeline ? 22 : 26) : 54;
+  const bottomPadding = (isMobile ? (showingTimeline ? 16 : 32) : 120) + bottomInset;
+  const timelineHeight = showingTimeline ? (isMobile ? 126 : 138) : 0;
+  const verticalGap = showingTimeline ? (isMobile ? 10 : 22) : 0;
   const safeWidth = Math.max(1, width - sidePadding * 2);
-  const safeHeight = Math.max(1, height - topPadding - bottomPadding - timelineHeight - verticalGap);
   const circleCenterX = width / 2;
-  const circleCenterY = topPadding + safeHeight / 2;
-  const outerRadius = Math.max(84, Math.min(safeWidth / 2 - 10, safeHeight / 2 - 8));
-  const innerRadius = outerRadius * (isMobile ? 0.54 : 0.57);
-  const laneHeight = isMobile ? 28 : 30;
-  const topLaneY = circleCenterY + outerRadius + verticalGap + 16;
-  const bottomLaneY = topLaneY + laneHeight + (isMobile ? 18 : 20);
-  const timelineRect =
-    study.viewMode === 'unwrapped'
-      ? {
-          x: sidePadding,
-          y: circleCenterY + outerRadius + verticalGap,
-          width: safeWidth,
-          height: timelineHeight,
-          topLaneY,
-          bottomLaneY,
-          laneHeight,
-          stepWidth: safeWidth / Math.max(1, getDisplayStepCount(study)),
-        }
-      : null;
+  const laneHeight = isMobile ? 32 : 30;
+
+  let circleCenterY: number;
+  let outerRadius: number;
+  let topLaneY = 0;
+  let bottomLaneY = 0;
+  let timelineRect: RiffCycleTimelineRect | null = null;
+
+  if (showingTimeline) {
+    const timelineY = height - bottomPadding - timelineHeight;
+    const availableTopHeight = Math.max(1, timelineY - topPadding - verticalGap);
+
+    outerRadius = Math.max(
+      isMobile ? 96 : 84,
+      Math.min(safeWidth / 2 - (isMobile ? 6 : 10), availableTopHeight / 2 - (isMobile ? 8 : 8)),
+    );
+    circleCenterY = topPadding + availableTopHeight / 2;
+    topLaneY = timelineY + (isMobile ? 10 : 16);
+    bottomLaneY = topLaneY + laneHeight + (isMobile ? 14 : 20);
+
+    timelineRect = {
+      x: sidePadding,
+      y: timelineY,
+      width: safeWidth,
+      height: timelineHeight,
+      topLaneY,
+      bottomLaneY,
+      laneHeight,
+      stepWidth: safeWidth / Math.max(1, getDisplayStepCount(study)),
+    };
+  } else {
+    const safeHeight = Math.max(1, height - topPadding - bottomPadding);
+    outerRadius = Math.max(
+      isMobile ? 96 : 84,
+      Math.min(safeWidth / 2 - (isMobile ? 6 : 10), safeHeight / 2 - (isMobile ? 4 : 8)),
+    );
+    circleCenterY = topPadding + safeHeight / 2;
+  }
+
+  const innerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
 
   const baseMetrics = {
     circleCenterX,

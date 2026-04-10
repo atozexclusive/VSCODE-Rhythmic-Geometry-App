@@ -1,15 +1,36 @@
+import type { RootNote, ScaleName } from './audioEngine';
+
 const TAU = Math.PI * 2;
 
-export type RiffCycleSubdivision = 8 | 12 | 16 | 32;
+export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
 export type RiffCycleEmphasisMode = 'groove' | 'analysis';
 export type LandingOverrideState = 'inherit' | 'rest' | 'on' | 'accent';
+export type RiffCycleSoundPalette =
+  | 'architectural'
+  | 'deep-architectural'
+  | 'muted-djent'
+  | 'dry-synth'
+  | 'metal-tick'
+  | 'low-pulse';
+export type RiffCyclePitchMode = 'free' | 'keyed';
+export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
+export type RiffCycleAccentPush = 'soft' | 'strong';
 export type RiffPhraseResetMode =
   | 'free'
   | 'per-bar'
   | 'every-2-bars'
   | 'every-4-bars'
   | 'custom-cycle';
+
+export interface RiffCycleSoundSettings {
+  palette: RiffCycleSoundPalette;
+  pitchMode: RiffCyclePitchMode;
+  rootNote: RootNote;
+  scaleName: ScaleName;
+  register: RiffCycleRegister;
+  accentPush: RiffCycleAccentPush;
+}
 
 export interface ReferenceMeter {
   numerator: number;
@@ -60,6 +81,7 @@ export interface RiffCycleStudy {
   showDriftTrail: boolean;
   viewMode: RiffCycleViewMode;
   emphasisMode: RiffCycleEmphasisMode;
+  soundSettings: RiffCycleSoundSettings;
 }
 
 export interface RiffCyclePreset {
@@ -107,7 +129,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function normalizeSubdivision(value: number): RiffCycleSubdivision {
-  if (value === 8 || value === 12 || value === 16 || value === 32) {
+  if (value === 8 || value === 12 || value === 16 || value === 20 || value === 32) {
     return value;
   }
   return 16;
@@ -156,6 +178,38 @@ function normalizeLandingOverrides(
   });
 }
 
+function normalizeRiffCycleSoundSettings(
+  settings: Partial<RiffCycleSoundSettings> | undefined,
+): RiffCycleSoundSettings {
+  return {
+    palette:
+      settings?.palette && [
+        'architectural',
+        'deep-architectural',
+        'muted-djent',
+        'dry-synth',
+        'metal-tick',
+        'low-pulse',
+      ].includes(settings.palette)
+        ? settings.palette
+        : 'architectural',
+    pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
+    rootNote: settings?.rootNote ?? 'E',
+    scaleName: settings?.scaleName ?? 'minorPentatonic',
+    register:
+      settings?.register === 'mid-low' || settings?.register === 'wide'
+        ? settings.register
+        : 'low',
+    accentPush: settings?.accentPush === 'strong' ? 'strong' : 'soft',
+  };
+}
+
+export function createRiffCycleSoundSettings(
+  overrides: Partial<RiffCycleSoundSettings> = {},
+): RiffCycleSoundSettings {
+  return normalizeRiffCycleSoundSettings(overrides);
+}
+
 function normalizeSteps(mask: boolean[], stepCount: number): boolean[] {
   const normalizedStepCount = normalizeBeatCount(stepCount);
   return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask[index]));
@@ -172,6 +226,84 @@ function randomInt(min: number, max: number): number {
 
 function randomChoice<T>(items: readonly T[]): T {
   return items[randomInt(0, items.length - 1)] as T;
+}
+
+function chooseDifferent<T>(items: readonly T[], current: T): T {
+  const filtered = items.filter((item) => item !== current);
+  if (filtered.length === 0) {
+    return current;
+  }
+  return randomChoice(filtered);
+}
+
+function createRandomRiffColor(current?: string, intensity: 'random' | 'remix' | 'plus' = 'random'): string {
+  const families =
+    intensity === 'plus'
+      ? [...RIFF_CYCLE_COLORS]
+      : RIFF_CYCLE_COLORS.filter((color) => color !== '#9FE870');
+  if (!current) {
+    return randomChoice(families);
+  }
+  return Math.random() < (intensity === 'remix' ? 0.45 : 0.2)
+    ? current
+    : chooseDifferent(families, current);
+}
+
+function createRandomRiffSoundSettings(
+  intensity: 'random' | 'remix' | 'plus',
+  current?: RiffCycleSoundSettings,
+): RiffCycleSoundSettings {
+  const rootPool: RootNote[] = ['E', 'F', 'F#', 'G', 'A', 'B', 'D'];
+  const baseScales: ScaleName[] = ['minorPentatonic', 'aeolian', 'dorian'];
+  const extendedScales: ScaleName[] = [...baseScales, 'diminished', 'wholeTone'];
+  const palettePool =
+    intensity === 'plus'
+      ? (['deep-architectural', 'muted-djent', 'dry-synth', 'metal-tick', 'low-pulse'] as const)
+      : intensity === 'remix'
+        ? (['architectural', 'deep-architectural', 'muted-djent', 'dry-synth', 'metal-tick'] as const)
+        : (['architectural', 'deep-architectural', 'muted-djent', 'dry-synth'] as const);
+  const palette =
+    current && intensity === 'remix' && Math.random() < 0.55
+      ? current.palette
+      : current
+        ? chooseDifferent(palettePool, current.palette)
+        : randomChoice(palettePool);
+  const pitchMode =
+    current && intensity === 'remix'
+      ? Math.random() < 0.75
+        ? current.pitchMode
+        : current.pitchMode === 'free'
+          ? 'keyed'
+          : 'free'
+      : intensity === 'plus'
+        ? (Math.random() < 0.58 ? 'keyed' : 'free')
+        : (Math.random() < 0.36 ? 'keyed' : 'free');
+  const register =
+    current && intensity === 'remix' && Math.random() < 0.7
+      ? current.register
+      : intensity === 'plus'
+        ? randomChoice(['low', 'mid-low', 'wide'] as const)
+        : randomChoice(['low', 'low', 'mid-low'] as const);
+  const accentPush =
+    intensity === 'plus'
+      ? 'strong'
+      : current && intensity === 'remix'
+        ? (Math.random() < 0.7 ? current.accentPush : current.accentPush === 'soft' ? 'strong' : 'soft')
+        : randomChoice(['soft', 'soft', 'strong'] as const);
+  return createRiffCycleSoundSettings({
+    palette,
+    pitchMode,
+    rootNote:
+      current && intensity === 'remix' && Math.random() < 0.65
+        ? current.rootNote
+        : randomChoice(rootPool),
+    scaleName:
+      current && intensity === 'remix' && Math.random() < 0.65
+        ? current.scaleName
+        : randomChoice(intensity === 'plus' ? extendedScales : baseScales),
+    register,
+    accentPush,
+  });
 }
 
 function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'plus'): {
@@ -273,13 +405,18 @@ export function createRiffCycleStudy(
   overrides: Partial<RiffCycleStudy> = {},
 ): RiffCycleStudy {
   const riff = createRiffPhrase(overrides.riff?.stepCount ?? 17, overrides.riff);
+  const reference = createReferenceMeter(overrides.reference);
+  const defaultLandingLength = normalizeLandingLength(
+    overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(reference) * 2),
+    getReferenceStepsPerBar(reference),
+  );
   return {
     id: overrides.id ?? generateId('riff-study'),
     name: overrides.name ?? 'Riff Cycle',
     description:
       overrides.description ??
       'A reference bar, a displaced phrase, and a controlled realignment.',
-    reference: createReferenceMeter(overrides.reference),
+    reference,
     riff,
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
@@ -288,16 +425,10 @@ export function createRiffCycleStudy(
     tailEditEnabled: overrides.tailEditEnabled ?? false,
     tailLength: normalizeTailLength(overrides.tailLength ?? 4, riff.stepCount),
     landingEditEnabled: overrides.landingEditEnabled ?? false,
-    landingLength: normalizeLandingLength(
-      overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(createReferenceMeter(overrides.reference)) * 2),
-      getReferenceStepsPerBar(createReferenceMeter(overrides.reference)),
-    ),
+    landingLength: defaultLandingLength,
     landingOverrides: normalizeLandingOverrides(
       overrides.landingOverrides,
-      normalizeLandingLength(
-        overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(createReferenceMeter(overrides.reference)) * 2),
-        getReferenceStepsPerBar(createReferenceMeter(overrides.reference)),
-      ),
+      defaultLandingLength,
     ),
     showReferenceRing: overrides.showReferenceRing ?? true,
     showPhraseRing: overrides.showPhraseRing ?? true,
@@ -306,6 +437,7 @@ export function createRiffCycleStudy(
     showDriftTrail: overrides.showDriftTrail ?? true,
     viewMode: overrides.viewMode ?? 'unwrapped',
     emphasisMode: overrides.emphasisMode ?? 'analysis',
+    soundSettings: createRiffCycleSoundSettings(overrides.soundSettings),
   };
 }
 
@@ -318,6 +450,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       activeSteps: [...study.riff.activeSteps],
       accents: [...study.riff.accents],
     },
+    soundSettings: { ...study.soundSettings },
     landingOverrides: [...study.landingOverrides],
   };
 }
@@ -768,7 +901,10 @@ function createRandomReference(intensity: 'random' | 'plus'): ReferenceMeter {
       ? randomChoice([4, 5, 5, 6, 6, 7] as const)
       : randomChoice([3, 4, 4, 4, 3] as const);
   const denominator = 4;
-  const subdivision = intensity === 'plus' ? randomChoice([16, 16, 32] as const) : randomChoice([16, 16, 16, 12] as const);
+  const subdivision =
+    intensity === 'plus'
+      ? randomChoice([16, 20, 20, 32] as const)
+      : randomChoice([12, 16, 16, 20] as const);
   return createReferenceMeter({
     numerator,
     denominator,
@@ -807,6 +943,8 @@ export function createRandomRiffCycleStudy(intensity: 'random' | 'plus' = 'rando
       : randomChoice([9, 11, 13, 15, 17] as const);
   const mask = createPhraseMask(stepCount, intensity);
   const returnMode = createReturnMode(intensity);
+  const soundSettings = createRandomRiffSoundSettings(intensity);
+  const riffColor = createRandomRiffColor(undefined, intensity);
   return createRiffCycleStudy({
     name: intensity === 'plus' ? 'Random+ Riff Cycle' : 'Random Riff Cycle',
     description:
@@ -818,11 +956,28 @@ export function createRandomRiffCycleStudy(intensity: 'random' | 'plus' = 'rando
       ...mask,
       resetMode: returnMode.resetMode,
       resetBars: returnMode.resetBars,
-      color: randomChoice(RIFF_CYCLE_COLORS),
-      pitchHz: intensity === 'plus' ? randomInt(88, 152) : randomInt(98, 142),
-      gain: intensity === 'plus' ? 0.14 : 0.12,
+      color: riffColor,
+      pitchHz:
+        soundSettings.palette === 'metal-tick'
+          ? randomInt(132, 188)
+          : soundSettings.palette === 'dry-synth'
+            ? randomInt(108, 164)
+            : soundSettings.palette === 'low-pulse'
+              ? randomInt(82, 118)
+              : soundSettings.palette === 'muted-djent'
+                ? randomInt(84, 126)
+                : intensity === 'plus'
+                  ? randomInt(88, 152)
+                  : randomInt(94, 138),
+      gain:
+        soundSettings.palette === 'low-pulse' || soundSettings.palette === 'deep-architectural'
+          ? 0.15
+          : intensity === 'plus'
+            ? 0.14
+            : 0.12,
       rotationOffset: 0,
     }),
+    soundSettings,
     landingEditEnabled: false,
     landingLength: Math.min(getReferenceStepsPerBar(reference), intensity === 'plus' ? randomInt(3, 6) : randomInt(2, 4)),
     landingOverrides: [],
@@ -854,7 +1009,9 @@ export function remixRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       resetMode: returnMode.resetMode,
       resetBars: returnMode.resetBars,
       rotationOffset: 0,
+      color: createRandomRiffColor(remapped.riff.color, 'remix'),
     },
+    soundSettings: createRandomRiffSoundSettings('remix', remapped.soundSettings),
   };
   if (Math.random() < 0.6) {
     result = setLandingLength(result, clamp(result.landingLength + randomChoice([-1, 1] as const), 1, getReferenceStepsPerBar(result.reference)));
@@ -873,6 +1030,7 @@ export function createRandomPlusRiffCycleStudy(): RiffCycleStudy {
     ...setLandingLength(next, landingLength),
     landingEditEnabled: true,
     emphasisMode: 'groove',
+    soundSettings: createRandomRiffSoundSettings('plus', next.soundSettings),
     landingOverrides: normalizeLandingOverrides(
       Array.from({ length: landingLength }, (_, index) =>
         index >= landingLength - overrideCount
@@ -892,12 +1050,14 @@ function withPhraseMask(
   description: string,
   reference: Partial<ReferenceMeter>,
   riff: Partial<RiffPhrase> & { stepCount: number; activeSteps: boolean[] },
+  overrides: Partial<RiffCycleStudy> = {},
 ): RiffCyclePreset {
   return {
     id,
     name,
     description,
     study: createRiffCycleStudy({
+      ...overrides,
       name,
       description,
       reference: createReferenceMeter(reference),
@@ -909,8 +1069,8 @@ function withPhraseMask(
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   withPhraseMask(
     'seventeen-free',
-    '4/4 + 17-Step Phrase',
-    'A steady 4/4 frame with an odd-length phrase drifting across it.',
+    'Rational Drift',
+    'A 17-step line drifting across a straight 4/4 frame with no forced return.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 112, barCountForDisplay: 4 },
     {
       stepCount: 17,
@@ -921,11 +1081,22 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
       pitchHz: 118,
       gain: 0.13,
     },
+    {
+      soundSettings: {
+        palette: 'architectural',
+        pitchMode: 'free',
+        rootNote: 'E',
+        scaleName: 'minorPentatonic',
+        register: 'low',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'analysis',
+    },
   ),
   withPhraseMask(
     'seventeen-reset-four',
-    '4/4 Reset Every 4 Bars',
-    'The same odd phrase is forced back to the downbeat every four bars.',
+    'Rational Return',
+    'A 17-step phrase forced back onto beat 1 every four bars.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 112, barCountForDisplay: 4 },
     {
       stepCount: 17,
@@ -937,27 +1108,49 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
       pitchHz: 104,
       gain: 0.14,
     },
+    {
+      soundSettings: {
+        palette: 'deep-architectural',
+        pitchMode: 'free',
+        rootNote: 'E',
+        scaleName: 'minorPentatonic',
+        register: 'low',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'analysis',
+    },
   ),
   withPhraseMask(
     'seventeen-reset-two',
-    '4/4 Reset Every 2 Bars',
-    'A shorter structural leash: displacement, then a faster forced return.',
+    'Cyanide Drag',
+    'A shorter odd-cycle leash: 13-style displacement against a straight 4/4 backbeat.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 118, barCountForDisplay: 4 },
     {
-      stepCount: 17,
-      activeSteps: [true, false, true, false, false, true, false, true, false, false, true, false, true, false, false, true, false],
-      accents: [true, false, false, false, false, true, false, false, false, false, true, false, false, false, false, true, false],
+      stepCount: 13,
+      activeSteps: [true, false, true, false, false, true, false, true, false, false, true, false, true],
+      accents: [true, false, false, false, false, true, false, false, false, false, true, false, false],
       resetMode: 'every-2-bars',
       resetBars: 2,
       color: RIFF_CYCLE_COLORS[2],
-      pitchHz: 136,
+      pitchHz: 122,
       gain: 0.13,
+    },
+    {
+      soundSettings: {
+        palette: 'muted-djent',
+        pitchMode: 'free',
+        rootNote: 'E',
+        scaleName: 'minorPentatonic',
+        register: 'low',
+        accentPush: 'strong',
+      },
+      emphasisMode: 'groove',
     },
   ),
   withPhraseMask(
     'five-four-twelve',
-    '5/4 Against 12-Step Phrase',
-    'A wider bar with a compact phrase crossing its internal landmarks.',
+    'Five-Gate Pressure',
+    'A wider 5/4 frame with a compact phrase pressing against its landmarks.',
     { numerator: 5, denominator: 4, subdivision: 16, bpm: 108, barCountForDisplay: 3, backbeatBeat: 3 },
     {
       stepCount: 12,
@@ -968,27 +1161,49 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
       pitchHz: 146,
       gain: 0.12,
     },
+    {
+      soundSettings: {
+        palette: 'dry-synth',
+        pitchMode: 'keyed',
+        rootNote: 'D',
+        scaleName: 'dorian',
+        register: 'mid-low',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'groove',
+    },
   ),
   withPhraseMask(
     'sparse-kick',
-    'Sparse Kick Riff',
-    'A restrained phrase that makes displacement and reset easy to hear.',
-    { numerator: 4, denominator: 4, subdivision: 16, bpm: 100, barCountForDisplay: 4 },
+    'Bleed Cell',
+    'A quintuplet-grid engine with herta-like bursts and a heavy low-end push.',
+    { numerator: 4, denominator: 4, subdivision: 20, bpm: 104, barCountForDisplay: 4 },
     {
       stepCount: 19,
-      activeSteps: [true, false, false, false, true, false, false, true, false, false, false, true, false, false, true, false, false, false, true],
-      accents: [true, false, false, false, false, false, false, true, false, false, false, false, false, false, true, false, false, false, false],
+      activeSteps: [true, false, true, true, false, false, true, false, true, true, false, false, true, false, true, true, false, false, true],
+      accents: [true, false, false, true, false, false, false, false, false, true, false, false, false, false, false, true, false, false, false],
       resetMode: 'every-4-bars',
       resetBars: 4,
       color: RIFF_CYCLE_COLORS[4],
-      pitchHz: 92,
+      pitchHz: 88,
       gain: 0.16,
+    },
+    {
+      soundSettings: {
+        palette: 'muted-djent',
+        pitchMode: 'free',
+        rootNote: 'F#',
+        scaleName: 'aeolian',
+        register: 'low',
+        accentPush: 'strong',
+      },
+      emphasisMode: 'groove',
     },
   ),
   withPhraseMask(
     'snare-on-three',
-    'Snare-On-3 Study',
-    'A simple phrase against a clear 4/4 backbeat anchor.',
+    'Anchor Snare',
+    'A simpler backbeat-anchored study where the bar stays obvious while the phrase moves.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 114, barCountForDisplay: 4, backbeatBeat: 3 },
     {
       stepCount: 15,
@@ -999,6 +1214,17 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
       color: RIFF_CYCLE_COLORS[0],
       pitchHz: 128,
       gain: 0.13,
+    },
+    {
+      soundSettings: {
+        palette: 'architectural',
+        pitchMode: 'keyed',
+        rootNote: 'E',
+        scaleName: 'minorPentatonic',
+        register: 'low',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'analysis',
     },
   ),
 ];

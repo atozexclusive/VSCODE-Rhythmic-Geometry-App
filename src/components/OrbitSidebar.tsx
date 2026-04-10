@@ -24,6 +24,7 @@ import { type GeometryMode, type InterferenceSettings } from '../lib/geometry';
 interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
@@ -61,6 +62,7 @@ interface OrbitSidebarProps {
   accountPersistenceLoading: boolean;
   localSceneCount: number;
   onClose: () => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
   onDeleteOrbit: (id: string) => void;
   onAddOrbit: () => void;
@@ -101,6 +103,7 @@ const REGISTER_OPTIONS: Array<{ label: string; value: -1 | 0 | 1 }> = [
 export default function OrbitSidebar({
   orbits,
   isOpen,
+  currentSurface,
   harmonySettings,
   geometryMode,
   interferenceSettings,
@@ -112,6 +115,7 @@ export default function OrbitSidebar({
   accountPersistenceLoading,
   localSceneCount,
   onClose,
+  onSurfaceChange,
   onUpdateOrbit,
   onDeleteOrbit,
   onAddOrbit,
@@ -266,6 +270,38 @@ export default function OrbitSidebar({
             <X size={18} />
           </button>
         </div>
+
+        {isMobile ? (
+          <div className="border-b border-white/8 px-4 py-3">
+            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+              Mode
+            </div>
+            <div className="flex gap-2">
+              {([
+                ['orbital', 'Orbit'],
+                ['polyrhythm-study', 'Study'],
+                ['riff-cycle-study', 'Riff'],
+              ] as const).map(([surfaceId, label]) => {
+                const active = currentSurface === surfaceId;
+                return (
+                  <button
+                    key={surfaceId}
+                    type="button"
+                    onClick={() => onSurfaceChange(surfaceId)}
+                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {/* Tabs */}
         <div className={`${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>

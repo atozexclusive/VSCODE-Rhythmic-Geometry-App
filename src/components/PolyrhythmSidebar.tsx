@@ -1,10 +1,12 @@
 import { Pause, Play, Plus, RotateCcw, Trash2, Volume2, VolumeX, X } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
+import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
 import {
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESETS,
   countActiveSteps,
   type PolyrhythmLayer,
+  type PolyrhythmSoundSettings,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 
@@ -16,15 +18,18 @@ interface PolyrhythmStepSelection {
 interface PolyrhythmSidebarProps {
   isOpen: boolean;
   study: PolyrhythmStudy;
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
   activePresetId: string | null;
   selectedLayerId: string | null;
   selectedStep: PolyrhythmStepSelection | null;
   onClose: () => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
   onLoadPreset: (presetId: string) => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
   onBpmChange: (bpm: number) => void;
   onToggleStudySound: () => void;
+  onUpdateSoundSettings: (updates: Partial<PolyrhythmSoundSettings>) => void;
   onToggleInactiveSteps: () => void;
   onToggleStepLabels: () => void;
   onAddLayer: () => void;
@@ -41,15 +46,18 @@ interface PolyrhythmSidebarProps {
 export default function PolyrhythmSidebar({
   isOpen,
   study,
+  currentSurface,
   activePresetId,
   selectedLayerId,
   selectedStep,
   onClose,
+  onSurfaceChange,
   onLoadPreset,
   onResetStudy,
   onTogglePlay,
   onBpmChange,
   onToggleStudySound,
+  onUpdateSoundSettings,
   onToggleInactiveSteps,
   onToggleStepLabels,
   onAddLayer,
@@ -69,6 +77,16 @@ export default function PolyrhythmSidebar({
     selectedLayer && selectedStep?.layerId === selectedLayer.id
       ? Boolean(selectedLayer.activeSteps[selectedStep.stepIndex])
       : null;
+  const polyrhythmPalettes: Array<{
+    id: PolyrhythmSoundSettings['palette'];
+    label: string;
+  }> = [
+    { id: 'study-pulse', label: 'Study Pulse' },
+    { id: 'glass-tick', label: 'Glass Tick' },
+    { id: 'wood', label: 'Wood' },
+    { id: 'soft-synth', label: 'Soft Synth' },
+    { id: 'bright-marker', label: 'Bright Marker' },
+  ];
 
   return (
     <>
@@ -124,6 +142,38 @@ export default function PolyrhythmSidebar({
             <X size={18} />
           </button>
         </div>
+
+        {isMobile ? (
+          <div className="border-b border-white/8 px-4 py-3">
+            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+              Mode
+            </div>
+            <div className="flex gap-2">
+              {([
+                ['orbital', 'Orbit'],
+                ['polyrhythm-study', 'Study'],
+                ['riff-cycle-study', 'Riff'],
+              ] as const).map(([surfaceId, label]) => {
+                const active = currentSurface === surfaceId;
+                return (
+                  <button
+                    key={surfaceId}
+                    type="button"
+                    onClick={() => onSurfaceChange(surfaceId)}
+                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div
           className={`flex-1 overflow-y-auto ${
@@ -244,6 +294,177 @@ export default function PolyrhythmSidebar({
               >
                 {study.showStepLabels ? 'Labels On' : 'Labels Off'}
               </button>
+            </div>
+          </section>
+
+          <section
+            className="rounded-xl border p-3 space-y-3"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
+              borderColor: 'rgba(255,255,255,0.08)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div
+                  className="text-xs font-mono uppercase tracking-[0.2em]"
+                  style={{ color: 'rgba(255,255,255,0.62)' }}
+                >
+                  Sound
+                </div>
+                <div
+                  className="mt-1 text-[10px] leading-relaxed"
+                  style={{ color: 'rgba(255,255,255,0.42)' }}
+                >
+                  Clean study tones with optional key mapping.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onToggleStudySound}
+                className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
+                style={{
+                  background: study.soundEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+                  borderColor: study.soundEnabled ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                  color: study.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.66)',
+                }}
+              >
+                {study.soundEnabled ? 'Study On' : 'Study Off'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {polyrhythmPalettes.map((palette) => (
+                <button
+                  key={palette.id}
+                  type="button"
+                  onClick={() => onUpdateSoundSettings({ palette: palette.id })}
+                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.14em]"
+                  style={{
+                    background:
+                      study.soundSettings.palette === palette.id
+                        ? 'rgba(114,241,184,0.12)'
+                        : 'rgba(255,255,255,0.04)',
+                    borderColor:
+                      study.soundSettings.palette === palette.id
+                        ? 'rgba(114,241,184,0.24)'
+                        : 'rgba(255,255,255,0.08)',
+                    color:
+                      study.soundSettings.palette === palette.id
+                        ? '#72F1B8'
+                        : 'rgba(255,255,255,0.66)',
+                  }}
+                >
+                  {palette.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'free', label: 'Free' },
+                { id: 'keyed', label: 'Keyed' },
+              ].map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() =>
+                    onUpdateSoundSettings({
+                      pitchMode: mode.id as PolyrhythmSoundSettings['pitchMode'],
+                    })
+                  }
+                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background:
+                      study.soundSettings.pitchMode === mode.id
+                        ? 'rgba(127,215,255,0.12)'
+                        : 'rgba(255,255,255,0.04)',
+                    borderColor:
+                      study.soundSettings.pitchMode === mode.id
+                        ? 'rgba(127,215,255,0.24)'
+                        : 'rgba(255,255,255,0.08)',
+                    color:
+                      study.soundSettings.pitchMode === mode.id
+                        ? '#7FD7FF'
+                        : 'rgba(255,255,255,0.66)',
+                  }}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Root
+                <select
+                  value={study.soundSettings.rootNote}
+                  onChange={(event) =>
+                    onUpdateSoundSettings({
+                      rootNote: event.target.value as PolyrhythmSoundSettings['rootNote'],
+                    })
+                  }
+                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
+                >
+                  {NOTE_NAMES.map((note) => (
+                    <option key={note} value={note} style={{ background: '#181820' }}>
+                      {note}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Scale
+                <select
+                  value={study.soundSettings.scaleName}
+                  onChange={(event) =>
+                    onUpdateSoundSettings({
+                      scaleName: event.target.value as PolyrhythmSoundSettings['scaleName'],
+                    })
+                  }
+                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
+                >
+                  {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                    <option key={name} value={name} style={{ background: '#181820' }}>
+                      {scale.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'tight', label: 'Tight' },
+                { id: 'wide', label: 'Wide' },
+              ].map((register) => (
+                <button
+                  key={register.id}
+                  type="button"
+                  onClick={() =>
+                    onUpdateSoundSettings({
+                      register: register.id as PolyrhythmSoundSettings['register'],
+                    })
+                  }
+                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    background:
+                      study.soundSettings.register === register.id
+                        ? 'rgba(255,209,102,0.12)'
+                        : 'rgba(255,255,255,0.04)',
+                    borderColor:
+                      study.soundSettings.register === register.id
+                        ? 'rgba(255,209,102,0.24)'
+                        : 'rgba(255,255,255,0.08)',
+                    color:
+                      study.soundSettings.register === register.id
+                        ? '#FFD166'
+                        : 'rgba(255,255,255,0.66)',
+                  }}
+                >
+                  {register.label}
+                </button>
+              ))}
             </div>
           </section>
 

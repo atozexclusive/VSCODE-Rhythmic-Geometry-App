@@ -1,4 +1,23 @@
+import type { RootNote, ScaleName } from './audioEngine';
+
 const TAU = Math.PI * 2;
+
+export type PolyrhythmSoundPalette =
+  | 'study-pulse'
+  | 'glass-tick'
+  | 'wood'
+  | 'soft-synth'
+  | 'bright-marker';
+export type PolyrhythmPitchMode = 'free' | 'keyed';
+export type PolyrhythmRegister = 'tight' | 'wide';
+
+export interface PolyrhythmSoundSettings {
+  palette: PolyrhythmSoundPalette;
+  pitchMode: PolyrhythmPitchMode;
+  rootNote: RootNote;
+  scaleName: ScaleName;
+  register: PolyrhythmRegister;
+}
 
 export interface PolyrhythmLayer {
   id: string;
@@ -22,6 +41,7 @@ export interface PolyrhythmStudy {
   soundEnabled: boolean;
   showInactiveSteps: boolean;
   showStepLabels: boolean;
+  soundSettings: PolyrhythmSoundSettings;
 }
 
 export interface PolyrhythmStudyPreset {
@@ -89,6 +109,90 @@ function randomInt(min: number, max: number): number {
 
 function randomChoice<T>(items: readonly T[]): T {
   return items[randomInt(0, items.length - 1)] as T;
+}
+
+function chooseDifferent<T>(items: readonly T[], current: T): T {
+  const filtered = items.filter((item) => item !== current);
+  if (filtered.length === 0) {
+    return current;
+  }
+  return randomChoice(filtered);
+}
+
+function normalizePolyrhythmSoundSettings(
+  settings: Partial<PolyrhythmSoundSettings> | undefined,
+): PolyrhythmSoundSettings {
+  return {
+    palette:
+      settings?.palette && [
+        'study-pulse',
+        'glass-tick',
+        'wood',
+        'soft-synth',
+        'bright-marker',
+      ].includes(settings.palette)
+        ? settings.palette
+        : 'study-pulse',
+    pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
+    rootNote: settings?.rootNote ?? 'C',
+    scaleName: settings?.scaleName ?? 'majorPentatonic',
+    register: settings?.register === 'wide' ? 'wide' : 'tight',
+  };
+}
+
+export function createPolyrhythmSoundSettings(
+  overrides: Partial<PolyrhythmSoundSettings> = {},
+): PolyrhythmSoundSettings {
+  return normalizePolyrhythmSoundSettings(overrides);
+}
+
+function createRandomPolyrhythmSoundSettings(
+  intensity: 'random' | 'remix' | 'plus',
+  current?: PolyrhythmSoundSettings,
+): PolyrhythmSoundSettings {
+  const rootPool: RootNote[] = ['C', 'D', 'E', 'F', 'G', 'A'];
+  const baseScales: ScaleName[] = ['majorPentatonic', 'dorian', 'lydian'];
+  const plusScales: ScaleName[] = [...baseScales, 'wholeTone', 'diminished'];
+  const palettePool =
+    intensity === 'plus'
+      ? (['study-pulse', 'glass-tick', 'wood', 'soft-synth', 'bright-marker'] as const)
+      : intensity === 'remix'
+        ? (['study-pulse', 'glass-tick', 'wood', 'soft-synth'] as const)
+        : (['study-pulse', 'glass-tick', 'wood'] as const);
+  const palette =
+    current && intensity === 'remix' && Math.random() < 0.6
+      ? current.palette
+      : current
+        ? chooseDifferent(palettePool, current.palette)
+        : randomChoice(palettePool);
+  const pitchMode =
+    current && intensity === 'remix'
+      ? Math.random() < 0.7
+        ? current.pitchMode
+        : current.pitchMode === 'free'
+          ? 'keyed'
+          : 'free'
+      : intensity === 'plus'
+        ? (Math.random() < 0.55 ? 'keyed' : 'free')
+        : (Math.random() < 0.32 ? 'keyed' : 'free');
+  return createPolyrhythmSoundSettings({
+    palette,
+    pitchMode,
+    rootNote:
+      current && intensity === 'remix' && Math.random() < 0.65
+        ? current.rootNote
+        : randomChoice(rootPool),
+    scaleName:
+      current && intensity === 'remix' && Math.random() < 0.65
+        ? current.scaleName
+        : randomChoice(intensity === 'plus' ? plusScales : baseScales),
+    register:
+      current && intensity === 'remix' && Math.random() < 0.75
+        ? current.register
+        : intensity === 'plus'
+          ? randomChoice(['tight', 'wide'] as const)
+          : randomChoice(['tight', 'tight', 'wide'] as const),
+  });
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -262,6 +366,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
   return {
     ...study,
     id: generateStudyId(),
+    soundSettings: { ...study.soundSettings },
     layers: study.layers.map((layer) => ({
       ...layer,
       id: generateStudyId(),
@@ -326,6 +431,7 @@ export function createRandomPolyrhythmStudy(intensity: 'random' | 'plus' = 'rand
   const layerCount = intensity === 'plus' ? randomInt(3, Math.min(6, family.layers.length)) : randomInt(2, Math.min(4, family.layers.length));
   const layerBeatCounts = family.layers.slice(0, layerCount);
   const colorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
+  const soundSettings = createRandomPolyrhythmSoundSettings(intensity);
   const layers = Array.from({ length: layerCount }, (_, index) => {
     const beatCount = layerBeatCounts[index] ?? family.base;
     return createPolyrhythmLayer(beatCount, {
@@ -355,16 +461,19 @@ export function createRandomPolyrhythmStudy(intensity: 'random' | 'plus' = 'rand
     soundEnabled: true,
     showInactiveSteps: true,
     showStepLabels: intensity === 'plus' ? layerCount <= 3 : false,
+    soundSettings,
   };
 }
 
 export function remixPolyrhythmStudy(study: PolyrhythmStudy): PolyrhythmStudy {
   const next = cloneStudy(study);
+  const colorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
   return {
     ...next,
     name: `${study.name} Remix`,
     description: 'A variation that keeps the layer stack but changes mask shape and offset.',
     bpm: clamp(study.bpm + randomInt(-8, 8), 48, 180),
+    soundSettings: createRandomPolyrhythmSoundSettings('remix', study.soundSettings),
     layers: next.layers.map((layer, index) => {
       let updated = layer;
       if (Math.random() < 0.55) {
@@ -379,7 +488,10 @@ export function remixPolyrhythmStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       return {
         ...updated,
         radius: getLayerRadius(index, next.layers.length),
-        color: POLYRHYTHM_LAYER_COLORS[index % POLYRHYTHM_LAYER_COLORS.length],
+        color:
+          POLYRHYTHM_LAYER_COLORS[
+            (index + colorOffset) % POLYRHYTHM_LAYER_COLORS.length
+          ],
       };
     }),
   };
@@ -390,6 +502,7 @@ export function createRandomPlusPolyrhythmStudy(): PolyrhythmStudy {
   return {
     ...next,
     bpm: clamp(next.bpm + randomInt(4, 14), 48, 180),
+    soundSettings: createRandomPolyrhythmSoundSettings('plus', next.soundSettings),
     layers: next.layers.map((layer, index) => ({
       ...layer,
       rotationOffset:
@@ -424,6 +537,7 @@ const THREE_FIVE_BASIC_STUDY: PolyrhythmStudy = {
   soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
+  soundSettings: createPolyrhythmSoundSettings(),
 };
 
 const THREE_FIVE_NESTED_STUDY: PolyrhythmStudy = {
@@ -479,6 +593,7 @@ const THREE_FIVE_NESTED_STUDY: PolyrhythmStudy = {
   soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
+  soundSettings: createPolyrhythmSoundSettings(),
 };
 
 const FIVE_OVER_EIGHT_STUDY: PolyrhythmStudy = {
@@ -506,6 +621,7 @@ const FIVE_OVER_EIGHT_STUDY: PolyrhythmStudy = {
   soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: false,
+  soundSettings: createPolyrhythmSoundSettings(),
 };
 
 const TEN_STEP_SYNCOPATION_STUDY: PolyrhythmStudy = {
@@ -534,6 +650,7 @@ const TEN_STEP_SYNCOPATION_STUDY: PolyrhythmStudy = {
   soundEnabled: true,
   showInactiveSteps: true,
   showStepLabels: true,
+  soundSettings: createPolyrhythmSoundSettings(),
 };
 
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [

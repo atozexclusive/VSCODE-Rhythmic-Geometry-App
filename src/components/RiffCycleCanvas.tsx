@@ -26,6 +26,7 @@ import {
   isPhraseRestartAtReferenceStep,
   isReferenceBeatStart,
   type RiffCycleStudy,
+  type RiffCycleViewMode,
 } from '../lib/riffCycleStudy';
 import {
   triggerBackbeatAccent,
@@ -40,6 +41,8 @@ interface RiffCycleCanvasProps {
   study: RiffCycleStudy;
   selectedStep: number | null;
   restartToken: number;
+  viewModeOverride?: RiffCycleViewMode;
+  layoutBottomInset?: number;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
@@ -92,6 +95,8 @@ export default function RiffCycleCanvas({
   study,
   selectedStep,
   restartToken,
+  viewModeOverride,
+  layoutBottomInset = 0,
   externalCanvasRef,
   onSelectStep,
   onSetStepActive,
@@ -111,6 +116,7 @@ export default function RiffCycleCanvas({
   const riffAttackUntilRef = useRef<number[]>([]);
   const isMobile = useIsMobile();
   const isMobileRef = useRef(isMobile);
+  const layoutBottomInsetRef = useRef(layoutBottomInset);
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
   const paintedStepsRef = useRef<Set<number>>(new Set());
@@ -124,10 +130,13 @@ export default function RiffCycleCanvas({
     longPressed: boolean;
   } | null>(null);
   const longPressTimeoutRef = useRef<number | null>(null);
+  const resolvedStudy =
+    viewModeOverride == null ? study : { ...study, viewMode: viewModeOverride };
 
-  studyRef.current = study;
+  studyRef.current = resolvedStudy;
   selectedStepRef.current = selectedStep;
   isMobileRef.current = isMobile;
+  layoutBottomInsetRef.current = layoutBottomInset;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -164,6 +173,7 @@ export default function RiffCycleCanvas({
       rect.width,
       rect.height,
       isMobileRef.current,
+      layoutBottomInsetRef.current,
     );
     const totalDisplaySteps = getDisplayStepCount(currentStudy);
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
@@ -243,10 +253,12 @@ export default function RiffCycleCanvas({
         }
       });
       ctx.closePath();
-      ctx.fillStyle = flashActive ? 'rgba(255,209,102,0.055)' : 'rgba(255,255,255,0.022)';
       ctx.strokeStyle = flashActive ? 'rgba(255,209,102,0.56)' : 'rgba(255,255,255,0.16)';
       ctx.lineWidth = flashActive ? 2.3 : 1.45;
-      ctx.fill();
+      if (flashActive || currentStudy.emphasisMode === 'groove') {
+        ctx.fillStyle = flashActive ? 'rgba(255,209,102,0.055)' : 'rgba(255,255,255,0.022)';
+        ctx.fill();
+      }
       ctx.stroke();
       ctx.restore();
 
@@ -378,7 +390,7 @@ export default function RiffCycleCanvas({
     if (currentStudy.showPhraseRing && activeRiffPoints.length >= 2) {
       ctx.save();
       ctx.fillStyle = currentStudy.riff.color;
-      ctx.globalAlpha = currentStudy.emphasisMode === 'groove' ? 0.18 : 0.1;
+      ctx.globalAlpha = 0.14;
       ctx.beginPath();
       ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
       for (let index = 1; index < activeRiffPoints.length; index += 1) {
@@ -392,7 +404,7 @@ export default function RiffCycleCanvas({
 
       ctx.save();
       ctx.strokeStyle = currentStudy.riff.color;
-      ctx.lineWidth = currentStudy.emphasisMode === 'groove' ? 2.4 : 1.8;
+      ctx.lineWidth = 2.1;
       ctx.globalAlpha = 0.9;
       ctx.shadowBlur = 14;
       ctx.shadowColor = currentStudy.riff.color;
@@ -572,6 +584,7 @@ export default function RiffCycleCanvas({
     ctx.restore();
 
     if (metrics.timelineRect) {
+      const compactMobileTimeline = isMobileRef.current;
       const timeline = metrics.timelineRect;
       const { x, y, width, height, topLaneY, bottomLaneY, laneHeight, stepWidth } = timeline;
       const playheadX =
@@ -617,13 +630,11 @@ export default function RiffCycleCanvas({
         );
 
         ctx.save();
-        ctx.fillStyle = isDownbeat
-          ? 'rgba(255,255,255,0.16)'
-          : isBackbeat
-            ? 'rgba(255,136,194,0.24)'
-            : isBeat
-              ? 'rgba(255,255,255,0.085)'
-              : 'rgba(255,255,255,0.032)';
+        ctx.fillStyle = isBackbeat
+          ? 'rgba(255,136,194,0.24)'
+          : isBeat
+            ? 'rgba(255,255,255,0.12)'
+            : 'rgba(255,255,255,0.032)';
         ctx.fillRect(stepX, topLaneY, Math.max(1, stepWidth - 1), laneHeight);
         ctx.restore();
 
@@ -716,24 +727,28 @@ export default function RiffCycleCanvas({
 
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.48)';
-      ctx.font = '10px "SF Mono", "Fira Code", monospace';
+      ctx.font = `${compactMobileTimeline ? 9 : 10}px "SF Mono", "Fira Code", monospace`;
       ctx.textBaseline = 'top';
-      ctx.fillText('REFERENCE', x + 12, y + 6);
-      ctx.fillText('PHRASE', x + 12, bottomLaneY - 16);
+      ctx.fillText(compactMobileTimeline ? 'L1' : 'REFERENCE', x + 12, y + 6);
+      ctx.fillText(compactMobileTimeline ? 'L2' : 'PHRASE', x + 12, bottomLaneY - 16);
       if (!currentStudy.landingEditEnabled) {
         ctx.fillStyle = `${currentStudy.riff.color}B8`;
-        ctx.fillText('WRITING PHRASE', x + 58, bottomLaneY - 16);
+        ctx.fillText(compactMobileTimeline ? 'WRITING' : 'WRITING PHRASE', x + (compactMobileTimeline ? 36 : 58), bottomLaneY - 16);
       }
       if (currentStudy.landingEditEnabled) {
         ctx.fillStyle = 'rgba(127,215,255,0.72)';
-        ctx.fillText('EDITING BAR RETURN', x + 90, bottomLaneY - 16);
+        ctx.fillText(compactMobileTimeline ? 'ENDING' : 'EDITING BAR RETURN', x + (compactMobileTimeline ? 40 : 90), bottomLaneY - 16);
       }
       ctx.fillStyle = 'rgba(255,255,255,0.34)';
-      ctx.fillText('LOWER LANE · TAP HIT · HOLD ACCENT', x + 12, bottomLaneY + laneHeight + 10);
+      ctx.fillText(
+        compactMobileTimeline ? 'TAP HIT · HOLD ACCENT' : 'LOWER LANE · TAP HIT · HOLD ACCENT',
+        x + 12,
+        bottomLaneY + laneHeight + 10,
+      );
       for (let barIndex = 0; barIndex < currentStudy.reference.barCountForDisplay; barIndex += 1) {
         ctx.fillStyle = 'rgba(255,255,255,0.32)';
         ctx.fillText(
-          `BAR ${barIndex + 1}`,
+          compactMobileTimeline ? String(barIndex + 1) : `BAR ${barIndex + 1}`,
           x + barIndex * (width / currentStudy.reference.barCountForDisplay) + 10,
           y + height - 16,
         );
@@ -776,10 +791,10 @@ export default function RiffCycleCanvas({
         const referenceBeatStart = isReferenceBeatStart(currentStudy, currentReferenceStep);
         const backbeatStep = isBackbeatStep(currentStudy, currentReferenceStep);
         if (currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
-          triggerReferencePulse();
+          triggerReferencePulse(currentStudy.soundSettings);
         }
         if (currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled) {
-          triggerBackbeatAccent();
+          triggerBackbeatAccent(currentStudy.soundSettings);
         }
 
         const riffStepState = getEffectiveRiffStepStateAtReferenceStep(
@@ -795,6 +810,8 @@ export default function RiffCycleCanvas({
               frequency: currentStudy.riff.pitchHz,
               gain: currentStudy.riff.gain,
               accented: riffStepState.accented,
+              phraseIndex: riffStepState.phraseIndex,
+              sound: currentStudy.soundSettings,
             });
           }
         }
@@ -803,7 +820,7 @@ export default function RiffCycleCanvas({
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
           if (currentStudy.soundEnabled) {
-            triggerResetCue();
+            triggerResetCue(currentStudy.soundSettings);
           }
         }
 
@@ -820,7 +837,7 @@ export default function RiffCycleCanvas({
 
   useEffect(() => {
     draw();
-  }, [draw, study]);
+  }, [draw, study, viewModeOverride, layoutBottomInset]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -951,7 +968,13 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const hit = findRiffCycleHit(
         studyRef.current,
-        getRiffCycleCanvasMetrics(studyRef.current, rect.width, rect.height, isMobileRef.current),
+        getRiffCycleCanvasMetrics(
+          studyRef.current,
+          rect.width,
+          rect.height,
+          isMobileRef.current,
+          layoutBottomInsetRef.current,
+        ),
         event.clientX - rect.left,
         event.clientY - rect.top,
       );
@@ -1056,7 +1079,13 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const hit = findRiffCycleHit(
         studyRef.current,
-        getRiffCycleCanvasMetrics(studyRef.current, rect.width, rect.height, isMobileRef.current),
+        getRiffCycleCanvasMetrics(
+          studyRef.current,
+          rect.width,
+          rect.height,
+          isMobileRef.current,
+          layoutBottomInsetRef.current,
+        ),
         event.clientX - rect.left,
         event.clientY - rect.top,
       );
@@ -1120,7 +1149,13 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const hit = findRiffCycleHit(
         studyRef.current,
-        getRiffCycleCanvasMetrics(studyRef.current, rect.width, rect.height, isMobileRef.current),
+        getRiffCycleCanvasMetrics(
+          studyRef.current,
+          rect.width,
+          rect.height,
+          isMobileRef.current,
+          layoutBottomInsetRef.current,
+        ),
         event.clientX - rect.left,
         event.clientY - rect.top,
       );
