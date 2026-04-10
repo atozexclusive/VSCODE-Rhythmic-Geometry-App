@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
@@ -24,6 +24,7 @@ interface PolyrhythmCanvasProps {
   study: PolyrhythmStudy;
   selectedLayerId: string | null;
   selectedStep: PolyrhythmCanvasSelection | null;
+  externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectLayer: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
   onToggleStep: (layerId: string, stepIndex: number) => void;
@@ -35,6 +36,7 @@ export default function PolyrhythmCanvas({
   study,
   selectedLayerId,
   selectedStep,
+  externalCanvasRef,
   onSelectLayer,
   onSelectStep,
   onToggleStep,
@@ -145,8 +147,8 @@ export default function PolyrhythmCanvas({
         const isSelectedLayer = layer.id === currentSelectedLayerId;
 
         ctx.save();
-        ctx.strokeStyle = isSelectedLayer ? `${layer.color}6A` : `${layer.color}24`;
-        ctx.lineWidth = isSelectedLayer ? 1.7 : 1;
+        ctx.strokeStyle = isSelectedLayer ? `${layer.color}78` : `${layer.color}18`;
+        ctx.lineWidth = isSelectedLayer ? 1.9 : 1.05;
         ctx.beginPath();
         ctx.arc(metrics.centerX, metrics.centerY, layer.radius * metrics.scale, 0, TAU);
         ctx.stroke();
@@ -154,7 +156,7 @@ export default function PolyrhythmCanvas({
 
         if (activePoints.length >= 2) {
           ctx.save();
-          ctx.globalAlpha = isSelectedLayer ? 0.18 : 0.08;
+          ctx.globalAlpha = isSelectedLayer ? 0.16 : 0.05;
           ctx.fillStyle = layer.color;
           ctx.beginPath();
           ctx.moveTo(activePoints[0].x, activePoints[0].y);
@@ -168,11 +170,11 @@ export default function PolyrhythmCanvas({
           ctx.restore();
 
           ctx.save();
-          ctx.globalAlpha = isSelectedLayer ? 0.96 : 0.82;
+          ctx.globalAlpha = isSelectedLayer ? 0.98 : 0.72;
           ctx.strokeStyle = layer.color;
-          ctx.lineWidth = activePoints.length >= 3 ? (isSelectedLayer ? 2.2 : 1.6) : 1.2;
+          ctx.lineWidth = activePoints.length >= 3 ? (isSelectedLayer ? 2.3 : 1.35) : 1.2;
           ctx.lineJoin = 'round';
-          ctx.shadowBlur = isSelectedLayer ? 14 : 9;
+          ctx.shadowBlur = isSelectedLayer ? 16 : 7;
           ctx.shadowColor = layer.color;
           ctx.beginPath();
           ctx.moveTo(activePoints[0].x, activePoints[0].y);
@@ -229,7 +231,7 @@ export default function PolyrhythmCanvas({
             ctx.fillStyle = isSelectedStep
               ? 'rgba(255,255,255,0.66)'
               : 'rgba(255,255,255,0.2)';
-            ctx.globalAlpha = isPlaybackStep && currentStudy.playing ? 0.42 : 0.28;
+            ctx.globalAlpha = isPlaybackStep && currentStudy.playing ? 0.36 : 0.18;
           }
           ctx.beginPath();
           ctx.arc(point.x, point.y, pointRadius, 0, TAU);
@@ -338,6 +340,67 @@ export default function PolyrhythmCanvas({
     draw();
   }, [draw, study]);
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    (canvas as any).__exportPng = async ({
+      aspect = 'landscape',
+      scale = 2,
+    }: {
+      aspect?: 'landscape' | 'square' | 'portrait' | 'story';
+      scale?: 1 | 2 | 4;
+    } = {}) => {
+      const exportAspects = {
+        landscape: { width: 1920, height: 1080 },
+        square: { width: 1080, height: 1080 },
+        portrait: { width: 1080, height: 1350 },
+        story: { width: 1080, height: 1920 },
+      } as const;
+      const exportSpec = exportAspects[aspect];
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = exportSpec.width * scale;
+      exportCanvas.height = exportSpec.height * scale;
+      const exportCtx = exportCanvas.getContext('2d');
+
+      if (!exportCtx) {
+        return;
+      }
+
+      exportCtx.fillStyle = '#111116';
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+      const sourceWidth = canvas.width;
+      const sourceHeight = canvas.height;
+      const containScale = Math.min(
+        exportCanvas.width / sourceWidth,
+        exportCanvas.height / sourceHeight,
+      );
+      const drawWidth = sourceWidth * containScale;
+      const drawHeight = sourceHeight * containScale;
+      const offsetX = (exportCanvas.width - drawWidth) / 2;
+      const offsetY = (exportCanvas.height - drawHeight) / 2;
+
+      exportCtx.imageSmoothingEnabled = true;
+      exportCtx.imageSmoothingQuality = 'high';
+      exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const link = document.createElement('a');
+      link.href = exportCanvas.toDataURL('image/png');
+      link.download = `polyrhythm-study-${aspect}-${scale}x-${timestamp}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    return () => {
+      delete (canvas as any).__exportPng;
+    };
+  }, []);
+
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
@@ -391,7 +454,12 @@ export default function PolyrhythmCanvas({
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={(node) => {
+        canvasRef.current = node;
+        if (externalCanvasRef) {
+          externalCanvasRef.current = node;
+        }
+      }}
       onPointerDown={handlePointerDown}
       className={className ?? 'absolute inset-0 h-full w-full'}
     />

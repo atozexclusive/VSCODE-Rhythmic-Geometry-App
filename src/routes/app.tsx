@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
-import PolyrhythmSidebar from '../components/PolyrhythmSidebar';
+import PolyrhythmSidebar, { PolyrhythmSceneThumbnail } from '../components/PolyrhythmSidebar';
 import RiffCycleCanvas from '../components/RiffCycleCanvas';
 import RiffCycleSidebar, { RiffSceneThumbnail } from '../components/RiffCycleSidebar';
 import {
@@ -102,6 +102,7 @@ import {
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
   getLandingSlotAtReferenceStep,
+  getReferenceStepsPerBar,
   invertRiffSteps,
   remixRiffCycleStudy,
   rotateRiffSteps,
@@ -367,6 +368,102 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-desktop-menu',
     title: 'Menu',
     text: 'Use Menu for scenes, export, and the deeper study settings.',
+  },
+];
+
+const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
+  {
+    target: 'study-mobile-playback',
+    title: 'Playback',
+    text: 'Play, restart, and audio stay in one compact card so the rings keep most of the screen.',
+  },
+  {
+    target: 'study-mobile-tempo',
+    title: 'Tempo',
+    text: 'Tempo stays centered here, just like Riff, so speed changes are always easy to find.',
+  },
+  {
+    target: 'study-mobile-edit',
+    title: 'Edit',
+    text: 'Edit holds layer, stack, and shape controls. Tap a ring on the canvas to choose what you are shaping.',
+  },
+  {
+    target: 'study-mobile-audio',
+    title: 'Audio',
+    text: 'Audio holds focus, sound palette, keyed harmony, and view controls without covering the canvas.',
+  },
+  {
+    target: 'study-mobile-scenes',
+    title: 'Scenes',
+    text: 'Scenes keep presets, Random, Remix, and Random+ close at hand.',
+  },
+  {
+    target: 'study-mobile-present',
+    title: 'Present',
+    text: 'Present strips the chrome back so the nested geometry can breathe.',
+  },
+  {
+    target: 'study-mobile-menu',
+    title: 'Menu',
+    text: 'Open the full menu for scenes, sound, export, and deeper layer editing.',
+  },
+];
+
+const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
+  {
+    target: 'study-desktop-transport',
+    title: 'Start Here',
+    text: 'This row now matches Riff: play, restart, and the random tools are the fastest way to explore a new study.',
+  },
+  {
+    target: 'study-desktop-tempo',
+    title: 'Tempo',
+    text: 'Tempo stays centered so speed reads clearly between the quick edit and utility sides.',
+  },
+  {
+    target: 'study-desktop-quick',
+    title: 'Quick Edit',
+    text: 'The left card is for structure only: layer, stack, and shape.',
+  },
+  {
+    target: 'study-quick-layer',
+    title: 'Layer',
+    text: 'Layer selects the active ring and edits its beat count directly.',
+  },
+  {
+    target: 'study-quick-stack',
+    title: 'Stack',
+    text: 'Stack changes the ring set itself: add or remove layers and move their radius.',
+  },
+  {
+    target: 'study-quick-shape',
+    title: 'Shape',
+    text: 'Shape rotates, inverts, clears, and handles the selected step.',
+  },
+  {
+    target: 'study-desktop-audio',
+    title: 'Audio',
+    text: 'Audio lets you hear the selected ring, the full stack, or mute the study entirely.',
+  },
+  {
+    target: 'study-desktop-sound',
+    title: 'Sound',
+    text: 'Sound holds palette, keyed harmony, register, and root/scale.',
+  },
+  {
+    target: 'study-desktop-view',
+    title: 'View',
+    text: 'View keeps the ring display clean with faint-step and label controls.',
+  },
+  {
+    target: 'study-desktop-present',
+    title: 'Present',
+    text: 'Present reduces the chrome so the nested pattern becomes the main focus.',
+  },
+  {
+    target: 'study-desktop-menu',
+    title: 'Menu',
+    text: 'Open the full menu for scenes, export, and deeper study editing.',
   },
 ];
 
@@ -2136,6 +2233,33 @@ function downloadRiffCycleSceneFile(name: string, study: RiffCycleStudy): void {
   window.URL.revokeObjectURL(url);
 }
 
+function downloadPolyrhythmStudyFile(name: string, study: PolyrhythmStudy): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    type: 'polyrhythm-study-scene',
+    name,
+    study: cloneStudy(study),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  anchor.href = url;
+  anchor.download = `${safeName || 'polyrhythm-study-scene'}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
+}
+
 function normalizeImportedScene(value: unknown): SavedScene | null {
   if (!value || typeof value !== 'object') {
     return null;
@@ -2297,6 +2421,12 @@ function OrbitalPolymeter() {
   );
   const [selectedPolyrhythmStep, setSelectedPolyrhythmStep] =
     useState<PolyrhythmStepSelection | null>(null);
+  const [polyrhythmQuickPanel, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
+  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'audio' | 'sound' | 'view'>('sound');
+  const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
+    useState<null | 'edit' | 'audio' | 'scenes'>('edit');
+  const [polyrhythmMobileEditTab, setPolyrhythmMobileEditTab] =
+    useState<'layer' | 'stack' | 'shape'>('layer');
   const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>('phrase');
@@ -2304,12 +2434,53 @@ function OrbitalPolymeter() {
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes'>('edit');
   const [riffMobileEditTab, setRiffMobileEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
   const [riffMobileEditorOpen, setRiffMobileEditorOpen] = useState(false);
+  const [riffMobileLaneBarsPerPage, setRiffMobileLaneBarsPerPage] = useState<1 | 2 | 'full'>(2);
+  const [riffMobileLanePage, setRiffMobileLanePage] = useState(0);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
   const isSignedIn = Boolean(authEnabled && user);
   const hasProAccess = isProPlan(effectivePlan);
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
+  const riffMobileEffectiveBarsPerPage =
+    riffMobileLaneBarsPerPage === 'full'
+      ? riffCycleStudy.reference.barCountForDisplay
+      : Math.min(riffMobileLaneBarsPerPage, riffCycleStudy.reference.barCountForDisplay);
+  const riffMobileLanePageCount =
+    riffMobileLaneBarsPerPage === 'full'
+      ? 1
+      : Math.max(1, Math.ceil(riffCycleStudy.reference.barCountForDisplay / riffMobileEffectiveBarsPerPage));
+  const riffMobileStepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
+  const riffMobileVisibleBarCount =
+    riffMobileLaneBarsPerPage === 'full'
+      ? riffCycleStudy.reference.barCountForDisplay
+      : Math.min(
+          riffMobileEffectiveBarsPerPage,
+          Math.max(
+            1,
+            riffCycleStudy.reference.barCountForDisplay -
+              riffMobileLanePage * riffMobileEffectiveBarsPerPage,
+          ),
+        );
+  const riffMobileLaneStartBar =
+    riffMobileLaneBarsPerPage === 'full'
+      ? 1
+      : riffMobileLanePage * riffMobileEffectiveBarsPerPage + 1;
+  const riffMobileLaneEndBar =
+    riffMobileLaneBarsPerPage === 'full'
+      ? riffCycleStudy.reference.barCountForDisplay
+      : Math.min(
+          riffCycleStudy.reference.barCountForDisplay,
+          riffMobileLaneStartBar + riffMobileVisibleBarCount - 1,
+        );
+  const riffMobileLaneStartStep =
+    riffMobileLaneBarsPerPage === 'full'
+      ? 0
+      : (riffMobileLaneStartBar - 1) * riffMobileStepsPerBar;
+  const riffMobileLaneStepCount =
+    riffMobileLaneBarsPerPage === 'full'
+      ? getDisplayStepCount(riffCycleStudy)
+      : riffMobileVisibleBarCount * riffMobileStepsPerBar;
   const handleMobileSliderPointerDown = useCallback(
     (
       event: ReactPointerEvent<HTMLInputElement>,
@@ -2474,6 +2645,26 @@ function OrbitalPolymeter() {
     [],
   );
 
+  const handleSetPolyrhythmSoundFocus = useCallback(
+    (focus: 'layer' | 'stack' | 'mute') => {
+      resumePolyrhythmAudio();
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        soundEnabled: focus !== 'mute',
+        layers: current.layers.map((layer) => ({
+          ...layer,
+          soundEnabled:
+            focus === 'stack'
+              ? true
+              : focus === 'mute'
+                ? layer.soundEnabled
+                : layer.id === selectedPolyrhythmLayerId,
+        })),
+      }));
+    },
+    [selectedPolyrhythmLayerId],
+  );
+
   const handleAddPolyrhythmLayer = useCallback(() => {
     let nextLayerId: string | null = null;
     setPolyrhythmStudy((current) => {
@@ -2621,6 +2812,21 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleClearPolyrhythmLayer = useCallback((layerId: string) => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) =>
+        layer.id === layerId
+          ? {
+              ...layer,
+              activeSteps: Array.from({ length: layer.beatCount }, () => false),
+            }
+          : layer,
+      ),
+    }));
+    setSelectedPolyrhythmStep((current) => (current?.layerId === layerId ? null : current));
+  }, []);
+
   const handleRandomPolyrhythmStudy = useCallback(() => {
     const nextStudy = createRandomPolyrhythmStudy();
     setPolyrhythmStudy(nextStudy);
@@ -2658,9 +2864,11 @@ function OrbitalPolymeter() {
     setRiffCycleStudy(cloneRiffCycleStudy(preset.study));
     setActiveRiffCyclePresetId(preset.id);
     setSelectedRiffCycleStep(null);
-  }, []);
+    setRiffMobileLanePage(0);
+    }, []);
 
   const handleResetRiffCycleStudy = useCallback(() => {
+    setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
   }, []);
 
@@ -2933,6 +3141,7 @@ function OrbitalPolymeter() {
     setRiffCycleStudy(nextStudy);
     setActiveRiffCyclePresetId(null);
     setSelectedRiffCycleStep(null);
+    setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
   }, []);
 
@@ -2943,6 +3152,7 @@ function OrbitalPolymeter() {
       setSelectedRiffCycleStep((currentStep) =>
         currentStep != null && currentStep < remixed.riff.stepCount ? currentStep : null,
       );
+      setRiffMobileLanePage(0);
       return remixed;
     });
     setRiffCycleRestartToken((value) => value + 1);
@@ -2953,6 +3163,7 @@ function OrbitalPolymeter() {
     setRiffCycleStudy(nextStudy);
     setActiveRiffCyclePresetId(null);
     setSelectedRiffCycleStep(null);
+    setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
   }, []);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
@@ -2969,6 +3180,10 @@ function OrbitalPolymeter() {
       ? isMobile
         ? MOBILE_RIFF_GUIDE
         : DESKTOP_RIFF_GUIDE
+      : appSurface === 'polyrhythm-study'
+        ? isMobile
+          ? MOBILE_STUDY_GUIDE
+          : DESKTOP_STUDY_GUIDE
       : isMobile
         ? MOBILE_START_GUIDE
         : DESKTOP_START_GUIDE;
@@ -2996,6 +3211,22 @@ function OrbitalPolymeter() {
     downloadRiffCycleSceneFile(riffCycleStudy.name || 'Riff Cycle Scene', riffCycleStudy);
     toast.success('Riff Cycle scene exported.');
   }, [riffCycleStudy]);
+  const handleExportPolyrhythmPng = useCallback(
+    (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
+      const canvasEl = canvasRef.current;
+      if (canvasEl && (canvasEl as any).__exportPng) {
+        void (canvasEl as any).__exportPng(options);
+        toast.success('Study PNG exported.');
+      } else {
+        toast.error('Could not export Study image.');
+      }
+    },
+    [],
+  );
+  const handleExportPolyrhythmScene = useCallback(() => {
+    downloadPolyrhythmStudyFile(polyrhythmStudy.name || 'Polyrhythm Study', polyrhythmStudy);
+    toast.success('Study scene exported.');
+  }, [polyrhythmStudy]);
   const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
   const guideCalloutHeight = isMobile ? guideMeasuredHeight : 220;
@@ -3555,6 +3786,81 @@ function OrbitalPolymeter() {
       return next;
     });
   }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || appSurface !== 'riff-cycle-study') {
+      return;
+    }
+    setRiffMobileLaneBarsPerPage((current) => {
+      if (riffCycleStudy.reference.subdivision >= 20 && current !== 'full') {
+        return 1;
+      }
+      if (current === 'full') {
+        return current;
+      }
+      return Math.max(
+        1,
+        Math.min(current, riffCycleStudy.reference.barCountForDisplay),
+      ) as 1 | 2;
+    });
+  }, [
+    appSurface,
+    isMobile,
+    riffCycleStudy.reference.barCountForDisplay,
+    riffCycleStudy.reference.subdivision,
+  ]);
+
+  useEffect(() => {
+    setRiffMobileLanePage((current) => Math.min(current, Math.max(0, riffMobileLanePageCount - 1)));
+  }, [riffMobileLanePageCount]);
+
+  useEffect(() => {
+    if (
+      !isMobile ||
+      appSurface !== 'riff-cycle-study' ||
+      riffMobileEditTab !== 'return' ||
+      riffCycleStudy.playing
+    ) {
+      return;
+    }
+    setRiffMobileLanePage(Math.max(0, riffMobileLanePageCount - 1));
+  }, [
+    appSurface,
+    isMobile,
+    riffCycleStudy.playing,
+    riffMobileEditTab,
+    riffMobileLanePageCount,
+  ]);
+
+  const handleRiffMobileReferenceStepChange = useCallback(
+    (referenceStep: number) => {
+      if (
+        !isMobile ||
+        appSurface !== 'riff-cycle-study' ||
+        riffMobileLaneBarsPerPage === 'full' ||
+        (!presentationMode && !riffMobileEditorOpen)
+      ) {
+        return;
+      }
+
+      const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
+      const currentBar = Math.floor(referenceStep / stepsPerBar);
+      const nextPage = Math.floor(currentBar / Math.max(1, riffMobileEffectiveBarsPerPage));
+      setRiffMobileLanePage((current) =>
+        current === nextPage ? current : Math.min(riffMobileLanePageCount - 1, nextPage),
+      );
+    },
+    [
+      appSurface,
+      isMobile,
+      presentationMode,
+      riffMobileEditorOpen,
+      riffMobileLaneBarsPerPage,
+      riffMobileEffectiveBarsPerPage,
+      riffMobileLanePageCount,
+      riffCycleStudy.reference,
+    ],
+  );
 
   const openStartGuide = useCallback(() => {
     setHelpStepIndex(0);
@@ -5092,6 +5398,33 @@ function OrbitalPolymeter() {
     selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
       ? Boolean(selectedPolyrhythmLayer.activeSteps[selectedPolyrhythmStep.stepIndex])
       : null;
+  const polyrhythmSoundFocus =
+    !polyrhythmStudy.soundEnabled
+      ? 'mute'
+      : selectedPolyrhythmLayer &&
+          polyrhythmStudy.layers.every((layer) =>
+            layer.id === selectedPolyrhythmLayer.id ? layer.soundEnabled : !layer.soundEnabled,
+          )
+        ? 'layer'
+        : polyrhythmStudy.layers.every((layer) => layer.soundEnabled)
+          ? 'stack'
+          : 'stack';
+  const polyrhythmAudioSummary =
+    polyrhythmSoundFocus === 'mute'
+      ? 'Muted'
+      : polyrhythmSoundFocus === 'layer'
+        ? 'Layer Only'
+        : 'Stack On';
+  const polyrhythmSoundSummary =
+    polyrhythmStudy.soundSettings.pitchMode === 'keyed'
+      ? `${polyrhythmStudy.soundSettings.rootNote} ${SCALE_PRESETS[polyrhythmStudy.soundSettings.scaleName].label}`
+      : 'Original';
+  const polyrhythmViewSummary =
+    polyrhythmStudy.showStepLabels
+      ? 'Labels'
+      : polyrhythmStudy.showInactiveSteps
+        ? 'Faint'
+        : 'Clean';
   const riffEditMode: RiffEditMode = riffCycleStudy.landingEditEnabled
     ? 'landing'
     : 'phrase';
@@ -5116,6 +5449,803 @@ function OrbitalPolymeter() {
           ? 'Shape'
           : 'Circle';
   if (!captureMode && appSurface === 'polyrhythm-study') {
+    const activePolyrhythmPreset =
+      POLYRHYTHM_PRESETS.find((preset) => preset.id === activePolyrhythmPresetId) ?? null;
+    const selectedPolyrhythmLayerIndex = selectedPolyrhythmLayer
+      ? Math.max(0, polyrhythmStudy.layers.findIndex((layer) => layer.id === selectedPolyrhythmLayer.id))
+      : 0;
+    const polyrhythmLayerLabel = selectedPolyrhythmLayer
+      ? `Layer ${selectedPolyrhythmLayerIndex + 1}`
+      : 'Layer';
+    const polyrhythmLayerSummary = selectedPolyrhythmLayer
+      ? `${selectedPolyrhythmLayer.beatCount} steps · ${countActiveSteps(selectedPolyrhythmLayer)} on`
+      : 'Select a ring';
+    const polyrhythmStackSummary = `${polyrhythmLayerCount} layers · ${polyrhythmActiveCount} on`;
+    const polyrhythmShapeSummary = selectedPolyrhythmStep
+      ? `Step ${selectedPolyrhythmStep.stepIndex + 1}`
+      : selectedPolyrhythmLayer
+        ? `${Math.round(selectedPolyrhythmLayer.rotationOffset)}°`
+        : 'Select a step';
+    const polyrhythmMobileCanvasStyle = {
+      width: '100%',
+      height: 'min(72svh, 620px)',
+      minHeight: '460px',
+    } as const;
+
+    if (isMobile && !presentationMode) {
+      return (
+        <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+          <div className="space-y-2">
+            <div className="relative overflow-hidden" style={polyrhythmMobileCanvasStyle}>
+              <PolyrhythmCanvas
+                study={polyrhythmStudy}
+                selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+                selectedStep={selectedPolyrhythmStep}
+                externalCanvasRef={canvasRef}
+                onSelectLayer={handleSelectPolyrhythmLayer}
+                onSelectStep={handleSelectPolyrhythmStep}
+                onToggleStep={handleTogglePolyrhythmLayerStep}
+                onClearSelection={handleClearPolyrhythmSelection}
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
+
+            <div className="px-4 space-y-3">
+              <div
+                data-guide="study-mobile-playback"
+                className="relative z-10 rounded-[28px] border px-4 py-4 space-y-3"
+                style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.22em] text-white/50">
+                    Playback
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      data-guide="study-mobile-present"
+                      onClick={handleTogglePresentation}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Presentation mode"
+                    >
+                      <Maximize2 size={17} />
+                    </button>
+                    <button
+                      onClick={handleToggleHelpGuide}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label={helpOpen ? 'Close help' : 'Open help'}
+                    >
+                      <CircleHelp size={17} />
+                    </button>
+                    <button
+                      data-guide="study-mobile-menu"
+                      onClick={() => setSidebarOpen(true)}
+                      type="button"
+                      className="h-10 w-10 rounded-xl flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Open menu"
+                    >
+                      <Menu size={17} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <StudyShellButton
+                    tone={polyrhythmStudy.playing ? 'red' : 'green'}
+                    highlighted
+                    icon={polyrhythmStudy.playing ? <Pause size={16} /> : <Play size={16} />}
+                    onClick={handleTogglePolyrhythmPlayback}
+                    className="w-full"
+                  >
+                    {polyrhythmStudy.playing ? 'Pause' : 'Play'}
+                  </StudyShellButton>
+                  <StudyShellButton
+                    tone="amber"
+                    highlighted
+                    icon={<RotateCcw size={15} />}
+                    onClick={handleResetPolyrhythmStudy}
+                    className="w-full"
+                  >
+                    Restart
+                  </StudyShellButton>
+                  <StudyShellButton
+                    tone="blue"
+                    highlighted={polyrhythmStudy.soundEnabled}
+                    icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                    onClick={handleTogglePolyrhythmSound}
+                    data-guide="study-mobile-audio"
+                    className="w-full"
+                  >
+                    Audio
+                  </StudyShellButton>
+                </div>
+
+                <div data-guide="study-mobile-tempo" className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/48">
+                      Speed
+                    </div>
+                    <div className="text-[14px] font-light text-white">
+                      {polyrhythmStudy.bpm}
+                      <span className="ml-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/36">
+                        BPM
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="40"
+                    max="180"
+                    step="1"
+                    value={polyrhythmStudy.bpm}
+                    onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
+                    onPointerDown={(event) =>
+                      handleMobileSliderPointerDown(event, 'study-tempo', (value) =>
+                        handlePolyrhythmBpmChange(Math.round(value)),
+                      )
+                    }
+                    onPointerMove={(event) =>
+                      handleMobileSliderPointerMove(event, 'study-tempo', (value) =>
+                        handlePolyrhythmBpmChange(Math.round(value)),
+                      )
+                    }
+                    onPointerUp={() => clearActiveMobileSlider('study-tempo')}
+                    onPointerCancel={() => clearActiveMobileSlider('study-tempo')}
+                    onBlur={() => clearActiveMobileSlider('study-tempo')}
+                    data-dragging={activeMobileSliderId === 'study-tempo'}
+                    className="touch-slider w-full"
+                    style={{ ['--slider-accent' as string]: '#ffffff' }}
+                    aria-label="Set study tempo"
+                  />
+                </div>
+              </div>
+
+              <div
+                data-guide="study-mobile-edit"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    polyrhythmMobileSection === 'edit'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    polyrhythmMobileSection === 'edit'
+                      ? `${selectedPolyrhythmLayer?.color ?? '#7FD7FF'}24`
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setPolyrhythmMobileSection((current) => (current === 'edit' ? null : 'edit'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: polyrhythmMobileSection === 'edit' ? (selectedPolyrhythmLayer?.color ?? '#72F1B8') : 'rgba(255,255,255,0.5)' }}>
+                      Edit
+                    </div>
+                    <div className="mt-1 text-[12px]" style={{ color: polyrhythmMobileSection === 'edit' ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.42)' }}>
+                      {polyrhythmQuickPanel === 'layer' ? polyrhythmLayerSummary : polyrhythmQuickPanel === 'stack' ? polyrhythmStackSummary : polyrhythmShapeSummary}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      {([
+                        ['layer', 'Layer'],
+                        ['stack', 'Stack'],
+                        ['shape', 'Shape'],
+                      ] as const).map(([tabId, label]) => {
+                        const active = polyrhythmMobileEditTab === tabId;
+                        return (
+                          <button
+                            key={tabId}
+                            type="button"
+                            data-guide={tabId === 'layer' ? 'study-quick-layer' : tabId === 'stack' ? 'study-quick-stack' : 'study-quick-shape'}
+                            onClick={() => {
+                              setPolyrhythmMobileEditTab(tabId);
+                              setPolyrhythmQuickPanel(tabId);
+                              setPolyrhythmMobileSection('edit');
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
+                            style={{
+                              background: active ? `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}16` : 'transparent',
+                              color: active ? selectedPolyrhythmLayer?.color ?? '#72F1B8' : 'rgba(255,255,255,0.5)',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPolyrhythmMobileSection((current) => (current === 'edit' ? null : 'edit'))}
+                      className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                      style={{
+                        ...mobileChevronButtonBaseStyle,
+                        background: polyrhythmMobileSection === 'edit' ? `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}14` : mobileChevronButtonBaseStyle.background,
+                        border: polyrhythmMobileSection === 'edit' ? `1px solid ${selectedPolyrhythmLayer?.color ?? '#72F1B8'}36` : mobileChevronButtonBaseStyle.border,
+                        color: polyrhythmMobileSection === 'edit' ? selectedPolyrhythmLayer?.color ?? '#72F1B8' : mobileChevronButtonBaseStyle.color,
+                      }}
+                      aria-label={polyrhythmMobileSection === 'edit' ? 'Collapse edit' : 'Expand edit'}
+                    >
+                      {polyrhythmMobileSection === 'edit' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {polyrhythmMobileSection === 'edit' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    {polyrhythmMobileEditTab === 'layer' ? (
+                      <div className="space-y-3">
+                        <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                          <div className="flex gap-2 px-1">
+                            {polyrhythmStudy.layers.map((layer, index) => {
+                              const active = layer.id === selectedPolyrhythmLayer?.id;
+                              return (
+                                <StudyShellButton
+                                  key={layer.id}
+                                  size="compact"
+                                  tone="neutral"
+                                  highlighted={active}
+                                  onClick={() => {
+                                    handleSelectPolyrhythmLayer(layer.id);
+                                    setSelectedPolyrhythmStep(null);
+                                  }}
+                                  style={
+                                    active
+                                      ? {
+                                          background: `${layer.color}16`,
+                                          borderColor: `${layer.color}44`,
+                                          color: layer.color,
+                                          boxShadow: `0 0 0 1px ${layer.color}22 inset`,
+                                        }
+                                      : undefined
+                                  }
+                                >
+                                  L{index + 1}
+                                </StudyShellButton>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {selectedPolyrhythmLayer ? (
+                          <>
+                            <div className="space-y-1.5">
+                              <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Steps</div>
+                              <div className="flex items-center gap-2">
+                                <StudyShellButton size="square" onClick={() => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, selectedPolyrhythmLayer.beatCount - 1)}>
+                                  <Minus size={14} />
+                                </StudyShellButton>
+                                <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                                  {selectedPolyrhythmLayer.beatCount}
+                                </div>
+                                <StudyShellButton size="square" onClick={() => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, selectedPolyrhythmLayer.beatCount + 1)}>
+                                  <Plus size={14} />
+                                </StudyShellButton>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
+                                <span>Color</span>
+                                <span>{countActiveSteps(selectedPolyrhythmLayer)} On</span>
+                              </div>
+                              <div className="grid grid-cols-6 gap-2">
+                                {POLYRHYTHM_LAYER_COLORS.slice(0, 12).map((color) => {
+                                  const active = selectedPolyrhythmLayer.color === color;
+                                  return (
+                                    <button
+                                      key={color}
+                                      type="button"
+                                      onClick={() => handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { color })}
+                                      className="h-9 rounded-lg border transition-transform active:scale-[0.97]"
+                                      style={{
+                                        background: `${color}18`,
+                                        borderColor: active ? `${color}aa` : `${color}44`,
+                                        boxShadow: active ? `0 0 0 1px ${color}aa inset` : 'none',
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {polyrhythmMobileEditTab === 'stack' ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer} className="w-full">
+                            Add Layer
+                          </StudyShellButton>
+                          <StudyShellButton
+                            tone="red"
+                            highlighted={Boolean(selectedPolyrhythmLayer && polyrhythmStudy.layers.length > 1)}
+                            icon={<Trash2 size={15} />}
+                            onClick={() =>
+                              selectedPolyrhythmLayer &&
+                              polyrhythmStudy.layers.length > 1 &&
+                              handleRemovePolyrhythmLayer(selectedPolyrhythmLayer.id)
+                            }
+                            disabled={!selectedPolyrhythmLayer || polyrhythmStudy.layers.length <= 1}
+                            className="w-full"
+                          >
+                            Remove
+                          </StudyShellButton>
+                        </div>
+
+                        {selectedPolyrhythmLayer ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
+                              <span>Radius</span>
+                              <span>{selectedPolyrhythmLayer.radius}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="70"
+                              max="320"
+                              step="2"
+                              value={selectedPolyrhythmLayer.radius}
+                              onChange={(event) =>
+                                handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, {
+                                  radius: parseInt(event.target.value, 10) || 70,
+                                })
+                              }
+                              className="touch-slider w-full"
+                              style={{ ['--slider-accent' as string]: selectedPolyrhythmLayer.color }}
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {polyrhythmMobileEditTab === 'shape' ? (
+                      <div className="space-y-3">
+                        {selectedPolyrhythmLayer ? (
+                          <>
+                            <div className="grid grid-cols-4 gap-2">
+                              <StudyShellButton size="compact" onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}>
+                                <ChevronLeft size={14} />
+                              </StudyShellButton>
+                              <StudyShellButton size="compact" onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}>
+                                <ChevronRight size={14} />
+                              </StudyShellButton>
+                              <StudyShellButton size="compact" tone="amber" highlighted onClick={() => handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)}>
+                                Invert
+                              </StudyShellButton>
+                              <StudyShellButton size="compact" tone="red" highlighted onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}>
+                                Clear
+                              </StudyShellButton>
+                            </div>
+                            {selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id ? (
+                              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                                  Step {selectedPolyrhythmStep.stepIndex + 1}
+                                </div>
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  <StudyShellButton
+                                    size="compact"
+                                    highlighted={!selectedPolyrhythmStepActive}
+                                    onClick={() => {
+                                      if (selectedPolyrhythmStepActive) {
+                                        handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, selectedPolyrhythmStep.stepIndex);
+                                      }
+                                    }}
+                                  >
+                                    Off
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="green"
+                                    highlighted={Boolean(selectedPolyrhythmStepActive)}
+                                    onClick={() => {
+                                      if (!selectedPolyrhythmStepActive) {
+                                        handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, selectedPolyrhythmStep.stepIndex);
+                                      }
+                                    }}
+                                  >
+                                    On
+                                  </StudyShellButton>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-white/42">Tap a ring step on the canvas to edit it here.</div>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                data-guide="study-mobile-audio"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    polyrhythmMobileSection === 'audio'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    polyrhythmMobileSection === 'audio'
+                      ? 'rgba(0,255,170,0.18)'
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setPolyrhythmMobileSection((current) => (current === 'audio' ? null : 'audio'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: polyrhythmMobileSection === 'audio' ? '#00FFAA' : 'rgba(255,255,255,0.5)' }}>
+                      Audio
+                    </div>
+                    <div className="mt-1 text-[12px]" style={{ color: polyrhythmMobileSection === 'audio' ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.42)' }}>
+                      {polyrhythmAudioSummary} · {polyrhythmSoundSummary}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPolyrhythmMobileSection((current) => (current === 'audio' ? null : 'audio'))}
+                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: polyrhythmMobileSection === 'audio' ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
+                      border: polyrhythmMobileSection === 'audio' ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
+                      color: polyrhythmMobileSection === 'audio' ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
+                    }}
+                    aria-label={polyrhythmMobileSection === 'audio' ? 'Collapse audio' : 'Expand audio'}
+                  >
+                    {polyrhythmMobileSection === 'audio' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+                </div>
+
+                {polyrhythmMobileSection === 'audio' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Audio</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'layer'} onClick={() => handleSetPolyrhythmSoundFocus('layer')}>
+                          Layer
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'stack'} onClick={() => handleSetPolyrhythmSoundFocus('stack')}>
+                          Stack
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'mute'} onClick={() => handleSetPolyrhythmSoundFocus('mute')}>
+                          Mute
+                        </StudyShellButton>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Sound</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'free'} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'free' })}>
+                          Original
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'keyed'} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'keyed' })}>
+                          Keyed
+                        </StudyShellButton>
+                      </div>
+                      <select
+                        value={polyrhythmStudy.soundSettings.palette}
+                        onChange={(event) => handleUpdatePolyrhythmSoundSettings({ palette: event.target.value as PolyrhythmSoundSettings['palette'] })}
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                      >
+                        {[
+                          ['study-pulse', 'Study Pulse'],
+                          ['glass-tick', 'Glass Tick'],
+                          ['wood', 'Wood'],
+                          ['soft-synth', 'Soft Synth'],
+                          ['bright-marker', 'Bright Marker'],
+                        ].map(([id, label]) => (
+                          <option key={id} value={id} style={{ background: '#181820' }}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
+                          Tight
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
+                          Wide
+                        </StudyShellButton>
+                      </div>
+                      {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
+                        <div className="grid grid-cols-[82px,1fr] gap-2">
+                          <select
+                            value={polyrhythmStudy.soundSettings.rootNote}
+                            onChange={(event) => handleUpdatePolyrhythmSoundSettings({ rootNote: event.target.value as RootNote })}
+                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                          >
+                            {NOTE_NAMES.map((note) => (
+                              <option key={note} value={note} style={{ background: '#181820' }}>
+                                {note}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={polyrhythmStudy.soundSettings.scaleName}
+                            onChange={(event) => handleUpdatePolyrhythmSoundSettings({ scaleName: event.target.value as ScaleName })}
+                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                          >
+                            {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                              <option key={name} value={name} style={{ background: '#181820' }}>
+                                {scale.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">View</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
+                          Faint
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
+                          Labels
+                        </StudyShellButton>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                data-guide="study-mobile-scenes"
+                className="rounded-[28px] border"
+                style={{
+                  background:
+                    polyrhythmMobileSection === 'scenes'
+                      ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                      : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
+                  borderColor:
+                    polyrhythmMobileSection === 'scenes'
+                      ? 'rgba(51,136,255,0.18)'
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setPolyrhythmMobileSection((current) => (current === 'scenes' ? null : 'scenes'))}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="text-[11px] font-mono uppercase tracking-[0.22em]" style={{ color: polyrhythmMobileSection === 'scenes' ? '#88CCFF' : 'rgba(255,255,255,0.5)' }}>
+                      Scenes
+                    </div>
+                    <div className="mt-1 text-[12px]" style={{ color: polyrhythmMobileSection === 'scenes' ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.42)' }}>
+                      {activePolyrhythmPreset?.name ?? 'Custom Study'}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRandomPolyrhythmStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
+                    >
+                      Random
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRemixPolyrhythmStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
+                    >
+                      Remix
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleRandomPlusPolyrhythmStudy();
+                      }}
+                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                    >
+                      Random+
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPolyrhythmMobileSection((current) => (current === 'scenes' ? null : 'scenes'))}
+                      className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
+                      style={{
+                        ...mobileChevronButtonBaseStyle,
+                        background: polyrhythmMobileSection === 'scenes' ? 'rgba(51,136,255,0.12)' : mobileChevronButtonBaseStyle.background,
+                        border: polyrhythmMobileSection === 'scenes' ? '1px solid rgba(51,136,255,0.22)' : mobileChevronButtonBaseStyle.border,
+                        color: polyrhythmMobileSection === 'scenes' ? '#88CCFF' : mobileChevronButtonBaseStyle.color,
+                      }}
+                      aria-label={polyrhythmMobileSection === 'scenes' ? 'Collapse scenes' : 'Expand scenes'}
+                    >
+                      {polyrhythmMobileSection === 'scenes' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {polyrhythmMobileSection === 'scenes' ? (
+                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    <div className="space-y-3">
+                      {POLYRHYTHM_PRESETS.map((preset) => {
+                        const active = preset.id === activePolyrhythmPresetId;
+                        return (
+                          <div
+                            key={preset.id}
+                            className="rounded-xl border p-3"
+                            style={{
+                              background: active
+                                ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
+                                : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
+                              borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <PolyrhythmSceneThumbnail preset={preset} />
+                              <div className="min-w-0 flex-1">
+                                <div
+                                  className="text-[11px] font-mono uppercase tracking-[0.16em]"
+                                  style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}
+                                >
+                                  {preset.name}
+                                </div>
+                                <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/34">
+                                  {preset.study.layers.length} layers · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
+                                </div>
+                                <div className="mt-2 text-[10px] text-white/42">{preset.description}</div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadPolyrhythmPreset(preset.id)}
+                                  className="mt-3 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                                  style={{
+                                    background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
+                                    borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                                    color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
+                                  }}
+                                >
+                                  {active ? 'Loaded' : 'Load Scene'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton tone="amber" highlighted onClick={() => handleExportPolyrhythmPng({ aspect: 'square', scale: 2 })} className="w-full">
+                        Export PNG
+                      </StudyShellButton>
+                      <StudyShellButton tone="neutral" highlighted onClick={handleExportPolyrhythmScene} className="w-full">
+                        Export Study
+                      </StudyShellButton>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {appSurfaceToggle}
+
+          {helpOpen && currentGuideStep ? (
+            <>
+              <div className="fixed inset-0 z-30 bg-black/42" onClick={closeStartGuide} />
+              {guideRect ? (
+                <div
+                  className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
+                  style={{
+                    left: Math.max(8, guideRect.left - 8),
+                    top: Math.max(8, guideRect.top - 8),
+                    width: guideRect.width + 16,
+                    height: guideRect.height + 16,
+                    borderColor: 'rgba(0,255,170,0.42)',
+                    boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
+                  }}
+                />
+              ) : null}
+              <div ref={guideCalloutRef} className="fixed z-40 left-3 right-3 rounded-2xl border p-4" style={guideCalloutStyle}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
+                  {helpStepIndex === 0 ? 'Start Guide' : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
+                </div>
+                <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {currentGuideStep.title}
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                  {currentGuideStep.text}
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <button
+                    onClick={closeStartGuide}
+                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                    style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    Done
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
+                      disabled={helpStepIndex === 0}
+                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{
+                        color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (helpStepIndex >= guideSteps.length - 1) {
+                          closeStartGuide();
+                          return;
+                        }
+                        setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+                      }}
+                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
+                    >
+                      {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          <PolyrhythmSidebar
+            isOpen={sidebarOpen}
+            study={polyrhythmStudy}
+            currentSurface={appSurface}
+            activePresetId={activePolyrhythmPresetId}
+            selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+            selectedStep={selectedPolyrhythmStep}
+            onClose={() => setSidebarOpen(false)}
+            onSurfaceChange={handleAppSurfaceChange}
+            onLoadPreset={handleLoadPolyrhythmPreset}
+            onResetStudy={handleResetPolyrhythmStudy}
+            onTogglePlay={handleTogglePolyrhythmPlayback}
+            onBpmChange={handlePolyrhythmBpmChange}
+            onToggleStudySound={handleTogglePolyrhythmSound}
+            onUpdateSoundSettings={handleUpdatePolyrhythmSoundSettings}
+            onSetSoundFocus={handleSetPolyrhythmSoundFocus}
+            onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
+            onToggleStepLabels={handleTogglePolyrhythmStepLabels}
+            onAddLayer={handleAddPolyrhythmLayer}
+            onSelectLayer={handleSelectPolyrhythmLayer}
+            onSelectStep={handleSelectPolyrhythmStep}
+            onRemoveLayer={handleRemovePolyrhythmLayer}
+            onRotateLayer={handleRotatePolyrhythmLayer}
+            onInvertLayerSteps={handleInvertPolyrhythmLayerSteps}
+            onClearLayer={handleClearPolyrhythmLayer}
+            onUpdateLayer={handleUpdatePolyrhythmLayer}
+            onSetLayerBeatCount={handleSetPolyrhythmLayerBeatCount}
+            onToggleLayerStep={handleTogglePolyrhythmLayerStep}
+            onExportPng={handleExportPolyrhythmPng}
+            onExportScene={handleExportPolyrhythmScene}
+          />
+        </div>
+      );
+    }
+
     return (
       <div
         className={
@@ -5128,6 +6258,7 @@ function OrbitalPolymeter() {
           study={polyrhythmStudy}
           selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
           selectedStep={selectedPolyrhythmStep}
+          externalCanvasRef={canvasRef}
           onSelectLayer={handleSelectPolyrhythmLayer}
           onSelectStep={handleSelectPolyrhythmStep}
           onToggleStep={handleTogglePolyrhythmLayerStep}
@@ -5138,81 +6269,192 @@ function OrbitalPolymeter() {
 
         {!presentationMode ? appSurfaceToggle : null}
         {!presentationMode ? (
-        <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[24rem]'}`}>
-          <StudyShellPanel className="space-y-4">
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/42">
-                Active Study
+        <div data-guide="study-desktop-quick" className="fixed z-20 left-6 top-20 w-[16.75rem]">
+          <StudyShellPanel className="space-y-2">
+            <div className="px-0.5">
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                Quick Edit
               </div>
-              <div className="mt-2 text-[20px] font-light text-white">{polyrhythmStudy.name}</div>
             </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {POLYRHYTHM_PRESETS.map((preset) => (
-                <StudyShellButton
-                  key={preset.id}
-                  size="compact"
-                  tone="green"
-                  highlighted={activePolyrhythmPresetId === preset.id}
-                  onClick={() => handleLoadPolyrhythmPreset(preset.id)}
-                >
-                  {preset.name}
-                </StudyShellButton>
-              ))}
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                  Layers
-                </div>
-                <StudyShellChip>{polyrhythmLayerCount} layers</StudyShellChip>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {polyrhythmStudy.layers.map((layer, index) => (
-                  <StudyShellButton
-                    key={layer.id}
-                    size="compact"
-                    tone="neutral"
-                    highlighted={selectedPolyrhythmLayer?.id === layer.id}
-                    onClick={() => handleSelectPolyrhythmLayer(layer.id)}
-                    style={
-                      selectedPolyrhythmLayer?.id === layer.id
-                        ? {
-                            background: `${layer.color}16`,
-                            borderColor: `${layer.color}44`,
-                            color: layer.color,
-                            boxShadow: `0 0 0 1px ${layer.color}22 inset`,
-                          }
-                        : undefined
-                    }
-                  >
-                    L{index + 1} · {layer.beatCount}
-                  </StudyShellButton>
-                ))}
-              </div>
-              {selectedPolyrhythmLayer ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <StudyShellChip
-                    tone="blue"
-                    highlighted
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                ['layer', 'Layer'],
+                ['stack', 'Stack'],
+                ['shape', 'Shape'],
+              ] as const).map(([panelId, label]) => {
+                const active = polyrhythmQuickPanel === panelId;
+                return (
+                  <button
+                    key={panelId}
+                    type="button"
+                    data-guide={panelId === 'layer' ? 'study-quick-layer' : panelId === 'stack' ? 'study-quick-stack' : 'study-quick-shape'}
+                    onClick={() => setPolyrhythmQuickPanel((current) => (current === panelId ? current : panelId))}
+                    className="flex items-center justify-center rounded-xl border px-3 py-2.5 text-center transition-all"
                     style={{
-                      background: `${selectedPolyrhythmLayer.color}16`,
-                      borderColor: `${selectedPolyrhythmLayer.color}33`,
-                      color: selectedPolyrhythmLayer.color,
+                      background: active ? `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}14` : 'rgba(255,255,255,0.03)',
+                      borderColor: active ? `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}34` : 'rgba(255,255,255,0.08)',
+                      color: active ? selectedPolyrhythmLayer?.color ?? '#72F1B8' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    {countActiveSteps(selectedPolyrhythmLayer)} active
-                  </StudyShellChip>
-                  <StudyShellChip>{selectedPolyrhythmLayer.beatCount} steps</StudyShellChip>
-                  <StudyShellChip>{Math.round(selectedPolyrhythmLayer.rotationOffset)}°</StudyShellChip>
-                  {selectedPolyrhythmStep ? (
-                    <StudyShellChip
-                      tone={selectedPolyrhythmStepActive ? 'green' : 'neutral'}
-                      highlighted={selectedPolyrhythmStepActive ?? false}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3">
+              {polyrhythmQuickPanel === 'layer' ? (
+                <div className="space-y-3">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Layer</div>
+                  <div className="flex flex-wrap gap-2">
+                    {polyrhythmStudy.layers.map((layer, index) => {
+                      const active = layer.id === selectedPolyrhythmLayer?.id;
+                      return (
+                        <StudyShellButton
+                          key={layer.id}
+                          size="compact"
+                          tone="neutral"
+                          highlighted={active}
+                          onClick={() => {
+                            handleSelectPolyrhythmLayer(layer.id);
+                            setSelectedPolyrhythmStep(null);
+                          }}
+                          style={
+                            active
+                              ? {
+                                  background: `${layer.color}16`,
+                                  borderColor: `${layer.color}44`,
+                                  color: layer.color,
+                                  boxShadow: `0 0 0 1px ${layer.color}22 inset`,
+                                }
+                              : undefined
+                          }
+                        >
+                          L{index + 1}
+                        </StudyShellButton>
+                      );
+                    })}
+                  </div>
+                  {selectedPolyrhythmLayer ? (
+                    <div className="space-y-2">
+                      <div className="text-[10px] text-white/44">{polyrhythmLayerSummary}</div>
+                      <div className="flex items-center gap-2">
+                        <StudyShellButton size="square" onClick={() => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, selectedPolyrhythmLayer.beatCount - 1)}>
+                          <Minus size={14} />
+                        </StudyShellButton>
+                        <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                          {selectedPolyrhythmLayer.beatCount}
+                        </div>
+                        <StudyShellButton size="square" onClick={() => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, selectedPolyrhythmLayer.beatCount + 1)}>
+                          <Plus size={14} />
+                        </StudyShellButton>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {polyrhythmQuickPanel === 'stack' ? (
+                <div className="space-y-3">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Stack</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <StudyShellButton tone="blue" highlighted icon={<Plus size={14} />} onClick={handleAddPolyrhythmLayer} className="w-full">
+                      Add
+                    </StudyShellButton>
+                    <StudyShellButton
+                      tone="red"
+                      highlighted={Boolean(selectedPolyrhythmLayer && polyrhythmStudy.layers.length > 1)}
+                      icon={<Trash2 size={14} />}
+                      disabled={!selectedPolyrhythmLayer || polyrhythmStudy.layers.length <= 1}
+                      onClick={() =>
+                        selectedPolyrhythmLayer &&
+                        polyrhythmStudy.layers.length > 1 &&
+                        handleRemovePolyrhythmLayer(selectedPolyrhythmLayer.id)
+                      }
+                      className="w-full"
                     >
-                      Step {selectedPolyrhythmStep.stepIndex + 1}
-                    </StudyShellChip>
+                      Remove
+                    </StudyShellButton>
+                  </div>
+                  {selectedPolyrhythmLayer ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                        <span>Radius</span>
+                        <span>{selectedPolyrhythmLayer.radius}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="70"
+                        max="320"
+                        step="2"
+                        value={selectedPolyrhythmLayer.radius}
+                        onChange={(event) =>
+                          handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, {
+                            radius: parseInt(event.target.value, 10) || 70,
+                          })
+                        }
+                        className="w-full"
+                        style={{ accentColor: selectedPolyrhythmLayer.color }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {polyrhythmQuickPanel === 'shape' ? (
+                <div className="space-y-3">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Shape</div>
+                  {selectedPolyrhythmLayer ? (
+                    <>
+                      <div className="grid grid-cols-4 gap-2">
+                        <StudyShellButton size="compact" onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}>
+                          <ChevronLeft size={14} />
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}>
+                          <ChevronRight size={14} />
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="amber" highlighted onClick={() => handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)}>
+                          Invert
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="red" highlighted onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}>
+                          Clear
+                        </StudyShellButton>
+                      </div>
+                      {selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id ? (
+                        <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                            Step {selectedPolyrhythmStep.stepIndex + 1}
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <StudyShellButton
+                              size="compact"
+                              highlighted={!selectedPolyrhythmStepActive}
+                              onClick={() => {
+                                if (selectedPolyrhythmStepActive) {
+                                  handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, selectedPolyrhythmStep.stepIndex);
+                                }
+                              }}
+                            >
+                              Off
+                            </StudyShellButton>
+                            <StudyShellButton
+                              size="compact"
+                              tone="green"
+                              highlighted={Boolean(selectedPolyrhythmStepActive)}
+                              onClick={() => {
+                                if (!selectedPolyrhythmStepActive) {
+                                  handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, selectedPolyrhythmStep.stepIndex);
+                                }
+                              }}
+                            >
+                              On
+                            </StudyShellButton>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-white/42">Tap a ring step to edit it here.</div>
+                      )}
+                    </>
                   ) : null}
                 </div>
               ) : null}
@@ -5222,206 +6464,278 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!isMobile && !presentationMode ? (
-          <div className="fixed right-6 top-20 z-20 w-[22rem]">
-            <StudyShellPanel className="space-y-3">
-              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                Ring Tools
+          <div className="fixed right-6 top-20 z-20 w-[18rem]">
+            <StudyShellPanel className="space-y-2">
+              <div data-guide="study-desktop-audio" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                >
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Audio</div>
+                    <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">{polyrhythmAudioSummary}</div>
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {polyrhythmUtilityPanel === 'audio' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {polyrhythmUtilityPanel === 'audio' ? (
+                  <div className="border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'layer'} onClick={() => handleSetPolyrhythmSoundFocus('layer')}>
+                        Layer
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'stack'} onClick={() => handleSetPolyrhythmSoundFocus('stack')}>
+                        Stack
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'mute'} onClick={() => handleSetPolyrhythmSoundFocus('mute')}>
+                        Mute
+                      </StudyShellButton>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <StudyShellButton
-                  size="compact"
-                  tone="blue"
-                  highlighted={polyrhythmStudy.showInactiveSteps}
-                  onClick={handleTogglePolyrhythmInactiveSteps}
+
+              <div data-guide="study-desktop-sound" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
                 >
-                  {polyrhythmStudy.showInactiveSteps ? 'Faint On' : 'Faint Off'}
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="amber"
-                  highlighted={Boolean(polyrhythmStudy.showStepLabels)}
-                  onClick={handleTogglePolyrhythmStepLabels}
-                >
-                  {polyrhythmStudy.showStepLabels ? 'Labels On' : 'Labels Off'}
-                </StudyShellButton>
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Sound</div>
+                    <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">{polyrhythmSoundSummary}</div>
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {polyrhythmUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {polyrhythmUtilityPanel === 'sound' ? (
+                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'free'} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'free' })}>
+                        Original
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'keyed'} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'keyed' })}>
+                        Keyed
+                      </StudyShellButton>
+                    </div>
+                    <select
+                      value={polyrhythmStudy.soundSettings.palette}
+                      onChange={(event) => handleUpdatePolyrhythmSoundSettings({ palette: event.target.value as PolyrhythmSoundSettings['palette'] })}
+                      className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                    >
+                      <option value="study-pulse" style={{ background: '#181820' }}>Study Pulse</option>
+                      <option value="glass-tick" style={{ background: '#181820' }}>Glass Tick</option>
+                      <option value="wood" style={{ background: '#181820' }}>Wood</option>
+                      <option value="soft-synth" style={{ background: '#181820' }}>Soft Synth</option>
+                      <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
+                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
+                        Tight
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
+                        Wide
+                      </StudyShellButton>
+                    </div>
+                    {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
+                      <div className="grid grid-cols-[72px,1fr] gap-2">
+                        <select
+                          value={polyrhythmStudy.soundSettings.rootNote}
+                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ rootNote: event.target.value as RootNote })}
+                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                        >
+                          {NOTE_NAMES.map((note) => (
+                            <option key={note} value={note} style={{ background: '#181820' }}>
+                              {note}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={polyrhythmStudy.soundSettings.scaleName}
+                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ scaleName: event.target.value as ScaleName })}
+                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                        >
+                          {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                            <option key={name} value={name} style={{ background: '#181820' }}>
+                              {scale.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <StudyShellButton
-                  size="compact"
-                  onClick={() =>
-                    selectedPolyrhythmLayer && handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)
-                  }
-                  disabled={!selectedPolyrhythmLayer}
+
+              <div data-guide="study-desktop-view" className="rounded-xl border border-white/8 bg-white/[0.03]">
+                <button
+                  type="button"
+                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'view' ? null : 'view'))}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
                 >
-                  Back 1
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  onClick={() =>
-                    selectedPolyrhythmLayer && handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)
-                  }
-                  disabled={!selectedPolyrhythmLayer}
-                >
-                  Forward 1
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="pink"
-                  highlighted={Boolean(selectedPolyrhythmLayer)}
-                  onClick={() =>
-                    selectedPolyrhythmLayer && handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)
-                  }
-                  disabled={!selectedPolyrhythmLayer}
-                >
-                  Invert
-                </StudyShellButton>
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">View</div>
+                    <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">{polyrhythmViewSummary}</div>
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/56">
+                    {polyrhythmUtilityPanel === 'view' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {polyrhythmUtilityPanel === 'view' ? (
+                  <div className="border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
+                        Faint
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
+                        Labels
+                      </StudyShellButton>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </StudyShellPanel>
           </div>
         ) : null}
 
-        <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
-          <StudyShellDock className={isMobile ? 'space-y-3' : 'flex items-center gap-3'}>
-            <div className={`flex flex-wrap items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
-              <StudyShellButton
-                tone={polyrhythmStudy.playing ? 'red' : 'green'}
-                highlighted
-                icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />}
-                onClick={handleTogglePolyrhythmPlayback}
-              >
-                {polyrhythmStudy.playing ? 'Pause' : 'Play'}
-              </StudyShellButton>
-              <StudyShellButton
-                tone="amber"
-                highlighted
-                icon={<RotateCcw size={15} />}
-                onClick={handleResetPolyrhythmStudy}
-              >
-                Reset
-              </StudyShellButton>
-              <StudyShellButton
-                tone="blue"
-                highlighted
-                icon={<Shuffle size={15} />}
-                onClick={handleRandomPolyrhythmStudy}
-              >
-                Random
-              </StudyShellButton>
-              <StudyShellButton
-                tone="green"
-                highlighted
-                icon={<Shuffle size={15} />}
-                onClick={handleRemixPolyrhythmStudy}
-              >
-                Remix
-              </StudyShellButton>
-              <StudyShellButton
-                tone="amber"
-                highlighted
-                icon={<Shuffle size={15} />}
-                onClick={handleRandomPlusPolyrhythmStudy}
-              >
-                Random+
-              </StudyShellButton>
-              <StudyShellButton
-                tone="blue"
-                highlighted
-                icon={<Plus size={15} />}
-                onClick={handleAddPolyrhythmLayer}
-              >
-                Add Layer
-              </StudyShellButton>
-              <StudyShellButton
-                tone="red"
-                highlighted={Boolean(selectedPolyrhythmLayer && polyrhythmStudy.layers.length > 1)}
-                icon={<Trash2 size={15} />}
-                disabled={!selectedPolyrhythmLayer || polyrhythmStudy.layers.length <= 1}
-                onClick={() =>
-                  selectedPolyrhythmLayer &&
-                  polyrhythmStudy.layers.length > 1 &&
-                  handleRemovePolyrhythmLayer(selectedPolyrhythmLayer.id)
-                }
-              >
-                Remove
-              </StudyShellButton>
-            </div>
-
-            <div
-              className={`rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2 ${
-                isMobile ? '' : 'ml-auto'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <StudyShellButton
-                  size="square"
-                  onClick={() => handlePolyrhythmBpmChange(polyrhythmStudy.bpm - 2)}
-                  aria-label="Slow down study"
-                >
-                  <Minus size={14} />
-                </StudyShellButton>
-                <div className="min-w-[88px] text-center">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    Tempo
-                  </div>
-                  <div className="mt-1 text-[15px] font-light text-white">{polyrhythmStudy.bpm}</div>
+        {isMobile && presentationMode ? (
+          <div className="fixed z-20 left-5 right-5 bottom-5">
+            <StudyShellPanel className="space-y-2.5">
+              <div className="flex items-center justify-center gap-2">
+                <div className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}12`, borderColor: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}26`, color: selectedPolyrhythmLayer?.color ?? '#72F1B8' }}>
+                  Study
                 </div>
+                <StudyShellButton size="square" tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={16} /> : <Play size={16} />} onClick={handleTogglePolyrhythmPlayback} />
+                <StudyShellButton size="square" tone="amber" highlighted icon={<RotateCcw size={16} />} onClick={handleResetPolyrhythmStudy} />
+                <StudyShellButton size="square" tone="blue" highlighted icon={<Shuffle size={16} />} onClick={handleRandomPolyrhythmStudy} />
                 <StudyShellButton
                   size="square"
-                  onClick={() => handlePolyrhythmBpmChange(polyrhythmStudy.bpm + 2)}
-                  aria-label="Speed up study"
+                  tone="neutral"
+                  highlighted
+                  icon={<Shuffle size={16} />}
+                  onClick={handleRemixPolyrhythmStudy}
+                  style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}
+                />
+                <StudyShellButton size="square" tone="amber" highlighted icon={<Shuffle size={16} />} onClick={handleRandomPlusPolyrhythmStudy} />
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
+                  Faint
+                </StudyShellButton>
+                <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
+                  Labels
+                </StudyShellButton>
+                <StudyShellButton size="square" tone="blue" highlighted={polyrhythmStudy.soundEnabled} icon={polyrhythmStudy.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />} onClick={handleTogglePolyrhythmSound} />
+                <StudyShellButton size="square" tone="green" highlighted icon={<Maximize2 size={16} />} onClick={handleTogglePresentation} />
+              </div>
+            </StudyShellPanel>
+          </div>
+        ) : (
+          <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
+            <StudyShellDock className={isMobile ? 'space-y-3' : 'grid grid-cols-[auto_minmax(24rem,1fr)_auto] items-center gap-3'}>
+              <div data-guide={isMobile ? 'study-mobile-playback' : 'study-desktop-transport'} className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}>
+                <StudyShellButton tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleTogglePolyrhythmPlayback}>
+                  {polyrhythmStudy.playing ? 'Pause' : 'Play'}
+                </StudyShellButton>
+                <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleResetPolyrhythmStudy}>
+                  Restart
+                </StudyShellButton>
+                <StudyShellButton tone="blue" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPolyrhythmStudy}>
+                  Random
+                </StudyShellButton>
+                <StudyShellButton
+                  tone="neutral"
+                  highlighted
+                  icon={<Shuffle size={15} />}
+                  onClick={handleRemixPolyrhythmStudy}
+                  style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}
                 >
-                  <Plus size={14} />
+                  Remix
+                </StudyShellButton>
+                <StudyShellButton tone="amber" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPlusPolyrhythmStudy}>
+                  Random+
+                </StudyShellButton>
+                <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer}>
+                  Add Layer
                 </StudyShellButton>
               </div>
-            </div>
 
-            <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
-              {isMobile ? (
-                <>
-                  <StudyShellButton
-                    size="compact"
-                    tone="blue"
-                    highlighted={polyrhythmStudy.showInactiveSteps}
-                    onClick={handleTogglePolyrhythmInactiveSteps}
-                  >
-                    Faint
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="amber"
-                    highlighted={Boolean(polyrhythmStudy.showStepLabels)}
-                    onClick={handleTogglePolyrhythmStepLabels}
-                  >
-                    Labels
-                  </StudyShellButton>
-                </>
-              ) : null}
-              <StudyShellButton
-                tone="blue"
-                highlighted={polyrhythmStudy.soundEnabled}
-                icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                onClick={handleTogglePolyrhythmSound}
-              >
-                {polyrhythmStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
-              </StudyShellButton>
-              <StudyShellButton
-                tone="green"
-                highlighted={presentationMode}
-                icon={<Maximize2 size={15} />}
-                onClick={handleTogglePresentation}
-              >
-                Present
-              </StudyShellButton>
-              <StudyShellButton
-                size="square"
-                icon={<Menu size={15} />}
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open polyrhythm menu"
-                title="Open polyrhythm menu"
-              />
-            </div>
-          </StudyShellDock>
-        </div>
+              <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="rounded-[1.35rem] border border-white/8 bg-white/[0.03] px-4 py-3">
+                <div className="flex items-center gap-4">
+                  <div className="min-w-[4.5rem] shrink-0">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">Tempo</div>
+                    <div className="mt-1 text-[18px] font-light leading-none text-white">{polyrhythmStudy.bpm}</div>
+                  </div>
+                  <input
+                    type="range"
+                    min="40"
+                    max="180"
+                    step="1"
+                    value={polyrhythmStudy.bpm}
+                    onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
+                    onPointerDown={(event) =>
+                      handleMobileSliderPointerDown(event, 'study-desktop-tempo', (value) =>
+                        handlePolyrhythmBpmChange(Math.round(value)),
+                      )
+                    }
+                    onPointerMove={(event) =>
+                      handleMobileSliderPointerMove(event, 'study-desktop-tempo', (value) =>
+                        handlePolyrhythmBpmChange(Math.round(value)),
+                      )
+                    }
+                    onPointerUp={() => clearActiveMobileSlider('study-desktop-tempo')}
+                    onPointerCancel={() => clearActiveMobileSlider('study-desktop-tempo')}
+                    onBlur={() => clearActiveMobileSlider('study-desktop-tempo')}
+                    data-dragging={activeMobileSliderId === 'study-desktop-tempo'}
+                    className="touch-slider w-full"
+                    style={{ ['--slider-accent' as string]: '#ffffff' }}
+                    aria-label="Set study tempo"
+                  />
+                </div>
+              </div>
+
+              <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : ''}`}>
+                <StudyShellButton
+                  tone="blue"
+                  highlighted={polyrhythmStudy.soundEnabled}
+                  icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                  onClick={handleTogglePolyrhythmSound}
+                  data-guide={isMobile ? 'study-mobile-audio' : undefined}
+                >
+                  {polyrhythmStudy.soundEnabled ? 'Audio On' : 'Audio Off'}
+                </StudyShellButton>
+                <StudyShellButton
+                  tone="green"
+                  highlighted={presentationMode}
+                  icon={<Maximize2 size={15} />}
+                  onClick={handleTogglePresentation}
+                  data-guide={isMobile ? 'study-mobile-present' : 'study-desktop-present'}
+                >
+                  Present
+                </StudyShellButton>
+                <StudyShellButton
+                  tone="neutral"
+                  highlighted={helpOpen}
+                  icon={<CircleHelp size={15} />}
+                  onClick={handleToggleHelpGuide}
+                >
+                  Help
+                </StudyShellButton>
+                <StudyShellButton
+                  size="square"
+                  icon={<Menu size={15} />}
+                  onClick={() => setSidebarOpen(true)}
+                  data-guide={isMobile ? 'study-mobile-menu' : 'study-desktop-menu'}
+                  aria-label="Open study menu"
+                  title="Open study menu"
+                />
+              </div>
+            </StudyShellDock>
+          </div>
+        )}
 
         <PolyrhythmSidebar
           isOpen={sidebarOpen && !presentationMode}
@@ -5438,6 +6752,7 @@ function OrbitalPolymeter() {
           onBpmChange={handlePolyrhythmBpmChange}
           onToggleStudySound={handleTogglePolyrhythmSound}
           onUpdateSoundSettings={handleUpdatePolyrhythmSoundSettings}
+          onSetSoundFocus={handleSetPolyrhythmSoundFocus}
           onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
           onToggleStepLabels={handleTogglePolyrhythmStepLabels}
           onAddLayer={handleAddPolyrhythmLayer}
@@ -5446,9 +6761,12 @@ function OrbitalPolymeter() {
           onRemoveLayer={handleRemovePolyrhythmLayer}
           onRotateLayer={handleRotatePolyrhythmLayer}
           onInvertLayerSteps={handleInvertPolyrhythmLayerSteps}
+          onClearLayer={handleClearPolyrhythmLayer}
           onUpdateLayer={handleUpdatePolyrhythmLayer}
           onSetLayerBeatCount={handleSetPolyrhythmLayerBeatCount}
           onToggleLayerStep={handleTogglePolyrhythmLayerStep}
+          onExportPng={handleExportPolyrhythmPng}
+          onExportScene={handleExportPolyrhythmScene}
         />
       </div>
     );
@@ -5479,6 +6797,23 @@ function OrbitalPolymeter() {
           ? `${riffCycleStudy.soundSettings.rootNote} ${SCALE_PRESETS[riffCycleStudy.soundSettings.scaleName].label}`
           : 'Original';
       const riffMobileDisplaySteps = getDisplayStepCount(riffCycleStudy);
+      const riffMobileLaneWindowLabel =
+        riffMobileLaneBarsPerPage === 'full'
+          ? 'All Bars'
+          : riffMobileLaneStartBar === riffMobileLaneEndBar
+            ? `Bar ${riffMobileLaneStartBar}`
+            : `Bars ${riffMobileLaneStartBar}-${riffMobileLaneEndBar}`;
+      const riffMobileLanePageLabels = Array.from({ length: riffMobileLanePageCount }, (_, index) => {
+        const startBar = index * riffMobileEffectiveBarsPerPage + 1;
+        const endBar = Math.min(
+          riffCycleStudy.reference.barCountForDisplay,
+          startBar + riffMobileEffectiveBarsPerPage - 1,
+        );
+        return {
+          index,
+          label: startBar === endBar ? `${startBar}` : `${startBar}-${endBar}`,
+        };
+      });
       const riffMobileEditorTab = riffMobileEditTab === 'return' ? 'return' : 'phrase';
       const riffMobileEditorActionLabel =
         riffMobileEditorTab === 'phrase' ? 'Clear Phrase' : 'Clear Ending';
@@ -6520,6 +7855,52 @@ function OrbitalPolymeter() {
                       </StudyShellButton>
                     </div>
 
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-1.5">
+                        {([
+                          { value: 1 as const, label: '1 Bar' },
+                          { value: 2 as const, label: '2 Bars' },
+                          { value: 'full' as const, label: 'Full' },
+                        ]).map((option) => (
+                          <StudyShellButton
+                            key={option.label}
+                            size="compact"
+                            tone="blue"
+                            highlighted={riffMobileLaneBarsPerPage === option.value}
+                            onClick={() => {
+                              setRiffMobileLaneBarsPerPage(option.value);
+                              if (option.value === 'full') {
+                                setRiffMobileLanePage(0);
+                              }
+                            }}
+                          >
+                            {option.label}
+                          </StudyShellButton>
+                        ))}
+                      </div>
+                      <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/42">
+                        {riffMobileLaneWindowLabel}
+                      </div>
+                    </div>
+
+                    {riffMobileLaneBarsPerPage !== 'full' && riffMobileLanePageCount > 1 ? (
+                      <div className="-mx-0.5 mt-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                        <div className="flex gap-1.5 px-0.5">
+                          {riffMobileLanePageLabels.map((page) => (
+                            <StudyShellButton
+                              key={page.index}
+                              size="compact"
+                              tone="amber"
+                              highlighted={riffMobileLanePage === page.index}
+                              onClick={() => setRiffMobileLanePage(page.index)}
+                            >
+                              {page.label}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div
                       className="relative mt-4 min-h-0 flex-1 overflow-hidden rounded-[28px] border"
                       style={{ background: 'rgba(17,17,22,0.96)', borderColor: 'rgba(255,255,255,0.08)' }}
@@ -6527,6 +7908,9 @@ function OrbitalPolymeter() {
                       <RiffCycleCanvas
                         study={riffCycleStudy}
                         viewModeOverride="unwrapped"
+                        laneWindowStartStep={riffMobileLaneStartStep}
+                        laneWindowStepCount={riffMobileLaneStepCount}
+                        onReferenceStepChange={handleRiffMobileReferenceStepChange}
                         selectedStep={selectedRiffCycleStep}
                         restartToken={riffCycleRestartToken}
                         externalCanvasRef={canvasRef}
@@ -6675,6 +8059,9 @@ function OrbitalPolymeter() {
           study={riffCycleStudy}
           viewModeOverride={isMobile && presentationMode ? 'unwrapped' : undefined}
           layoutBottomInset={isMobile && presentationMode ? 96 : 0}
+          laneWindowStartStep={isMobile && presentationMode ? riffMobileLaneStartStep : undefined}
+          laneWindowStepCount={isMobile && presentationMode ? riffMobileLaneStepCount : undefined}
+          onReferenceStepChange={isMobile ? handleRiffMobileReferenceStepChange : undefined}
           selectedStep={selectedRiffCycleStep}
           restartToken={riffCycleRestartToken}
           externalCanvasRef={canvasRef}

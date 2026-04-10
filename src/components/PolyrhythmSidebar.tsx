@@ -1,4 +1,9 @@
-import { Pause, Play, Plus, RotateCcw, Trash2, Volume2, VolumeX, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  RotateCcw,
+  RotateCw,
+  X,
+} from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
 import {
@@ -8,6 +13,7 @@ import {
   type PolyrhythmLayer,
   type PolyrhythmSoundSettings,
   type PolyrhythmStudy,
+  type PolyrhythmStudyPreset,
 } from '../lib/polyrhythmStudy';
 
 interface PolyrhythmStepSelection {
@@ -30,6 +36,7 @@ interface PolyrhythmSidebarProps {
   onBpmChange: (bpm: number) => void;
   onToggleStudySound: () => void;
   onUpdateSoundSettings: (updates: Partial<PolyrhythmSoundSettings>) => void;
+  onSetSoundFocus: (focus: 'layer' | 'stack' | 'mute') => void;
   onToggleInactiveSteps: () => void;
   onToggleStepLabels: () => void;
   onAddLayer: () => void;
@@ -38,9 +45,132 @@ interface PolyrhythmSidebarProps {
   onRemoveLayer: (layerId: string) => void;
   onRotateLayer: (layerId: string, stepOffset: number) => void;
   onInvertLayerSteps: (layerId: string) => void;
+  onClearLayer: (layerId: string) => void;
   onUpdateLayer: (layerId: string, updates: Partial<PolyrhythmLayer>) => void;
   onSetLayerBeatCount: (layerId: string, beatCount: number) => void;
   onToggleLayerStep: (layerId: string, stepIndex: number) => void;
+  onExportPng: (options: {
+    aspect: 'landscape' | 'square' | 'portrait' | 'story';
+    scale: 1 | 2 | 4;
+  }) => void;
+  onExportScene: () => void;
+}
+
+type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export';
+
+const POLYRHYTHM_SOUND_PALETTES: Array<{
+  id: PolyrhythmSoundSettings['palette'];
+  label: string;
+}> = [
+  { id: 'study-pulse', label: 'Study Pulse' },
+  { id: 'glass-tick', label: 'Glass Tick' },
+  { id: 'wood', label: 'Wood' },
+  { id: 'soft-synth', label: 'Soft Synth' },
+  { id: 'bright-marker', label: 'Bright Marker' },
+];
+
+const TAU = Math.PI * 2;
+
+export function PolyrhythmSceneThumbnail({ preset }: { preset: PolyrhythmStudyPreset }) {
+  const { study } = preset;
+  const centerX = 80;
+  const centerY = 72;
+  const outerRadius = 48;
+  const layers = [...study.layers].sort((a, b) => b.radius - a.radius);
+  const gridId = `poly-grid-${preset.id}`;
+  const glowId = `poly-glow-${preset.id}`;
+
+  return (
+    <svg viewBox="0 0 160 160" className="h-24 w-24 rounded-lg border border-white/10 bg-[#14141b]/80">
+      <defs>
+        <radialGradient id={glowId} cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stopColor="rgba(127,215,255,0.24)" />
+          <stop offset="100%" stopColor="#111116" />
+        </radialGradient>
+        <pattern id={gridId} width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="1" />
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="160" height="160" rx="18" fill={`url(#${glowId})`} />
+      <rect x="0" y="0" width="160" height="160" rx="18" fill={`url(#${gridId})`} opacity="0.42" />
+      <line x1={centerX} y1={18} x2={centerX} y2={126} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+      <line x1={18} y1={centerY} x2={142} y2={centerY} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+
+      {layers.map((layer, index) => {
+        const radius = outerRadius - index * 12;
+        const activePoints = layer.activeSteps
+          .map((active, stepIndex) => {
+            if (!active) {
+              return null;
+            }
+            const angle = -Math.PI / 2 + (stepIndex / layer.beatCount) * TAU + (layer.rotationOffset / 180) * Math.PI;
+            return {
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius,
+            };
+          })
+          .filter((value): value is { x: number; y: number } => value != null);
+        const polyline = activePoints.map((point) => `${point.x},${point.y}`).join(' ');
+
+        return (
+          <g key={layer.id}>
+            <circle
+              cx={centerX}
+              cy={centerY}
+              r={radius}
+              fill="none"
+              stroke={`${layer.color}${index === 0 ? '3f' : '1f'}`}
+              strokeWidth={index === 0 ? 1.6 : 1.15}
+            />
+            {activePoints.length >= 2 ? (
+              <>
+                {activePoints.length >= 3 ? (
+                  <polygon points={polyline} fill={`${layer.color}18`} stroke="none" />
+                ) : null}
+                <polyline
+                  points={polyline}
+                  fill="none"
+                  stroke={layer.color}
+                  strokeWidth={index === 0 ? 2 : 1.45}
+                  strokeLinejoin="round"
+                />
+              </>
+            ) : null}
+            {activePoints.map((point, pointIndex) => (
+              <circle
+                key={`${layer.id}-${pointIndex}`}
+                cx={point.x}
+                cy={point.y}
+                r={index === 0 ? 3.2 : 2.6}
+                fill={layer.color}
+              />
+            ))}
+          </g>
+        );
+      })}
+
+      <text
+        x="16"
+        y="28"
+        fill="rgba(255,255,255,0.55)"
+        fontSize="8.8"
+        fontFamily='"SF Mono", "Fira Code", monospace'
+        letterSpacing="1.6"
+      >
+        {study.layers.length} LAYERS
+      </text>
+      <text
+        x="16"
+        y="146"
+        fill="rgba(255,255,255,0.55)"
+        fontSize="8.6"
+        fontFamily='"SF Mono", "Fira Code", monospace'
+        letterSpacing="1.4"
+      >
+        {study.layers.map((layer) => layer.beatCount).join(' · ')}
+      </text>
+    </svg>
+  );
 }
 
 export default function PolyrhythmSidebar({
@@ -58,6 +188,7 @@ export default function PolyrhythmSidebar({
   onBpmChange,
   onToggleStudySound,
   onUpdateSoundSettings,
+  onSetSoundFocus,
   onToggleInactiveSteps,
   onToggleStepLabels,
   onAddLayer,
@@ -66,78 +197,77 @@ export default function PolyrhythmSidebar({
   onRemoveLayer,
   onRotateLayer,
   onInvertLayerSteps,
+  onClearLayer,
   onUpdateLayer,
   onSetLayerBeatCount,
   onToggleLayerStep,
+  onExportPng,
+  onExportScene,
 }: PolyrhythmSidebarProps) {
   const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
+  const [exportAspect, setExportAspect] =
+    useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
+  const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
   const selectedLayer =
     study.layers.find((layer) => layer.id === selectedLayerId) ?? study.layers[0] ?? null;
+  const selectedLayerIndex = selectedLayer
+    ? Math.max(0, study.layers.findIndex((layer) => layer.id === selectedLayer.id))
+    : 0;
   const selectedStepActive =
     selectedLayer && selectedStep?.layerId === selectedLayer.id
       ? Boolean(selectedLayer.activeSteps[selectedStep.stepIndex])
       : null;
-  const polyrhythmPalettes: Array<{
-    id: PolyrhythmSoundSettings['palette'];
-    label: string;
-  }> = [
-    { id: 'study-pulse', label: 'Study Pulse' },
-    { id: 'glass-tick', label: 'Glass Tick' },
-    { id: 'wood', label: 'Wood' },
-    { id: 'soft-synth', label: 'Soft Synth' },
-    { id: 'bright-marker', label: 'Bright Marker' },
+  const soundFocus =
+    !study.soundEnabled
+      ? 'mute'
+      : selectedLayer &&
+          study.layers.every((layer) =>
+            layer.id === selectedLayer.id ? layer.soundEnabled : !layer.soundEnabled,
+          )
+        ? 'layer'
+        : 'stack';
+
+  const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = [
+    { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+    { id: 'layers', label: 'Layers', color: selectedLayer?.color ?? '#7FD7FF' },
+    { id: 'sound', label: 'Sound', color: '#88CCFF' },
+    { id: 'export', label: 'Export', color: '#FFAA00' },
   ];
+
+  useEffect(() => {
+    if (!exportNotice) {
+      return undefined;
+    }
+    const timeout = window.setTimeout(() => setExportNotice(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [exportNotice]);
 
   return (
     <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          onClick={onClose}
-        />
-      )}
-
+      {isOpen ? <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" onClick={onClose} /> : null}
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${
-          isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[31.5rem]'
+          isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[28rem]'
         }`}
         style={{
           background:
-            'linear-gradient(135deg, rgba(20, 20, 28, 0.96), rgba(30, 30, 40, 0.95))',
-          backdropFilter: 'blur(20px)',
-          borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+            'linear-gradient(135deg, rgba(17,17,22,0.97), rgba(28,28,34,0.96))',
+          borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
           transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <div
-          className={`flex items-center justify-between border-b border-white/10 ${
-            isMobile ? 'px-4 py-4' : 'p-6'
-          }`}
-        >
-          <div>
-            <div
-              className="text-sm font-light tracking-widest uppercase"
-              style={{ color: 'rgba(255,255,255,0.7)' }}
-            >
-              Study Menu
-            </div>
-            <div
-              className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em]"
-              style={{ color: 'rgba(255,255,255,0.35)' }}
-            >
-              Select a ring, then shape its mask.
-            </div>
-          </div>
+        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}>
+          <div className="text-sm font-light uppercase tracking-[0.24em] text-white/70">Study</div>
           <button
+            type="button"
             onClick={onClose}
-            className={`rounded-lg transition-colors hover:bg-white/10 ${
-              isMobile ? 'p-3' : 'p-2'
-            }`}
-            style={{ color: 'rgba(255,255,255,0.5)' }}
-            title="Close study menu"
+            className={`rounded-lg text-white/50 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
           >
             <X size={18} />
           </button>
@@ -175,808 +305,708 @@ export default function PolyrhythmSidebar({
           </div>
         ) : null}
 
-        <div
-          className={`flex-1 overflow-y-auto ${
-            isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-4'
-          } space-y-4`}
-        >
+        <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
           <section
-            className="rounded-xl border p-3 space-y-3"
+            className={`sticky top-0 z-10 space-y-2 border-y border-white/8 ${
+              isMobile ? '-mx-3 px-3 py-2.5' : '-mx-4 px-4 py-2.5'
+            }`}
             style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
-              borderColor: 'rgba(255,255,255,0.08)',
+              background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
+              backdropFilter: 'blur(18px)',
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div
-                  className="text-xs font-mono uppercase tracking-[0.2em]"
-                  style={{ color: 'rgba(255,255,255,0.62)' }}
-                >
-                  Study
-                </div>
-                <div
-                  className="mt-1 text-[10px] leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.42)' }}
-                >
-                  {study.description}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onToggleStudySound}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97]"
-                  style={{
-                    background: study.soundEnabled
-                      ? 'rgba(127,215,255,0.14)'
-                      : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${
-                      study.soundEnabled ? 'rgba(127,215,255,0.26)' : 'rgba(255,255,255,0.08)'
-                    }`,
-                    color: study.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.48)',
-                  }}
-                  title={study.soundEnabled ? 'Mute study sound' : 'Enable study sound'}
-                >
-                  {study.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                </button>
-                <button
-                  type="button"
-                  onClick={onTogglePlay}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-[0.97]"
-                  style={{
-                    background: study.playing
-                      ? 'rgba(255, 51, 102, 0.18)'
-                      : 'rgba(0, 255, 170, 0.14)',
-                    border: `1px solid ${
-                      study.playing
-                        ? 'rgba(255,51,102,0.34)'
-                        : 'rgba(0,255,170,0.24)'
-                    }`,
-                    color: study.playing ? '#FF3366' : '#72F1B8',
-                  }}
-                >
-                  {study.playing ? <Pause size={17} /> : <Play size={17} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div
-                className="flex items-center justify-between text-[11px]"
-                style={{ color: 'rgba(255,255,255,0.58)' }}
-              >
-                <span>BPM</span>
-                <span className="font-mono">{study.bpm}</span>
-              </div>
-              <input
-                type="range"
-                min="40"
-                max="180"
-                step="1"
-                value={study.bpm}
-                onChange={(event) => onBpmChange(parseInt(event.target.value, 10) || 40)}
-                className="w-full h-1 rounded-full appearance-none cursor-pointer"
-                style={{ background: 'linear-gradient(to right, rgba(114,241,184,0.4), rgba(127,215,255,0.6))' }}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={onToggleInactiveSteps}
-                className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{
-                  background: study.showInactiveSteps
-                    ? 'rgba(127,215,255,0.12)'
-                    : 'rgba(255,255,255,0.04)',
-                  borderColor: study.showInactiveSteps
-                    ? 'rgba(127,215,255,0.3)'
-                    : 'rgba(255,255,255,0.08)',
-                  color: study.showInactiveSteps ? '#7FD7FF' : 'rgba(255,255,255,0.66)',
-                }}
-              >
-                {study.showInactiveSteps ? 'Hide Faint Steps' : 'Show Faint Steps'}
-              </button>
-              <button
-                type="button"
-                onClick={onToggleStepLabels}
-                className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{
-                  background: study.showStepLabels
-                    ? 'rgba(255,209,102,0.12)'
-                    : 'rgba(255,255,255,0.04)',
-                  borderColor: study.showStepLabels
-                    ? 'rgba(255,209,102,0.3)'
-                    : 'rgba(255,255,255,0.08)',
-                  color: study.showStepLabels ? '#FFD166' : 'rgba(255,255,255,0.66)',
-                }}
-              >
-                {study.showStepLabels ? 'Labels On' : 'Labels Off'}
-              </button>
-            </div>
-          </section>
-
-          <section
-            className="rounded-xl border p-3 space-y-3"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div
-                  className="text-xs font-mono uppercase tracking-[0.2em]"
-                  style={{ color: 'rgba(255,255,255,0.62)' }}
-                >
-                  Sound
-                </div>
-                <div
-                  className="mt-1 text-[10px] leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.42)' }}
-                >
-                  Clean study tones with optional key mapping.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onToggleStudySound}
-                className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{
-                  background: study.soundEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
-                  borderColor: study.soundEnabled ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
-                  color: study.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.66)',
-                }}
-              >
-                {study.soundEnabled ? 'Study On' : 'Study Off'}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {polyrhythmPalettes.map((palette) => (
-                <button
-                  key={palette.id}
-                  type="button"
-                  onClick={() => onUpdateSoundSettings({ palette: palette.id })}
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.14em]"
-                  style={{
-                    background:
-                      study.soundSettings.palette === palette.id
-                        ? 'rgba(114,241,184,0.12)'
-                        : 'rgba(255,255,255,0.04)',
-                    borderColor:
-                      study.soundSettings.palette === palette.id
-                        ? 'rgba(114,241,184,0.24)'
-                        : 'rgba(255,255,255,0.08)',
-                    color:
-                      study.soundSettings.palette === palette.id
-                        ? '#72F1B8'
-                        : 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  {palette.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'free', label: 'Free' },
-                { id: 'keyed', label: 'Keyed' },
-              ].map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() =>
-                    onUpdateSoundSettings({
-                      pitchMode: mode.id as PolyrhythmSoundSettings['pitchMode'],
-                    })
-                  }
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background:
-                      study.soundSettings.pitchMode === mode.id
-                        ? 'rgba(127,215,255,0.12)'
-                        : 'rgba(255,255,255,0.04)',
-                    borderColor:
-                      study.soundSettings.pitchMode === mode.id
-                        ? 'rgba(127,215,255,0.24)'
-                        : 'rgba(255,255,255,0.08)',
-                    color:
-                      study.soundSettings.pitchMode === mode.id
-                        ? '#7FD7FF'
-                        : 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  {mode.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Root
-                <select
-                  value={study.soundSettings.rootNote}
-                  onChange={(event) =>
-                    onUpdateSoundSettings({
-                      rootNote: event.target.value as PolyrhythmSoundSettings['rootNote'],
-                    })
-                  }
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
-                >
-                  {NOTE_NAMES.map((note) => (
-                    <option key={note} value={note} style={{ background: '#181820' }}>
-                      {note}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Scale
-                <select
-                  value={study.soundSettings.scaleName}
-                  onChange={(event) =>
-                    onUpdateSoundSettings({
-                      scaleName: event.target.value as PolyrhythmSoundSettings['scaleName'],
-                    })
-                  }
-                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
-                >
-                  {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
-                    <option key={name} value={name} style={{ background: '#181820' }}>
-                      {scale.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'tight', label: 'Tight' },
-                { id: 'wide', label: 'Wide' },
-              ].map((register) => (
-                <button
-                  key={register.id}
-                  type="button"
-                  onClick={() =>
-                    onUpdateSoundSettings({
-                      register: register.id as PolyrhythmSoundSettings['register'],
-                    })
-                  }
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background:
-                      study.soundSettings.register === register.id
-                        ? 'rgba(255,209,102,0.12)'
-                        : 'rgba(255,255,255,0.04)',
-                    borderColor:
-                      study.soundSettings.register === register.id
-                        ? 'rgba(255,209,102,0.24)'
-                        : 'rgba(255,255,255,0.08)',
-                    color:
-                      study.soundSettings.register === register.id
-                        ? '#FFD166'
-                        : 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  {register.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div
-                  className="text-xs font-mono uppercase tracking-[0.2em]"
-                  style={{ color: 'rgba(255,255,255,0.62)' }}
-                >
-                  Presets
-                </div>
-                <div
-                  className="mt-1 text-[10px] leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.42)' }}
-                >
-                  Start from a clear proportion, then shape it into your own mask.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onResetStudy}
-                className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  borderColor: 'rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.66)',
-                }}
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-              {POLYRHYTHM_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => onLoadPreset(preset.id)}
-                  className="rounded-xl border px-3 py-3 text-left transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background:
-                      activePresetId === preset.id
-                        ? 'linear-gradient(180deg, rgba(114,241,184,0.12), rgba(255,255,255,0.04))'
-                        : 'rgba(255,255,255,0.03)',
-                    borderColor:
-                      activePresetId === preset.id
-                        ? 'rgba(114,241,184,0.32)'
-                        : 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <div
-                    className="text-[11px] font-mono uppercase tracking-[0.16em]"
-                    style={{
-                      color:
-                        activePresetId === preset.id ? '#72F1B8' : 'rgba(255,255,255,0.72)',
-                    }}
-                  >
-                    {preset.name}
-                  </div>
-                  <div
-                    className="mt-2 text-[10px] leading-relaxed"
-                    style={{ color: 'rgba(255,255,255,0.42)' }}
-                  >
-                    {preset.description}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div
-                  className="text-xs font-mono uppercase tracking-[0.2em]"
-                  style={{ color: 'rgba(255,255,255,0.62)' }}
-                >
-                  Layers
-                </div>
-                <div
-                  className="mt-1 text-[10px] leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.42)' }}
-                >
-                  Tap a ring on the canvas or choose one here.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onAddLayer}
-                className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-white/5"
-                style={{
-                  color: '#72F1B8',
-                  background: 'rgba(114,241,184,0.08)',
-                  border: '1px solid rgba(114,241,184,0.24)',
-                }}
-                title="Add layer"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {study.layers.map((layer, layerIndex) => {
-                const activeCount = countActiveSteps(layer);
-                const selected = selectedLayer?.id === layer.id;
-
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {tabMeta.map((tab) => {
+                const active = tab.id === activeTab;
                 return (
                   <button
-                    key={layer.id}
+                    key={tab.id}
                     type="button"
-                    onClick={() => {
-                      onSelectLayer(layer.id);
-                      onSelectStep(null);
-                    }}
-                    className="w-full rounded-xl border px-3 py-3 text-left transition-all duration-200"
+                    onClick={() => setActiveTab(tab.id)}
+                    className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
                     style={{
-                      background: selected
-                        ? 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))'
-                        : 'rgba(255,255,255,0.025)',
-                      borderColor: selected ? `${layer.color}55` : 'rgba(255,255,255,0.08)',
-                      boxShadow: selected ? `0 0 18px ${layer.color}14` : 'none',
+                      background: active
+                        ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
+                        : 'rgba(255,255,255,0.03)',
+                      borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
+                      color: active ? tab.color : 'rgba(255,255,255,0.58)',
+                      boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div
-                          className="text-[11px] font-mono uppercase tracking-[0.16em]"
-                          style={{ color: layer.color }}
-                        >
-                          Layer {layerIndex + 1}
-                        </div>
-                        <div
-                          className="mt-1 text-[10px]"
-                          style={{ color: 'rgba(255,255,255,0.44)' }}
-                        >
-                          {activeCount} active on {layer.beatCount} steps
-                        </div>
-                      </div>
-                      <div
-                        className="rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em]"
-                        style={{
-                          borderColor: selected ? `${layer.color}44` : 'rgba(255,255,255,0.08)',
-                          color: selected ? layer.color : 'rgba(255,255,255,0.4)',
-                        }}
-                      >
-                        {Math.round(layer.rotationOffset)}°
-                      </div>
-                    </div>
+                    {tab.label}
                   </button>
                 );
               })}
             </div>
           </section>
 
-          {selectedLayer ? (
-            <section
-              className="rounded-xl border p-3 space-y-3"
-              style={{
-                background:
-                  'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
-                borderColor: `${selectedLayer.color}33`,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
+          {activeTab === 'scenes' ? (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
                 <div>
-                  <div
-                    className="text-xs font-mono uppercase tracking-[0.2em]"
-                    style={{ color: selectedLayer.color }}
-                  >
-                    Selected Layer
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Scenes
                   </div>
-                  <div
-                    className="mt-1 text-[10px]"
-                    style={{ color: 'rgba(255,255,255,0.44)' }}
-                  >
-                    Shape this ring directly, then refine individual steps below.
+                  <div className="mt-1 text-[11px] text-white/52">
+                    Start from clear nested ratios, then shape the stack.
                   </div>
                 </div>
-                {study.layers.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveLayer(selectedLayer.id)}
-                    className="rounded-lg p-2 transition-all duration-200 hover:bg-white/5"
-                    style={{ color: 'rgba(255,120,120,0.86)' }}
-                    title="Remove layer"
+                <button
+                  type="button"
+                  onClick={onResetStudy}
+                  className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    color: 'rgba(255,255,255,0.68)',
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+
+              {POLYRHYTHM_PRESETS.map((preset) => {
+                const active = preset.id === activePresetId;
+                return (
+                  <div
+                    key={preset.id}
+                    className="rounded-xl border p-3"
+                    style={{
+                      background: active
+                        ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
+                        : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
+                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
+                      boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                    }}
                   >
-                    <Trash2 size={14} />
-                  </button>
-                ) : null}
-              </div>
+                    <div className="flex items-start gap-3">
+                      <PolyrhythmSceneThumbnail preset={preset} />
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className="text-xs font-mono uppercase tracking-[0.16em]"
+                          style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}
+                        >
+                          {preset.name}
+                        </div>
+                        <div
+                          className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34"
+                        >
+                          {preset.study.layers.length} layers · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
+                        </div>
+                        <div className="mt-2 text-[11px] leading-relaxed text-white/46">
+                          {preset.description}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onLoadPreset(preset.id)}
+                          className="mt-3 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                          style={{
+                            background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
+                            borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                            color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
+                          }}
+                        >
+                          {active ? 'Loaded' : 'Load Scene'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
 
-              <div className="grid grid-cols-[44px,1fr,44px] gap-2 items-center">
-                <button
-                  type="button"
-                  onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount - 1)}
-                  className="h-10 rounded-xl text-sm font-mono"
-                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)' }}
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="3"
-                  max="32"
-                  value={selectedLayer.beatCount}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) =>
-                    onSetLayerBeatCount(selectedLayer.id, parseInt(event.target.value, 10) || 3)
-                  }
-                  className="h-10 rounded-xl border bg-white/5 px-3 text-center text-[15px] font-mono focus:outline-none"
-                  style={{
-                    color: 'rgba(255,255,255,0.84)',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount + 1)}
-                  className="h-10 rounded-xl text-sm font-mono"
-                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)' }}
-                >
-                  +
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <div
-                  className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.48)' }}
-                >
-                  <span>Radius</span>
-                  <span>{selectedLayer.radius}</span>
-                </div>
-                <input
-                  type="range"
-                  min="70"
-                  max="320"
-                  step="2"
-                  value={selectedLayer.radius}
-                  onChange={(event) =>
-                    onUpdateLayer(selectedLayer.id, {
-                      radius: parseInt(event.target.value, 10) || 70,
-                    })
-                  }
-                  className="w-full h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, ${selectedLayer.color}40, ${selectedLayer.color}70)` }}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div
-                  className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.48)' }}
-                >
-                  <span>Rotation</span>
-                  <span>{Math.round(selectedLayer.rotationOffset)}°</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="360"
-                  step="1"
-                  value={selectedLayer.rotationOffset}
-                  onChange={(event) =>
-                    onUpdateLayer(selectedLayer.id, {
-                      rotationOffset: parseInt(event.target.value, 10) || 0,
-                    })
-                  }
-                  className="w-full h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, ${selectedLayer.color}30, rgba(255,255,255,0.18))` }}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onRotateLayer(selectedLayer.id, -1)}
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  Rotate −1
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onRotateLayer(selectedLayer.id, 1)}
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  Rotate +1
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onInvertLayerSteps(selectedLayer.id)}
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: 'rgba(255,209,102,0.08)',
-                    borderColor: 'rgba(255,209,102,0.2)',
-                    color: '#FFD166',
-                  }}
-                >
-                  Invert
-                </button>
-              </div>
-
-              <div className="grid grid-cols-[1fr,120px] gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    onUpdateLayer(selectedLayer.id, {
-                      soundEnabled: !selectedLayer.soundEnabled,
-                    })
-                  }
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em] flex items-center justify-center gap-2"
-                  style={{
-                    background: selectedLayer.soundEnabled
-                      ? 'rgba(127,215,255,0.12)'
-                      : 'rgba(255,255,255,0.04)',
-                    borderColor: selectedLayer.soundEnabled
-                      ? 'rgba(127,215,255,0.28)'
-                      : 'rgba(255,255,255,0.08)',
-                    color: selectedLayer.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  {selectedLayer.soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-                  {selectedLayer.soundEnabled ? 'Layer Sound On' : 'Layer Sound Off'}
-                </button>
-                <input
-                  type="number"
-                  min="90"
-                  max="1400"
-                  value={selectedLayer.pitchHz}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) =>
-                    onUpdateLayer(selectedLayer.id, {
-                      pitchHz: parseInt(event.target.value, 10) || 220,
-                    })
-                  }
-                  className="h-10 rounded-xl border bg-white/5 px-3 text-center text-[13px] font-mono focus:outline-none"
-                  style={{
-                    color: 'rgba(255,255,255,0.84)',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                  }}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div
-                  className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.48)' }}
-                >
-                  <span>Layer Gain</span>
-                  <span>{selectedLayer.gain.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.02"
-                  max="0.28"
-                  step="0.01"
-                  value={selectedLayer.gain}
-                  onChange={(event) =>
-                    onUpdateLayer(selectedLayer.id, {
-                      gain: parseFloat(event.target.value) || 0.12,
-                    })
-                  }
-                  className="w-full h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, rgba(127,215,255,0.3), ${selectedLayer.color}60)` }}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div
-                  className="text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.48)' }}
-                >
-                  Color
-                </div>
-                <div className="grid grid-cols-8 gap-1.5">
-                  {POLYRHYTHM_LAYER_COLORS.map((color) => (
+          {activeTab === 'layers' ? (
+            <section className="space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Stack
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/52">
+                      Select a ring, adjust its size, then shape its mask.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
-                      key={color}
                       type="button"
-                      onClick={() => onUpdateLayer(selectedLayer.id, { color })}
-                      className="aspect-square rounded-md transition-all duration-200 hover:scale-110"
+                      onClick={onAddLayer}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
                       style={{
-                        background: color,
-                        border:
-                          selectedLayer.color === color
-                            ? `2px solid ${color}`
-                            : '1px solid rgba(255,255,255,0.16)',
-                        boxShadow:
-                          selectedLayer.color === color ? `0 0 10px ${color}` : 'none',
+                        background: 'rgba(127,215,255,0.12)',
+                        borderColor: 'rgba(127,215,255,0.22)',
+                        color: '#7FD7FF',
                       }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div
-                  className="flex items-center justify-between gap-3"
-                >
-                  <div
-                    className="text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: 'rgba(255,255,255,0.48)' }}
-                  >
-                    Step Mask
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectedLayer && study.layers.length > 1 && onRemoveLayer(selectedLayer.id)}
+                      disabled={!selectedLayer || study.layers.length <= 1}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em] disabled:opacity-40"
+                      style={{
+                        background: 'rgba(255,51,102,0.12)',
+                        borderColor: 'rgba(255,51,102,0.22)',
+                        color: '#FF667F',
+                      }}
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: selectedLayer.color }}>
-                    {countActiveSteps(selectedLayer)}/{selectedLayer.beatCount} Active
-                  </div>
                 </div>
-                <div
-                  className="grid gap-1.5"
-                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(34px, 1fr))' }}
-                >
-                  {selectedLayer.activeSteps.map((active, stepIndex) => {
-                    const selected =
-                      selectedStep?.layerId === selectedLayer.id &&
-                      selectedStep.stepIndex === stepIndex;
 
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {study.layers.map((layer, index) => {
+                    const active = layer.id === selectedLayer?.id;
                     return (
                       <button
-                        key={`${selectedLayer.id}-${stepIndex}`}
+                        key={layer.id}
                         type="button"
                         onClick={() => {
-                          if (selected) {
-                            onToggleLayerStep(selectedLayer.id, stepIndex);
-                            return;
-                          }
-                          onSelectStep({
-                            layerId: selectedLayer.id,
-                            stepIndex,
-                          });
+                          onSelectLayer(layer.id);
+                          onSelectStep(null);
                         }}
-                        className="h-9 rounded-lg text-[10px] font-mono transition-all duration-200"
+                        className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.14em]"
                         style={{
-                          background: selected
-                            ? 'rgba(255,255,255,0.12)'
-                            : active
-                              ? `${selectedLayer.color}20`
-                              : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${
-                            selected
-                              ? 'rgba(255,255,255,0.32)'
-                              : active
-                                ? `${selectedLayer.color}55`
-                                : 'rgba(255,255,255,0.08)'
-                          }`,
-                          color: selected
-                            ? 'rgba(255,255,255,0.92)'
-                            : active
-                              ? selectedLayer.color
-                              : 'rgba(255,255,255,0.48)',
+                          background: active ? `${layer.color}14` : 'rgba(255,255,255,0.03)',
+                          borderColor: active ? `${layer.color}40` : 'rgba(255,255,255,0.08)',
+                          color: active ? layer.color : 'rgba(255,255,255,0.58)',
                         }}
                       >
-                        {stepIndex + 1}
+                        L{index + 1}
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+              {selectedLayer ? (
+                <div
+                  className="rounded-xl border p-3 space-y-3"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
+                    borderColor: `${selectedLayer.color}33`,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: selectedLayer.color }}>
+                        Layer {selectedLayerIndex + 1}
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/48">
+                        {countActiveSteps(selectedLayer)} on · {selectedLayer.beatCount} steps
+                      </div>
+                    </div>
+                    <div className="rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: `${selectedLayer.color}33`, color: selectedLayer.color }}>
+                      {Math.round(selectedLayer.rotationOffset)}°
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Steps</div>
+                    <div className="grid grid-cols-[40px,1fr,40px] gap-2 items-center">
+                      <button
+                        type="button"
+                        onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount - 1)}
+                        className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                      >
+                        −
+                      </button>
+                      <div className="rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                        {selectedLayer.beatCount}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount + 1)}
+                        className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      <span>Radius</span>
+                      <span>{selectedLayer.radius}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="70"
+                      max="320"
+                      step="2"
+                      value={selectedLayer.radius}
+                      onChange={(event) =>
+                        onUpdateLayer(selectedLayer.id, {
+                          radius: parseInt(event.target.value, 10) || 70,
+                        })
+                      }
+                      className="w-full"
+                      style={{ accentColor: selectedLayer.color }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Color</div>
+                    <div className="grid grid-cols-6 gap-2">
+                      {POLYRHYTHM_LAYER_COLORS.slice(0, 12).map((color) => {
+                        const active = selectedLayer.color === color;
+                        return (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => onUpdateLayer(selectedLayer.id, { color })}
+                            className="h-9 rounded-lg border transition-transform active:scale-[0.97]"
+                            style={{
+                              background: `${color}18`,
+                              borderColor: active ? `${color}aa` : `${color}44`,
+                              boxShadow: active ? `0 0 0 1px ${color}aa inset` : 'none',
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onRotateLayer(selectedLayer.id, -1)}
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRotateLayer(selectedLayer.id, 1)}
+                      className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                    >
+                      <RotateCw size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onInvertLayerSteps(selectedLayer.id)}
+                      className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: 'rgba(255,170,0,0.12)',
+                        borderColor: 'rgba(255,170,0,0.2)',
+                        color: '#FFAA00',
+                      }}
+                    >
+                      Invert
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onClearLayer(selectedLayer.id)}
+                      className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: 'rgba(255,51,102,0.12)',
+                        borderColor: 'rgba(255,51,102,0.2)',
+                        color: '#FF667F',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {selectedStep?.layerId === selectedLayer.id ? (
+                    <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                        Step {selectedStep.stepIndex + 1}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedStepActive) {
+                              onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
+                            }
+                          }}
+                          className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: !selectedStepActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+                            borderColor: !selectedStepActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                            color: !selectedStepActive ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.56)',
+                          }}
+                        >
+                          Off
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selectedStepActive) {
+                              onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
+                            }
+                          }}
+                          className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: selectedStepActive ? `${selectedLayer.color}16` : 'rgba(255,255,255,0.03)',
+                            borderColor: selectedStepActive ? `${selectedLayer.color}38` : 'rgba(255,255,255,0.08)',
+                            color: selectedStepActive ? selectedLayer.color : 'rgba(255,255,255,0.56)',
+                          }}
+                        >
+                          On
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-white/42">Tap a ring step on the canvas to edit it here.</div>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Tempo
+                  </div>
+                  <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-white/54">
+                    {study.bpm} BPM
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="40"
+                  max="180"
+                  step="1"
+                  value={study.bpm}
+                  onChange={(event) => onBpmChange(parseInt(event.target.value, 10) || 40)}
+                  className="mt-3 w-full"
+                  style={{ accentColor: selectedLayer?.color ?? '#7FD7FF' }}
+                />
+              </div>
             </section>
           ) : null}
 
-          {selectedLayer && selectedStep?.layerId === selectedLayer.id ? (
-            <section
-              className="rounded-xl border p-3 space-y-3"
-              style={{
-                background: 'rgba(255,255,255,0.025)',
-                borderColor: 'rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="text-xs font-mono uppercase tracking-[0.2em]"
-                style={{ color: 'rgba(255,255,255,0.62)' }}
-              >
-                Selected Step
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[16px] font-light text-white">
-                    Step {selectedStep.stepIndex + 1}
+          {activeTab === 'sound' ? (
+            <section className="space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Audio
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/52">
+                      Focus one ring or hear the full stack.
+                    </div>
                   </div>
-                  <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                    Tap again on the canvas or here to switch this point on or off.
+                  <button
+                    type="button"
+                    onClick={onToggleStudySound}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                    style={{
+                      background: study.soundEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+                      borderColor: study.soundEnabled ? 'rgba(127,215,255,0.22)' : 'rgba(255,255,255,0.08)',
+                      color: study.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    {study.soundEnabled ? 'Study On' : 'Study Off'}
+                  </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSetSoundFocus('layer')}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: soundFocus === 'layer' ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: soundFocus === 'layer' ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: soundFocus === 'layer' ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Layer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSetSoundFocus('stack')}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: soundFocus === 'stack' ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: soundFocus === 'stack' ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: soundFocus === 'stack' ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Stack
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSetSoundFocus('mute')}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: soundFocus === 'mute' ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: soundFocus === 'mute' ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: soundFocus === 'mute' ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Mute
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Sound
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/52">
+                    Keep it original or map the stack into a key.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ pitchMode: 'free' })}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.soundSettings.pitchMode === 'free' ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.soundSettings.pitchMode === 'free' ? 'rgba(114,241,184,0.26)' : 'rgba(255,255,255,0.08)',
+                      color: study.soundSettings.pitchMode === 'free' ? '#72F1B8' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Original
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ pitchMode: 'keyed' })}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.soundSettings.pitchMode === 'keyed' ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.soundSettings.pitchMode === 'keyed' ? 'rgba(114,241,184,0.26)' : 'rgba(255,255,255,0.08)',
+                      color: study.soundSettings.pitchMode === 'keyed' ? '#72F1B8' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Keyed
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {POLYRHYTHM_SOUND_PALETTES.map((palette) => {
+                    const active = study.soundSettings.palette === palette.id;
+                    return (
+                      <button
+                        key={palette.id}
+                        type="button"
+                        onClick={() => onUpdateSoundSettings({ palette: palette.id })}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: active ? 'rgba(136,204,255,0.14)' : 'rgba(255,255,255,0.03)',
+                          borderColor: active ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
+                          color: active ? '#88CCFF' : 'rgba(255,255,255,0.58)',
+                        }}
+                      >
+                        {palette.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ register: 'tight' })}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.soundSettings.register === 'tight' ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.soundSettings.register === 'tight' ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: study.soundSettings.register === 'tight' ? '#FFAA00' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Tight
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ register: 'wide' })}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.soundSettings.register === 'wide' ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.soundSettings.register === 'wide' ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: study.soundSettings.register === 'wide' ? '#FFAA00' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Wide
+                  </button>
+                </div>
+
+                {study.soundSettings.pitchMode === 'keyed' ? (
+                  <div className="grid grid-cols-[76px,1fr] gap-2">
+                    <label className="space-y-1 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
+                      Root
+                      <select
+                        value={study.soundSettings.rootNote}
+                        onChange={(event) =>
+                          onUpdateSoundSettings({
+                            rootNote: event.target.value as PolyrhythmSoundSettings['rootNote'],
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                      >
+                        {NOTE_NAMES.map((note) => (
+                          <option key={note} value={note} style={{ background: '#181820' }}>
+                            {note}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
+                      Scale
+                      <select
+                        value={study.soundSettings.scaleName}
+                        onChange={(event) =>
+                          onUpdateSoundSettings({
+                            scaleName: event.target.value as PolyrhythmSoundSettings['scaleName'],
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                      >
+                        {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                          <option key={name} value={name} style={{ background: '#181820' }}>
+                            {scale.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={onToggleInactiveSteps}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.showInactiveSteps ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.showInactiveSteps ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: study.showInactiveSteps ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Faint
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleStepLabels}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.showStepLabels ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.showStepLabels ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: study.showStepLabels ? '#FFAA00' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Labels
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {activeTab === 'export' ? (
+            <section className="space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Image
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/52">
+                    Export the current canvas with the study framing.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    ['landscape', 'Wide'],
+                    ['square', 'Square'],
+                    ['portrait', 'Poster'],
+                    ['story', 'Story'],
+                  ] as const).map(([aspect, label]) => {
+                    const active = exportAspect === aspect;
+                    return (
+                      <button
+                        key={aspect}
+                        type="button"
+                        onClick={() => setExportAspect(aspect)}
+                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: active ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.03)',
+                          borderColor: active ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)',
+                          color: active ? '#FFAA00' : 'rgba(255,255,255,0.58)',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {([1, 2, 4] as const).map((scale) => {
+                    const active = exportScale === scale;
+                    return (
+                      <button
+                        key={scale}
+                        type="button"
+                        onClick={() => setExportScale(scale)}
+                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: active ? 'rgba(136,204,255,0.14)' : 'rgba(255,255,255,0.03)',
+                          borderColor: active ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
+                          color: active ? '#88CCFF' : 'rgba(255,255,255,0.58)',
+                        }}
+                      >
+                        {scale}x
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportPng({ aspect: exportAspect, scale: exportScale });
+                    setExportNotice('Study PNG exported.');
+                  }}
+                  className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
+                  style={{
+                    background: 'rgba(255,170,0,0.14)',
+                    borderColor: 'rgba(255,170,0,0.24)',
+                    color: '#FFAA00',
+                  }}
+                >
+                  Export PNG
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Scene File
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/52">
+                    Save the current study as a JSON scene.
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex)}
-                  className="rounded-xl border px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  onClick={() => {
+                    onExportScene();
+                    setExportNotice('Study scene exported.');
+                  }}
+                  className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
                   style={{
-                    background: selectedStepActive
-                      ? `${selectedLayer.color}18`
-                      : 'rgba(255,255,255,0.04)',
-                    borderColor: selectedStepActive
-                      ? `${selectedLayer.color}55`
-                      : 'rgba(255,255,255,0.08)',
-                    color: selectedStepActive ? selectedLayer.color : 'rgba(255,255,255,0.66)',
+                    background: 'rgba(255,255,255,0.06)',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.82)',
                   }}
                 >
-                  {selectedStepActive ? 'Turn Off' : 'Turn On'}
+                  Export Study
                 </button>
+                {exportNotice ? (
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/42">
+                    {exportNotice}
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
