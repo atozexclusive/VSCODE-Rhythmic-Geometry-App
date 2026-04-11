@@ -274,7 +274,7 @@ export default function RiffCycleSidebar({
   const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = [
     { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
     { id: 'bar', label: 'Bar', color: '#FF88C2' },
-    { id: 'phrase', label: 'Phrase', color: study.riff.color },
+    { id: 'phrase', label: 'Riff', color: study.riff.color },
     { id: 'ending', label: 'Ending', color: '#7FD7FF' },
     { id: 'sound', label: 'Sound', color: '#88CCFF' },
     { id: 'export', label: 'Export', color: '#FFAA00' },
@@ -375,14 +375,19 @@ export default function RiffCycleSidebar({
                     className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
                     style={{
                       background: active
-                        ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
+                        ? `linear-gradient(180deg, ${tab.color}24, ${tab.color}10)`
                         : 'rgba(255,255,255,0.03)',
                       borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
                       color: active ? tab.color : 'rgba(255,255,255,0.58)',
-                      boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
+                      boxShadow: active
+                        ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24), 0 0 24px ${tab.color}18`
+                        : 'none',
                     }}
                   >
-                    {tab.label}
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {tab.label}
+                    </span>
                   </button>
                 );
               })}
@@ -523,13 +528,13 @@ export default function RiffCycleSidebar({
           {activeTab === 'phrase' ? (
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: study.riff.color }}>Phrase</div>
+              <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: study.riff.color }}>Riff</div>
               <div className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-white/58">
                 Step {selectedStep != null ? selectedStep + 1 : '—'}
               </div>
             </div>
             <label className="block space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-              Phrase Length
+              Riff Length
               <input
                 type="number"
                 min="3"
@@ -540,30 +545,16 @@ export default function RiffCycleSidebar({
               />
             </label>
 
-            <div className="grid grid-cols-4 gap-2">
-              {[9, 11, 13, 17].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => onSetRiffStepCount(value)}
-                  className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    background: study.riff.stepCount === value ? `${study.riff.color}14` : 'rgba(255,255,255,0.04)',
-                    borderColor: study.riff.stepCount === value ? `${study.riff.color}36` : 'rgba(255,255,255,0.08)',
-                    color: study.riff.stepCount === value ? study.riff.color : 'rgba(255,255,255,0.66)',
-                  }}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => onRotateRiff(-1)} className="flex h-11 items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
+            <div className="space-y-1">
+              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                Pattern Tools
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => onRotateRiff(-1)} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
                 <RotateCcw size={14} />
                 Back 1
               </button>
-              <button type="button" onClick={() => onRotateRiff(1)} className="flex h-11 items-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
+              <button type="button" onClick={() => onRotateRiff(1)} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
                 <RotateCw size={14} />
                 Forward 1
               </button>
@@ -571,8 +562,9 @@ export default function RiffCycleSidebar({
                 Invert
               </button>
               <button type="button" onClick={onClearRiff} className="rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                Clear Phrase
+                Clear Pattern
               </button>
+            </div>
             </div>
 
             <div className="grid grid-cols-5 gap-2">
@@ -703,7 +695,7 @@ export default function RiffCycleSidebar({
                 Final {study.landingLength}
               </div>
               <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/58">
-                Phrase stays the same
+                Riff stays the same
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -949,8 +941,8 @@ export default function RiffCycleSidebar({
             <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#88CCFF]">Sound</div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'bar', label: 'L1' },
-                { id: 'riff', label: 'L2' },
+                { id: 'bar', label: 'Bar' },
+                { id: 'riff', label: 'Riff' },
                 { id: 'full', label: 'Both' },
               ].map((focus) => (
                 <button
