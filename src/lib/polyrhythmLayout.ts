@@ -56,11 +56,23 @@ export function findPolyrhythmHit(
   metrics: PolyrhythmCanvasMetrics,
   x: number,
   y: number,
+  preferredLayerId?: string | null,
 ): PolyrhythmHitResult | null {
   const pointHitRadius = 18;
   const ringHitPadding = 14;
+  const orderedLayers = [...study.layers].sort((a, b) => {
+    if (preferredLayerId) {
+      if (a.id === preferredLayerId) {
+        return -1;
+      }
+      if (b.id === preferredLayerId) {
+        return 1;
+      }
+    }
+    return a.radius - b.radius;
+  });
 
-  for (const layer of [...study.layers].sort((a, b) => a.radius - b.radius)) {
+  for (const layer of orderedLayers) {
     const points = getLayerStepPoints(
       layer,
       metrics.centerX,
@@ -83,7 +95,7 @@ export function findPolyrhythmHit(
     }
   }
 
-  for (const layer of [...study.layers].sort((a, b) => a.radius - b.radius)) {
+  for (const layer of orderedLayers) {
     const radius = layer.radius * metrics.scale;
     const distanceToCenter = Math.hypot(x - metrics.centerX, y - metrics.centerY);
     if (Math.abs(distanceToCenter - radius) <= ringHitPadding) {

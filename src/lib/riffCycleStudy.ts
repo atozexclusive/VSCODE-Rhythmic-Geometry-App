@@ -904,7 +904,7 @@ function createRandomReference(intensity: 'random' | 'plus'): ReferenceMeter {
   const subdivision =
     intensity === 'plus'
       ? randomChoice([16, 20, 20, 32] as const)
-      : randomChoice([12, 16, 16, 20] as const);
+      : randomChoice([12, 16, 16, 16] as const);
   return createReferenceMeter({
     numerator,
     denominator,

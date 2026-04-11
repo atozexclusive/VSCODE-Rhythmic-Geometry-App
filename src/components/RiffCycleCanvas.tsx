@@ -43,6 +43,9 @@ interface RiffCycleCanvasProps {
   restartToken: number;
   viewModeOverride?: RiffCycleViewMode;
   layoutBottomInset?: number;
+  laneWindowStartStep?: number;
+  laneWindowStepCount?: number;
+  onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
@@ -97,6 +100,9 @@ export default function RiffCycleCanvas({
   restartToken,
   viewModeOverride,
   layoutBottomInset = 0,
+  laneWindowStartStep,
+  laneWindowStepCount,
+  onReferenceStepChange,
   externalCanvasRef,
   onSelectStep,
   onSetStepActive,
@@ -117,6 +123,9 @@ export default function RiffCycleCanvas({
   const isMobile = useIsMobile();
   const isMobileRef = useRef(isMobile);
   const layoutBottomInsetRef = useRef(layoutBottomInset);
+  const laneWindowStartStepRef = useRef(laneWindowStartStep);
+  const laneWindowStepCountRef = useRef(laneWindowStepCount);
+  const onReferenceStepChangeRef = useRef(onReferenceStepChange);
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
   const paintedStepsRef = useRef<Set<number>>(new Set());
@@ -137,6 +146,9 @@ export default function RiffCycleCanvas({
   selectedStepRef.current = selectedStep;
   isMobileRef.current = isMobile;
   layoutBottomInsetRef.current = layoutBottomInset;
+  laneWindowStartStepRef.current = laneWindowStartStep;
+  laneWindowStepCountRef.current = laneWindowStepCount;
+  onReferenceStepChangeRef.current = onReferenceStepChange;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -174,6 +186,8 @@ export default function RiffCycleCanvas({
       rect.height,
       isMobileRef.current,
       layoutBottomInsetRef.current,
+      laneWindowStartStepRef.current,
+      laneWindowStepCountRef.current,
     );
     const totalDisplaySteps = getDisplayStepCount(currentStudy);
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
@@ -586,9 +600,26 @@ export default function RiffCycleCanvas({
     if (metrics.timelineRect) {
       const compactMobileTimeline = isMobileRef.current;
       const timeline = metrics.timelineRect;
-      const { x, y, width, height, topLaneY, bottomLaneY, laneHeight, stepWidth } = timeline;
-      const playheadX =
-        x + ((referenceProgress % metrics.totalDisplaySteps) / metrics.totalDisplaySteps) * width;
+      const {
+        x,
+        y,
+        width,
+        height,
+        topLaneY,
+        bottomLaneY,
+        laneHeight,
+        stepWidth,
+        visibleStartStep,
+        visibleStepCount,
+      } = timeline;
+      const visibleEndStep = visibleStartStep + visibleStepCount;
+      const visibleBarStart = Math.floor(visibleStartStep / metrics.stepsPerBar);
+      const visibleBarEnd = Math.ceil(visibleEndStep / metrics.stepsPerBar);
+      const playheadVisible =
+        currentReferenceStep >= visibleStartStep && currentReferenceStep < visibleEndStep;
+      const playheadX = playheadVisible
+        ? x + (currentReferenceStep - visibleStartStep + (referenceProgress % 1)) * stepWidth
+        : null;
 
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.028)';
@@ -599,9 +630,11 @@ export default function RiffCycleCanvas({
       ctx.stroke();
       ctx.restore();
 
-      for (let barIndex = 0; barIndex < currentStudy.reference.barCountForDisplay; barIndex += 1) {
-        const barX = x + (barIndex / currentStudy.reference.barCountForDisplay) * width;
-        const barWidth = width / currentStudy.reference.barCountForDisplay;
+      for (let barIndex = visibleBarStart; barIndex < visibleBarEnd; barIndex += 1) {
+        const barStartStep = Math.max(visibleStartStep, barIndex * metrics.stepsPerBar);
+        const barEndStep = Math.min(visibleEndStep, (barIndex + 1) * metrics.stepsPerBar);
+        const barX = x + (barStartStep - visibleStartStep) * stepWidth;
+        const barWidth = Math.max(0, (barEndStep - barStartStep) * stepWidth);
         ctx.save();
         ctx.fillStyle =
           barIndex % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'rgba(255,255,255,0.028)';
@@ -609,8 +642,8 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      for (let step = 0; step < metrics.totalDisplaySteps; step += 1) {
-        const stepX = x + step * stepWidth;
+      for (let step = visibleStartStep; step < visibleEndStep; step += 1) {
+        const stepX = x + (step - visibleStartStep) * stepWidth;
         const isDownbeat = step % metrics.stepsPerBar === 0;
         const isBeat = isReferenceBeatStart(currentStudy, step);
         const isBackbeat = isBackbeatStep(currentStudy, step);
@@ -704,8 +737,12 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      for (let barIndex = 0; barIndex <= currentStudy.reference.barCountForDisplay; barIndex += 1) {
-        const markerX = x + (barIndex / currentStudy.reference.barCountForDisplay) * width;
+      for (let barIndex = visibleBarStart; barIndex <= visibleBarEnd; barIndex += 1) {
+        const boundaryStep = barIndex * metrics.stepsPerBar;
+        const markerX = x + (boundaryStep - visibleStartStep) * stepWidth;
+        if (markerX < x - 0.5 || markerX > x + width + 0.5) {
+          continue;
+        }
         ctx.save();
         ctx.strokeStyle = barIndex === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.14)';
         ctx.lineWidth = barIndex === 0 ? 1.2 : 1;
@@ -716,14 +753,16 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      ctx.save();
-      ctx.strokeStyle = `${currentStudy.riff.color}AA`;
-      ctx.lineWidth = 1.35;
-      ctx.beginPath();
-      ctx.moveTo(playheadX, topLaneY - 8);
-      ctx.lineTo(playheadX, bottomLaneY + laneHeight + 10);
-      ctx.stroke();
-      ctx.restore();
+      if (playheadX != null) {
+        ctx.save();
+        ctx.strokeStyle = `${currentStudy.riff.color}AA`;
+        ctx.lineWidth = 1.35;
+        ctx.beginPath();
+        ctx.moveTo(playheadX, topLaneY - 8);
+        ctx.lineTo(playheadX, bottomLaneY + laneHeight + 10);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.48)';
@@ -745,11 +784,12 @@ export default function RiffCycleCanvas({
         x + 12,
         bottomLaneY + laneHeight + 10,
       );
-      for (let barIndex = 0; barIndex < currentStudy.reference.barCountForDisplay; barIndex += 1) {
+      for (let barIndex = visibleBarStart; barIndex < visibleBarEnd; barIndex += 1) {
+        const barStartStep = Math.max(visibleStartStep, barIndex * metrics.stepsPerBar);
         ctx.fillStyle = 'rgba(255,255,255,0.32)';
         ctx.fillText(
           compactMobileTimeline ? String(barIndex + 1) : `BAR ${barIndex + 1}`,
-          x + barIndex * (width / currentStudy.reference.barCountForDisplay) + 10,
+          x + (barStartStep - visibleStartStep) * stepWidth + 10,
           y + height - 16,
         );
       }
@@ -787,6 +827,9 @@ export default function RiffCycleCanvas({
       wasPlayingRef.current = currentStudy.playing;
 
       const currentReferenceStep = Math.floor(referenceProgressRef.current) % displaySteps;
+      if (currentReferenceStep !== previousReferenceStepRef.current) {
+        onReferenceStepChangeRef.current?.(currentReferenceStep);
+      }
       if (currentStudy.playing && currentReferenceStep !== previousReferenceStepRef.current) {
         const referenceBeatStart = isReferenceBeatStart(currentStudy, currentReferenceStep);
         const backbeatStep = isBackbeatStep(currentStudy, currentReferenceStep);
@@ -837,7 +880,7 @@ export default function RiffCycleCanvas({
 
   useEffect(() => {
     draw();
-  }, [draw, study, viewModeOverride, layoutBottomInset]);
+  }, [draw, study, viewModeOverride, layoutBottomInset, laneWindowStartStep, laneWindowStepCount]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -974,6 +1017,8 @@ export default function RiffCycleCanvas({
           rect.height,
           isMobileRef.current,
           layoutBottomInsetRef.current,
+          laneWindowStartStepRef.current,
+          laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,
         event.clientY - rect.top,
@@ -1085,6 +1130,8 @@ export default function RiffCycleCanvas({
           rect.height,
           isMobileRef.current,
           layoutBottomInsetRef.current,
+          laneWindowStartStepRef.current,
+          laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,
         event.clientY - rect.top,
@@ -1155,6 +1202,8 @@ export default function RiffCycleCanvas({
           rect.height,
           isMobileRef.current,
           layoutBottomInsetRef.current,
+          laneWindowStartStepRef.current,
+          laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,
         event.clientY - rect.top,

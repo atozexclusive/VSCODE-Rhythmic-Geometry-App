@@ -113,7 +113,7 @@ function triggerPalettePulse(
     withVoice({
       type: 'triangle',
       frequency: frequency * 1.25,
-      gain: clamp(gain * 0.88, 0.01, 0.22),
+      gain: clamp(gain * 1.18, 0.012, 0.24),
       attack: 0.004,
       release: 0.09,
       filterFrequency: 2400,

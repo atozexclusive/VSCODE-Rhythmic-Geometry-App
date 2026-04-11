@@ -21,6 +21,8 @@ export interface RiffCycleTimelineRect {
   bottomLaneY: number;
   laneHeight: number;
   stepWidth: number;
+  visibleStartStep: number;
+  visibleStepCount: number;
 }
 
 export interface RiffCycleCanvasMetrics {
@@ -101,6 +103,8 @@ export function getRiffCycleCanvasMetrics(
   height: number,
   isMobile: boolean,
   bottomInset = 0,
+  laneWindowStartStep?: number,
+  laneWindowStepCount?: number,
 ): RiffCycleCanvasMetrics {
   const showingTimeline = study.viewMode === 'unwrapped';
   const sidePadding = isMobile ? (showingTimeline ? 18 : 12) : 44;
@@ -111,6 +115,14 @@ export function getRiffCycleCanvasMetrics(
   const safeWidth = Math.max(1, width - sidePadding * 2);
   const circleCenterX = width / 2;
   const laneHeight = isMobile ? 32 : 30;
+  const totalDisplaySteps = getDisplayStepCount(study);
+  const visibleStepCount = showingTimeline
+    ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
+    : totalDisplaySteps;
+  const maxVisibleStart = Math.max(0, totalDisplaySteps - visibleStepCount);
+  const visibleStartStep = showingTimeline
+    ? Math.max(0, Math.min(maxVisibleStart, Math.floor(laneWindowStartStep ?? 0)))
+    : 0;
 
   let circleCenterY: number;
   let outerRadius: number;
@@ -138,7 +150,9 @@ export function getRiffCycleCanvasMetrics(
       topLaneY,
       bottomLaneY,
       laneHeight,
-      stepWidth: safeWidth / Math.max(1, getDisplayStepCount(study)),
+      stepWidth: safeWidth / visibleStepCount,
+      visibleStartStep,
+      visibleStepCount,
     };
   } else {
     const safeHeight = Math.max(1, height - topPadding - bottomPadding);
@@ -167,7 +181,7 @@ export function getRiffCycleCanvasMetrics(
     circleCenterY,
     outerRadius,
     innerRadius,
-    totalDisplaySteps: getDisplayStepCount(study),
+    totalDisplaySteps,
     stepsPerBar: getReferenceStepsPerBar(study.reference),
     referenceVertices: getReferencePolygonVertices(study, baseMetrics),
     referencePerimeterPoints: getReferencePerimeterPoints(study, baseMetrics),
@@ -196,10 +210,10 @@ export function getRiffLaneCellAt(
   }
 
   const displayStep = Math.max(
-    0,
+    timeline.visibleStartStep,
     Math.min(
-      metrics.totalDisplaySteps - 1,
-      Math.floor((x - timeline.x) / timeline.stepWidth),
+      timeline.visibleStartStep + timeline.visibleStepCount - 1,
+      timeline.visibleStartStep + Math.floor((x - timeline.x) / timeline.stepWidth),
     ),
   );
 

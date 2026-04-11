@@ -8,6 +8,7 @@ import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
 import {
   POLYRHYTHM_LAYER_COLORS,
+  POLYRHYTHM_PRESET_GROUP_META,
   POLYRHYTHM_PRESETS,
   countActiveSteps,
   type PolyrhythmLayer,
@@ -71,17 +72,33 @@ const POLYRHYTHM_SOUND_PALETTES: Array<{
 
 const TAU = Math.PI * 2;
 
-export function PolyrhythmSceneThumbnail({ preset }: { preset: PolyrhythmStudyPreset }) {
+export function PolyrhythmSceneThumbnail({
+  preset,
+  className = 'h-24 w-24',
+}: {
+  preset: PolyrhythmStudyPreset;
+  className?: string;
+}) {
   const { study } = preset;
   const centerX = 80;
   const centerY = 72;
   const outerRadius = 48;
-  const layers = [...study.layers].sort((a, b) => b.radius - a.radius);
+  const layers = [...study.layers];
   const gridId = `poly-grid-${preset.id}`;
   const glowId = `poly-glow-${preset.id}`;
+  const sharedDisplay = study.displayStyle === 'shared';
+  const layeredRadii = layers.map((layer, index) =>
+    sharedDisplay
+      ? outerRadius
+      : Math.max(
+          15,
+          outerRadius *
+            (layer.radius / Math.max(...layers.map((entry) => entry.radius), 1)),
+        ),
+  );
 
   return (
-    <svg viewBox="0 0 160 160" className="h-24 w-24 rounded-lg border border-white/10 bg-[#14141b]/80">
+    <svg viewBox="0 0 160 160" className={`${className} rounded-lg border border-white/10 bg-[#14141b]/80`}>
       <defs>
         <radialGradient id={glowId} cx="50%" cy="45%" r="70%">
           <stop offset="0%" stopColor="rgba(127,215,255,0.24)" />
@@ -95,9 +112,19 @@ export function PolyrhythmSceneThumbnail({ preset }: { preset: PolyrhythmStudyPr
       <rect x="0" y="0" width="160" height="160" rx="18" fill={`url(#${gridId})`} opacity="0.42" />
       <line x1={centerX} y1={18} x2={centerX} y2={126} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
       <line x1={18} y1={centerY} x2={142} y2={centerY} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+      {sharedDisplay ? (
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={outerRadius}
+          fill="none"
+          stroke="rgba(255,255,255,0.14)"
+          strokeWidth="1.2"
+        />
+      ) : null}
 
       {layers.map((layer, index) => {
-        const radius = outerRadius - index * 12;
+        const radius = layeredRadii[index] ?? outerRadius;
         const activePoints = layer.activeSteps
           .map((active, stepIndex) => {
             if (!active) {
@@ -114,24 +141,26 @@ export function PolyrhythmSceneThumbnail({ preset }: { preset: PolyrhythmStudyPr
 
         return (
           <g key={layer.id}>
-            <circle
-              cx={centerX}
-              cy={centerY}
-              r={radius}
-              fill="none"
-              stroke={`${layer.color}${index === 0 ? '3f' : '1f'}`}
-              strokeWidth={index === 0 ? 1.6 : 1.15}
-            />
+            {!sharedDisplay || index === 0 ? (
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke={`${layer.color}${index === 0 ? '3f' : '1f'}`}
+                strokeWidth={index === 0 ? 1.6 : 1.15}
+              />
+            ) : null}
             {activePoints.length >= 2 ? (
               <>
                 {activePoints.length >= 3 ? (
-                  <polygon points={polyline} fill={`${layer.color}18`} stroke="none" />
+                  <polygon points={polyline} fill={`${layer.color}${sharedDisplay ? '20' : '18'}`} stroke="none" />
                 ) : null}
                 <polyline
                   points={polyline}
                   fill="none"
                   stroke={layer.color}
-                  strokeWidth={index === 0 ? 2 : 1.45}
+                  strokeWidth={index === 0 ? 2 : sharedDisplay ? 1.7 : 1.45}
                   strokeLinejoin="round"
                 />
               </>
@@ -157,7 +186,7 @@ export function PolyrhythmSceneThumbnail({ preset }: { preset: PolyrhythmStudyPr
         fontFamily='"SF Mono", "Fira Code", monospace'
         letterSpacing="1.6"
       >
-        {study.layers.length} LAYERS
+        {sharedDisplay ? 'SHARED CYCLE' : 'NESTED STACK'}
       </text>
       <text
         x="16"
@@ -236,6 +265,10 @@ export default function PolyrhythmSidebar({
     { id: 'sound', label: 'Sound', color: '#88CCFF' },
     { id: 'export', label: 'Export', color: '#FFAA00' },
   ];
+  const groupedPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
+    group,
+    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group),
+  }));
 
   useEffect(() => {
     if (!exportNotice) {
@@ -348,7 +381,7 @@ export default function PolyrhythmSidebar({
                     Scenes
                   </div>
                   <div className="mt-1 text-[11px] text-white/52">
-                    Start from clear nested ratios, then shape the stack.
+                    Start with one rhythm, then move into shared-cycle studies.
                   </div>
                 </div>
                 <button
@@ -365,54 +398,64 @@ export default function PolyrhythmSidebar({
                 </button>
               </div>
 
-              {POLYRHYTHM_PRESETS.map((preset) => {
-                const active = preset.id === activePresetId;
-                return (
-                  <div
-                    key={preset.id}
-                    className="rounded-xl border p-3"
-                    style={{
-                      background: active
-                        ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
-                        : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
-                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
-                      boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <PolyrhythmSceneThumbnail preset={preset} />
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className="text-xs font-mono uppercase tracking-[0.16em]"
-                          style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}
-                        >
-                          {preset.name}
-                        </div>
-                        <div
-                          className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34"
-                        >
-                          {preset.study.layers.length} layers · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
-                        </div>
-                        <div className="mt-2 text-[11px] leading-relaxed text-white/46">
-                          {preset.description}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onLoadPreset(preset.id)}
-                          className="mt-3 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
-                          style={{
-                            background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
-                            borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                            color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
-                          }}
-                        >
-                          {active ? 'Loaded' : 'Load Scene'}
-                        </button>
-                      </div>
+              {groupedPresets.map(({ group, presets }) => (
+                <div key={group} className="space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/56">
+                      {POLYRHYTHM_PRESET_GROUP_META[group].label}
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/42">
+                      {POLYRHYTHM_PRESET_GROUP_META[group].description}
                     </div>
                   </div>
-                );
-              })}
+                  {presets.map((preset) => {
+                    const active = preset.id === activePresetId;
+                    return (
+                      <div
+                        key={preset.id}
+                        className="rounded-xl border p-3"
+                        style={{
+                          background: active
+                            ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
+                            : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
+                          borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
+                          boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <PolyrhythmSceneThumbnail preset={preset} />
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="text-xs font-mono uppercase tracking-[0.16em]"
+                              style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}
+                            >
+                              {preset.name}
+                            </div>
+                            <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
+                              {preset.study.displayStyle === 'shared' ? 'Shared' : 'Nested'} · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
+                            </div>
+                            <div className="mt-2 text-[11px] leading-relaxed text-white/46">
+                              {preset.description}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onLoadPreset(preset.id)}
+                              className="mt-3 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                              style={{
+                                background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
+                                borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                                color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
+                              }}
+                            >
+                              {active ? 'Loaded' : 'Load Scene'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </section>
           ) : null}
 
@@ -439,7 +482,7 @@ export default function PolyrhythmSidebar({
                         color: '#7FD7FF',
                       }}
                     >
-                      Add
+                      Add Ring
                     </button>
                     <button
                       type="button"
@@ -717,7 +760,7 @@ export default function PolyrhythmSidebar({
                       color: soundFocus === 'layer' ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Layer
+                    Solo
                   </button>
                   <button
                     type="button"
@@ -729,7 +772,7 @@ export default function PolyrhythmSidebar({
                       color: soundFocus === 'stack' ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Stack
+                    All
                   </button>
                   <button
                     type="button"

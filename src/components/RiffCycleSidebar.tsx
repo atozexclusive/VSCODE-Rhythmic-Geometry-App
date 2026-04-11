@@ -93,7 +93,13 @@ function getPolygonPoints(sides: number, radius: number, centerX = 80, centerY =
   }).join(' ');
 }
 
-export function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
+export function RiffSceneThumbnail({
+  preset,
+  className = 'h-24 w-24',
+}: {
+  preset: RiffCyclePreset;
+  className?: string;
+}) {
   const { study } = preset;
   const centerX = 80;
   const centerY = 68;
@@ -128,7 +134,7 @@ export function RiffSceneThumbnail({ preset }: { preset: RiffCyclePreset }) {
     study.riff.resetMode === 'free' ? 0 : Math.min(laneCellCount, Math.max(2, Math.round((study.landingLength / study.riff.stepCount) * laneCellCount)));
 
   return (
-    <svg viewBox="0 0 160 160" className="h-24 w-24 rounded-lg border border-white/10 bg-[#14141b]/80">
+    <svg viewBox="0 0 160 160" className={`${className} rounded-lg border border-white/10 bg-[#14141b]/80`}>
       <defs>
         <radialGradient id={gradientId} cx="50%" cy="45%" r="70%">
           <stop offset="0%" stopColor={`${study.riff.color}55`} />
