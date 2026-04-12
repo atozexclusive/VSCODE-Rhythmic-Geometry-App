@@ -20,12 +20,21 @@ interface PolyrhythmCanvasSelection {
   stepIndex: number;
 }
 
+interface PolyrhythmPlaybackState {
+  progress: number;
+  lastTimestamp: number | null;
+  previousPlaybackSteps: Map<string, number>;
+  wasPlaying: boolean;
+}
+
 interface PolyrhythmCanvasProps {
   study: PolyrhythmStudy;
   restartToken?: number;
   selectedLayerId: string | null;
   selectedStep: PolyrhythmCanvasSelection | null;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
+  playbackStateRef?: MutableRefObject<PolyrhythmPlaybackState>;
+  playbackDriver?: boolean;
   displayLayerId?: string | null;
   soloLayerDisplay?: boolean;
   onSelectLayer: (layerId: string) => void;
@@ -41,6 +50,8 @@ export default function PolyrhythmCanvas({
   selectedLayerId,
   selectedStep,
   externalCanvasRef,
+  playbackStateRef,
+  playbackDriver = true,
   displayLayerId = null,
   soloLayerDisplay = false,
   onSelectLayer,
@@ -51,16 +62,20 @@ export default function PolyrhythmCanvas({
 }: PolyrhythmCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const studyRef = useRef(study);
-  const progressRef = useRef(0);
-  const lastTimestampRef = useRef<number | null>(null);
-  const previousPlaybackStepsRef = useRef<Map<string, number>>(new Map());
-  const wasPlayingRef = useRef(study.playing);
+  const localPlaybackStateRef = useRef<PolyrhythmPlaybackState>({
+    progress: 0,
+    lastTimestamp: null,
+    previousPlaybackSteps: new Map(),
+    wasPlaying: study.playing,
+  });
   const isMobile = useIsMobile();
   const isMobileRef = useRef(isMobile);
   const selectedLayerIdRef = useRef(selectedLayerId);
   const selectedStepRef = useRef(selectedStep);
   const displayLayerIdRef = useRef(displayLayerId);
   const soloLayerDisplayRef = useRef(soloLayerDisplay);
+  const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
+  const playbackDriverRef = useRef(playbackDriver);
 
   studyRef.current = study;
   isMobileRef.current = isMobile;
@@ -68,6 +83,8 @@ export default function PolyrhythmCanvas({
   selectedStepRef.current = selectedStep;
   displayLayerIdRef.current = displayLayerId;
   soloLayerDisplayRef.current = soloLayerDisplay;
+  playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
+  playbackDriverRef.current = playbackDriver;
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -111,7 +128,8 @@ export default function PolyrhythmCanvas({
       rect.height,
       isMobileRef.current,
     );
-    const cursorAngle = -Math.PI / 2 + progressRef.current * TAU;
+    const playbackState = playbackStateHandleRef.current.current;
+    const cursorAngle = -Math.PI / 2 + playbackState.progress * TAU;
     const currentSelectedLayerId = selectedLayerIdRef.current;
     const currentSelectedStep = selectedStepRef.current;
     const sharedDisplay = displayStudy.displayStyle === 'shared' && !soloLayerDisplayRef.current;
@@ -178,7 +196,7 @@ export default function PolyrhythmCanvas({
           metrics.scale,
         );
         const activePoints = points.filter((point) => point.active);
-        const playbackStepIndex = getPlaybackStepIndex(layer, progressRef.current);
+        const playbackStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
         const isSelectedLayer = layer.id === currentSelectedLayerId;
         const showLayerRing = !sharedDisplay || isSelectedLayer;
 
@@ -331,25 +349,26 @@ export default function PolyrhythmCanvas({
 
     const render = (timestamp: number) => {
       const currentStudy = studyRef.current;
+      const playbackState = playbackStateHandleRef.current.current;
 
-      if (currentStudy.playing) {
-        if (lastTimestampRef.current == null) {
-          lastTimestampRef.current = timestamp;
+      if (playbackDriverRef.current && currentStudy.playing) {
+        if (playbackState.lastTimestamp == null) {
+          playbackState.lastTimestamp = timestamp;
         } else {
           const deltaSeconds = Math.min(
             0.05,
-            (timestamp - lastTimestampRef.current) / 1000,
+            (timestamp - playbackState.lastTimestamp) / 1000,
           );
           const cyclesPerSecond = currentStudy.bpm / 60 / 4;
-          progressRef.current =
-            (progressRef.current + deltaSeconds * cyclesPerSecond) % 1;
-          lastTimestampRef.current = timestamp;
+          playbackState.progress =
+            (playbackState.progress + deltaSeconds * cyclesPerSecond) % 1;
+          playbackState.lastTimestamp = timestamp;
         }
 
         currentStudy.layers.forEach((layer, layerIndex) => {
-          const currentStepIndex = getPlaybackStepIndex(layer, progressRef.current);
-          const previousStepIndex = previousPlaybackStepsRef.current.get(layer.id);
-          previousPlaybackStepsRef.current.set(layer.id, currentStepIndex);
+          const currentStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
+          const previousStepIndex = playbackState.previousPlaybackSteps.get(layer.id);
+          playbackState.previousPlaybackSteps.set(layer.id, currentStepIndex);
 
           if (
             previousStepIndex !== currentStepIndex &&
@@ -366,21 +385,21 @@ export default function PolyrhythmCanvas({
             });
           }
         });
-      } else {
-        lastTimestampRef.current = timestamp;
+      } else if (playbackDriverRef.current) {
+        playbackState.lastTimestamp = timestamp;
         currentStudy.layers.forEach((layer) => {
-          previousPlaybackStepsRef.current.set(
+          playbackState.previousPlaybackSteps.set(
             layer.id,
-            getPlaybackStepIndex(layer, progressRef.current),
+            getPlaybackStepIndex(layer, playbackState.progress),
           );
         });
       }
 
-      if (currentStudy.playing && !wasPlayingRef.current) {
-        previousPlaybackStepsRef.current.clear();
-        lastTimestampRef.current = timestamp;
+      if (playbackDriverRef.current && currentStudy.playing && !playbackState.wasPlaying) {
+        playbackState.previousPlaybackSteps.clear();
+        playbackState.lastTimestamp = timestamp;
       }
-      wasPlayingRef.current = currentStudy.playing;
+      playbackState.wasPlaying = currentStudy.playing;
 
       draw();
       frame = window.requestAnimationFrame(render);
@@ -393,14 +412,16 @@ export default function PolyrhythmCanvas({
   }, [draw]);
 
   useEffect(() => {
-    previousPlaybackStepsRef.current.clear();
+    playbackStateHandleRef.current.current.previousPlaybackSteps.clear();
     draw();
   }, [draw, study]);
 
   useEffect(() => {
-    progressRef.current = 0;
-    previousPlaybackStepsRef.current.clear();
-    lastTimestampRef.current = null;
+    const playbackState = playbackStateHandleRef.current.current;
+    playbackState.progress = 0;
+    playbackState.previousPlaybackSteps.clear();
+    playbackState.lastTimestamp = null;
+    playbackState.wasPlaying = studyRef.current.playing;
     draw();
   }, [draw, restartToken]);
 

@@ -528,6 +528,13 @@ interface PolyrhythmStepSelection {
   stepIndex: number;
 }
 
+interface PolyrhythmPlaybackState {
+  progress: number;
+  lastTimestamp: number | null;
+  previousPlaybackSteps: Map<string, number>;
+  wasPlaying: boolean;
+}
+
 function sortSavedScenesByUpdatedAt(scenes: SavedScene[]): SavedScene[] {
   return [...scenes].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -552,6 +559,11 @@ function getStepStripGroupSize(stepCount: number): number {
     return 8;
   }
   return 4;
+}
+
+function getPolyrhythmLayerOffsetSteps(layer: Pick<PolyrhythmLayer, 'beatCount' | 'rotationOffset'>): number {
+  const normalizedOffset = ((layer.rotationOffset % 360) + 360) % 360;
+  return Math.round((normalizedOffset / 360) * layer.beatCount) % Math.max(1, layer.beatCount);
 }
 
 function PolyrhythmRollEditor({
@@ -2738,17 +2750,29 @@ function OrbitalPolymeter() {
       setSidebarOpen(false);
       setHelpOpen(false);
       setPresentationMode(false);
+      setPolyrhythmMobileEditorOpen(false);
+      setRiffMobileEditorOpen(false);
       setMobileScenesOpen(false);
       setMobileCustomizeOpen(false);
       setMobileSoundOpen(false);
       setRadialMenu(null);
       setProPrompt(null);
+      stopAllAudio();
+      resetEngine(engineState);
+      engineState.playing = false;
+      engineState.lastTimestamp = -1;
+      rerender();
+      setPolyrhythmRestartToken((value) => value + 1);
+      setRiffCycleRestartToken((value) => value + 1);
+      setSelectedPolyrhythmStep(null);
+      setSelectedRiffCycleStep(null);
+      setRiffMobileLanePage(0);
 
       if (nextSurface === 'polyrhythm-study' || nextSurface === 'riff-cycle-study') {
-        stopAllAudio();
-        engineState.playing = false;
-        engineState.lastTimestamp = -1;
-        rerender();
+        polyrhythmPlaybackStateRef.current.progress = 0;
+        polyrhythmPlaybackStateRef.current.lastTimestamp = null;
+        polyrhythmPlaybackStateRef.current.previousPlaybackSteps.clear();
+        polyrhythmPlaybackStateRef.current.wasPlaying = false;
       }
 
       if (nextSurface !== 'polyrhythm-study') {
@@ -2907,7 +2931,7 @@ function OrbitalPolymeter() {
         POLYRHYTHM_LAYER_COLORS[nextLayerIndex % POLYRHYTHM_LAYER_COLORS.length];
       const nextLayer = createPolyrhythmLayer(nextBeatCount, {
         radius: nextRadius,
-        rotationOffset: (nextLayerIndex * 12) % 360,
+        rotationOffset: 0,
         color: nextColor,
         pitchHz: Math.min(960, 180 + nextLayerIndex * 66),
         gain: Math.max(0.04, 0.12 - nextLayerIndex * 0.01),
@@ -3427,6 +3451,12 @@ function OrbitalPolymeter() {
   const siteSceneLoadedRef = useRef(false);
   const lastPatternMutationAtRef = useRef(0);
   const recentRandomSignaturesRef = useRef<Record<string, RandomHistoryEntry[]>>({});
+  const polyrhythmPlaybackStateRef = useRef<PolyrhythmPlaybackState>({
+    progress: 0,
+    lastTimestamp: null,
+    previousPlaybackSteps: new Map(),
+    wasPlaying: false,
+  });
   const guideSteps =
     appSurface === 'riff-cycle-study'
       ? isMobile
@@ -5658,6 +5688,9 @@ function OrbitalPolymeter() {
     selectedPolyrhythmLayerIndex >= 0
       ? `Ring ${selectedPolyrhythmLayerIndex + 1}`
       : 'Ring';
+  const selectedPolyrhythmOffsetSteps = selectedPolyrhythmLayer
+    ? getPolyrhythmLayerOffsetSteps(selectedPolyrhythmLayer)
+    : 0;
   const selectedPolyrhythmStepActive =
     selectedPolyrhythmLayer &&
     selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
@@ -5761,6 +5794,8 @@ function OrbitalPolymeter() {
                 selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
                 selectedStep={selectedPolyrhythmStep}
                 externalCanvasRef={canvasRef}
+                playbackStateRef={polyrhythmPlaybackStateRef}
+                playbackDriver={!polyrhythmMobileEditorOpen}
                 onSelectLayer={handleSelectPolyrhythmLayer}
                 onSelectStep={handleSelectPolyrhythmStep}
                 onToggleStep={handleTogglePolyrhythmLayerStep}
@@ -6110,6 +6145,26 @@ function OrbitalPolymeter() {
                               <StudyShellButton size="compact" tone="red" highlighted onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}>
                                 Clear
                               </StudyShellButton>
+                            </div>
+                            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                              <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                                <span>Offset</span>
+                                <span>{selectedPolyrhythmOffsetSteps}/{selectedPolyrhythmLayer.beatCount}</span>
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <StudyShellButton
+                                  size="compact"
+                                  onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
+                                >
+                                  Back 1
+                                </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
+                                >
+                                  Fwd 1
+                                </StudyShellButton>
+                              </div>
                             </div>
                             <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
                               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
@@ -6611,6 +6666,8 @@ function OrbitalPolymeter() {
                     selectedStep={selectedPolyrhythmStep}
                     displayLayerId={selectedPolyrhythmLayer?.id ?? null}
                     soloLayerDisplay
+                    playbackStateRef={polyrhythmPlaybackStateRef}
+                    playbackDriver={polyrhythmMobileEditorOpen}
                     onSelectLayer={handleSelectPolyrhythmLayer}
                     onSelectStep={handleSelectPolyrhythmStep}
                     onToggleStep={handleTogglePolyrhythmLayerStep}
@@ -6800,6 +6857,27 @@ function OrbitalPolymeter() {
                       </div>
 
                       <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                        <div className="flex items-center justify-between gap-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                          <span>Offset</span>
+                          <span>{selectedPolyrhythmOffsetSteps}/{selectedPolyrhythmLayer.beatCount}</span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <StudyShellButton
+                            size="compact"
+                            onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
+                          >
+                            Back 1
+                          </StudyShellButton>
+                          <StudyShellButton
+                            size="compact"
+                            onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
+                          >
+                            Fwd 1
+                          </StudyShellButton>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
                         <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
                           {selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
                             ? `Step ${selectedPolyrhythmStep.stepIndex + 1}`
@@ -6937,6 +7015,7 @@ function OrbitalPolymeter() {
           selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
           selectedStep={selectedPolyrhythmStep}
           externalCanvasRef={canvasRef}
+          playbackStateRef={polyrhythmPlaybackStateRef}
           onSelectLayer={handleSelectPolyrhythmLayer}
           onSelectStep={handleSelectPolyrhythmStep}
           onToggleStep={handleTogglePolyrhythmLayerStep}
@@ -7284,7 +7363,7 @@ function OrbitalPolymeter() {
             <StudyShellPanel className="space-y-2.5">
               <div className="flex items-center justify-center gap-2">
                 <div className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ background: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}12`, borderColor: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}26`, color: selectedPolyrhythmLayer?.color ?? '#72F1B8' }}>
-                  Study
+                  Study · {selectedPolyrhythmLayerLabel}
                 </div>
                 <StudyShellButton size="square" tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={16} /> : <Play size={16} />} onClick={handleTogglePolyrhythmPlayback} />
                 <StudyShellButton size="square" tone="amber" highlighted icon={<RotateCcw size={16} />} onClick={handleRestartPolyrhythmTransport} />
@@ -7299,12 +7378,31 @@ function OrbitalPolymeter() {
                 />
                 <StudyShellButton size="square" tone="amber" highlighted icon={<Shuffle size={16} />} onClick={handleRandomPlusPolyrhythmStudy} />
               </div>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <StudyShellButton
+                  size="compact"
+                  tone="neutral"
+                  highlighted
+                  onClick={() =>
+                    selectedPolyrhythmLayer &&
+                    handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)
+                  }
+                >
+                  Back 1
+                </StudyShellButton>
+                <StudyShellButton
+                  size="compact"
+                  tone="neutral"
+                  highlighted
+                  onClick={() =>
+                    selectedPolyrhythmLayer &&
+                    handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)
+                  }
+                >
+                  Fwd 1
+                </StudyShellButton>
                 <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
                   Faint
-                </StudyShellButton>
-                <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
-                  Labels
                 </StudyShellButton>
                 <StudyShellButton size="square" tone="blue" highlighted={polyrhythmStudy.soundEnabled} icon={polyrhythmStudy.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />} onClick={handleTogglePolyrhythmSound} />
                 <StudyShellButton size="square" tone="green" highlighted icon={<Maximize2 size={16} />} onClick={handleTogglePresentation} />
