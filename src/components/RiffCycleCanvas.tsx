@@ -271,7 +271,9 @@ export default function RiffCycleCanvas({
     const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
     const playbackState = playbackStateHandleRef.current.current;
     const referenceProgress = playbackState.referenceProgress;
-    const currentReferenceStep = Math.floor(referenceProgress) % totalDisplaySteps;
+    const currentAbsoluteReferenceStep = Math.floor(referenceProgress);
+    const currentReferenceStep =
+      ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const beatProgress = stepWithinBar / stepsPerBeat;
     const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
@@ -300,10 +302,13 @@ export default function RiffCycleCanvas({
       };
     });
     const activeRiffPoints = riffPoints.filter((point) => point.active);
-    const currentRiffStep = getRiffStepIndexAtReferenceStep(currentStudy, currentReferenceStep);
+    const currentRiffStep = getRiffStepIndexAtReferenceStep(
+      currentStudy,
+      currentAbsoluteReferenceStep,
+    );
     const currentRiffStepState = getEffectiveRiffStepStateAtReferenceStep(
       currentStudy,
-      currentReferenceStep,
+      currentAbsoluteReferenceStep,
     );
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
@@ -997,8 +1002,7 @@ export default function RiffCycleCanvas({
           playbackState.lastTimestamp = timestamp;
         } else {
           const deltaSeconds = Math.min(0.05, (timestamp - playbackState.lastTimestamp) / 1000);
-          playbackState.referenceProgress =
-            (playbackState.referenceProgress + deltaSeconds * stepsPerSecond) % displaySteps;
+          playbackState.referenceProgress += deltaSeconds * stepsPerSecond;
           playbackState.lastTimestamp = timestamp;
         }
       } else if (playbackDriverRef.current) {
@@ -1011,17 +1015,22 @@ export default function RiffCycleCanvas({
       }
       playbackState.wasPlaying = currentStudy.playing;
 
-      const currentReferenceStep = Math.floor(playbackState.referenceProgress) % displaySteps;
-      if (playbackDriverRef.current && currentReferenceStep !== playbackState.previousReferenceStep) {
-        onReferenceStepChangeRef.current?.(currentReferenceStep);
+      const currentAbsoluteReferenceStep = Math.floor(playbackState.referenceProgress);
+      const currentDisplayReferenceStep =
+        ((currentAbsoluteReferenceStep % displaySteps) + displaySteps) % displaySteps;
+      if (
+        playbackDriverRef.current &&
+        currentAbsoluteReferenceStep !== playbackState.previousReferenceStep
+      ) {
+        onReferenceStepChangeRef.current?.(currentDisplayReferenceStep);
       }
       if (
         playbackDriverRef.current &&
         currentStudy.playing &&
-        currentReferenceStep !== playbackState.previousReferenceStep
+        currentAbsoluteReferenceStep !== playbackState.previousReferenceStep
       ) {
-        const referenceBeatStart = isReferenceBeatStart(currentStudy, currentReferenceStep);
-        const backbeatStep = isBackbeatStep(currentStudy, currentReferenceStep);
+        const referenceBeatStart = isReferenceBeatStart(currentStudy, currentAbsoluteReferenceStep);
+        const backbeatStep = isBackbeatStep(currentStudy, currentAbsoluteReferenceStep);
         if (currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
           triggerReferencePulse(currentStudy.soundSettings);
         }
@@ -1030,11 +1039,11 @@ export default function RiffCycleCanvas({
         }
         if (
           currentStudy.showAlignmentMarkers &&
-          isBarMarkerCueStep(currentStudy, currentReferenceStep)
+          isBarMarkerCueStep(currentStudy, currentAbsoluteReferenceStep)
         ) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 260;
-          barMarkerFlashStepRef.current = currentReferenceStep;
+          barMarkerFlashStepRef.current = currentDisplayReferenceStep;
           barMarkerFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
             BAR_MARKER_FLASH_DURATION;
@@ -1045,7 +1054,7 @@ export default function RiffCycleCanvas({
 
         const riffStepState = getEffectiveRiffStepStateAtReferenceStep(
           currentStudy,
-          currentReferenceStep,
+          currentAbsoluteReferenceStep,
         );
         if (riffStepState.active) {
           riffAttackUntilRef.current[riffStepState.phraseIndex] =
@@ -1062,7 +1071,7 @@ export default function RiffCycleCanvas({
           }
         }
 
-        if (isForcedResetAtReferenceStep(currentStudy, currentReferenceStep)) {
+        if (isForcedResetAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
           if (currentStudy.soundEnabled) {
@@ -1070,7 +1079,7 @@ export default function RiffCycleCanvas({
           }
         }
 
-        playbackState.previousReferenceStep = currentReferenceStep;
+        playbackState.previousReferenceStep = currentAbsoluteReferenceStep;
       }
 
       draw();

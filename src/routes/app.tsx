@@ -192,6 +192,7 @@ type GuideActionId =
 
 type TutorialEventId =
   | 'study-play'
+  | 'study-pause'
   | 'study-random'
   | 'study-open-edit'
   | 'study-open-pattern-editor'
@@ -199,6 +200,7 @@ type TutorialEventId =
   | 'study-editor-offset'
   | 'study-editor-invert'
   | 'riff-play'
+  | 'riff-pause'
   | 'riff-open-edit'
   | 'riff-select-bar'
   | 'riff-select-riff'
@@ -225,6 +227,7 @@ interface TutorialStep {
   title: string;
   mission: string;
   completeOn: TutorialEventId;
+  hint?: string;
   success?: string;
 }
 
@@ -359,19 +362,27 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-scenes',
     title: 'Start Here',
     kicker: 'Riff Guide',
-    text: 'Riff builds a groove from a bar, a moving riff, and an ending.',
+    text: 'Riff turns a bar frame and a step pattern into a looping groove.',
     doThis: 'Load a scene, press Play, then change one riff step.',
-    notice: 'Bar is the frame. Riff is the moving phrase. Ending is the return.',
+    notice: 'Think of Bar as the frame, Riff as the main pattern, and Ending as the handoff back to beat 1.',
     actionLabel: 'Open Scenes',
     actionId: 'riff-open-scenes',
+  },
+  {
+    target: 'riff-mobile-main-canvas',
+    title: 'The Main View',
+    kicker: 'Riff Guide',
+    text: 'The large shape shows how the riff moves inside the bar frame while the lane gives you a straight time view of the same phrase.',
+    doThis: 'Press Play and watch where the top point lands. That is beat 1.',
+    notice: 'Use the shape for orientation and the roll for exact writing.',
   },
   {
     target: 'riff-mobile-edit',
     title: 'Edit',
     kicker: 'Riff Guide',
-    text: 'Edit is the writing area.',
+    text: 'Edit is where you choose what you are changing.',
     doThis: 'Pick Bar, Riff, or Ending, then change one thing at a time.',
-    notice: 'Keep the frame simple before editing the phrase.',
+    notice: 'Make the frame clear first, then shape the groove inside it.',
     actionLabel: 'Open Edit',
     actionId: 'riff-open-edit',
   },
@@ -379,17 +390,17 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-layer-1',
     title: 'Bar',
     kicker: 'Riff Guide',
-    text: 'Bar sets the frame. Bars means how long the phrase lasts before it loops. Subdivision means how finely each bar is split into step positions.',
+    text: 'Bar sets the frame around the groove. Bars controls phrase length. Subdivision controls grid detail.',
     doThis: 'Change visible bars or subdivision before rewriting the riff.',
-    notice: 'Bars means how long the phrase frame is. Subdivision means how finely each bar is split into step positions.',
+    notice: 'More bars gives the phrase more room. More subdivision gives you smaller timing slots.',
   },
   {
     target: 'riff-layer-2',
     title: 'Riff',
     kicker: 'Riff Guide',
-    text: 'Riff is the moving pattern.',
+    text: 'Riff is the repeating line you hear inside the frame.',
     doThis: 'Use the roll for quick hits and Focus Pattern when you want a close writing view.',
-    notice: 'This is the main groove voice.',
+    notice: 'This is the part most people will hear as the groove.',
     actionLabel: 'Open Focus Pattern',
     actionId: 'riff-open-pattern-editor',
   },
@@ -397,9 +408,9 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-ending',
     title: 'Ending',
     kicker: 'Riff Guide',
-    text: 'Ending shapes how the riff lands and starts again.',
+    text: 'Ending shapes how the phrase lands before it loops back around.',
     doThis: 'Open Ending, then Focus Ending to edit the last slots only.',
-    notice: 'You are editing the tail of the phrase, not the whole groove.',
+    notice: 'A good ending makes the next loop feel intentional.',
     actionLabel: 'Open Focus Ending',
     actionId: 'riff-open-ending-editor',
   },
@@ -407,9 +418,9 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-transport',
     title: 'Transport',
     kicker: 'Riff Guide',
-    text: 'Play, restart, and the random tools live here.',
+    text: 'Play starts the loop. Restart brings you back to the first beat. Random loads a new starting idea.',
     doThis: 'If you are unsure where to start, press Play first.',
-    notice: 'Restart gives you beat 1 again so the phrase is easier to hear.',
+    notice: 'Restart is the fastest way to hear where the phrase really begins.',
     actionLabel: 'Try Random',
     actionId: 'riff-try-random',
   },
@@ -417,29 +428,31 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-tempo',
     title: 'Tempo And Offset',
     kicker: 'Riff Guide',
-    text: 'Tempo changes speed. Offset Pattern shifts the riff against the bar without rewriting it.',
+    text: 'Tempo changes speed. Offset Pattern moves the same riff earlier or later without rewriting it.',
     doThis: 'Move the pattern 1 step and listen to how the same phrase lands differently.',
     notice: 'Same notes. Different placement.',
   },
   {
-    target: 'riff-mobile-labels',
-    title: 'Labels',
+    target: 'riff-mobile-canvas',
+    title: 'Canvas',
     kicker: 'Riff Guide',
-    text: 'Labels show step numbers and reference starts so the grid is easier to read.',
+    text: 'Canvas controls change how the groove is displayed without changing the notes.',
+    doThis: 'Use Numbers when you need step positions and Start Lines when you need clearer bar starts.',
+    notice: 'These controls change readability, not rhythm.',
   },
   {
     target: 'riff-mobile-audio',
     title: 'Audio',
     kicker: 'Riff Guide',
-    text: 'Audio changes what you hear and how it sounds.',
+    text: 'Audio changes what you hear and how the groove sounds.',
     doThis: 'If the theory words are distracting, stay on Original first.',
-    notice: 'The groove should make sense before the scale names do.',
+    notice: 'You do not need any music theory to start making something usable here.',
   },
   {
     target: 'riff-mobile-present',
     title: 'Present',
     kicker: 'Riff Guide',
-    text: 'Present clears the chrome so you can focus on groove and timing.',
+    text: 'Present hides most of the controls so you can watch and hear the groove more clearly.',
     doThis: 'Use Present after you understand one scene.',
     notice: 'Present is for watching and performing, not deep setup.',
   },
@@ -448,8 +461,8 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     title: 'Menu',
     kicker: 'Riff Guide',
     text: 'Menu holds scenes, saving, account, and refresh.',
-    doThis: 'You do not need it for the first pass.',
-    notice: 'Stay in the quick surfaces until the basics feel clear.',
+    doThis: 'You can ignore it on your first pass.',
+    notice: 'The fast path is Scenes, Play, Edit.',
   },
 ];
 
@@ -463,6 +476,14 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     notice: 'Build feel first. Do not try to change everything at once.',
     actionLabel: 'Load Scene',
     actionId: 'riff-load-default',
+  },
+  {
+    target: 'riff-desktop-canvas',
+    title: 'The Main View',
+    kicker: 'Riff Guide',
+    text: 'The main canvas shows how the riff moves through the bar frame while the lane below shows the same phrase in straight time.',
+    doThis: 'Use the shape to feel the loop and the lane to inspect exact placement.',
+    notice: 'The canvas is the overview. The roll is the close writer.',
   },
   {
     target: 'riff-desktop-tempo',
@@ -550,17 +571,25 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-scenes',
     title: 'Start Here',
     kicker: 'Study Guide',
-    text: 'Study compares pulse patterns on one shared cycle.',
+    text: 'Study lets you hear two or more rhythm rings on the same loop.',
     doThis: 'Load a scene, press Play, then edit one ring.',
-    notice: 'Treat it like a rhythm sketchbook, not a theory test.',
+    notice: 'Start by hearing where the rings line up. You do not need theory to use it.',
     actionLabel: 'Load 3:5',
     actionId: 'study-load-default',
+  },
+  {
+    target: 'study-mobile-main-canvas',
+    title: 'The Main View',
+    kicker: 'Study Guide',
+    text: 'The large circles show each rhythm ring on the same loop so you can see where they meet and separate.',
+    doThis: 'Press Play and watch for moments where two rings land together.',
+    notice: 'The picture is showing the rhythm relationship, not just decoration.',
   },
   {
     target: 'study-mobile-playback',
     title: 'Playback',
     kicker: 'Study Guide',
-    text: 'Play starts the cycle. Restart goes back to step 1.',
+    text: 'Play starts the loop. Restart brings you back to the same beginning every time.',
     doThis: 'Press Restart once and watch where the cycle begins.',
     notice: 'That starting point is the anchor for the whole study.',
     actionLabel: 'Try Random',
@@ -570,7 +599,7 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-tempo',
     title: 'Tempo',
     kicker: 'Study Guide',
-    text: 'Tempo changes how clearly you hear the relationship.',
+    text: 'Tempo changes how easy the rings are to hear against each other.',
     doThis: 'Slow it down first if two rings feel hard to separate.',
     notice: 'The same pattern often makes more sense at a slower tempo.',
   },
@@ -578,7 +607,7 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-edit',
     title: 'Edit',
     kicker: 'Study Guide',
-    text: 'Edit is the writing area.',
+    text: 'Edit is where you pick one ring and change its pattern.',
     doThis: 'Pick one ring, then write hits in Pattern with the roll or the focused editor.',
     notice: 'Only the selected ring changes.',
     actionLabel: 'Open Edit',
@@ -588,15 +617,23 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-audio',
     title: 'Audio',
     kicker: 'Study Guide',
-    text: 'Audio changes what you hear and how it sounds.',
+    text: 'Audio lets you focus one ring or hear the full stack.',
     doThis: 'If the theory words are distracting, stay on Original first.',
-    notice: 'You can learn the rhythm without touching scales.',
+    notice: 'You can learn the rhythm without touching keys or scales.',
+  },
+  {
+    target: 'study-mobile-canvas',
+    title: 'Canvas',
+    kicker: 'Study Guide',
+    text: 'Canvas controls change how the rings are displayed without changing the rhythm.',
+    doThis: 'Use this area when you want a cleaner look or stronger visual guides.',
+    notice: 'These controls change the picture, not the timing.',
   },
   {
     target: 'study-mobile-present',
     title: 'Present',
     kicker: 'Study Guide',
-    text: 'Present strips the chrome back so the cycle can breathe.',
+    text: 'Present removes most of the controls so the cycle is easier to watch.',
     doThis: 'Use Present after one scene feels clear.',
     notice: 'Present is for watching and listening, not deep setup.',
   },
@@ -605,39 +642,51 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     title: 'Menu',
     kicker: 'Study Guide',
     text: 'Menu holds scenes, saving, account, and refresh.',
-    doThis: 'You do not need it to start.',
-    notice: 'Stay in the quick surfaces first.',
+    doThis: 'You can ignore it on your first pass.',
+    notice: 'The fast path is Scenes, Play, Edit.',
   },
 ];
 
 const MOBILE_STUDY_TUTORIAL: TutorialStep[] = [
   {
     target: 'study-mobile-playback',
-    title: 'Start The Cycle',
-    mission: 'Press Play.',
+    title: 'Hear The Loop',
+    mission: 'Press Play to start the study.',
+    hint: 'You should hear the rings repeating on one shared loop.',
     completeOn: 'study-play',
-    success: 'The loop is running.',
+    success: 'Loop started.',
   },
   {
     target: 'study-mobile-playback',
-    title: 'Try A New Study',
+    title: 'Stop The Loop',
+    mission: 'Press Pause to stop the study.',
+    hint: 'The rest of the tutorial stays quiet so you can focus on the controls.',
+    completeOn: 'study-pause',
+    success: 'Loop stopped.',
+  },
+  {
+    target: 'study-mobile-playback',
+    title: 'Load A New Example',
     mission: 'Press Random once.',
+    hint: 'This gives you a new starting study without needing to build one first.',
     completeOn: 'study-random',
-    success: 'You loaded a fresh example.',
+    success: 'New study loaded.',
   },
   {
     target: 'study-mobile-edit',
-    title: 'Open Edit',
+    title: 'Open The Writing Tools',
     mission: 'Open the Edit card.',
+    hint: 'This is where you choose a ring and change its pattern.',
     completeOn: 'study-open-edit',
-    success: 'Edit is ready.',
+    success: 'Edit opened.',
   },
   {
-    target: 'study-mobile-edit',
-    title: 'Open Focus Pattern',
+    target: 'study-mobile-focus-pattern',
+    title: 'Enter Close Write Mode',
     mission: 'Tap Focus Pattern.',
+    hint: 'This is the fastest way to write one ring clearly.',
     completeOn: 'study-open-pattern-editor',
-    success: 'Now you have the close writing view.',
+    success: 'Pattern editor ready.',
   },
 ];
 
@@ -651,6 +700,14 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
     notice: 'There is no single correct way to use it.',
     actionLabel: 'Load 3:5',
     actionId: 'study-load-default',
+  },
+  {
+    target: 'study-desktop-canvas',
+    title: 'The Main View',
+    kicker: 'Study Guide',
+    text: 'The main canvas shows how the rings line up on one shared loop.',
+    doThis: 'Start slow and watch for where two rings strike together.',
+    notice: 'Use the picture to understand the relationship before changing lots of controls.',
   },
   {
     target: 'study-desktop-tempo',
@@ -732,18 +789,18 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
 
 const STUDY_EDITOR_GUIDE: StartGuideStep[] = [
   {
-    target: 'study-editor-rings',
-    title: 'Pattern Editor',
+    target: 'study-editor-screen',
+    title: 'This Screen',
     kicker: 'Study Editor',
-    text: 'This is the focused writing view for one ring.',
+    text: 'This is the close writing view for one ring.',
     doThis: 'Choose a ring before changing anything else.',
-    notice: 'The full study stays outside. This screen is for one target.',
+    notice: 'Use this screen when you want to work on one rhythm without the rest of the interface in the way.',
   },
   {
     target: 'study-editor-steps',
     title: 'Steps',
     kicker: 'Study Editor',
-    text: 'Steps sets how many possible positions exist on the ring.',
+    text: 'Steps decides how many places this ring can land on.',
     doThis: 'Add or remove one step and watch the ring update.',
     notice: 'More steps means a finer grid.',
   },
@@ -751,15 +808,15 @@ const STUDY_EDITOR_GUIDE: StartGuideStep[] = [
     target: 'study-editor-roll',
     title: 'Pattern Roll',
     kicker: 'Study Editor',
-    text: 'The roll is the circle flattened into a straight row for faster editing.',
+    text: 'The roll is the ring laid out in a straight line for faster editing.',
     doThis: 'Tap one empty cell to turn it on.',
-    notice: 'The roll and the ring always show the same pattern.',
+    notice: 'The ring and the roll always show the same pattern.',
   },
   {
     target: 'study-editor-offset',
     title: 'Offset Pattern',
     kicker: 'Study Editor',
-    text: 'Offset rotates the pattern around the loop without changing how many hits it has.',
+    text: 'Offset moves the whole rhythm earlier or later without changing its shape.',
     doThis: 'Move it 1 step left or right.',
     notice: 'Same rhythm. Different start point.',
   },
@@ -767,15 +824,15 @@ const STUDY_EDITOR_GUIDE: StartGuideStep[] = [
     target: 'study-editor-invert',
     title: 'Invert',
     kicker: 'Study Editor',
-    text: 'Invert swaps on-steps and off-steps.',
+    text: 'Invert flips filled and empty steps.',
     doThis: 'Try it once, then undo it if needed.',
-    notice: 'It is a contrast tool, not just a correction tool.',
+    notice: 'Use it when you want a fast opposite pattern.',
   },
   {
     target: 'study-editor-clear',
     title: 'Clear',
     kicker: 'Study Editor',
-    text: 'Clear removes all hits from the selected ring.',
+    text: 'Clear removes only this ring.',
     doThis: 'Use it when you want to write from silence.',
     notice: 'It only affects the current ring.',
   },
@@ -784,133 +841,154 @@ const STUDY_EDITOR_GUIDE: StartGuideStep[] = [
 const STUDY_EDITOR_TUTORIAL: TutorialStep[] = [
   {
     target: 'study-editor-roll',
-    title: 'Write One Hit',
-    mission: 'Tap one step in the roll.',
+    title: 'Place One Hit',
+    mission: 'Tap one empty step in the roll.',
+    hint: 'The ring and the row should change together.',
     completeOn: 'study-editor-toggle-step',
-    success: 'The ring and roll changed together.',
+    success: 'One hit added.',
   },
   {
     target: 'study-editor-offset',
-    title: 'Move The Pattern',
-    mission: 'Shift the pattern by 1 step.',
+    title: 'Shift The Rhythm',
+    mission: 'Move the pattern by 1 step.',
+    hint: 'You are moving the same shape to a new start point.',
     completeOn: 'study-editor-offset',
-    success: 'Same pattern, new landing point.',
+    success: 'Pattern shifted.',
   },
   {
     target: 'study-editor-invert',
     title: 'Flip The Shape',
     mission: 'Press Invert once.',
+    hint: 'This swaps filled and empty steps.',
     completeOn: 'study-editor-invert',
-    success: 'You changed contrast without changing the grid.',
+    success: 'Pattern inverted.',
   },
 ];
 
 const RIFF_EDITOR_GUIDE: StartGuideStep[] = [
   {
-    target: 'riff-editor-target',
-    title: 'Pattern Editor',
+    target: 'riff-editor-screen',
+    title: 'This Screen',
     kicker: 'Riff Editor',
-    text: 'This is the close writing view for Bar, Riff, or Ending.',
+    text: 'Use this screen when you want to edit the bar, riff, or ending up close.',
   },
   {
     target: 'riff-editor-view-width',
     title: 'View Width',
     kicker: 'Riff Editor',
-    text: 'View Width changes how much of the timeline you see. Use 1 Bar for detail and Pattern for the full phrase.',
+    text: 'Use 1 Bar for detail. Use Pattern when you want to see the full phrase.',
   },
   {
     target: 'riff-editor-window',
     title: 'Window',
     kicker: 'Riff Editor',
-    text: 'Window chooses which part of the phrase is on screen without changing the notes.',
+    text: 'Window slides your view through the phrase. It does not move the notes.',
   },
   {
     target: 'riff-editor-roll',
     title: 'Pattern Roll',
     kicker: 'Riff Editor',
-    text: 'The roll is the fastest way to write the groove. Tap for hit or rest, and hold to accent.',
+    text: 'The roll is the fastest way to write the groove. Tap to turn a step on or off. Hold to accent it.',
   },
   {
     target: 'riff-editor-step-states',
-    title: 'Hit, Rest, Accent',
+    title: 'Rest, Hit, Accent',
     kicker: 'Riff Editor',
-    text: 'Each step can be off, on, or accented. Accent changes emphasis, not timing.',
+    text: 'Rest is silence. Hit plays the note. Accent makes it speak harder without changing timing.',
   },
 ];
 
 const MOBILE_RIFF_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-mobile-transport',
-    title: 'Start The Groove',
-    mission: 'Press Play.',
+    title: 'Hear The Groove',
+    mission: 'Press Play to start the loop.',
+    hint: 'Listen for the steady frame and the moving riff inside it.',
     completeOn: 'riff-play',
-    success: 'The riff is moving.',
+    success: 'Loop started.',
+  },
+  {
+    target: 'riff-mobile-transport',
+    title: 'Stop The Loop',
+    mission: 'Press Pause to stop the loop.',
+    hint: 'The rest of the tutorial stays quiet so you can focus on the controls.',
+    completeOn: 'riff-pause',
+    success: 'Loop stopped.',
   },
   {
     target: 'riff-mobile-edit',
-    title: 'Open Edit',
+    title: 'Open The Writing Tools',
     mission: 'Open the Edit card.',
+    hint: 'This is where you switch between frame, riff, and ending.',
     completeOn: 'riff-open-edit',
-    success: 'The writing controls are open.',
+    success: 'Edit opened.',
   },
   {
     target: 'riff-layer-1',
-    title: 'Pick The Frame',
+    title: 'Check The Frame',
     mission: 'Tap Bar.',
+    hint: 'Bar controls phrase length and grid detail.',
     completeOn: 'riff-select-bar',
-    success: 'Now you are editing the frame.',
+    success: 'Bar selected.',
   },
   {
     target: 'riff-layer-2',
-    title: 'Back To The Phrase',
+    title: 'Return To The Riff',
     mission: 'Tap Riff.',
+    hint: 'This brings you back to the main pattern.',
     completeOn: 'riff-select-riff',
-    success: 'Now you are editing the riff itself.',
+    success: 'Riff selected.',
   },
   {
-    target: 'riff-layer-2',
-    title: 'Open Focus Pattern',
+    target: 'riff-mobile-focus-pattern',
+    title: 'Enter Close Write Mode',
     mission: 'Tap Focus Pattern.',
+    hint: 'This is the fastest place to write steps clearly.',
     completeOn: 'riff-open-pattern-editor',
-    success: 'The close writing view is open.',
+    success: 'Pattern editor ready.',
   },
 ];
 
 const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-editor-bar-tab',
-    title: 'Bar First',
+    title: 'Check The Frame',
     mission: 'Tap Bar.',
+    hint: 'These controls change the frame, not the notes.',
     completeOn: 'riff-editor-select-bar',
-    success: 'Bar controls are active.',
+    success: 'Bar tab open.',
   },
   {
     target: 'riff-editor-riff-tab',
-    title: 'Back To Riff',
+    title: 'Return To The Riff',
     mission: 'Tap Riff.',
+    hint: 'The riff tab is the main pattern writer.',
     completeOn: 'riff-editor-select-riff',
-    success: 'Riff editing is active again.',
+    success: 'Riff tab open.',
   },
   {
     target: 'riff-editor-view-width',
-    title: 'See The Whole Phrase',
+    title: 'Zoom Out',
     mission: 'Set View Width to Pattern.',
+    hint: 'Pattern shows the whole phrase at once.',
     completeOn: 'riff-editor-view-pattern',
-    success: 'You are looking at the full phrase.',
+    success: 'Full phrase visible.',
   },
   {
     target: 'riff-editor-roll',
     title: 'Write One Step',
     mission: 'Tap one step in the roll.',
+    hint: 'Tap toggles a note. Hold accents it.',
     completeOn: 'riff-editor-toggle-step',
-    success: 'The groove changed.',
+    success: 'One step changed.',
   },
   {
     target: 'riff-editor-ending-tab',
-    title: 'Jump To The Tail',
+    title: 'Jump To The Ending',
     mission: 'Tap Ending.',
+    hint: 'Ending edits only the last part of the phrase.',
     completeOn: 'riff-editor-select-ending',
-    success: 'Now you are editing the ending only.',
+    success: 'Ending tab open.',
   },
 ];
 
@@ -1239,12 +1317,12 @@ function getGuideLabel(surface: AppSurface, context: GuideContext): string {
 
 function getTutorialLabel(surface: AppSurface, context: GuideContext): string {
   if (context === 'study-editor') {
-    return 'Study Editor Tutorial';
+    return 'Study Editor Missions';
   }
   if (context === 'riff-editor') {
-    return 'Riff Editor Tutorial';
+    return 'Riff Editor Missions';
   }
-  return `${MODE_BEGINNER_COPY[surface].label} Tutorial`;
+  return `${MODE_BEGINNER_COPY[surface].label} Missions`;
 }
 
 function getFriendlyScaleLabel(scaleName: ScaleName, options?: { includeTheory?: boolean }) {
@@ -4714,6 +4792,14 @@ function OrbitalPolymeter() {
     guideSteps.length > 0 ? guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)] : null;
   const currentTutorialStep =
     tutorialSteps.length > 0 ? tutorialSteps[Math.min(tutorialStepIndex, tutorialSteps.length - 1)] : null;
+  const tutorialStepComplete =
+    Boolean(
+      tutorialOpen &&
+      currentTutorialStep &&
+      tutorialEvent &&
+      tutorialEvent.tick > tutorialStepStartTick &&
+      tutorialEvent.id === currentTutorialStep.completeOn,
+    );
   const activeOverlayContext = tutorialOpen ? tutorialContext : helpContext;
   const activeOverlayStep = tutorialOpen ? currentTutorialStep : currentGuideStep;
   const mobileCanvasFrameStyle = isMobile
@@ -5346,41 +5432,41 @@ function OrbitalPolymeter() {
   }, [appSurface, isMobile, presentationMode]);
 
   useEffect(() => {
-    if ((!helpOpen && !tutorialOpen) || !isMobile) {
+    if (!helpOpen || !isMobile || !currentGuideStep) {
       return;
     }
 
-    if (activeOverlayStep?.target === 'mobile-scenes') {
+    if (currentGuideStep.target === 'mobile-scenes') {
       setMobileScenesOpen(true);
     }
     if (
-      activeOverlayStep?.target === 'mobile-customize' ||
-      activeOverlayStep?.target === 'mobile-layers' ||
-      activeOverlayStep?.target === 'mobile-direction' ||
-      activeOverlayStep?.target === 'mobile-trail' ||
-      activeOverlayStep?.target === 'mobile-markers'
+      currentGuideStep.target === 'mobile-customize' ||
+      currentGuideStep.target === 'mobile-layers' ||
+      currentGuideStep.target === 'mobile-direction' ||
+      currentGuideStep.target === 'mobile-trail' ||
+      currentGuideStep.target === 'mobile-markers'
     ) {
       setMobileCustomizeOpen(true);
     }
     if (
-      activeOverlayStep?.target === 'mobile-sound' ||
-      activeOverlayStep?.target === 'mobile-audio'
+      currentGuideStep.target === 'mobile-sound' ||
+      currentGuideStep.target === 'mobile-audio'
     ) {
       setMobileSoundOpen(true);
     }
-  }, [activeOverlayStep, helpOpen, isMobile, tutorialOpen]);
+  }, [currentGuideStep, helpOpen, isMobile]);
 
   useEffect(() => {
-    if ((!helpOpen && !tutorialOpen) || appSurface !== 'riff-cycle-study') {
+    if (!helpOpen || appSurface !== 'riff-cycle-study' || !currentGuideStep) {
       return;
     }
 
-    if (isMobile && activeOverlayStep?.target === 'riff-mobile-edit') {
+    if (isMobile && currentGuideStep.target === 'riff-mobile-edit') {
       setRiffMobileSection('edit');
       setRiffMobileEditTab('phrase');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-layer-1' || activeOverlayStep?.target === 'riff-editor-bar-tab') {
+    if (currentGuideStep.target === 'riff-layer-1' || currentGuideStep.target === 'riff-editor-bar-tab') {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -5391,7 +5477,7 @@ function OrbitalPolymeter() {
       }
       return;
     }
-    if (activeOverlayStep?.target === 'riff-layer-2' || activeOverlayStep?.target === 'riff-editor-riff-tab') {
+    if (currentGuideStep.target === 'riff-layer-2' || currentGuideStep.target === 'riff-editor-riff-tab') {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -5403,7 +5489,7 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-ending' || activeOverlayStep?.target === 'riff-editor-ending-tab') {
+    if (currentGuideStep.target === 'riff-ending' || currentGuideStep.target === 'riff-editor-ending-tab') {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -5415,127 +5501,141 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('landing');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-editor-target') {
+    if (currentGuideStep.target === 'riff-editor-target') {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'riff-editor-view-width') {
+    if (currentGuideStep.target === 'riff-editor-view-width') {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'riff-editor-window') {
+    if (currentGuideStep.target === 'riff-editor-window') {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'riff-editor-roll') {
+    if (currentGuideStep.target === 'riff-editor-roll') {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'riff-editor-step-states') {
+    if (currentGuideStep.target === 'riff-editor-step-states') {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
       }
       return;
     }
-    if (isMobile && activeOverlayStep?.target === 'riff-mobile-audio') {
+    if (isMobile && currentGuideStep.target === 'riff-mobile-audio') {
       setRiffMobileSection('audio');
       return;
     }
-    if (isMobile && activeOverlayStep?.target === 'riff-mobile-scenes') {
+    if (
+      isMobile &&
+      (
+        currentGuideStep.target === 'riff-mobile-canvas' ||
+        currentGuideStep.target === 'riff-mobile-labels'
+      )
+    ) {
+      setRiffMobileSection('canvas');
+      return;
+    }
+    if (isMobile && currentGuideStep.target === 'riff-mobile-scenes') {
       setRiffMobileSection('scenes');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-desktop-audio') {
+    if (currentGuideStep.target === 'riff-desktop-audio') {
       setRiffUtilityPanel('audio');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-desktop-sound') {
+    if (currentGuideStep.target === 'riff-desktop-sound') {
       setRiffUtilityPanel('sound');
       return;
     }
-    if (activeOverlayStep?.target === 'riff-desktop-view') {
+    if (currentGuideStep.target === 'riff-desktop-view') {
       setRiffUtilityPanel('view');
     }
-  }, [activeOverlayStep, appSurface, handleSetRiffEditMode, helpOpen, isMobile, riffMobileEditorOpen, tutorialOpen]);
+  }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile, riffMobileEditorOpen]);
 
   useEffect(() => {
-    if ((!helpOpen && !tutorialOpen) || appSurface !== 'polyrhythm-study') {
+    if (!helpOpen || appSurface !== 'polyrhythm-study' || !currentGuideStep) {
       return;
     }
 
-    if (isMobile && activeOverlayStep?.target === 'study-mobile-edit') {
+    if (isMobile && currentGuideStep.target === 'study-mobile-edit') {
       setPolyrhythmMobileSection('edit');
       setPolyrhythmMobileEditTab('pattern');
       return;
     }
-    if (isMobile && activeOverlayStep?.target === 'study-mobile-audio') {
+    if (isMobile && currentGuideStep.target === 'study-mobile-audio') {
       setPolyrhythmMobileSection('audio');
       return;
     }
-    if (isMobile && activeOverlayStep?.target === 'study-mobile-scenes') {
+    if (isMobile && currentGuideStep.target === 'study-mobile-canvas') {
+      setPolyrhythmMobileSection('canvas');
+      return;
+    }
+    if (isMobile && currentGuideStep.target === 'study-mobile-scenes') {
       setPolyrhythmMobileSection('scenes');
       return;
     }
-    if (activeOverlayStep?.target === 'study-quick-layer') {
+    if (currentGuideStep.target === 'study-quick-layer') {
       setPolyrhythmQuickPanel('layer');
       return;
     }
-    if (activeOverlayStep?.target === 'study-quick-stack') {
+    if (currentGuideStep.target === 'study-quick-stack') {
       setPolyrhythmQuickPanel('stack');
       return;
     }
-    if (activeOverlayStep?.target === 'study-quick-shape') {
+    if (currentGuideStep.target === 'study-quick-shape') {
       setPolyrhythmQuickPanel('shape');
       return;
     }
-    if (activeOverlayStep?.target === 'study-editor-rings') {
+    if (currentGuideStep.target === 'study-editor-rings') {
       if (isMobile) {
         setPolyrhythmMobileEditTab('layer');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'study-editor-steps') {
+    if (currentGuideStep.target === 'study-editor-steps') {
       if (isMobile) {
         setPolyrhythmMobileEditTab('layer');
       }
       return;
     }
     if (
-      activeOverlayStep?.target === 'study-editor-roll' ||
-      activeOverlayStep?.target === 'study-editor-offset' ||
-      activeOverlayStep?.target === 'study-editor-invert' ||
-      activeOverlayStep?.target === 'study-editor-clear'
+      currentGuideStep.target === 'study-editor-roll' ||
+      currentGuideStep.target === 'study-editor-offset' ||
+      currentGuideStep.target === 'study-editor-invert' ||
+      currentGuideStep.target === 'study-editor-clear'
     ) {
       if (isMobile) {
         setPolyrhythmMobileEditTab('pattern');
       }
       return;
     }
-    if (activeOverlayStep?.target === 'study-desktop-audio') {
+    if (currentGuideStep.target === 'study-desktop-audio') {
       setPolyrhythmUtilityPanel('audio');
       return;
     }
-    if (activeOverlayStep?.target === 'study-desktop-sound') {
+    if (currentGuideStep.target === 'study-desktop-sound') {
       setPolyrhythmUtilityPanel('sound');
       return;
     }
-    if (activeOverlayStep?.target === 'study-desktop-view') {
+    if (currentGuideStep.target === 'study-desktop-view') {
       setPolyrhythmUtilityPanel('view');
     }
-  }, [activeOverlayStep, appSurface, helpOpen, isMobile, tutorialOpen]);
+  }, [appSurface, currentGuideStep, helpOpen, isMobile]);
 
   useEffect(() => {
     if ((!helpOpen && !tutorialOpen) || !activeOverlayStep) {
@@ -5543,17 +5643,44 @@ function OrbitalPolymeter() {
       return;
     }
 
+    let frameA: number | null = null;
+    let frameB: number | null = null;
+
     const updateGuideRect = () => {
       const element = document.querySelector<HTMLElement>(`[data-guide="${activeOverlayStep.target}"]`);
       setGuideRect(element?.getBoundingClientRect() ?? null);
     };
 
-    updateGuideRect();
-    window.addEventListener('resize', updateGuideRect);
-    window.addEventListener('scroll', updateGuideRect, true);
+    const scheduleGuideRect = () => {
+      if (frameA != null) {
+        window.cancelAnimationFrame(frameA);
+      }
+      if (frameB != null) {
+        window.cancelAnimationFrame(frameB);
+      }
+      frameA = window.requestAnimationFrame(() => {
+        frameB = window.requestAnimationFrame(updateGuideRect);
+      });
+    };
+
+    scheduleGuideRect();
+    window.addEventListener('resize', scheduleGuideRect);
+    if (helpOpen) {
+      window.addEventListener('scroll', scheduleGuideRect, true);
+    }
+    if (tutorialOpen) {
+      window.visualViewport?.addEventListener('resize', scheduleGuideRect);
+    }
     return () => {
-      window.removeEventListener('resize', updateGuideRect);
-      window.removeEventListener('scroll', updateGuideRect, true);
+      if (frameA != null) {
+        window.cancelAnimationFrame(frameA);
+      }
+      if (frameB != null) {
+        window.cancelAnimationFrame(frameB);
+      }
+      window.removeEventListener('resize', scheduleGuideRect);
+      window.removeEventListener('scroll', scheduleGuideRect, true);
+      window.visualViewport?.removeEventListener('resize', scheduleGuideRect);
     };
   }, [activeOverlayStep, helpOpen, tutorialOpen]);
 
@@ -5570,8 +5697,10 @@ function OrbitalPolymeter() {
     };
 
     updateGuideHeight();
-    window.addEventListener('resize', updateGuideHeight);
-    window.visualViewport?.addEventListener('resize', updateGuideHeight);
+    if (helpOpen) {
+      window.addEventListener('resize', updateGuideHeight);
+      window.visualViewport?.addEventListener('resize', updateGuideHeight);
+    }
     return () => {
       window.removeEventListener('resize', updateGuideHeight);
       window.visualViewport?.removeEventListener('resize', updateGuideHeight);
@@ -5675,6 +5804,69 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const prepareTutorialContext = useCallback((context: GuideContext) => {
+    if (!isMobile) {
+      return;
+    }
+
+    if (context === 'surface') {
+      if (appSurface === 'polyrhythm-study') {
+        setPolyrhythmStudy((current) => ({
+          ...current,
+          playing: false,
+        }));
+        setPolyrhythmRestartToken((value) => value + 1);
+        setPolyrhythmMobileEditorOpen(false);
+        setPolyrhythmMobileSection(null);
+        setPolyrhythmMobileEditTab('pattern');
+        setSelectedPolyrhythmStep(null);
+        return;
+      }
+
+      if (appSurface === 'riff-cycle-study') {
+        setRiffCycleStudy((current) => ({
+          ...current,
+          playing: false,
+        }));
+        setRiffCycleRestartToken((value) => value + 1);
+        setRiffMobileEditorOpen(false);
+        setRiffMobileSection(null);
+        setRiffMobileEditTab('phrase');
+        setRiffMobileLanePage(0);
+        setSelectedRiffCycleStep(null);
+        handleSetRiffEditMode('phrase');
+        return;
+      }
+
+      return;
+    }
+
+    if (context === 'study-editor') {
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        playing: false,
+      }));
+      setPolyrhythmRestartToken((value) => value + 1);
+      setPolyrhythmMobileSection('edit');
+      setPolyrhythmMobileEditTab('pattern');
+      setSelectedPolyrhythmStep(null);
+      return;
+    }
+
+    if (context === 'riff-editor') {
+      setRiffCycleStudy((current) => ({
+        ...current,
+        playing: false,
+      }));
+      setRiffCycleRestartToken((value) => value + 1);
+      setRiffMobileSection('edit');
+      setRiffMobileEditTab('phrase');
+      setRiffMobileLanePage(0);
+      setSelectedRiffCycleStep(null);
+      handleSetRiffEditMode('phrase');
+    }
+  }, [appSurface, handleSetRiffEditMode, isMobile]);
+
   const openStartGuide = useCallback((context: GuideContext = 'surface') => {
     if (isMobile && !MOBILE_GUIDES_AVAILABLE) {
       setHelpOpen(false);
@@ -5693,11 +5885,12 @@ function OrbitalPolymeter() {
     setHelpOpen(false);
     setSidebarOpen(false);
     setRadialMenu(null);
+    prepareTutorialContext(context);
     setTutorialContext(context);
     setTutorialStepIndex(0);
     setTutorialStepStartTick(tutorialEvent?.tick ?? 0);
     setTutorialOpen(true);
-  }, [isMobile, tutorialEvent?.tick]);
+  }, [isMobile, prepareTutorialContext, tutorialEvent?.tick]);
 
   const markCurrentGuideSeen = useCallback((surface: AppSurface) => {
     setBeginnerGuideSeen((current) => {
@@ -5739,6 +5932,18 @@ function OrbitalPolymeter() {
     openTutorial('surface');
   }, [closeTutorial, openTutorial, tutorialOpen]);
 
+  const handleTutorialAwareStudyPlaybackToggle = useCallback(() => {
+    const wasPlaying = polyrhythmStudy.playing;
+    handleTogglePolyrhythmPlayback();
+    recordTutorialEvent(wasPlaying ? 'study-pause' : 'study-play');
+  }, [handleTogglePolyrhythmPlayback, polyrhythmStudy.playing, recordTutorialEvent]);
+
+  const handleTutorialAwareRiffPlaybackToggle = useCallback(() => {
+    const wasPlaying = riffCycleStudy.playing;
+    handleToggleRiffCyclePlayback();
+    recordTutorialEvent(wasPlaying ? 'riff-pause' : 'riff-play');
+  }, [handleToggleRiffCyclePlayback, recordTutorialEvent, riffCycleStudy.playing]);
+
   useEffect(() => {
     if (!tutorialOpen) {
       return;
@@ -5757,7 +5962,21 @@ function OrbitalPolymeter() {
       return;
     }
 
+    const nextTutorialContext =
+      tutorialContext === 'surface' && currentTutorialStep.completeOn === 'study-open-pattern-editor'
+        ? 'study-editor'
+        : tutorialContext === 'surface' && currentTutorialStep.completeOn === 'riff-open-pattern-editor'
+          ? 'riff-editor'
+          : null;
+
     const timeout = window.setTimeout(() => {
+      if (nextTutorialContext) {
+        prepareTutorialContext(nextTutorialContext);
+        setTutorialContext(nextTutorialContext);
+        setTutorialStepIndex(0);
+        return;
+      }
+
       setTutorialStepIndex((current) => {
         if (current >= tutorialSteps.length - 1) {
           setTutorialOpen(false);
@@ -5765,10 +5984,10 @@ function OrbitalPolymeter() {
         }
         return current + 1;
       });
-    }, 480);
+    }, 760);
 
     return () => window.clearTimeout(timeout);
-  }, [currentTutorialStep, tutorialEvent, tutorialOpen, tutorialStepStartTick, tutorialSteps.length]);
+  }, [currentTutorialStep, prepareTutorialContext, tutorialContext, tutorialEvent, tutorialOpen, tutorialStepStartTick, tutorialSteps.length]);
 
   useEffect(() => {
     if (
@@ -7505,65 +7724,132 @@ function OrbitalPolymeter() {
               width: guideRect.width + 16,
               height: guideRect.height + 16,
               borderColor: `${accentColor}8f`,
-              boxShadow: `0 0 0 2px rgba(255,255,255,0.08), 0 0 0 9999px rgba(3,4,8,0.08), 0 0 30px ${accentColor}34`,
+              boxShadow: `0 0 0 2px rgba(255,255,255,0.08), 0 0 0 9999px rgba(3,4,8,0.12), 0 0 38px ${accentColor}40`,
             }}
           />
         ) : null}
-        <div
-          ref={guideCalloutRef}
-          className={`fixed rounded-2xl border px-3.5 py-3 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
-          style={{
-            ...guideCalloutStyle,
-            zIndex: zIndexBase + 10,
-            background: 'rgba(12, 13, 18, 0.88)',
-            borderColor: `${accentColor}26`,
-            boxShadow: `0 14px 42px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 28px ${accentColor}16`,
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: accentColor }}>
-                {tutorialStepIndex === 0 ? tutorialLabel : `Mission ${tutorialStepIndex + 1} of ${tutorialSteps.length}`}
-              </div>
-              <div className="mt-2 text-[15px] font-medium text-white/90">
-                {currentTutorialStep.title}
-              </div>
-              <div className="mt-2 text-[12px] leading-relaxed text-white/74">
-                {currentTutorialStep.mission}
-              </div>
-              <div className="mt-2 text-[11px] text-white/42">
-                Tap the highlighted control to complete this step.
-              </div>
-            </div>
-            <div
-              className="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]"
-              style={{ borderColor: `${accentColor}2f`, color: accentColor, background: `${accentColor}10` }}
-            >
-              Live
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <button
-              onClick={closeTutorial}
-              className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
-            >
-              Exit
-            </button>
-            <button
-              onClick={() => {
-                if (tutorialStepIndex >= tutorialSteps.length - 1) {
-                  closeTutorial();
-                  return;
+        {(() => {
+          const tutorialPanelStyle = isMobile
+            ? guideRect && typeof window !== 'undefined' && guideRect.top > window.innerHeight * 0.45
+              ? {
+                  left: 12,
+                  right: 12,
+                  top: 'calc(0.85rem + env(safe-area-inset-top))',
                 }
-                setTutorialStepIndex((current) => Math.min(tutorialSteps.length - 1, current + 1));
+              : {
+                  left: 12,
+                  right: 12,
+                  bottom: 'calc(0.85rem + env(safe-area-inset-bottom))',
+                }
+            : guideCalloutStyle;
+
+          return (
+            <div
+              ref={guideCalloutRef}
+              className={`fixed rounded-[24px] border px-4 py-4 pointer-events-auto ${isMobile ? '' : 'w-[360px]'}`}
+              style={{
+                ...tutorialPanelStyle,
+                zIndex: zIndexBase + 10,
+                background: `linear-gradient(180deg, rgba(12, 13, 18, 0.96), rgba(12, 13, 18, 0.9))`,
+                borderColor: `${accentColor}30`,
+                boxShadow: `0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 34px ${accentColor}1e`,
               }}
-              className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
-              style={{ color: accentColor, background: `${accentColor}12`, border: `1px solid ${accentColor}2f` }}
             >
-              Skip
-            </button>
-          </div>
-        </div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: accentColor }}>
+                    {tutorialLabel}
+                  </div>
+                  <div className="mt-2 text-[16px] font-medium text-white/92">
+                    {currentTutorialStep.title}
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]"
+                  style={{ borderColor: `${accentColor}2f`, color: accentColor, background: `${accentColor}10` }}
+                >
+                  {tutorialStepIndex + 1}/{tutorialSteps.length}
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-1.5">
+                {tutorialSteps.map((_, index) => (
+                  <div
+                    key={`tutorial-progress-${index}`}
+                    className="h-1.5 flex-1 rounded-full"
+                    style={{
+                      background:
+                        index < tutorialStepIndex
+                          ? `${accentColor}9a`
+                          : index === tutorialStepIndex
+                            ? `${accentColor}54`
+                            : 'rgba(255,255,255,0.08)',
+                      boxShadow:
+                        index <= tutorialStepIndex
+                          ? `0 0 12px ${accentColor}24`
+                          : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div
+                className="mt-4 rounded-2xl border px-3 py-3"
+                style={{
+                  background: `${accentColor}10`,
+                  borderColor: `${accentColor}24`,
+                }}
+              >
+                <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
+                  Current Mission
+                </div>
+                <div className="mt-1 text-[13px] leading-relaxed text-white/90">
+                  {currentTutorialStep.mission}
+                </div>
+              </div>
+
+              <div
+                className="mt-3 rounded-2xl border px-3 py-2.5 text-[11px] leading-relaxed"
+                style={{
+                  background: tutorialStepComplete ? `${accentColor}12` : 'rgba(255,255,255,0.04)',
+                  borderColor: tutorialStepComplete ? `${accentColor}2a` : 'rgba(255,255,255,0.08)',
+                  color: tutorialStepComplete ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.6)',
+                }}
+              >
+                <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/38">
+                  {tutorialStepComplete ? 'Complete' : 'Hint'}
+                </span>
+                <div className="mt-1">
+                  {tutorialStepComplete
+                    ? currentTutorialStep.success ?? 'Mission cleared.'
+                    : currentTutorialStep.hint ?? 'Use the highlighted control to clear this mission.'}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <button
+                  onClick={closeTutorial}
+                  className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
+                >
+                  Exit
+                </button>
+                <button
+                  onClick={() => {
+                    if (tutorialStepIndex >= tutorialSteps.length - 1) {
+                      closeTutorial();
+                      return;
+                    }
+                    setTutorialStepIndex((current) => Math.min(tutorialSteps.length - 1, current + 1));
+                  }}
+                  className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
+                  style={{ color: accentColor, background: `${accentColor}12`, border: `1px solid ${accentColor}2f` }}
+                >
+                  {tutorialStepIndex >= tutorialSteps.length - 1 ? 'Finish' : 'Skip Mission'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </>
     ) : null;
   const desktopBeginnerHint = !presentationMode && !isMobile ? (
@@ -8393,7 +8679,11 @@ function OrbitalPolymeter() {
       return (
         <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
           <div className="space-y-2">
-            <div className="relative overflow-hidden" style={polyrhythmMobileCanvasStyle}>
+            <div
+              data-guide="study-mobile-main-canvas"
+              className="relative overflow-hidden"
+              style={polyrhythmMobileCanvasStyle}
+            >
               <PolyrhythmCanvas
                 study={polyrhythmStudy}
                 restartToken={polyrhythmRestartToken}
@@ -8470,10 +8760,7 @@ function OrbitalPolymeter() {
                     tone={polyrhythmStudy.playing ? 'red' : 'green'}
                     highlighted
                     icon={polyrhythmStudy.playing ? <Pause size={16} /> : <Play size={16} />}
-                    onClick={() => {
-                      handleTogglePolyrhythmPlayback();
-                      recordTutorialEvent('study-play');
-                    }}
+                    onClick={handleTutorialAwareStudyPlaybackToggle}
                     className="w-full"
                   >
                     {polyrhythmStudy.playing ? 'Pause' : 'Play'}
@@ -8701,6 +8988,7 @@ function OrbitalPolymeter() {
                                 </StudyShellButton>
                               </div>
                               <StudyShellButton
+                                data-guide="study-mobile-focus-pattern"
                                 size="compact"
                                 tone="blue"
                                 highlighted
@@ -8777,6 +9065,7 @@ function OrbitalPolymeter() {
 	                                />
 	                              </div>
 	                              <StudyShellButton
+                                  data-guide="study-mobile-focus-pattern"
 	                                size="compact"
 	                                tone="blue"
 	                                highlighted
@@ -9349,7 +9638,7 @@ function OrbitalPolymeter() {
           </div>
 
           {polyrhythmMobileEditorOpen ? (
-            <div className="fixed inset-0 z-40 bg-[#111116]">
+            <div data-guide="study-editor-screen" className="fixed inset-0 z-40 bg-[#111116]">
               <div
                 className="flex h-full flex-col px-4"
                 style={{
@@ -9723,20 +10012,22 @@ function OrbitalPolymeter() {
             : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
         }
       >
-        <PolyrhythmCanvas
-          study={polyrhythmStudy}
-          restartToken={polyrhythmRestartToken}
-          selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
-          selectedStep={selectedPolyrhythmStep}
-          externalCanvasRef={canvasRef}
-          playbackStateRef={polyrhythmPlaybackStateRef}
-          displaySettings={canvasDisplayState.polyrhythm}
-          presentationMode={presentationMode}
-          onSelectLayer={handleSelectPolyrhythmLayer}
-          onSelectStep={handleSelectPolyrhythmStep}
-          onToggleStep={handleTogglePolyrhythmLayerStep}
-          onClearSelection={handleClearPolyrhythmSelection}
-        />
+        <div data-guide={!isMobile ? 'study-desktop-canvas' : undefined} className="absolute inset-0">
+          <PolyrhythmCanvas
+            study={polyrhythmStudy}
+            restartToken={polyrhythmRestartToken}
+            selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+            selectedStep={selectedPolyrhythmStep}
+            externalCanvasRef={canvasRef}
+            playbackStateRef={polyrhythmPlaybackStateRef}
+            displaySettings={canvasDisplayState.polyrhythm}
+            presentationMode={presentationMode}
+            onSelectLayer={handleSelectPolyrhythmLayer}
+            onSelectStep={handleSelectPolyrhythmStep}
+            onToggleStep={handleTogglePolyrhythmLayerStep}
+            onClearSelection={handleClearPolyrhythmSelection}
+          />
+        </div>
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/35 via-black/12 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/90 to-transparent" />
 
@@ -10276,7 +10567,7 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!isMobile && !presentationMode && polyrhythmDesktopPatternEditorOpen ? (
-          <div className="fixed inset-0 z-[45] overflow-hidden bg-[#06070d]">
+          <div data-guide="study-editor-screen" className="fixed inset-0 z-[45] overflow-hidden bg-[#06070d]">
             <div
               className="pointer-events-none absolute inset-0"
               style={{
@@ -10954,6 +11245,7 @@ function OrbitalPolymeter() {
         <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
           <div className="space-y-2">
             <div
+              data-guide="riff-mobile-main-canvas"
               className="relative overflow-hidden"
               style={riffMobileCanvasStyle}
             >
@@ -11033,10 +11325,7 @@ function OrbitalPolymeter() {
                     tone={riffCycleStudy.playing ? 'red' : 'green'}
                     highlighted
                     icon={riffCycleStudy.playing ? <Pause size={16} /> : <Play size={16} />}
-                    onClick={() => {
-                      handleToggleRiffCyclePlayback();
-                      recordTutorialEvent('riff-play');
-                    }}
+                    onClick={handleTutorialAwareRiffPlaybackToggle}
                     className="w-full"
                   >
                     {riffCycleStudy.playing ? 'Pause' : 'Play'}
@@ -11393,6 +11682,7 @@ function OrbitalPolymeter() {
                         </div>
 
                         <StudyShellButton
+                          data-guide="riff-mobile-focus-pattern"
                           size="compact"
                           tone="blue"
                           highlighted
@@ -11479,6 +11769,7 @@ function OrbitalPolymeter() {
 	                            />
 	                          </div>
 	                          <StudyShellButton
+                                data-guide="riff-mobile-focus-pattern"
 	                            size="compact"
 	                            tone="blue"
 	                            highlighted
@@ -12230,7 +12521,7 @@ function OrbitalPolymeter() {
               </div>
 
               {riffMobileEditorOpen ? (
-                <div className="fixed inset-0 z-30 bg-[#111116]/98 backdrop-blur-sm">
+                <div data-guide="riff-editor-screen" className="fixed inset-0 z-30 bg-[#111116]/98 backdrop-blur-sm">
                   <div className="flex h-full flex-col px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -12732,6 +13023,7 @@ function OrbitalPolymeter() {
           {appSurfaceToggle}
 
           {helpContext === 'surface' ? renderGuideOverlay(guideAccent, 30) : null}
+          {tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
 
         <RiffCycleSidebar
           isOpen={sidebarOpen}
@@ -12787,43 +13079,45 @@ function OrbitalPolymeter() {
             : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
         }
       >
-        <RiffCycleCanvas
-          study={riffCycleStudy}
-          viewModeOverride={
-            isMobile && presentationMode
-              ? riffMobileLaneHidden
-                ? 'circular'
-                : 'unwrapped'
-              : undefined
-          }
-          layoutBottomInset={isMobile && presentationMode ? riffMobilePresentBottomInset : 0}
-          laneWindowStartStep={
-            isMobile && presentationMode && !riffMobileLaneHidden
-              ? riffMobileLaneStartStep
-              : !isMobile && riffCycleStudy.viewMode === 'unwrapped'
-                ? 0
+        <div data-guide={!isMobile ? 'riff-desktop-canvas' : undefined} className="absolute inset-0">
+          <RiffCycleCanvas
+            study={riffCycleStudy}
+            viewModeOverride={
+              isMobile && presentationMode
+                ? riffMobileLaneHidden
+                  ? 'circular'
+                  : 'unwrapped'
                 : undefined
-          }
-          laneWindowStepCount={
-            isMobile && presentationMode && !riffMobileLaneHidden
-              ? riffMobileLaneStepCount
-              : !isMobile && riffCycleStudy.viewMode === 'unwrapped'
-                ? riffDesktopLaneStepCount
-                : undefined
-          }
-          playbackStateRef={riffCyclePlaybackStateRef}
-          displaySettings={canvasDisplayState.riff}
-          presentationMode={presentationMode}
-          onReferenceStepChange={isMobile ? handleRiffMobileReferenceStepChange : undefined}
-          selectedStep={selectedRiffCycleStep}
-          restartToken={riffCycleRestartToken}
-          externalCanvasRef={canvasRef}
-          onSelectStep={handleSelectRiffCycleStep}
-          onSetStepActive={handleSetRiffCycleStepActive}
-          onToggleAccent={handleToggleRiffCycleAccent}
-          onSetLandingStepActive={handleSetRiffLandingStepActive}
-          onToggleLandingAccent={handleToggleRiffLandingAccent}
-        />
+            }
+            layoutBottomInset={isMobile && presentationMode ? riffMobilePresentBottomInset : 0}
+            laneWindowStartStep={
+              isMobile && presentationMode && !riffMobileLaneHidden
+                ? riffMobileLaneStartStep
+                : !isMobile && riffCycleStudy.viewMode === 'unwrapped'
+                  ? 0
+                  : undefined
+            }
+            laneWindowStepCount={
+              isMobile && presentationMode && !riffMobileLaneHidden
+                ? riffMobileLaneStepCount
+                : !isMobile && riffCycleStudy.viewMode === 'unwrapped'
+                  ? riffDesktopLaneStepCount
+                  : undefined
+            }
+            playbackStateRef={riffCyclePlaybackStateRef}
+            displaySettings={canvasDisplayState.riff}
+            presentationMode={presentationMode}
+            onReferenceStepChange={isMobile ? handleRiffMobileReferenceStepChange : undefined}
+            selectedStep={selectedRiffCycleStep}
+            restartToken={riffCycleRestartToken}
+            externalCanvasRef={canvasRef}
+            onSelectStep={handleSelectRiffCycleStep}
+            onSetStepActive={handleSetRiffCycleStepActive}
+            onToggleAccent={handleToggleRiffCycleAccent}
+            onSetLandingStepActive={handleSetRiffLandingStepActive}
+            onToggleLandingAccent={handleToggleRiffLandingAccent}
+          />
+        </div>
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/42 via-black/14 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/92 to-transparent" />
         {!presentationMode ? appSurfaceToggle : null}
@@ -13825,7 +14119,7 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!isMobile && !presentationMode && riffDesktopPatternEditorOpen ? (
-          <div className="fixed inset-0 z-[45] overflow-hidden bg-[#06070d]">
+          <div data-guide="riff-editor-screen" className="fixed inset-0 z-[45] overflow-hidden bg-[#06070d]">
             <div
               className="pointer-events-none absolute inset-0"
               style={{
@@ -14311,10 +14605,7 @@ function OrbitalPolymeter() {
                   tone={riffCycleStudy.playing ? 'red' : 'green'}
                   highlighted
                   icon={riffCycleStudy.playing ? <Pause size={15} /> : <Play size={15} />}
-                  onClick={() => {
-                    handleToggleRiffCyclePlayback();
-                    recordTutorialEvent('riff-play');
-                  }}
+                  onClick={handleTutorialAwareRiffPlaybackToggle}
                 >
                   {riffCycleStudy.playing ? 'Pause' : 'Play'}
                 </StudyShellButton>
