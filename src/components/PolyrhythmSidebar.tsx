@@ -4,8 +4,9 @@ import {
   RotateCw,
   X,
 } from 'lucide-react';
+import AccountPanel from './AccountPanel';
 import { useIsMobile } from '../hooks/use-mobile';
-import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
+import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
 import {
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESET_GROUP_META,
@@ -25,12 +26,12 @@ interface PolyrhythmStepSelection {
 interface PolyrhythmSidebarProps {
   isOpen: boolean;
   study: PolyrhythmStudy;
-  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   activePresetId: string | null;
   selectedLayerId: string | null;
   selectedStep: PolyrhythmStepSelection | null;
   onClose: () => void;
-  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onLoadPreset: (presetId: string) => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
@@ -55,9 +56,11 @@ interface PolyrhythmSidebarProps {
     scale: 1 | 2 | 4;
   }) => void;
   onExportScene: () => void;
+  onSaveScene: () => void;
+  onHardRefresh: () => void;
 }
 
-type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export';
+type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export' | 'account';
 
 const POLYRHYTHM_SOUND_PALETTES: Array<{
   id: PolyrhythmSoundSettings['palette'];
@@ -232,9 +235,11 @@ export default function PolyrhythmSidebar({
   onToggleLayerStep,
   onExportPng,
   onExportScene,
+  onSaveScene,
+  onHardRefresh,
 }: PolyrhythmSidebarProps) {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
+  const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>(isMobile ? 'account' : 'scenes');
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
@@ -259,16 +264,29 @@ export default function PolyrhythmSidebar({
         ? 'layer'
         : 'stack';
 
-  const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = [
-    { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
-    { id: 'layers', label: 'Layers', color: selectedLayer?.color ?? '#7FD7FF' },
-    { id: 'sound', label: 'Sound', color: '#88CCFF' },
-    { id: 'export', label: 'Export', color: '#FFAA00' },
-  ];
+  const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = isMobile
+    ? [
+        { id: 'account', label: 'Account', color: '#88CCFF' },
+        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+        { id: 'export', label: 'Export', color: '#FFAA00' },
+      ]
+    : [
+        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+        { id: 'layers', label: 'Rings', color: selectedLayer?.color ?? '#7FD7FF' },
+        { id: 'sound', label: 'Audio', color: '#88CCFF' },
+        { id: 'export', label: 'Export', color: '#FFAA00' },
+        { id: 'account', label: 'Account', color: '#88CCFF' },
+      ];
   const groupedPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
     presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group),
   }));
+
+  useEffect(() => {
+    if (isMobile) {
+      setActiveTab('account');
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!exportNotice) {
@@ -278,29 +296,68 @@ export default function PolyrhythmSidebar({
     return () => window.clearTimeout(timeout);
   }, [exportNotice]);
 
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+    if (activeTab === 'layers' || activeTab === 'sound') {
+      setActiveTab('scenes');
+    }
+  }, [activeTab, isMobile]);
+
   return (
     <>
       {isOpen ? <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" onClick={onClose} /> : null}
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${
-          isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[28rem]'
+          isMobile ? 'inset-0 w-full' : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
         }`}
         style={{
-          background:
-            'linear-gradient(135deg, rgba(17,17,22,0.97), rgba(28,28,34,0.96))',
-          borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
-          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
+          background: isMobile
+            ? 'linear-gradient(135deg, rgba(17,17,22,0.97), rgba(28,28,34,0.96))'
+            : `
+              radial-gradient(circle at 84% -8%, ${(selectedLayer?.color ?? '#72F1B8')}2b, transparent 42%),
+              radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
+              linear-gradient(145deg, rgba(17,19,27,0.97), rgba(8,10,16,0.92))
+            `,
+          borderColor: isMobile ? undefined : `${selectedLayer?.color ?? '#72F1B8'}28`,
+          borderLeft: isMobile ? 'none' : undefined,
+          boxShadow: isMobile
+            ? undefined
+            : `0 28px 90px rgba(0,0,0,0.5), 0 0 48px ${(selectedLayer?.color ?? '#72F1B8')}12, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : 'calc(100% + 1.5rem)'})`,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
+          backdropFilter: 'blur(22px)',
         }}
       >
-        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}>
-          <div className="text-sm font-light uppercase tracking-[0.24em] text-white/70">Study</div>
+        <div
+          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}
+          style={{
+            background: isMobile
+              ? undefined
+              : `linear-gradient(90deg, ${(selectedLayer?.color ?? '#72F1B8')}10, rgba(255,255,255,0.025), transparent)`,
+          }}
+        >
+          <div>
+            <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">{isMobile ? 'Menu' : 'Study'}</div>
+            {!isMobile ? (
+              <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/34">
+                scenes · export · account
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className={`rounded-lg text-white/50 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
+            className={`rounded-xl border text-white/60 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
+            style={{
+              background: 'rgba(255,255,255,0.045)',
+              borderColor: 'rgba(255,255,255,0.09)',
+            }}
+            aria-label="Collapse Study menu"
+            title="Collapse menu"
           >
             <X size={18} />
           </button>
@@ -339,39 +396,62 @@ export default function PolyrhythmSidebar({
         ) : null}
 
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
-          <section
-            className={`sticky top-0 z-10 space-y-2 border-y border-white/8 ${
-              isMobile ? '-mx-3 px-3 py-2.5' : '-mx-4 px-4 py-2.5'
-            }`}
-            style={{
-              background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
-              backdropFilter: 'blur(18px)',
-            }}
-          >
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {tabMeta.map((tab) => {
-                const active = tab.id === activeTab;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
-                    style={{
-                      background: active
-                        ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
-                        : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
-                      color: active ? tab.color : 'rgba(255,255,255,0.58)',
-                      boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+          {isMobile ? (
+            <div className="-mx-3 border-b border-white/5 px-3 pt-3 pb-1">
+              <div className="flex min-w-max gap-1 overflow-x-auto">
+                {tabMeta.map((tab) => {
+                  const active = tab.id === activeTab;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className="shrink-0 rounded-t-lg px-3 py-3 text-xs font-mono font-light transition-all duration-200"
+                      style={{
+                        color: active ? tab.color : 'rgba(255,255,255,0.4)',
+                        borderBottom: active ? `2px solid ${tab.color}` : 'none',
+                        background: active ? `${tab.color}10` : 'transparent',
+                      }}
+                    >
+                      {tab.label.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </section>
+          ) : (
+            <section
+              className="-mx-4 sticky top-0 z-10 space-y-2 border-y border-white/8 px-4 py-2.5"
+              style={{
+                background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
+                backdropFilter: 'blur(18px)',
+              }}
+            >
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {tabMeta.map((tab) => {
+                  const active = tab.id === activeTab;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
+                      style={{
+                        background: active
+                          ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
+                          : 'rgba(255,255,255,0.03)',
+                        borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
+                        color: active ? tab.color : 'rgba(255,255,255,0.58)',
+                        boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {activeTab === 'scenes' ? (
             <section className="space-y-3">
@@ -822,7 +902,7 @@ export default function PolyrhythmSidebar({
                       color: study.soundSettings.pitchMode === 'keyed' ? '#72F1B8' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Keyed
+                    In Key
                   </button>
                 </div>
 
@@ -877,7 +957,7 @@ export default function PolyrhythmSidebar({
                 {study.soundSettings.pitchMode === 'keyed' ? (
                   <div className="grid grid-cols-[76px,1fr] gap-2">
                     <label className="space-y-1 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
-                      Root
+                      Key
                       <select
                         value={study.soundSettings.rootNote}
                         onChange={(event) =>
@@ -895,7 +975,7 @@ export default function PolyrhythmSidebar({
                       </select>
                     </label>
                     <label className="space-y-1 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
-                      Scale
+                      Note Family
                       <select
                         value={study.soundSettings.scaleName}
                         onChange={(event) =>
@@ -905,9 +985,9 @@ export default function PolyrhythmSidebar({
                         }
                         className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
                       >
-                        {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                        {Object.entries(SCALE_PRESETS).map(([name]) => (
                           <option key={name} value={name} style={{ background: '#181820' }}>
-                            {scale.label}
+                            {getFriendlyScaleLabel(name as import('../lib/audioEngine').ScaleName)}
                           </option>
                         ))}
                       </select>
@@ -950,71 +1030,61 @@ export default function PolyrhythmSidebar({
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    Image
+                    PNG Export
                   </div>
                   <div className="mt-1 text-[11px] text-white/52">
-                    Export the current canvas with the study framing.
+                    Export the current study canvas as an image.
                   </div>
                 </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {([
-                    ['landscape', 'Wide'],
-                    ['square', 'Square'],
-                    ['portrait', 'Poster'],
-                    ['story', 'Story'],
-                  ] as const).map(([aspect, label]) => {
-                    const active = exportAspect === aspect;
-                    return (
-                      <button
-                        key={aspect}
-                        type="button"
-                        onClick={() => setExportAspect(aspect)}
-                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                        style={{
-                          background: active ? 'rgba(255,170,0,0.14)' : 'rgba(255,255,255,0.03)',
-                          borderColor: active ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)',
-                          color: active ? '#FFAA00' : 'rgba(255,255,255,0.58)',
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
                 <div className="grid grid-cols-3 gap-2">
-                  {([1, 2, 4] as const).map((scale) => {
-                    const active = exportScale === scale;
-                    return (
-                      <button
-                        key={scale}
-                        type="button"
-                        onClick={() => setExportScale(scale)}
-                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                        style={{
-                          background: active ? 'rgba(136,204,255,0.14)' : 'rgba(255,255,255,0.03)',
-                          borderColor: active ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
-                          color: active ? '#88CCFF' : 'rgba(255,255,255,0.58)',
-                        }}
-                      >
-                        {scale}x
-                      </button>
-                    );
-                  })}
+                  {([
+                    ['square', 'Square'],
+                    ['landscape', 'Wide'],
+                    ['story', 'Story'],
+                  ] as const).map(([aspect, label]) => (
+                    <button
+                      key={aspect}
+                      type="button"
+                      onClick={() => setExportAspect(aspect)}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportAspect === aspect ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportAspect === aspect ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportAspect === aspect ? '#88CCFF' : 'rgba(255,255,255,0.64)',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 2, 4].map((scale) => (
+                    <button
+                      key={scale}
+                      type="button"
+                      onClick={() => setExportScale(scale as 1 | 2 | 4)}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportScale === scale ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportScale === scale ? 'rgba(255,209,102,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
+                      }}
+                    >
+                      {scale}x
+                    </button>
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     onExportPng({ aspect: exportAspect, scale: exportScale });
-                    setExportNotice('Study PNG exported.');
+                    setExportNotice('PNG exported.');
                   }}
                   className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
                   style={{
-                    background: 'rgba(255,170,0,0.14)',
-                    borderColor: 'rgba(255,170,0,0.24)',
-                    color: '#FFAA00',
+                    background: 'rgba(136,204,255,0.1)',
+                    borderColor: 'rgba(136,204,255,0.22)',
+                    color: '#88CCFF',
                   }}
                 >
                   Export PNG
@@ -1024,32 +1094,63 @@ export default function PolyrhythmSidebar({
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    Scene File
+                    Saved Scene
                   </div>
                   <div className="mt-1 text-[11px] text-white/52">
-                    Save the current study as a JSON scene.
+                    Save the current study into the Saved scene bank.
                   </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => {
-                    onExportScene();
-                    setExportNotice('Study scene exported.');
+                    onSaveScene();
+                    setExportNotice('Study saved to Saved.');
                   }}
                   className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
                   style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.82)',
+                    background: 'rgba(0,255,170,0.1)',
+                    borderColor: 'rgba(0,255,170,0.22)',
+                    color: '#00FFAA',
                   }}
                 >
-                  Export Study
+                  Save Scene
                 </button>
                 {exportNotice ? (
                   <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/42">
                     {exportNotice}
                   </div>
                 ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {activeTab === 'account' ? (
+            <section className="space-y-3">
+              <AccountPanel />
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Refresh This Mode
+                    </div>
+                    <div className="mt-1 text-[11px] text-white/46">
+                      Reload the app and come back to Study instead of Orbit.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onHardRefresh}
+                    className="shrink-0 rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
+                    style={{
+                      background: 'rgba(255,170,0,0.1)',
+                      borderColor: 'rgba(255,170,0,0.22)',
+                      color: '#FFAA00',
+                    }}
+                  >
+                    Hard Refresh
+                  </button>
+                </div>
               </div>
             </section>
           ) : null}

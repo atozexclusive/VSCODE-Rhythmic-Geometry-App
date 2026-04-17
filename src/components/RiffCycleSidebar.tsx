@@ -4,8 +4,9 @@ import {
   RotateCw,
   X,
 } from 'lucide-react';
+import AccountPanel from './AccountPanel';
 import { useIsMobile } from '../hooks/use-mobile';
-import { NOTE_NAMES, SCALE_PRESETS } from '../lib/audioEngine';
+import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
 import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
@@ -20,11 +21,11 @@ import {
 interface RiffCycleSidebarProps {
   isOpen: boolean;
   study: RiffCycleStudy;
-  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   activePresetId: string | null;
   selectedStep: number | null;
   onClose: () => void;
-  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onLoadPreset: (presetId: string) => void;
   onResetStudy: () => void;
   onToggleSound: () => void;
@@ -59,9 +60,18 @@ interface RiffCycleSidebarProps {
     scale: 1 | 2 | 4;
   }) => void;
   onExportScene: () => void;
+  onSaveScene: () => void;
+  onHardRefresh: () => void;
 }
 
-type RiffCycleSidebarTab = 'scenes' | 'bar' | 'phrase' | 'ending' | 'sound' | 'export';
+type RiffCycleSidebarTab =
+  | 'scenes'
+  | 'bar'
+  | 'phrase'
+  | 'ending'
+  | 'sound'
+  | 'export'
+  | 'account';
 
 const RIFF_SOUND_PALETTES: Array<{
   id: RiffCycleSoundSettings['palette'];
@@ -269,52 +279,106 @@ export default function RiffCycleSidebar({
   onAccentLastTwoLandingHits,
   onExportPng,
   onExportScene,
+  onSaveScene,
+  onHardRefresh,
 }: RiffCycleSidebarProps) {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
+  const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>(isMobile ? 'account' : 'scenes');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
   const selectedStepEditable = selectedStep != null;
-  const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = [
-    { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
-    { id: 'bar', label: 'Bar', color: '#FF88C2' },
-    { id: 'phrase', label: 'Riff', color: study.riff.color },
-    { id: 'ending', label: 'Ending', color: '#7FD7FF' },
-    { id: 'sound', label: 'Sound', color: '#88CCFF' },
-    { id: 'export', label: 'Export', color: '#FFAA00' },
-  ];
+  const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = isMobile
+    ? [
+        { id: 'account', label: 'Account', color: '#88CCFF' },
+        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+        { id: 'export', label: 'Export', color: '#FFAA00' },
+      ]
+    : [
+        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
+        { id: 'bar', label: 'Bar', color: '#FF88C2' },
+        { id: 'phrase', label: 'Pattern', color: study.riff.color },
+        { id: 'ending', label: 'Ending', color: '#7FD7FF' },
+        { id: 'sound', label: 'Audio', color: '#88CCFF' },
+        { id: 'export', label: 'Export', color: '#FFAA00' },
+        { id: 'account', label: 'Account', color: '#88CCFF' },
+      ];
 
   useEffect(() => {
-    if (study.landingEditEnabled) {
+    if (isMobile) {
+      setActiveTab('account');
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile && study.landingEditEnabled) {
       setActiveTab('ending');
     }
-  }, [study.landingEditEnabled]);
+  }, [isMobile, study.landingEditEnabled]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+    if (activeTab === 'bar' || activeTab === 'phrase' || activeTab === 'ending' || activeTab === 'sound') {
+      setActiveTab('scenes');
+    }
+  }, [activeTab, isMobile]);
 
   return (
     <>
       {isOpen ? <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" onClick={onClose} /> : null}
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${
-          isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[28rem]'
+          isMobile ? 'inset-0 w-full' : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
         }`}
         style={{
-          background:
-            'linear-gradient(135deg, rgba(17, 17, 22, 0.97), rgba(28, 28, 34, 0.96))',
-          borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
-          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
+          background: isMobile
+            ? 'linear-gradient(135deg, rgba(17, 17, 22, 0.97), rgba(28, 28, 34, 0.96))'
+            : `
+              radial-gradient(circle at 84% -8%, ${study.riff.color}2b, transparent 42%),
+              radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
+              linear-gradient(145deg, rgba(17,19,27,0.97), rgba(8,10,16,0.92))
+            `,
+          borderColor: isMobile ? undefined : `${study.riff.color}28`,
+          borderLeft: isMobile ? 'none' : undefined,
+          boxShadow: isMobile
+            ? undefined
+            : `0 28px 90px rgba(0,0,0,0.5), 0 0 48px ${study.riff.color}12, inset 0 1px 0 rgba(255,255,255,0.08)`,
+          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : 'calc(100% + 1.5rem)'})`,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
+          backdropFilter: 'blur(22px)',
         }}
       >
-        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}>
-          <div className="text-sm font-light uppercase tracking-[0.24em] text-white/70">Riff Cycle</div>
+        <div
+          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}
+          style={{
+            background: isMobile
+              ? undefined
+              : `linear-gradient(90deg, ${study.riff.color}10, rgba(255,255,255,0.025), transparent)`,
+          }}
+        >
+          <div>
+            <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">{isMobile ? 'Menu' : 'Riff Cycle'}</div>
+            {!isMobile ? (
+              <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/34">
+                scenes · export · account
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className={`rounded-lg text-white/50 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
+            className={`rounded-xl border text-white/60 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
+            style={{
+              background: 'rgba(255,255,255,0.045)',
+              borderColor: 'rgba(255,255,255,0.09)',
+            }}
+            aria-label="Collapse Riff menu"
+            title="Collapse menu"
           >
             <X size={18} />
           </button>
@@ -353,52 +417,72 @@ export default function RiffCycleSidebar({
         ) : null}
 
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
-          <section
-            className={`sticky top-0 z-10 space-y-2 border-y border-white/8 ${
-              isMobile ? '-mx-3 px-3 py-2.5' : '-mx-4 px-4 py-2.5'
-            }`}
-            style={{
-              background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
-              backdropFilter: 'blur(18px)',
-            }}
-          >
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {tabMeta.map((tab) => {
-                const active = tab.id === activeTab;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      if (tab.id === 'phrase') {
-                        onSetEditMode('phrase');
-                      }
-                      if (tab.id === 'ending') {
-                        onSetEditMode('landing');
-                      }
-                      setActiveTab(tab.id);
-                    }}
-                    className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
-                    style={{
-                      background: active
-                        ? `linear-gradient(180deg, ${tab.color}24, ${tab.color}10)`
-                        : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
-                      color: active ? tab.color : 'rgba(255,255,255,0.58)',
-                      boxShadow: active
-                        ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24), 0 0 24px ${tab.color}18`
-                        : 'none',
-                    }}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              })}
+          {isMobile ? (
+            <div className="-mx-3 border-b border-white/5 px-3 pt-3 pb-1">
+              <div className="flex min-w-max gap-1 overflow-x-auto">
+                {tabMeta.map((tab) => {
+                  const active = tab.id === activeTab;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className="shrink-0 rounded-t-lg px-3 py-3 text-xs font-mono font-light transition-all duration-200"
+                      style={{
+                        color: active ? tab.color : 'rgba(255,255,255,0.4)',
+                        borderBottom: active ? `2px solid ${tab.color}` : 'none',
+                        background: active ? `${tab.color}10` : 'transparent',
+                      }}
+                    >
+                      {tab.label.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </section>
+          ) : (
+            <section
+              className="-mx-4 sticky top-0 z-10 space-y-2 border-y border-white/8 px-4 py-2.5"
+              style={{
+                background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
+                backdropFilter: 'blur(18px)',
+              }}
+            >
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {tabMeta.map((tab) => {
+                  const active = tab.id === activeTab;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        if (tab.id === 'phrase') {
+                          onSetEditMode('phrase');
+                        }
+                        if (tab.id === 'ending') {
+                          onSetEditMode('landing');
+                        }
+                        setActiveTab(tab.id);
+                      }}
+                      className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
+                      style={{
+                        background: active
+                          ? `linear-gradient(180deg, ${tab.color}24, ${tab.color}10)`
+                          : 'rgba(255,255,255,0.03)',
+                        borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
+                        color: active ? tab.color : 'rgba(255,255,255,0.58)',
+                        boxShadow: active
+                          ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24), 0 0 24px ${tab.color}18`
+                          : 'none',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {activeTab === 'scenes' ? (
           <section className="space-y-3">
@@ -736,7 +820,7 @@ export default function RiffCycleSidebar({
                   color: 'rgba(255,255,255,0.66)',
                 }}
               >
-                Mute Last Hit
+                Remove Last Hit
               </button>
               <button
                 type="button"
@@ -748,7 +832,7 @@ export default function RiffCycleSidebar({
                   color: 'rgba(255,255,255,0.66)',
                 }}
               >
-                Mute Last 2
+                Remove Last 2
               </button>
               <button
                 type="button"
@@ -760,7 +844,7 @@ export default function RiffCycleSidebar({
                   color: '#7FD7FF',
                 }}
               >
-                Accent Last Hit
+                Strong Last Hit
               </button>
               <button
                 type="button"
@@ -772,7 +856,7 @@ export default function RiffCycleSidebar({
                   color: '#7FD7FF',
                 }}
               >
-                Accent Last 2
+                Strong Last 2
               </button>
             </div>
             <button
@@ -796,6 +880,8 @@ export default function RiffCycleSidebar({
                 { value: 'per-bar', label: 'Every Bar' },
                 { value: 'every-2-bars', label: 'Every 2' },
                 { value: 'every-4-bars', label: 'Every 4' },
+                { value: 'every-8-bars', label: 'Every 8' },
+                { value: 'every-16-bars', label: 'Every 16' },
               ].map((option) => {
                 const active = study.riff.resetMode === option.value;
                 return (
@@ -833,7 +919,7 @@ export default function RiffCycleSidebar({
                 <input
                   type="number"
                   min="1"
-                  max="8"
+                  max="16"
                   value={study.riff.resetBars}
                   onChange={(event) => onUpdateRiff({ resetBars: parseInt(event.target.value, 10) || 4 })}
                   className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
@@ -854,46 +940,57 @@ export default function RiffCycleSidebar({
               }}
             >
               <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                Image Export
+                PNG Export
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={exportAspect}
-                  onChange={(event) =>
-                    setExportAspect(event.target.value as typeof exportAspect)
-                  }
-                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                  style={{ color: 'rgba(255,255,255,0.8)' }}
-                >
-                  <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
-                  <option value="square" style={{ background: '#181820' }}>Square</option>
-                  <option value="portrait" style={{ background: '#181820' }}>Portrait</option>
-                  <option value="story" style={{ background: '#181820' }}>Story</option>
-                </select>
-                <select
-                  value={String(exportScale)}
-                  onChange={(event) =>
-                    setExportScale(Number(event.target.value) as 1 | 2 | 4)
-                  }
-                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                  style={{ color: 'rgba(255,255,255,0.8)' }}
-                >
-                  <option value="1" style={{ background: '#181820' }}>HD</option>
-                  <option value="2" style={{ background: '#181820' }}>2K</option>
-                  <option value="4" style={{ background: '#181820' }}>4K</option>
-                </select>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  ['square', 'Square'],
+                  ['landscape', 'Wide'],
+                  ['story', 'Story'],
+                ] as const).map(([aspect, label]) => (
+                  <button
+                    key={aspect}
+                    type="button"
+                    onClick={() => setExportAspect(aspect)}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: exportAspect === aspect ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.04)',
+                      borderColor: exportAspect === aspect ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: exportAspect === aspect ? '#88CCFF' : 'rgba(255,255,255,0.64)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 4].map((scale) => (
+                  <button
+                    key={scale}
+                    type="button"
+                    onClick={() => setExportScale(scale as 1 | 2 | 4)}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: exportScale === scale ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
+                      borderColor: exportScale === scale ? 'rgba(255,209,102,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
+                    }}
+                  >
+                    {scale}x
+                  </button>
+                ))}
               </div>
               <button
                 type="button"
                 onClick={() => {
                   onExportPng({ aspect: exportAspect, scale: exportScale });
-                  setExportNotice('PNG exported from the current Riff Cycle view.');
+                  setExportNotice('PNG exported.');
                 }}
                 className="w-full rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200"
                 style={{
-                  background: 'rgba(0, 255, 170, 0.08)',
-                  border: '1px solid rgba(0, 255, 170, 0.2)',
-                  color: '#00FFAA',
+                  background: 'rgba(136, 204, 255, 0.08)',
+                  border: '1px solid rgba(136, 204, 255, 0.2)',
+                  color: '#88CCFF',
                 }}
               >
                 Export PNG
@@ -908,22 +1005,25 @@ export default function RiffCycleSidebar({
               }}
             >
               <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                Scene File
+                Saved Scene
+              </div>
+              <div className="text-[11px] leading-relaxed text-white/46">
+                Save this Riff Cycle into the Saved scene bank.
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  onExportScene();
-                  setExportNotice('Scene file exported for this Riff Cycle study.');
+                  onSaveScene();
+                  setExportNotice('Riff scene saved to Saved.');
                 }}
                 className="w-full rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.72)',
+                  background: 'rgba(0, 255, 170, 0.08)',
+                  border: '1px solid rgba(0, 255, 170, 0.2)',
+                  color: '#00FFAA',
                 }}
               >
-                Export Scene
+                Save Scene
               </button>
             </div>
 
@@ -939,6 +1039,36 @@ export default function RiffCycleSidebar({
                 {exportNotice}
               </div>
             ) : null}
+          </section>
+          ) : null}
+
+          {activeTab === 'account' ? (
+          <section className="space-y-3">
+            <AccountPanel />
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Refresh This Mode
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/46">
+                    Reload the app and come back to Riff instead of Orbit.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={onHardRefresh}
+                  className="shrink-0 rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
+                  style={{
+                    background: 'rgba(255,170,0,0.1)',
+                    borderColor: 'rgba(255,170,0,0.22)',
+                    color: '#FFAA00',
+                  }}
+                >
+                  Hard Refresh
+                </button>
+              </div>
+            </div>
           </section>
           ) : null}
 
@@ -1030,12 +1160,12 @@ export default function RiffCycleSidebar({
             </div>
             <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                Pitch
+                Sound Mode
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'free', label: 'Original' },
-                  { id: 'keyed', label: 'Keyed' },
+                  { id: 'keyed', label: 'In Key' },
                 ].map((mode) => (
                   <button
                     key={mode.id}
@@ -1068,7 +1198,7 @@ export default function RiffCycleSidebar({
               {study.soundSettings.pitchMode === 'keyed' ? (
                 <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                    Root
+                    Key
                     <select
                       value={study.soundSettings.rootNote}
                       onChange={(event) =>
@@ -1086,7 +1216,7 @@ export default function RiffCycleSidebar({
                     </select>
                   </label>
                   <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                    Scale
+                    Note Family
                     <select
                       value={study.soundSettings.scaleName}
                       onChange={(event) =>
@@ -1096,9 +1226,9 @@ export default function RiffCycleSidebar({
                       }
                       className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
                     >
-                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
+                      {Object.entries(SCALE_PRESETS).map(([name]) => (
                         <option key={name} value={name} style={{ background: '#181820' }}>
-                          {scale.label}
+                          {getFriendlyScaleLabel(name as import('../lib/audioEngine').ScaleName)}
                         </option>
                       ))}
                     </select>

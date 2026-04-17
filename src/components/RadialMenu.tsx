@@ -8,6 +8,7 @@ import { Trash2 } from 'lucide-react';
 import {
   NOTE_NAMES,
   SCALE_PRESETS,
+  getFriendlyScaleLabel,
   type HarmonySettings,
   type RootNote,
   type ScaleName,
@@ -191,7 +192,7 @@ export default function RadialMenu({
 
       <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          Key & Scale
+          Key & Note Family
         </div>
         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-[72px,1fr]'} gap-2 mt-3`}>
           <select
@@ -212,9 +213,9 @@ export default function RadialMenu({
             className={`rounded-lg bg-white/5 border border-white/10 font-mono focus:outline-none ${isMobile ? 'px-3 py-3 text-[12px]' : 'px-2 py-2 text-[11px]'}`}
             style={{ color: 'rgba(255,255,255,0.82)' }}
           >
-            {Object.entries(SCALE_PRESETS).map(([scaleName, scale]) => (
+            {Object.entries(SCALE_PRESETS).map(([scaleName]) => (
               <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
-                {scale.label}
+                {getFriendlyScaleLabel(scaleName as ScaleName)}
               </option>
             ))}
           </select>

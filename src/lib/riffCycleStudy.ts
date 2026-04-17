@@ -16,11 +16,14 @@ export type RiffCycleSoundPalette =
 export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
+export type RiffBarMarkerInterval = 'none' | 'pattern' | 1 | 2 | 4;
 export type RiffPhraseResetMode =
   | 'free'
   | 'per-bar'
   | 'every-2-bars'
   | 'every-4-bars'
+  | 'every-8-bars'
+  | 'every-16-bars'
   | 'custom-cycle';
 
 export interface RiffCycleSoundSettings {
@@ -78,6 +81,7 @@ export interface RiffCycleStudy {
   showPhraseRing: boolean;
   showStepLabels: boolean;
   showAlignmentMarkers: boolean;
+  barMarkerInterval: RiffBarMarkerInterval;
   showDriftTrail: boolean;
   viewMode: RiffCycleViewMode;
   emphasisMode: RiffCycleEmphasisMode;
@@ -157,7 +161,7 @@ function normalizePitch(value: number): number {
 }
 
 function normalizeBars(value: number): number {
-  return clamp(Math.round(value || 0), 1, 8);
+  return clamp(Math.round(value || 0), 1, 16);
 }
 
 function normalizeTailLength(value: number, stepCount: number): number {
@@ -434,6 +438,14 @@ export function createRiffCycleStudy(
     showPhraseRing: overrides.showPhraseRing ?? true,
     showStepLabels: overrides.showStepLabels ?? false,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
+    barMarkerInterval:
+      overrides.barMarkerInterval === 'none' ||
+      overrides.barMarkerInterval === 'pattern' ||
+      overrides.barMarkerInterval === 1 ||
+      overrides.barMarkerInterval === 2 ||
+      overrides.barMarkerInterval === 4
+        ? overrides.barMarkerInterval
+        : 'pattern',
     showDriftTrail: overrides.showDriftTrail ?? true,
     viewMode: overrides.viewMode ?? 'unwrapped',
     emphasisMode: overrides.emphasisMode ?? 'analysis',
@@ -477,6 +489,10 @@ export function getResetBarCount(riff: RiffPhrase): number | null {
       return 2;
     case 'every-4-bars':
       return 4;
+    case 'every-8-bars':
+      return 8;
+    case 'every-16-bars':
+      return 16;
     case 'custom-cycle':
       return normalizeBars(riff.resetBars);
     default:
@@ -927,11 +943,18 @@ function createReturnMode(intensity: 'random' | 'remix' | 'plus', current?: Riff
   }
   const resetMode =
     intensity === 'plus'
-      ? randomChoice(['every-2-bars', 'every-4-bars', 'custom-cycle', 'free', 'per-bar'] as const)
+      ? randomChoice(['every-2-bars', 'every-4-bars', 'every-8-bars', 'custom-cycle', 'free', 'per-bar'] as const)
       : randomChoice(['free', 'every-2-bars', 'every-4-bars', 'per-bar'] as const);
   return {
     resetMode,
-    resetBars: resetMode === 'custom-cycle' ? randomInt(2, 6) : resetMode === 'every-2-bars' ? 2 : 4,
+    resetBars:
+      resetMode === 'custom-cycle'
+        ? randomInt(2, 8)
+        : resetMode === 'every-2-bars'
+          ? 2
+          : resetMode === 'every-8-bars'
+            ? 8
+            : 4,
   };
 }
 

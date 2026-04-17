@@ -381,7 +381,7 @@ export function rotateLayer(
 export function invertLayerSteps(layer: PolyrhythmLayer): PolyrhythmLayer {
   return {
     ...layer,
-    activeSteps: layer.activeSteps.map((step) => !step),
+    activeSteps: Array.from({ length: layer.beatCount }, (_, index) => !Boolean(layer.activeSteps[index])),
   };
 }
 

@@ -24,10 +24,31 @@ export const SCALE_PRESETS = {
   chromatic: { label: 'Chromatic', intervals: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
 } as const;
 
+export const FRIENDLY_SCALE_LABELS = {
+  majorPentatonic: 'Open Major',
+  minorPentatonic: 'Blues Minor',
+  dorian: 'Minor Color',
+  aeolian: 'Dark Minor',
+  lydian: 'Bright Major',
+  wholeTone: 'Dreamy Whole Tone',
+  diminished: 'Tense Symmetry',
+  chromatic: 'All Notes',
+} as const;
+
 export type RootNote = typeof NOTE_NAMES[number];
 export type ScaleName = keyof typeof SCALE_PRESETS;
 export type HarmonyMappingMode = 'orbit-index' | 'pulse-count' | 'radius' | 'color-hue';
 export type TonePreset = 'original' | 'scale-quantized';
+
+export function getFriendlyScaleLabel(
+  scaleName: ScaleName,
+  options?: { includeTheory?: boolean },
+) {
+  const beginner = FRIENDLY_SCALE_LABELS[scaleName] ?? SCALE_PRESETS[scaleName].label;
+  return options?.includeTheory === false
+    ? beginner
+    : `${beginner} (${SCALE_PRESETS[scaleName].label})`;
+}
 
 export interface HarmonySettings {
   tonePreset: TonePreset;

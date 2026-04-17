@@ -12,6 +12,7 @@ import AccountPanel from './AccountPanel';
 import {
   NOTE_NAMES,
   SCALE_PRESETS,
+  getFriendlyScaleLabel,
   type HarmonySettings,
   type RootNote,
   type ScaleName,
@@ -24,7 +25,7 @@ import { type GeometryMode, type InterferenceSettings } from '../lib/geometry';
 interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
-  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study';
+  currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
@@ -62,7 +63,7 @@ interface OrbitSidebarProps {
   accountPersistenceLoading: boolean;
   localSceneCount: number;
   onClose: () => void;
-  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study') => void;
+  onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onUpdateOrbit: (id: string, updates: Partial<Orbit>) => void;
   onDeleteOrbit: (id: string) => void;
   onAddOrbit: () => void;
@@ -281,6 +282,7 @@ export default function OrbitSidebar({
                 ['orbital', 'Orbit'],
                 ['polyrhythm-study', 'Study'],
                 ['riff-cycle-study', 'Riff'],
+                ['flow', 'Flow'],
               ] as const).map(([surfaceId, label]) => {
                 const active = currentSurface === surfaceId;
                 return (
@@ -1175,7 +1177,7 @@ export default function OrbitSidebar({
                   Sound
                 </div>
                 <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
-                  Choose between Original Tones and Keyed Harmony.
+                  Original keeps the raw sound. In Key keeps notes inside one note family.
                 </p>
               </div>
 
@@ -1184,7 +1186,7 @@ export default function OrbitSidebar({
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
                     Sound Mode
                   </div>
-                  <InfoTip text="Original Tones use the original palette. Keyed Harmony locks the system into a key and scale." />
+                  <InfoTip text="Original keeps the raw sound. In Key locks the system into one key and note family." />
                 </div>
                 <select
                   value={harmonySettings.tonePreset}
@@ -1192,8 +1194,8 @@ export default function OrbitSidebar({
                   className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
                   style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                 >
-                  <option value="original" style={{ background: '#181820' }}>Original Tones</option>
-                  <option value="scale-quantized" style={{ background: '#181820' }}>Keyed Harmony</option>
+                  <option value="original" style={{ background: '#181820' }}>Original</option>
+                  <option value="scale-quantized" style={{ background: '#181820' }}>In Key</option>
                 </select>
               </div>
 
@@ -1228,7 +1230,7 @@ export default function OrbitSidebar({
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                      Scale
+                      Note Family
                     </label>
                     <InfoTip text="The set of notes the system is allowed to use." />
                   </div>
@@ -1238,9 +1240,9 @@ export default function OrbitSidebar({
                     className="w-full mt-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none"
                     style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                   >
-                    {Object.entries(SCALE_PRESETS).map(([scaleName, scale]) => (
+                    {Object.entries(SCALE_PRESETS).map(([scaleName]) => (
                       <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
-                        {scale.label}
+                        {getFriendlyScaleLabel(scaleName as ScaleName)}
                       </option>
                     ))}
                   </select>
@@ -1298,8 +1300,8 @@ export default function OrbitSidebar({
                 </div>
                 <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.55)' }}>
                   {harmonySettings.tonePreset === 'original'
-                    ? 'Original Tones are active.'
-                    : `${SCALE_PRESETS[harmonySettings.scaleName].label} in ${harmonySettings.rootNote}. ${
+                    ? 'Original sound is active.'
+                    : `${getFriendlyScaleLabel(harmonySettings.scaleName, { includeTheory: false })} in ${harmonySettings.rootNote}. ${
                         harmonySettings.manualOrbitRoles
                           ? 'Each orbit can choose its own role.'
                           : `Notes are assigned automatically ${harmonySettings.mappingMode === 'color-hue'

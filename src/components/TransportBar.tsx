@@ -7,7 +7,7 @@ import { useCallback, useState, type PointerEvent as ReactPointerEvent } from 'r
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
-import { NOTE_NAMES, SCALE_PRESETS, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
+import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import InfoTip from './InfoTip';
 
@@ -753,9 +753,9 @@ export default function TransportBar({
                       border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
                       color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
                     }}
-                    title="Switch between the original sound palette and the scale-based harmony mode"
+                    title="Switch between the raw sound and the in-key note-family mode"
                   >
-                    {tonePreset === 'original' ? 'Original Tones' : 'Keyed Harmony'}
+                    {tonePreset === 'original' ? 'Original' : 'In Key'}
                   </button>
                   <InfoTip text="Switch between the original tone palette and keyed harmony." />
                 </div>
@@ -777,10 +777,10 @@ export default function TransportBar({
                       onChange={(e) => onScaleChange(e.target.value as ScaleName)}
                       className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
                       style={{ color: 'rgba(255,255,255,0.82)' }}
-                      title="Global scale"
+                      title="Global note family"
                     >
-                      {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
-                        <option key={name} value={name} style={{ background: '#181820' }}>{scale.label}</option>
+                      {Object.entries(SCALE_PRESETS).map(([name]) => (
+                        <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
                       ))}
                     </select>
                   </>

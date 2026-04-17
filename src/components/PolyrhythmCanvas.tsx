@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
+  DEFAULT_CANVAS_DISPLAY_SETTINGS,
+  drawCanvasDisplayBackground,
+  getCanvasGlowMultiplier,
+  getCanvasInactiveAlpha,
+  getCanvasLineAlpha,
+  type CanvasDisplaySettings,
+} from '../lib/canvasDisplayThemes';
+import {
   findPolyrhythmHit,
   getPolyrhythmCanvasMetrics,
 } from '../lib/polyrhythmLayout';
@@ -37,6 +45,8 @@ interface PolyrhythmCanvasProps {
   playbackDriver?: boolean;
   displayLayerId?: string | null;
   soloLayerDisplay?: boolean;
+  displaySettings?: CanvasDisplaySettings;
+  presentationMode?: boolean;
   onSelectLayer: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
   onToggleStep: (layerId: string, stepIndex: number) => void;
@@ -54,6 +64,8 @@ export default function PolyrhythmCanvas({
   playbackDriver = true,
   displayLayerId = null,
   soloLayerDisplay = false,
+  displaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
+  presentationMode = false,
   onSelectLayer,
   onSelectStep,
   onToggleStep,
@@ -74,6 +86,8 @@ export default function PolyrhythmCanvas({
   const selectedStepRef = useRef(selectedStep);
   const displayLayerIdRef = useRef(displayLayerId);
   const soloLayerDisplayRef = useRef(soloLayerDisplay);
+  const displaySettingsRef = useRef(displaySettings);
+  const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
 
@@ -83,6 +97,8 @@ export default function PolyrhythmCanvas({
   selectedStepRef.current = selectedStep;
   displayLayerIdRef.current = displayLayerId;
   soloLayerDisplayRef.current = soloLayerDisplay;
+  displaySettingsRef.current = displaySettings;
+  presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
 
@@ -112,9 +128,21 @@ export default function PolyrhythmCanvas({
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
     const currentStudy = studyRef.current;
+    const currentDisplaySettings = displaySettingsRef.current;
+    const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
+    const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
+    const glowMultiplier = getCanvasGlowMultiplier(
+      currentDisplaySettings,
+      presentationModeRef.current,
+    );
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    drawCanvasDisplayBackground(ctx, rect.width, rect.height, currentDisplaySettings, {
+      presentationMode: presentationModeRef.current || soloLayerDisplayRef.current,
+      seed: 31,
+    });
+
     const displayStudy =
       soloLayerDisplayRef.current && displayLayerIdRef.current
         ? {
@@ -148,7 +176,7 @@ export default function PolyrhythmCanvas({
       });
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = `rgba(255,255,255,${0.04 * lineAlpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(metrics.centerX, metrics.topPadding - 16);
@@ -161,7 +189,9 @@ export default function PolyrhythmCanvas({
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = sharedDisplay ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = sharedDisplay
+      ? `rgba(255,255,255,${0.16 * lineAlpha})`
+      : `rgba(255,255,255,${0.08 * lineAlpha})`;
     ctx.lineWidth = sharedDisplay ? 1.3 : 1;
     ctx.beginPath();
     ctx.arc(
@@ -176,7 +206,7 @@ export default function PolyrhythmCanvas({
 
     if (currentStudy.playing) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.strokeStyle = `rgba(255,255,255,${0.14 * lineAlpha})`;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
       ctx.moveTo(metrics.centerX, metrics.centerY);
@@ -209,7 +239,7 @@ export default function PolyrhythmCanvas({
               : `${layer.color}18`;
           ctx.lineWidth = isSelectedLayer ? 2.1 : sharedDisplay ? 0.95 : 1.05;
           if (isSelectedLayer) {
-            ctx.shadowBlur = soloLayerDisplayRef.current ? 18 : 10;
+            ctx.shadowBlur = (soloLayerDisplayRef.current ? 18 : 10) * glowMultiplier;
             ctx.shadowColor = layer.color;
           }
           ctx.beginPath();
@@ -220,7 +250,7 @@ export default function PolyrhythmCanvas({
 
         if (activePoints.length >= 2) {
           ctx.save();
-          ctx.globalAlpha = isSelectedLayer ? 0.16 : sharedDisplay ? 0.09 : 0.05;
+          ctx.globalAlpha = (isSelectedLayer ? 0.16 : sharedDisplay ? 0.09 : 0.05) * lineAlpha;
           ctx.fillStyle = layer.color;
           ctx.beginPath();
           ctx.moveTo(activePoints[0].x, activePoints[0].y);
@@ -238,7 +268,7 @@ export default function PolyrhythmCanvas({
           ctx.strokeStyle = layer.color;
           ctx.lineWidth = activePoints.length >= 3 ? (isSelectedLayer ? 2.3 : 1.35) : 1.2;
           ctx.lineJoin = 'round';
-          ctx.shadowBlur = isSelectedLayer ? 16 : sharedDisplay ? 9 : 7;
+          ctx.shadowBlur = (isSelectedLayer ? 16 : sharedDisplay ? 9 : 7) * glowMultiplier;
           ctx.shadowColor = layer.color;
           ctx.beginPath();
           ctx.moveTo(activePoints[0].x, activePoints[0].y);
@@ -279,7 +309,7 @@ export default function PolyrhythmCanvas({
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,0.78)';
             ctx.lineWidth = 1.6;
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 10 * glowMultiplier;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius + 4, 0, TAU);
@@ -291,13 +321,13 @@ export default function PolyrhythmCanvas({
           if (point.active) {
             ctx.fillStyle = layer.color;
             ctx.globalAlpha = isSelectedStep ? 1 : isActivePlaybackStep ? 1 : sharedDisplay ? 0.94 : 0.88;
-            ctx.shadowBlur = isSelectedStep ? 16 : isActivePlaybackStep ? 14 : sharedDisplay ? 10 : 8;
+            ctx.shadowBlur = (isSelectedStep ? 16 : isActivePlaybackStep ? 14 : sharedDisplay ? 10 : 8) * glowMultiplier;
             ctx.shadowColor = layer.color;
           } else {
             ctx.fillStyle = isSelectedStep
               ? 'rgba(255,255,255,0.66)'
               : 'rgba(255,255,255,0.2)';
-            ctx.globalAlpha = isPlaybackStep && currentStudy.playing ? 0.36 : 0.18;
+            ctx.globalAlpha = (isPlaybackStep && currentStudy.playing ? 0.36 : 0.18) * inactiveAlpha;
           }
           ctx.beginPath();
           ctx.arc(point.x, point.y, pointRadius, 0, TAU);
@@ -307,7 +337,7 @@ export default function PolyrhythmCanvas({
           if (
             currentStudy.showStepLabels &&
             layer.beatCount <= 20 &&
-            (soloLayerDisplayRef.current || displayStudy.layers.length === 1)
+            (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
           ) {
             const labelRadius = layer.radius * metrics.scale + 14;
             ctx.save();
@@ -329,7 +359,12 @@ export default function PolyrhythmCanvas({
         });
 
         const activeIndices = getActiveStepIndices(layer);
-        if (soloLayerDisplayRef.current && isSelectedLayer && activeIndices.length > 0) {
+        if (
+          currentStudy.showStepLabels &&
+          soloLayerDisplayRef.current &&
+          isSelectedLayer &&
+          activeIndices.length > 0
+        ) {
           ctx.save();
           ctx.fillStyle = isSelectedLayer ? layer.color : 'rgba(255,255,255,0.42)';
           ctx.font = '11px "SF Mono", "Fira Code", monospace';

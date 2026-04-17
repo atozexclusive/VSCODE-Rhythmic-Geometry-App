@@ -346,6 +346,20 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings): void {
   });
 }
 
+export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings): void {
+  const softLowPalette = sound?.palette === 'low-pulse' || sound?.palette === 'deep-architectural';
+  withVoice({
+    type: sound?.palette === 'metal-tick' ? 'triangle' : 'sine',
+    frequency: softLowPalette ? 460 : sound?.palette === 'metal-tick' ? 1120 : 760,
+    gain: softLowPalette ? 0.018 : 0.014,
+    attack: 0.004,
+    release: softLowPalette ? 0.11 : 0.082,
+    filterFrequency: softLowPalette ? 820 : 1320,
+    filterType: sound?.palette === 'metal-tick' ? 'highpass' : 'bandpass',
+    filterQ: 0.72,
+  });
+}
+
 export function triggerRiffPulse(options: {
   frequency: number;
   gain: number;
