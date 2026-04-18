@@ -46,6 +46,7 @@ import {
   resetEngine,
   resonancePositionAtBeats,
   stepEngineByBeats,
+  DEFAULT_BASE_BPM,
   DEFAULT_ORBITS,
   PRESET_RATIOS,
 } from '../lib/orbitalEngine';
@@ -162,10 +163,15 @@ const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
 const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const BEGINNER_GUIDE_SEEN_STORAGE_KEY = 'orbital-polymeter-beginner-guides';
 const CANVAS_DISPLAY_STORAGE_KEY = 'rhythmic-geometry-canvas-display';
-const CANVAS_DISPLAY_STORAGE_VERSION = 4;
+const CANVAS_DISPLAY_STORAGE_VERSION = 5;
 const MOBILE_GUIDES_AVAILABLE = true;
 const MOBILE_GUIDES_AUTO_OPEN = false;
 const MOBILE_GUIDE_INTRO_CARD_ENABLED = false;
+const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
+  theme: 'deep-space',
+  atmosphere: 'stars',
+  glow: 'medium',
+};
 const MANUAL_STEP_BEATS = 0.25;
 const DEFAULT_SCENE_SPEED = 3;
 const PATTERN_MUTATION_COOLDOWN_MS = 140;
@@ -242,12 +248,12 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
     target: 'mobile-playback',
     title: 'Playback',
-    text: 'Play starts the motion. Reset brings everything back to the start. Audio and speed let you listen slowly or push the pattern into a denser flow.',
+    text: 'Play starts the motion. Reset brings everything back to the start. Audio and tempo let you listen slowly or push the pattern into a denser flow.',
   },
   {
     target: 'mobile-speed',
-    title: 'Speed',
-    text: 'Slow speeds make the structure easier to read. Faster speeds make the same pattern feel more like a texture.',
+    title: 'Tempo',
+    text: 'Tempo controls how fast the pattern moves. Slower tempos make the structure easier to read. Faster tempos make the same pattern feel more like a texture.',
   },
   {
     target: 'mobile-present',
@@ -309,8 +315,8 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'desktop-speed',
-    title: 'Speed',
-    text: 'Use speed to move between slow structural study and denser flowing motion.',
+    title: 'Tempo',
+    text: 'Use tempo to move between slow structural study and denser flowing motion.',
   },
   {
     target: 'desktop-geometry',
@@ -378,9 +384,9 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-mobile-tempo',
-    title: 'Speed',
+    title: 'Tempo',
     kicker: 'Riff Guide',
-    text: 'Speed changes how easy the phrase is to hear and follow.',
+    text: 'Tempo controls how fast the pattern moves.',
     doThis: 'Slow it down first if the groove feels too dense.',
     notice: 'The same phrase usually becomes clearer at a slower speed.',
   },
@@ -403,20 +409,12 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     notice: 'Scenes are starting points, not final answers.',
   },
   {
-    target: 'riff-mobile-mute',
-    title: 'Mute',
-    kicker: 'Riff Guide',
-    text: 'Mute silences the groove without stopping playback.',
-    doThis: 'Use this when you want to change settings quietly.',
-    notice: 'Open the Audio tab when you want deeper sound controls.',
-  },
-  {
     target: 'riff-mobile-audio-tab',
     title: 'Audio',
     kicker: 'Riff Guide',
-    text: 'Audio changes what you hear and how the groove sounds.',
-    doThis: 'Solo Bar, solo Riff, or hear both together.',
-    notice: 'If the theory words feel distracting, stay on Original first.',
+    text: 'Audio changes what you hear and how the groove sounds. Original keeps the raw voice. In Key keeps the notes inside one note family.',
+    doThis: 'Solo Bar, solo Riff, or hear both together, then compare Original and In Key.',
+    notice: 'Original is the easiest place to start. In Key makes the groove more melodic.',
   },
   {
     target: 'riff-mobile-canvas',
@@ -573,15 +571,15 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-playback',
     title: 'Playback',
     kicker: 'Study Guide',
-    text: 'Play starts the loop. Restart brings you back to the same beginning every time.',
+    text: 'Play starts the loop. Restart brings you back to the same beginning every time. Mute silences the study without stopping it.',
     doThis: 'Use Restart when you want to hear the cycle from beat 1 again.',
-    notice: 'Mute silences the study without stopping it.',
+    notice: 'Mute is the fastest way to listen quietly while you change things.',
   },
   {
     target: 'study-mobile-tempo',
-    title: 'Speed',
+    title: 'Tempo',
     kicker: 'Study Guide',
-    text: 'Speed changes how easy the rings are to hear against each other.',
+    text: 'Tempo controls how fast the pattern moves.',
     doThis: 'Slow it down first if two rings feel hard to separate.',
     notice: 'The same pattern often makes more sense at a slower speed.',
   },
@@ -604,20 +602,12 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     notice: 'Scenes teach the relationship. They are not final answers.',
   },
   {
-    target: 'study-mobile-mute',
-    title: 'Mute',
-    kicker: 'Study Guide',
-    text: 'Mute silences the study without stopping playback.',
-    doThis: 'Use this when you want to adjust the study quietly.',
-    notice: 'Open the Audio tab when you want solo, all, or sound changes.',
-  },
-  {
     target: 'study-mobile-audio-tab',
     title: 'Audio',
     kicker: 'Study Guide',
-    text: 'Audio lets you focus one ring or hear the full stack.',
-    doThis: 'If the theory words are distracting, stay on Original first.',
-    notice: 'You can learn the rhythm without touching keys or scales.',
+    text: 'Audio lets you focus one ring or hear the full stack. Original keeps the raw sound. In Key keeps notes inside one note family.',
+    doThis: 'Start on Original, then try In Key when you want the study to feel more melodic.',
+    notice: 'You can learn the rhythm first and add key later.',
   },
   {
     target: 'study-mobile-canvas',
@@ -1251,8 +1241,7 @@ function parseAppSurfaceParam(raw: string | null | undefined): AppSurface | null
   if (
     raw === 'orbital' ||
     raw === 'polyrhythm-study' ||
-    raw === 'riff-cycle-study' ||
-    raw === 'flow'
+    raw === 'riff-cycle-study'
   ) {
     return raw;
   }
@@ -1371,7 +1360,7 @@ interface StudyModeCanvasDisplayState {
 function loadCanvasDisplayState(): StudyModeCanvasDisplayState {
   const fallback: StudyModeCanvasDisplayState = {
     version: CANVAS_DISPLAY_STORAGE_VERSION,
-    polyrhythm: DEFAULT_CANVAS_DISPLAY_SETTINGS,
+    polyrhythm: DEFAULT_STUDY_DISPLAY_SETTINGS,
     riff: DEFAULT_RIFF_DISPLAY_SETTINGS,
   };
 
@@ -3850,6 +3839,7 @@ function OrbitalPolymeter() {
   const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(false);
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(false);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
+  const [riffDesktopEditTab, setRiffDesktopEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
@@ -4142,7 +4132,7 @@ function OrbitalPolymeter() {
           ...current.polyrhythm,
           ...updates,
         },
-        DEFAULT_CANVAS_DISPLAY_SETTINGS,
+        DEFAULT_STUDY_DISPLAY_SETTINGS,
       ),
     }));
   }, []);
@@ -5145,6 +5135,7 @@ function OrbitalPolymeter() {
 
     const canFitRight = guideRect.right + guideCalloutWidth + 32 < viewportWidth;
     const canFitLeft = guideRect.left - guideCalloutWidth - 32 > 0;
+    const maxHeight = Math.max(220, viewportHeight - 48);
     const top = Math.min(viewportHeight - guideCalloutHeight - 24, Math.max(24, guideRect.top - 8));
 
     if (canFitRight) {
@@ -5153,6 +5144,8 @@ function OrbitalPolymeter() {
         width: guideCalloutWidth,
         left: guideRect.right + 18,
         top,
+        maxHeight,
+        overflowY: 'auto' as const,
       };
     }
 
@@ -5162,6 +5155,8 @@ function OrbitalPolymeter() {
         width: guideCalloutWidth,
         left: guideRect.left - guideCalloutWidth - 18,
         top,
+        maxHeight,
+        overflowY: 'auto' as const,
       };
     }
 
@@ -5172,6 +5167,8 @@ function OrbitalPolymeter() {
       left: Math.min(viewportWidth - guideCalloutWidth - 24, Math.max(24, guideRect.left + guideRect.width / 2 - guideCalloutWidth / 2)),
       top: fitsBelow ? Math.min(viewportHeight - guideCalloutHeight - 24, guideRect.bottom + 18) : undefined,
       bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
+      maxHeight,
+      overflowY: 'auto' as const,
     };
   })();
   const openProPrompt = useCallback((feature: import('../lib/entitlements').ProFeature) => {
@@ -5607,7 +5604,11 @@ function OrbitalPolymeter() {
         }
         setRiffMobileEditTab('bar');
       } else {
-        setRiffQuickPanel('bar');
+        if (riffDesktopPatternEditorOpen) {
+          setRiffDesktopEditTab('bar');
+        } else {
+          setRiffQuickPanel('bar');
+        }
       }
       return;
     }
@@ -5618,7 +5619,11 @@ function OrbitalPolymeter() {
         }
         setRiffMobileEditTab('phrase');
       } else {
-        setRiffQuickPanel('phrase');
+        if (riffDesktopPatternEditorOpen) {
+          setRiffDesktopEditTab('phrase');
+        } else {
+          setRiffQuickPanel('phrase');
+        }
       }
       handleSetRiffEditMode('phrase');
       return;
@@ -5630,7 +5635,11 @@ function OrbitalPolymeter() {
         }
         setRiffMobileEditTab('return');
       } else {
-        setRiffQuickPanel('return');
+        if (riffDesktopPatternEditorOpen) {
+          setRiffDesktopEditTab('return');
+        } else {
+          setRiffQuickPanel('return');
+        }
       }
       handleSetRiffEditMode('landing');
       return;
@@ -5639,6 +5648,8 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
+      } else if (riffDesktopPatternEditorOpen) {
+        setRiffDesktopEditTab('phrase');
       }
       return;
     }
@@ -5646,6 +5657,8 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
+      } else if (riffDesktopPatternEditorOpen) {
+        setRiffDesktopEditTab('phrase');
       }
       return;
     }
@@ -5653,6 +5666,8 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
+      } else if (riffDesktopPatternEditorOpen) {
+        setRiffDesktopEditTab('phrase');
       }
       return;
     }
@@ -5660,6 +5675,8 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
+      } else if (riffDesktopPatternEditorOpen) {
+        setRiffDesktopEditTab('phrase');
       }
       return;
     }
@@ -5667,6 +5684,8 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       if (isMobile) {
         setRiffMobileEditTab('phrase');
+      } else if (riffDesktopPatternEditorOpen) {
+        setRiffDesktopEditTab('phrase');
       }
       return;
     }
@@ -5699,7 +5718,7 @@ function OrbitalPolymeter() {
     if (currentGuideStep.target === 'riff-desktop-view') {
       setRiffUtilityPanel('view');
     }
-  }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile, riffMobileEditorOpen]);
+  }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile, riffDesktopPatternEditorOpen, riffMobileEditorOpen]);
 
   useEffect(() => {
     if (!helpOpen || appSurface !== 'polyrhythm-study' || !currentGuideStep) {
@@ -5888,6 +5907,8 @@ function OrbitalPolymeter() {
         handleSetRiffEditMode('phrase');
         if (isMobile) {
           setRiffMobileEditTab('phrase');
+        } else {
+          setRiffDesktopEditTab('phrase');
         }
       }
     }
@@ -5917,8 +5938,11 @@ function OrbitalPolymeter() {
       return;
     }
 
+    setGuideRect(null);
+
     let frameA: number | null = null;
     let frameB: number | null = null;
+    let retryTimeout: number | null = null;
 
     const updateGuideRect = () => {
       const element = document.querySelector<HTMLElement>(`[data-guide="${activeOverlayStep.target}"]`);
@@ -5938,13 +5962,11 @@ function OrbitalPolymeter() {
     };
 
     scheduleGuideRect();
+    retryTimeout = window.setTimeout(scheduleGuideRect, 180);
     window.addEventListener('resize', scheduleGuideRect);
-    if (helpOpen) {
-      window.addEventListener('scroll', scheduleGuideRect, true);
-    }
-    if (tutorialOpen) {
-      window.visualViewport?.addEventListener('resize', scheduleGuideRect);
-    }
+    window.addEventListener('scroll', scheduleGuideRect, true);
+    window.visualViewport?.addEventListener('resize', scheduleGuideRect);
+    window.visualViewport?.addEventListener('scroll', scheduleGuideRect);
     return () => {
       if (frameA != null) {
         window.cancelAnimationFrame(frameA);
@@ -5952,9 +5974,13 @@ function OrbitalPolymeter() {
       if (frameB != null) {
         window.cancelAnimationFrame(frameB);
       }
+      if (retryTimeout != null) {
+        window.clearTimeout(retryTimeout);
+      }
       window.removeEventListener('resize', scheduleGuideRect);
       window.removeEventListener('scroll', scheduleGuideRect, true);
       window.visualViewport?.removeEventListener('resize', scheduleGuideRect);
+      window.visualViewport?.removeEventListener('scroll', scheduleGuideRect);
     };
   }, [activeOverlayStep, helpOpen, tutorialOpen]);
 
@@ -6416,6 +6442,14 @@ function OrbitalPolymeter() {
       rerender();
     },
     [engineState, handleClearTraces, rerender],
+  );
+
+  const handleOrbitBpmChange = useCallback(
+    (bpm: number) => {
+      const nextBpm = Math.max(DEFAULT_BASE_BPM * 0.1, Math.min(DEFAULT_BASE_BPM * 10, Math.round(bpm || DEFAULT_BASE_BPM)));
+      handleSpeedChange(nextBpm / engineState.baseBPM);
+    },
+    [engineState.baseBPM, handleSpeedChange],
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
@@ -7777,7 +7811,6 @@ function OrbitalPolymeter() {
           ['orbital', 'Orbit'],
           ['polyrhythm-study', 'Study'],
           ['riff-cycle-study', 'Riff'],
-          ['flow', 'Flow'],
         ] as const).map(([surfaceId, label]) => {
           const active = appSurface === surfaceId;
           return (
@@ -7799,6 +7832,9 @@ function OrbitalPolymeter() {
       </div>
     </div>
   ) : null;
+  const orbitTempoBpm = Math.round(engineState.baseBPM * engineState.speedMultiplier);
+  const orbitMinBpm = Math.round(engineState.baseBPM * 0.1);
+  const orbitMaxBpm = Math.round(engineState.baseBPM * 10);
   const polyrhythmLayerCount = polyrhythmStudy.layers.length;
   const polyrhythmStepCount = polyrhythmStudy.layers.reduce(
     (count, layer) => count + layer.beatCount,
@@ -7896,12 +7932,39 @@ function OrbitalPolymeter() {
   const riffSelectedStepAccented =
     selectedRiffCycleStep != null ? Boolean(riffCycleStudy.riff.accents[selectedRiffCycleStep]) : null;
   const riffActiveStepCount = riffCycleStudy.riff.activeSteps.filter(Boolean).length;
+  const riffLandingRollSteps = riffCycleStudy.landingOverrides.map(
+    (state) => state === 'on' || state === 'accent',
+  );
+  const riffLandingRollAccents = riffCycleStudy.landingOverrides.map(
+    (state) => state === 'accent',
+  );
   const riffOffsetSteps = getRiffOffsetSteps(riffCycleStudy.riff);
+  const riffDesktopEditorSummary =
+    riffDesktopEditTab === 'bar'
+      ? `${riffCycleStudy.reference.numerator}/${riffCycleStudy.reference.denominator} · ${riffCycleStudy.reference.barCountForDisplay} bars`
+      : riffDesktopEditTab === 'return'
+        ? `${riffCycleStudy.landingLength} slots · ${riffCycleStudy.riff.resetMode === 'free' ? 'free return' : 'timed return'}`
+        : `${riffCycleStudy.riff.stepCount} Steps · ${riffActiveStepCount} On · Offset ${riffOffsetSteps}`;
+  const riffDesktopEditorLabel =
+    riffDesktopEditTab === 'bar' ? 'Bar' : riffDesktopEditTab === 'return' ? 'Ending' : 'Riff';
+  const riffDesktopEditorStageLabel =
+    riffDesktopEditTab === 'bar'
+      ? 'Bar Frame'
+      : riffDesktopEditTab === 'return'
+        ? 'Focused Ending'
+        : 'Focused Riff';
+  const riffDesktopEditorStageHint =
+    riffDesktopEditTab === 'bar'
+      ? 'Set the frame, then switch back to Riff or Ending to write'
+      : riffDesktopEditTab === 'return'
+        ? 'Use the ending roll below to shape the last part of the phrase'
+        : 'Tap points or use the roll below';
   const openRiffDesktopFocusEditor = (focus?: 'phrase' | 'landing') => {
     const nextFocus =
       focus ??
       (riffQuickPanel === 'return' || riffEditMode === 'landing' ? 'landing' : 'phrase');
     handleSetRiffEditMode(nextFocus);
+    setRiffDesktopEditTab(nextFocus === 'landing' ? 'return' : 'phrase');
     setRiffDesktopPatternEditorOpen(true);
     recordTutorialEvent(nextFocus === 'landing' ? 'riff-open-ending-editor' : 'riff-open-pattern-editor');
   };
@@ -8871,13 +8934,12 @@ function OrbitalPolymeter() {
                 ['orbital', 'Orbit'],
                 ['polyrhythm-study', 'Study'],
                 ['riff-cycle-study', 'Riff'],
-                ['flow', 'Flow'],
               ] as const).map(([surfaceId, label]) => (
                 <StudyShellButton
                   key={surfaceId}
                   size="compact"
-                  tone={surfaceId === appSurface ? 'blue' : 'neutral'}
-                  highlighted={surfaceId === appSurface}
+                  tone="neutral"
+                  highlighted={false}
                   onClick={() => handleAppSurfaceChange(surfaceId)}
                 >
                   {label}
@@ -9100,42 +9162,44 @@ function OrbitalPolymeter() {
                 </div>
 
                 <div data-guide="study-mobile-tempo" className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/48">
-                      Speed
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                      Tempo
                     </div>
-                    <div className="text-[14px] font-light text-white">
-                      {polyrhythmStudy.bpm}
-                      <span className="ml-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/36">
+                    <input
+                      type="range"
+                      min="40"
+                      max="180"
+                      step="1"
+                      value={polyrhythmStudy.bpm}
+                      onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
+                      onPointerDown={(event) =>
+                        handleMobileSliderPointerDown(event, 'study-tempo', (value) =>
+                          handlePolyrhythmBpmChange(Math.round(value)),
+                        )
+                      }
+                      onPointerMove={(event) =>
+                        handleMobileSliderPointerMove(event, 'study-tempo', (value) =>
+                          handlePolyrhythmBpmChange(Math.round(value)),
+                        )
+                      }
+                      onPointerUp={() => clearActiveMobileSlider('study-tempo')}
+                      onPointerCancel={() => clearActiveMobileSlider('study-tempo')}
+                      onBlur={() => clearActiveMobileSlider('study-tempo')}
+                      data-dragging={activeMobileSliderId === 'study-tempo'}
+                      className="touch-slider min-w-0 flex-1"
+                      style={{ ['--slider-accent' as string]: '#ffffff' }}
+                      aria-label="Set study tempo"
+                    />
+                    <div className="w-12 shrink-0 text-right">
+                      <div className="text-[14px] font-light leading-none text-white">
+                        {polyrhythmStudy.bpm}
+                      </div>
+                      <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         BPM
-                      </span>
+                      </div>
                     </div>
                   </div>
-                  <input
-                    type="range"
-                    min="40"
-                    max="180"
-                    step="1"
-                    value={polyrhythmStudy.bpm}
-                    onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
-                    onPointerDown={(event) =>
-                      handleMobileSliderPointerDown(event, 'study-tempo', (value) =>
-                        handlePolyrhythmBpmChange(Math.round(value)),
-                      )
-                    }
-                    onPointerMove={(event) =>
-                      handleMobileSliderPointerMove(event, 'study-tempo', (value) =>
-                        handlePolyrhythmBpmChange(Math.round(value)),
-                      )
-                    }
-                    onPointerUp={() => clearActiveMobileSlider('study-tempo')}
-                    onPointerCancel={() => clearActiveMobileSlider('study-tempo')}
-                    onBlur={() => clearActiveMobileSlider('study-tempo')}
-                    data-dragging={activeMobileSliderId === 'study-tempo'}
-                    className="touch-slider w-full"
-                    style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label="Set study tempo"
-                  />
                 </div>
               </div>
 
@@ -10357,7 +10421,10 @@ function OrbitalPolymeter() {
             : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
         }
       >
-        <div data-guide={!isMobile ? 'study-desktop-canvas' : undefined} className="absolute inset-0">
+        <div
+          data-guide={!isMobile ? 'study-desktop-canvas' : undefined}
+          className={isMobile ? 'absolute inset-0' : 'absolute inset-x-0 bottom-0 top-6'}
+        >
           <PolyrhythmCanvas
             study={polyrhythmStudy}
             restartToken={polyrhythmRestartToken}
@@ -10394,9 +10461,6 @@ function OrbitalPolymeter() {
                       style={{ color: selectedPolyrhythmLayer?.color ?? '#72F1B8' }}
                     >
                       Quick Edit
-                    </div>
-                    <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.12em] text-white/42">
-                      {selectedPolyrhythmLayerLabel} · {selectedPolyrhythmLayer?.beatCount ?? 0} steps
                     </div>
                   </div>
                   <div
@@ -10683,9 +10747,6 @@ function OrbitalPolymeter() {
                   <div className="min-w-0">
                     <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#88CCFF]">
                       Utility
-                    </div>
-                    <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.12em] text-white/42">
-                      {polyrhythmAudioSummary} · {polyrhythmSoundSummary} · {polyrhythmViewSummary}
                     </div>
                   </div>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF]">
@@ -10981,9 +11042,9 @@ function OrbitalPolymeter() {
                 </div>
               </div>
               <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                <div className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
-                  <div className="shrink-0 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
-                    BPM
+                <div className="flex min-w-[16rem] items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
+                  <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    Tempo
                   </div>
                   <input
                     type="range"
@@ -10996,8 +11057,13 @@ function OrbitalPolymeter() {
                     style={{ ['--slider-accent' as string]: selectedPolyrhythmLayer?.color ?? '#72F1B8' }}
                     aria-label="Set study tempo"
                   />
-                  <div className="w-8 shrink-0 text-right text-[11px] font-mono text-white/64">
-                    {polyrhythmStudy.bpm}
+                  <div className="w-12 shrink-0 text-right">
+                    <div className="text-[14px] font-light leading-none text-white">
+                      {polyrhythmStudy.bpm}
+                    </div>
+                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                      BPM
+                    </div>
                   </div>
                 </div>
                 <div data-guide="study-editor-rings" className="-mx-1 max-w-[34rem] overflow-x-auto pb-1 [scrollbar-width:none]">
@@ -11451,10 +11517,7 @@ function OrbitalPolymeter() {
 
               <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
                 <div className="flex items-center gap-4">
-                  <div className="min-w-[4.5rem] shrink-0">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">Tempo</div>
-                    <div className="mt-1 text-[18px] font-light leading-none text-white">{polyrhythmStudy.bpm}</div>
-                  </div>
+                  <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">Tempo</div>
                   <input
                     type="range"
                     min="40"
@@ -11476,17 +11539,25 @@ function OrbitalPolymeter() {
                     onPointerCancel={() => clearActiveMobileSlider('study-desktop-tempo')}
                     onBlur={() => clearActiveMobileSlider('study-desktop-tempo')}
                     data-dragging={activeMobileSliderId === 'study-desktop-tempo'}
-                    className="touch-slider w-full"
+                    className="touch-slider min-w-0 flex-1"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label="Set study tempo"
                   />
+                  <div className="w-[52px] shrink-0 text-right">
+                    <div className="text-[18px] font-light leading-none text-white">{polyrhythmStudy.bpm}</div>
+                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                      BPM
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : 'justify-end'}`}>
-                <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer}>
-                  Add Ring
-                </StudyShellButton>
+                {isMobile ? (
+                  <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer}>
+                    Add Ring
+                  </StudyShellButton>
+                ) : null}
                 <StudyShellButton
                   tone="blue"
                   highlighted={polyrhythmStudy.soundEnabled}
@@ -11757,12 +11828,10 @@ function OrbitalPolymeter() {
                 </div>
 
                 <div data-guide="riff-mobile-tempo" className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/48">
-                      Speed
-                    </div>
-                  </div>
                   <div className="flex items-center gap-3">
+                    <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                      Tempo
+                    </div>
                     <input
                       type="range"
                       min="45"
@@ -11788,7 +11857,7 @@ function OrbitalPolymeter() {
                       onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
                       onBlur={() => clearActiveMobileSlider('riff-tempo')}
                       data-dragging={activeMobileSliderId === 'riff-tempo'}
-                      className="touch-slider w-full"
+                      className="touch-slider min-w-0 flex-1"
                       style={{ ['--slider-accent' as string]: '#ffffff' }}
                       aria-label="Set riff cycle tempo"
                     />
@@ -12940,6 +13009,15 @@ function OrbitalPolymeter() {
                       <div className="flex items-center gap-2">
                         <StudyShellButton
                           size="compact"
+                          tone={riffCycleStudy.playing ? 'red' : 'green'}
+                          highlighted
+                          icon={riffCycleStudy.playing ? <Pause size={14} /> : <Play size={14} />}
+                          onClick={handleTutorialAwareRiffPlaybackToggle}
+                        >
+                          {riffCycleStudy.playing ? 'Pause' : 'Play'}
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
                           tone="neutral"
                           highlighted={helpOpen && helpContext === 'riff-editor'}
                           icon={<CircleHelp size={14} />}
@@ -13341,6 +13419,7 @@ function OrbitalPolymeter() {
 	                              handleSetRiffCycleStepActive(stepIndex, true);
 	                            }
 	                            handleToggleRiffCycleAccent(stepIndex);
+                              recordTutorialEvent('riff-editor-toggle-step');
 	                          }}
 	                        />
                         <div data-guide="riff-editor-step-states" className="flex items-center gap-2">
@@ -13350,6 +13429,7 @@ function OrbitalPolymeter() {
                             onClick={() => {
                               if (selectedRiffCycleStep != null) {
                                 handleSetRiffCycleStepActive(selectedRiffCycleStep, false);
+                                recordTutorialEvent('riff-editor-toggle-step');
                               }
                             }}
                             disabled={selectedRiffCycleStep == null}
@@ -13363,6 +13443,7 @@ function OrbitalPolymeter() {
                             onClick={() => {
                               if (selectedRiffCycleStep != null) {
                                 handleSetRiffCycleStepActive(selectedRiffCycleStep, true);
+                                recordTutorialEvent('riff-editor-toggle-step');
                               }
                             }}
                             disabled={selectedRiffCycleStep == null}
@@ -13376,6 +13457,7 @@ function OrbitalPolymeter() {
                             onClick={() => {
                               if (selectedRiffCycleStep != null) {
                                 handleToggleRiffCycleAccent(selectedRiffCycleStep);
+                                recordTutorialEvent('riff-editor-toggle-step');
                               }
                             }}
                             disabled={selectedRiffCycleStep == null || !selectedRiffStepActive}
@@ -13540,9 +13622,6 @@ function OrbitalPolymeter() {
                   <div className="min-w-0">
                     <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: riffCycleStudy.riff.color }}>
                       Quick Edit
-                    </div>
-                    <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.12em] text-white/42">
-                      {riffQuickFocusLabel} · {riffCycleStudy.viewMode === 'unwrapped' ? riffDesktopLaneWindowLabel : 'Roll Hidden'} · {riffCycleStudy.riff.stepCount} steps
                     </div>
                   </div>
                   <div
@@ -14142,9 +14221,6 @@ function OrbitalPolymeter() {
                     <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#88CCFF]">
                       Utility
                     </div>
-                    <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.12em] text-white/42">
-                      {riffAudioSummary} · {riffSoundSummary} · {riffViewSummary}
-                    </div>
                   </div>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF]">
                     <ChevronUp size={16} />
@@ -14585,7 +14661,7 @@ function OrbitalPolymeter() {
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.022)_1px,transparent_1px)] bg-[size:72px_72px] opacity-45" />
 
             <div
-              className="absolute inset-x-5 top-5 z-20 flex items-center justify-between gap-4 rounded-[1.6rem] border px-4 py-3 backdrop-blur-2xl"
+              className="absolute inset-x-5 top-5 z-20 grid grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)_minmax(0,1fr)] items-center gap-4 rounded-[1.6rem] border px-4 py-3 backdrop-blur-2xl"
               style={{
                 background: 'linear-gradient(135deg, rgba(16,18,26,0.82), rgba(8,10,16,0.68))',
                 borderColor: `${riffCycleStudy.riff.color}22`,
@@ -14600,36 +14676,115 @@ function OrbitalPolymeter() {
                   Pattern Editor
                 </div>
                 <div className="mt-1 flex items-center gap-3">
-                  <div className="text-[18px] font-light text-white/88">Riff</div>
+                  <div className="text-[18px] font-light text-white/88">{riffDesktopEditorLabel}</div>
                   <div className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.12em] text-white/48">
-                    {riffCycleStudy.riff.stepCount} Steps · {riffActiveStepCount} On · Offset {riffOffsetSteps}
+                    {riffDesktopEditorSummary}
+                  </div>
+                </div>
+                <div data-guide="riff-editor-target" className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    data-guide="riff-editor-bar-tab"
+                    onClick={() => {
+                      setRiffDesktopEditTab('bar');
+                      recordTutorialEvent('riff-editor-select-bar');
+                    }}
+                    className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all"
+                    style={{
+                      background: riffDesktopEditTab === 'bar' ? 'rgba(255,136,194,0.14)' : 'transparent',
+                      border: `1px solid ${riffDesktopEditTab === 'bar' ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)'}`,
+                      color: riffDesktopEditTab === 'bar' ? '#FF88C2' : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    Bar
+                  </button>
+                  <button
+                    type="button"
+                    data-guide="riff-editor-riff-tab"
+                    onClick={() => {
+                      handleSetRiffEditMode('phrase');
+                      setRiffDesktopEditTab('phrase');
+                      recordTutorialEvent('riff-editor-select-riff');
+                    }}
+                    className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all"
+                    style={{
+                      background: riffDesktopEditTab === 'phrase' ? `${riffCycleStudy.riff.color}14` : 'transparent',
+                      border: `1px solid ${riffDesktopEditTab === 'phrase' ? `${riffCycleStudy.riff.color}34` : 'rgba(255,255,255,0.08)'}`,
+                      color: riffDesktopEditTab === 'phrase' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    Riff
+                  </button>
+                  <button
+                    type="button"
+                    data-guide="riff-editor-ending-tab"
+                    onClick={() => {
+                      handleSetRiffEditMode('landing');
+                      setRiffDesktopEditTab('return');
+                      recordTutorialEvent('riff-editor-select-ending');
+                    }}
+                    className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all"
+                    style={{
+                      background: riffDesktopEditTab === 'return' ? 'rgba(127,215,255,0.14)' : 'transparent',
+                      border: `1px solid ${riffDesktopEditTab === 'return' ? 'rgba(127,215,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                      color: riffDesktopEditTab === 'return' ? '#7FD7FF' : 'rgba(255,255,255,0.56)',
+                    }}
+                  >
+                    Ending
+                  </button>
+                  {riffDesktopEditTab !== 'bar' ? (
+                    <button
+                      type="button"
+                      onClick={riffDesktopEditTab === 'return' ? handleClearRiffLanding : handleClearRiffCycle}
+                      className="ml-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all"
+                      style={{
+                        background: riffDesktopEditTab === 'return' ? 'rgba(127,215,255,0.08)' : 'rgba(255,70,110,0.08)',
+                        border: `1px solid ${riffDesktopEditTab === 'return' ? 'rgba(127,215,255,0.16)' : 'rgba(255,70,110,0.18)'}`,
+                        color: riffDesktopEditTab === 'return' ? 'rgba(127,215,255,0.86)' : 'rgba(255,150,176,0.86)',
+                        opacity:
+                          riffDesktopEditTab === 'return'
+                            ? riffCycleStudy.landingOverrides.some((value) => value !== 'inherit')
+                              ? 1
+                              : 0.62
+                            : riffCycleStudy.riff.activeSteps.some(Boolean)
+                              ? 1
+                              : 0.62,
+                      }}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
+                <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  Tempo
+                </div>
+                <input
+                  type="range"
+                  min="45"
+                  max="220"
+                  step="1"
+                  value={riffCycleStudy.reference.bpm}
+                  onChange={(event) =>
+                    handleUpdateRiffReference({
+                      bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
+                    })
+                  }
+                  className="touch-slider min-w-0 flex-1"
+                  style={{ ['--slider-accent' as string]: riffCycleStudy.riff.color }}
+                  aria-label="Set riff cycle tempo"
+                />
+                <div className="w-12 shrink-0 text-right">
+                  <div className="text-[14px] font-light leading-none text-white">
+                    {riffCycleStudy.reference.bpm}
+                  </div>
+                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                    BPM
                   </div>
                 </div>
               </div>
               <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                <div className="flex min-w-[13rem] items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
-                  <div className="shrink-0 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
-                    BPM
-                  </div>
-                  <input
-                    type="range"
-                    min="45"
-                    max="220"
-                    step="1"
-                    value={riffCycleStudy.reference.bpm}
-                    onChange={(event) =>
-                      handleUpdateRiffReference({
-                        bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
-                      })
-                    }
-                    className="touch-slider min-w-0 flex-1"
-                    style={{ ['--slider-accent' as string]: riffCycleStudy.riff.color }}
-                    aria-label="Set riff cycle tempo"
-                  />
-                  <div className="w-8 shrink-0 text-right text-[11px] font-mono text-white/64">
-                    {riffCycleStudy.reference.bpm}
-                  </div>
-                </div>
                 <StudyShellButton
                   size="compact"
                   tone="neutral"
@@ -14703,7 +14858,7 @@ function OrbitalPolymeter() {
                 />
                 <div className="pointer-events-none absolute inset-x-8 bottom-6 flex items-center justify-between gap-4">
                   <div className="rounded-full border border-white/10 bg-black/24 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-white/38 backdrop-blur">
-                    Focused Riff
+                    {riffDesktopEditorStageLabel}
                   </div>
                   <div
                     className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.16em] backdrop-blur"
@@ -14713,7 +14868,7 @@ function OrbitalPolymeter() {
                       color: riffCycleStudy.riff.color,
                     }}
                   >
-                    Tap points or use the roll below
+                    {riffDesktopEditorStageHint}
                   </div>
                 </div>
               </div>
@@ -14721,158 +14876,389 @@ function OrbitalPolymeter() {
 
             <div className="absolute bottom-5 left-1/2 z-20 w-[min(76rem,calc(100vw-3rem))] -translate-x-1/2">
               <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="space-y-3">
-                <div data-guide="riff-editor-target" className="flex flex-wrap items-center gap-3">
-                  <div data-guide="riff-editor-roll" className="min-w-[14rem] flex-1">
-                    <div
-                      className="text-[9px] font-mono uppercase tracking-[0.18em]"
-                      style={{ color: riffCycleStudy.riff.color }}
-                    >
-                      Step Sequencer
+                {riffDesktopEditTab === 'bar' ? (
+                  <>
+                    <div className="grid gap-3 xl:grid-cols-[1fr_1fr_0.9fr_1.2fr_1fr]">
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80">Meter</div>
+                        <div className="flex items-center gap-2">
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleUpdateRiffReference({
+                                numerator: Math.max(2, riffCycleStudy.reference.numerator - 1),
+                              })
+                            }
+                          >
+                            <Minus size={14} />
+                          </StudyShellButton>
+                          <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                            {riffCycleStudy.reference.numerator}/{riffCycleStudy.reference.denominator}
+                          </div>
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleUpdateRiffReference({
+                                numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                              })
+                            }
+                          >
+                            <Plus size={14} />
+                          </StudyShellButton>
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80">Visible Bars</div>
+                        <div className="flex items-center gap-2">
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleUpdateRiffReference({
+                                barCountForDisplay: Math.max(1, riffCycleStudy.reference.barCountForDisplay - 1),
+                              })
+                            }
+                          >
+                            <Minus size={14} />
+                          </StudyShellButton>
+                          <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                            {riffCycleStudy.reference.barCountForDisplay}
+                          </div>
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleUpdateRiffReference({
+                                barCountForDisplay: Math.min(8, riffCycleStudy.reference.barCountForDisplay + 1),
+                              })
+                            }
+                          >
+                            <Plus size={14} />
+                          </StudyShellButton>
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80">Bar Grid</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[4, 8].map((value) => (
+                            <StudyShellButton
+                              key={value}
+                              size="compact"
+                              highlighted={riffCycleStudy.reference.denominator === value}
+                              onClick={() =>
+                                handleUpdateRiffReference({
+                                  denominator: value as ReferenceMeter['denominator'],
+                                })
+                              }
+                            >
+                              /{value}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80">
+                          <span>Subdivision</span>
+                          <span className="text-white/28">writing grid</span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2">
+                          {[8, 12, 16, 20, 32].map((value) => (
+                            <StudyShellButton
+                              key={value}
+                              size="compact"
+                              tone="blue"
+                              highlighted={riffCycleStudy.reference.subdivision === value}
+                              onClick={() =>
+                                handleUpdateRiffReference({
+                                  subdivision: value as ReferenceMeter['subdivision'],
+                                })
+                              }
+                            >
+                              {value}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80">Backbeat</div>
+                        <div className="grid grid-cols-4 gap-2">
+                          <StudyShellButton
+                            size="compact"
+                            tone="pink"
+                            highlighted={!riffCycleStudy.reference.showBackbeat}
+                            onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                          >
+                            Off
+                          </StudyShellButton>
+                          {Array.from(
+                            { length: Math.max(0, Math.min(6, riffCycleStudy.reference.numerator)) },
+                            (_, index) => index + 1,
+                          ).map((beat) => (
+                            <StudyShellButton
+                              key={beat}
+                              size="compact"
+                              tone="pink"
+                              highlighted={
+                                riffCycleStudy.reference.showBackbeat &&
+                                riffCycleStudy.reference.backbeatBeat === beat
+                              }
+                              onClick={() =>
+                                handleUpdateRiffReference({
+                                  showBackbeat: true,
+                                  backbeatBeat: beat,
+                                })
+                              }
+                            >
+                              {beat}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </StudyShellPanel>
                     </div>
-                    <div className="mt-1 text-[11px] text-white/38">
-                      Tap a step to toggle it. Hold a step to accent it.
+                  </>
+                ) : riffDesktopEditTab === 'phrase' ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="min-w-[14rem] flex-1">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/44">
+                          Pattern Roll
+                        </div>
+                        <div className="mt-1 text-[11px] text-white/38">
+                          Tap a step to toggle it. Hold a step to accent it.
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
+                        <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                          Steps
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleSetRiffPhraseStepCount(Math.max(3, riffCycleStudy.riff.stepCount - 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
+                          aria-label="Shorten riff"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <div
+                          className="min-w-14 rounded-xl border px-2.5 py-1.5 text-center text-[12px] font-mono uppercase tracking-[0.1em]"
+                          style={{
+                            background: `${riffCycleStudy.riff.color}10`,
+                            borderColor: `${riffCycleStudy.riff.color}28`,
+                            color: riffCycleStudy.riff.color,
+                          }}
+                        >
+                          {riffCycleStudy.riff.stepCount}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSetRiffPhraseStepCount(Math.min(64, riffCycleStudy.riff.stepCount + 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
+                          aria-label="Lengthen riff"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+                      <div data-guide="riff-editor-offset" className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
+                        <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                          Offset {riffOffsetSteps}
+                        </span>
+                        <StudyShellButton
+                          size="compact"
+                          tone="neutral"
+                          onClick={() => {
+                            handleRotateRiffCycle(-1);
+                            recordTutorialEvent('riff-editor-offset');
+                          }}
+                        >
+                          -1
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="neutral"
+                          onClick={() => {
+                            handleRotateRiffCycle(1);
+                            recordTutorialEvent('riff-editor-offset');
+                          }}
+                        >
+                          +1
+                        </StudyShellButton>
+                      </div>
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted
+                        onClick={handleInvertRiffCycle}
+                      >
+                        Invert
+                      </StudyShellButton>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
-                    <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      Steps
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSetRiffPhraseStepCount(Math.max(3, riffCycleStudy.riff.stepCount - 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                      aria-label="Shorten riff"
-                    >
-                      <Minus size={13} />
-                    </button>
-                    <div
-                      className="min-w-14 rounded-xl border px-2.5 py-1.5 text-center text-[12px] font-mono uppercase tracking-[0.1em]"
-                      style={{
-                        background: `${riffCycleStudy.riff.color}10`,
-                        borderColor: `${riffCycleStudy.riff.color}28`,
-                        color: riffCycleStudy.riff.color,
-                      }}
-                    >
-                      {riffCycleStudy.riff.stepCount}
+                    <div data-guide="riff-editor-roll">
+                      <RiffRollEditor
+                        activeSteps={riffCycleStudy.riff.activeSteps}
+                        accents={riffCycleStudy.riff.accents}
+                        color={riffCycleStudy.riff.color}
+                        selectedStepIndex={selectedRiffCycleStep}
+                        labelPrefix="riff-desktop"
+                        onPressStep={(stepIndex) => {
+                          handleSetRiffEditMode('phrase');
+                          handleSelectRiffCycleStep(stepIndex);
+                          handleToggleRiffCycleStep(stepIndex);
+                          recordTutorialEvent('riff-editor-toggle-step');
+                        }}
+                        onLongPressStep={(stepIndex) => {
+                          handleSetRiffEditMode('phrase');
+                          handleSelectRiffCycleStep(stepIndex);
+                          if (!riffCycleStudy.riff.activeSteps[stepIndex]) {
+                            handleSetRiffCycleStepActive(stepIndex, true);
+                          }
+                          handleToggleRiffCycleAccent(stepIndex);
+                          recordTutorialEvent('riff-editor-toggle-step');
+                        }}
+                      />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSetRiffPhraseStepCount(Math.min(64, riffCycleStudy.riff.stepCount + 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                      aria-label="Lengthen riff"
-                    >
-                      <Plus size={13} />
-                    </button>
-                  </div>
 
-                  <div data-guide="riff-editor-offset" className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
-                    <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      Offset {riffOffsetSteps}
-                    </span>
-                    <StudyShellButton
-                      size="compact"
-                      tone="neutral"
-                      onClick={() => {
-                        handleRotateRiffCycle(-1);
-                        recordTutorialEvent('riff-editor-offset');
+                    <div data-guide="riff-editor-step-states" className="flex items-center gap-2">
+                      <StudyShellButton
+                        size="compact"
+                        highlighted={selectedRiffCycleStep != null && riffSelectedStepActive === false}
+                        onClick={() => {
+                          if (selectedRiffCycleStep != null) {
+                            handleSetRiffCycleStepActive(selectedRiffCycleStep, false);
+                            recordTutorialEvent('riff-editor-toggle-step');
+                          }
+                        }}
+                        disabled={selectedRiffCycleStep == null}
+                      >
+                        Rest
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="green"
+                        highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepActive)}
+                        onClick={() => {
+                          if (selectedRiffCycleStep != null) {
+                            handleSetRiffCycleStepActive(selectedRiffCycleStep, true);
+                            recordTutorialEvent('riff-editor-toggle-step');
+                          }
+                        }}
+                        disabled={selectedRiffCycleStep == null}
+                      >
+                        Hit
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepAccented)}
+                        onClick={() => {
+                          if (selectedRiffCycleStep != null) {
+                            handleToggleRiffCycleAccent(selectedRiffCycleStep);
+                            recordTutorialEvent('riff-editor-toggle-step');
+                          }
+                        }}
+                        disabled={selectedRiffCycleStep == null || !riffSelectedStepActive}
+                      >
+                        Accent
+                      </StudyShellButton>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid gap-3 xl:grid-cols-[1.35fr_1fr_0.9fr]">
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">Return Cycle</div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { value: 'free', label: 'Free' },
+                            { value: 'per-bar', label: '1 Bar' },
+                            { value: 'every-2-bars', label: '2 Bars' },
+                            { value: 'every-4-bars', label: '4 Bars' },
+                            { value: 'every-8-bars', label: '8 Bars' },
+                            { value: 'every-16-bars', label: '16 Bars' },
+                          ].map((option) => (
+                            <StudyShellButton
+                              key={option.value}
+                              size="compact"
+                              tone="amber"
+                              highlighted={riffCycleStudy.riff.resetMode === option.value}
+                              onClick={() =>
+                                handleUpdateRiffPhrase({
+                                  resetMode: option.value as RiffPhrase['resetMode'],
+                                })
+                              }
+                            >
+                              {option.label}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
+                          <span>Bar Markers</span>
+                          <span className="text-white/28">cue only</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {([
+                            { value: 'none' as const, label: 'No Cue' },
+                            { value: 'pattern' as const, label: 'Pattern' },
+                            { value: 1 as const, label: '1 Bar' },
+                            { value: 2 as const, label: '2 Bars' },
+                            { value: 4 as const, label: '4 Bars' },
+                          ]).map((option) => (
+                            <StudyShellButton
+                              key={option.label}
+                              size="compact"
+                              tone="blue"
+                              highlighted={(riffCycleStudy.barMarkerInterval ?? 'pattern') === option.value}
+                              onClick={() => handleSetRiffBarMarkerInterval(option.value)}
+                            >
+                              {option.label}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-2">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">Ending Length</div>
+                        <div className="flex items-center gap-2">
+                          <StudyShellButton
+                            size="square"
+                            onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
+                          >
+                            <Minus size={14} />
+                          </StudyShellButton>
+                          <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                            {riffCycleStudy.landingLength} Slots
+                          </div>
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleSetRiffLandingLength(
+                                Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
+                              )
+                            }
+                          >
+                            <Plus size={14} />
+                          </StudyShellButton>
+                        </div>
+                      </StudyShellPanel>
+                    </div>
+
+                    <RiffRollEditor
+                      activeSteps={riffLandingRollSteps}
+                      accents={riffLandingRollAccents}
+                      color="#7FD7FF"
+                      selectedStepIndex={null}
+                      labelPrefix="ending-desktop"
+                      onPressStep={(slotIndex) => {
+                        const active =
+                          riffCycleStudy.landingOverrides[slotIndex] === 'on' ||
+                          riffCycleStudy.landingOverrides[slotIndex] === 'accent';
+                        handleSetRiffLandingStepActive(slotIndex, !active);
                       }}
-                    >
-                      -1
-                    </StudyShellButton>
-                    <StudyShellButton
-                      size="compact"
-                      tone="neutral"
-                      onClick={() => {
-                        handleRotateRiffCycle(1);
-                        recordTutorialEvent('riff-editor-offset');
+                      onLongPressStep={(slotIndex) => {
+                        handleToggleRiffLandingAccent(slotIndex);
                       }}
-                    >
-                      +1
-                    </StudyShellButton>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <StudyShellButton
-                      size="compact"
-                      tone="amber"
-                      highlighted
-                      onClick={handleInvertRiffCycle}
-                    >
-                      Invert
-                    </StudyShellButton>
-                    <StudyShellButton
-                      size="compact"
-                      tone="red"
-                      highlighted={riffCycleStudy.riff.activeSteps.some(Boolean)}
-                      onClick={handleClearRiffCycle}
-                    >
-                      Clear
-                    </StudyShellButton>
-                  </div>
-                </div>
-
-                <RiffRollEditor
-                  activeSteps={riffCycleStudy.riff.activeSteps}
-                  accents={riffCycleStudy.riff.accents}
-                  color={riffCycleStudy.riff.color}
-                  selectedStepIndex={selectedRiffCycleStep}
-                  labelPrefix="riff-desktop"
-                  onPressStep={(stepIndex) => {
-                    handleSetRiffEditMode('phrase');
-                    handleSelectRiffCycleStep(stepIndex);
-                    handleToggleRiffCycleStep(stepIndex);
-                  }}
-                  onLongPressStep={(stepIndex) => {
-                    handleSetRiffEditMode('phrase');
-                    handleSelectRiffCycleStep(stepIndex);
-                    if (!riffCycleStudy.riff.activeSteps[stepIndex]) {
-                      handleSetRiffCycleStepActive(stepIndex, true);
-                    }
-                    handleToggleRiffCycleAccent(stepIndex);
-                  }}
-                />
-
-                <div data-guide="riff-editor-step-states" className="flex items-center gap-2">
-                  <StudyShellButton
-                    size="compact"
-                    highlighted={selectedRiffCycleStep != null && riffSelectedStepActive === false}
-                    onClick={() => {
-                      if (selectedRiffCycleStep != null) {
-                        handleSetRiffCycleStepActive(selectedRiffCycleStep, false);
-                      }
-                    }}
-                    disabled={selectedRiffCycleStep == null}
-                  >
-                    Rest
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="green"
-                    highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepActive)}
-                    onClick={() => {
-                      if (selectedRiffCycleStep != null) {
-                        handleSetRiffCycleStepActive(selectedRiffCycleStep, true);
-                      }
-                    }}
-                    disabled={selectedRiffCycleStep == null}
-                  >
-                    Hit
-                  </StudyShellButton>
-                  <StudyShellButton
-                    size="compact"
-                    tone="amber"
-                    highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepAccented)}
-                    onClick={() => {
-                      if (selectedRiffCycleStep != null) {
-                        handleToggleRiffCycleAccent(selectedRiffCycleStep);
-                      }
-                    }}
-                    disabled={selectedRiffCycleStep == null || !riffSelectedStepActive}
-                  >
-                    Accent
-                  </StudyShellButton>
-                </div>
+                    />
+                  </>
+                )}
               </StudyShellPremiumPanel>
             </div>
             {helpOpen && helpContext === 'riff-editor' ? renderGuideOverlay(guideAccent, 60) : null}
@@ -15151,11 +15537,11 @@ function OrbitalPolymeter() {
                     onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
                     onBlur={() => clearActiveMobileSlider('riff-tempo')}
                     data-dragging={activeMobileSliderId === 'riff-tempo'}
-                    className="touch-slider w-full"
+                    className="touch-slider min-w-0 flex-1"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label="Set riff cycle tempo"
                   />
-                  <div className="min-w-[54px] shrink-0 text-right">
+                  <div className="w-[52px] shrink-0 text-right">
                     <div className="text-[16px] font-light leading-none text-white">
                       {riffCycleStudy.reference.bpm}
                     </div>
@@ -15321,6 +15707,7 @@ function OrbitalPolymeter() {
           <TransportBar
             playing={engineState.playing}
             speedMultiplier={engineState.speedMultiplier}
+            baseBpm={engineState.baseBPM}
             traceMode={traceMode}
             showPlanets={showPlanets}
             muted={muted}
@@ -15455,30 +15842,40 @@ function OrbitalPolymeter() {
                 </button>
               </div>
               <div data-guide="mobile-speed" className="space-y-1">
-                <div className="flex items-center justify-between text-[12px]" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                  <span>Speed</span>
-                  <span className="font-mono">{engineState.speedMultiplier.toFixed(1)}x</span>
+                <div className="flex items-center gap-3">
+                  <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                    Tempo
+                  </div>
+                  <input
+                    type="range"
+                    min={String(orbitMinBpm)}
+                    max={String(orbitMaxBpm)}
+                    step="1"
+                    value={orbitTempoBpm}
+                    onChange={(e) => handleOrbitBpmChange(parseInt(e.target.value, 10) || orbitTempoBpm)}
+                    onPointerDown={(event) =>
+                      handleMobileSliderPointerDown(event, 'speed', (value) => handleOrbitBpmChange(Math.round(value)))
+                    }
+                    onPointerMove={(event) =>
+                      handleMobileSliderPointerMove(event, 'speed', (value) => handleOrbitBpmChange(Math.round(value)))
+                    }
+                    onPointerUp={() => clearActiveMobileSlider('speed')}
+                    onPointerCancel={() => clearActiveMobileSlider('speed')}
+                    onBlur={() => clearActiveMobileSlider('speed')}
+                    data-dragging={activeMobileSliderId === 'speed'}
+                    className="touch-slider min-w-0 flex-1"
+                    style={{ ['--slider-accent' as string]: '#ffffff' }}
+                    aria-label="Set orbit tempo"
+                  />
+                  <div className="w-12 shrink-0 text-right">
+                    <div className="text-[14px] font-light leading-none text-white">
+                      {orbitTempoBpm}
+                    </div>
+                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                      BPM
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="10"
-                  step="0.1"
-                  value={engineState.speedMultiplier}
-                  onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                  onPointerDown={(event) =>
-                    handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
-                  }
-                  onPointerMove={(event) =>
-                    handleMobileSliderPointerMove(event, 'speed', (value) => handleSpeedChange(value))
-                  }
-                  onPointerUp={() => clearActiveMobileSlider('speed')}
-                  onPointerCancel={() => clearActiveMobileSlider('speed')}
-                  onBlur={() => clearActiveMobileSlider('speed')}
-                  data-dragging={activeMobileSliderId === 'speed'}
-                  className="touch-slider w-full"
-                  style={{ ['--slider-accent' as string]: '#ffffff' }}
-                />
               </div>
             </div>
 
@@ -16702,6 +17099,7 @@ function OrbitalPolymeter() {
         <TransportBar
           playing={engineState.playing}
           speedMultiplier={engineState.speedMultiplier}
+          baseBpm={engineState.baseBPM}
           traceMode={traceMode}
           showPlanets={showPlanets}
           muted={muted}
