@@ -162,7 +162,7 @@ const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
 const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const BEGINNER_GUIDE_SEEN_STORAGE_KEY = 'orbital-polymeter-beginner-guides';
 const CANVAS_DISPLAY_STORAGE_KEY = 'rhythmic-geometry-canvas-display';
-const CANVAS_DISPLAY_STORAGE_VERSION = 3;
+const CANVAS_DISPLAY_STORAGE_VERSION = 4;
 const MOBILE_GUIDES_AVAILABLE = true;
 const MOBILE_GUIDES_AUTO_OPEN = false;
 const MOBILE_GUIDE_INTRO_CARD_ENABLED = false;
@@ -205,10 +205,12 @@ type TutorialEventId =
   | 'riff-select-bar'
   | 'riff-select-riff'
   | 'riff-open-pattern-editor'
+  | 'riff-open-ending-editor'
   | 'riff-editor-select-bar'
   | 'riff-editor-select-riff'
   | 'riff-editor-select-ending'
   | 'riff-editor-view-pattern'
+  | 'riff-editor-offset'
   | 'riff-editor-toggle-step';
 
 interface StartGuideStep {
@@ -359,22 +361,28 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
 
 const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
   {
-    target: 'riff-mobile-scenes',
+    target: 'riff-mobile-main-canvas',
     title: 'Start Here',
     kicker: 'Riff Guide',
     text: 'Riff turns a bar frame and a step pattern into a looping groove.',
-    doThis: 'Load a scene, press Play, then change one riff step.',
-    notice: 'Think of Bar as the frame, Riff as the main pattern, and Ending as the handoff back to beat 1.',
-    actionLabel: 'Open Scenes',
-    actionId: 'riff-open-scenes',
+    doThis: 'Start by pressing Play, then watch how the shape and lane move together.',
+    notice: 'The shape is the overview. The lane is the close time view.',
   },
   {
-    target: 'riff-mobile-main-canvas',
-    title: 'The Main View',
+    target: 'riff-mobile-transport',
+    title: 'Playback',
     kicker: 'Riff Guide',
-    text: 'The large shape shows how the riff moves inside the bar frame while the lane gives you a straight time view of the same phrase.',
-    doThis: 'Press Play and watch where the top point lands. That is beat 1.',
-    notice: 'Use the shape for orientation and the roll for exact writing.',
+    text: 'Play starts the loop. Restart brings you back to beat 1. Mute silences the groove without stopping it.',
+    doThis: 'Use Restart when you want to hear the true beginning again.',
+    notice: 'Mute is the fastest way to adjust the groove quietly.',
+  },
+  {
+    target: 'riff-mobile-tempo',
+    title: 'Speed',
+    kicker: 'Riff Guide',
+    text: 'Speed changes how easy the phrase is to hear and follow.',
+    doThis: 'Slow it down first if the groove feels too dense.',
+    notice: 'The same phrase usually becomes clearer at a slower speed.',
   },
   {
     target: 'riff-mobile-edit',
@@ -387,66 +395,44 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     actionId: 'riff-open-edit',
   },
   {
-    target: 'riff-layer-1',
-    title: 'Bar',
+    target: 'riff-mobile-scenes',
+    title: 'Scenes',
     kicker: 'Riff Guide',
-    text: 'Bar sets the frame around the groove. Bars controls phrase length. Subdivision controls grid detail.',
-    doThis: 'Change visible bars or subdivision before rewriting the riff.',
-    notice: 'More bars gives the phrase more room. More subdivision gives you smaller timing slots.',
+    text: 'Scenes are starting grooves. Random, Remix, and Random+ also live here.',
+    doThis: 'Load a scene or press Random when you want a fast new idea.',
+    notice: 'Scenes are starting points, not final answers.',
   },
   {
-    target: 'riff-layer-2',
-    title: 'Riff',
+    target: 'riff-mobile-mute',
+    title: 'Mute',
     kicker: 'Riff Guide',
-    text: 'Riff is the repeating line you hear inside the frame.',
-    doThis: 'Use the roll for quick hits and Focus Pattern when you want a close writing view.',
-    notice: 'This is the part most people will hear as the groove.',
-    actionLabel: 'Open Focus Pattern',
-    actionId: 'riff-open-pattern-editor',
+    text: 'Mute silences the groove without stopping playback.',
+    doThis: 'Use this when you want to change settings quietly.',
+    notice: 'Open the Audio tab when you want deeper sound controls.',
   },
   {
-    target: 'riff-ending',
-    title: 'Ending',
+    target: 'riff-mobile-audio-tab',
+    title: 'Audio',
     kicker: 'Riff Guide',
-    text: 'Ending shapes how the phrase lands before it loops back around.',
-    doThis: 'Open Ending, then Focus Ending to edit the last slots only.',
-    notice: 'A good ending makes the next loop feel intentional.',
-    actionLabel: 'Open Focus Ending',
-    actionId: 'riff-open-ending-editor',
-  },
-  {
-    target: 'riff-mobile-transport',
-    title: 'Transport',
-    kicker: 'Riff Guide',
-    text: 'Play starts the loop. Restart brings you back to the first beat. Random loads a new starting idea.',
-    doThis: 'If you are unsure where to start, press Play first.',
-    notice: 'Restart is the fastest way to hear where the phrase really begins.',
-    actionLabel: 'Try Random',
-    actionId: 'riff-try-random',
-  },
-  {
-    target: 'riff-mobile-tempo',
-    title: 'Tempo And Offset',
-    kicker: 'Riff Guide',
-    text: 'Tempo changes speed. Offset Pattern moves the same riff earlier or later without rewriting it.',
-    doThis: 'Move the pattern 1 step and listen to how the same phrase lands differently.',
-    notice: 'Same notes. Different placement.',
+    text: 'Audio changes what you hear and how the groove sounds.',
+    doThis: 'Solo Bar, solo Riff, or hear both together.',
+    notice: 'If the theory words feel distracting, stay on Original first.',
   },
   {
     target: 'riff-mobile-canvas',
     title: 'Canvas',
     kicker: 'Riff Guide',
     text: 'Canvas controls change how the groove is displayed without changing the notes.',
-    doThis: 'Use Numbers when you need step positions and Start Lines when you need clearer bar starts.',
+    doThis: 'Use Numbers and Start Lines when you need clearer orientation.',
     notice: 'These controls change readability, not rhythm.',
   },
   {
-    target: 'riff-mobile-audio',
-    title: 'Audio',
+    target: 'riff-mobile-tutorial',
+    title: 'Tutorial',
     kicker: 'Riff Guide',
-    text: 'Audio changes what you hear and how the groove sounds.',
-    doThis: 'If the theory words are distracting, stay on Original first.',
-    notice: 'You do not need any music theory to start making something usable here.',
+    text: 'Tutorial walks you through one short mission at a time.',
+    doThis: 'Use it when you want guided actions instead of explanations.',
+    notice: 'Tutorial is for doing. Help is for understanding.',
   },
   {
     target: 'riff-mobile-present',
@@ -494,6 +480,14 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     notice: 'Same phrase. Different landing point.',
   },
   {
+    target: 'riff-desktop-roll-size',
+    title: 'Roll Size',
+    kicker: 'Riff Guide',
+    text: 'Roll Size controls whether the lane is visible and how much of the phrase you see at once.',
+    doThis: 'Use 1 Bar for close writing, Pattern for the full phrase, and Hide Roll when you want the canvas alone.',
+    notice: 'This changes the view, not the notes.',
+  },
+  {
     target: 'riff-desktop-quick',
     title: 'Quick Edit',
     kicker: 'Riff Guide',
@@ -514,7 +508,7 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     title: 'Riff',
     kicker: 'Riff Guide',
     text: 'Riff handles the moving pattern.',
-    doThis: 'Use Edit Pattern when you want a close writing surface.',
+    doThis: 'Use Focus Pattern when you want a close writing surface.',
     notice: 'The lower lane is still the main writing surface.',
     actionLabel: 'Open Focus Pattern',
     actionId: 'riff-open-pattern-editor',
@@ -547,8 +541,8 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-desktop-view',
     title: 'View',
     kicker: 'Riff Guide',
-    text: 'Swap roll visibility, labels, and canvas mood without changing the groove.',
-    doThis: 'Use labels when learning and hide them when the phrase feels familiar.',
+    text: 'View changes labels, start lines, riff shape, and canvas mood without changing the groove.',
+    doThis: 'Use labels and start lines when learning, then simplify the view once the phrase feels familiar.',
   },
   {
     target: 'riff-desktop-present',
@@ -568,40 +562,28 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
 
 const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
   {
-    target: 'study-mobile-scenes',
+    target: 'study-mobile-main-canvas',
     title: 'Start Here',
     kicker: 'Study Guide',
     text: 'Study lets you hear two or more rhythm rings on the same loop.',
-    doThis: 'Load a scene, press Play, then edit one ring.',
-    notice: 'Start by hearing where the rings line up. You do not need theory to use it.',
-    actionLabel: 'Load 3:5',
-    actionId: 'study-load-default',
-  },
-  {
-    target: 'study-mobile-main-canvas',
-    title: 'The Main View',
-    kicker: 'Study Guide',
-    text: 'The large circles show each rhythm ring on the same loop so you can see where they meet and separate.',
-    doThis: 'Press Play and watch for moments where two rings land together.',
-    notice: 'The picture is showing the rhythm relationship, not just decoration.',
+    doThis: 'Start by pressing Play, then watch where two rings land together.',
+    notice: 'You do not need theory to use it.',
   },
   {
     target: 'study-mobile-playback',
     title: 'Playback',
     kicker: 'Study Guide',
     text: 'Play starts the loop. Restart brings you back to the same beginning every time.',
-    doThis: 'Press Restart once and watch where the cycle begins.',
-    notice: 'That starting point is the anchor for the whole study.',
-    actionLabel: 'Try Random',
-    actionId: 'study-try-random',
+    doThis: 'Use Restart when you want to hear the cycle from beat 1 again.',
+    notice: 'Mute silences the study without stopping it.',
   },
   {
     target: 'study-mobile-tempo',
-    title: 'Tempo',
+    title: 'Speed',
     kicker: 'Study Guide',
-    text: 'Tempo changes how easy the rings are to hear against each other.',
+    text: 'Speed changes how easy the rings are to hear against each other.',
     doThis: 'Slow it down first if two rings feel hard to separate.',
-    notice: 'The same pattern often makes more sense at a slower tempo.',
+    notice: 'The same pattern often makes more sense at a slower speed.',
   },
   {
     target: 'study-mobile-edit',
@@ -614,7 +596,23 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     actionId: 'study-open-edit',
   },
   {
-    target: 'study-mobile-audio',
+    target: 'study-mobile-scenes',
+    title: 'Scenes',
+    kicker: 'Study Guide',
+    text: 'Scenes are starting examples. Random, Remix, and Random+ also live here.',
+    doThis: 'Load a scene or press Random when you want a fast new study.',
+    notice: 'Scenes teach the relationship. They are not final answers.',
+  },
+  {
+    target: 'study-mobile-mute',
+    title: 'Mute',
+    kicker: 'Study Guide',
+    text: 'Mute silences the study without stopping playback.',
+    doThis: 'Use this when you want to adjust the study quietly.',
+    notice: 'Open the Audio tab when you want solo, all, or sound changes.',
+  },
+  {
+    target: 'study-mobile-audio-tab',
     title: 'Audio',
     kicker: 'Study Guide',
     text: 'Audio lets you focus one ring or hear the full stack.',
@@ -628,6 +626,14 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     text: 'Canvas controls change how the rings are displayed without changing the rhythm.',
     doThis: 'Use this area when you want a cleaner look or stronger visual guides.',
     notice: 'These controls change the picture, not the timing.',
+  },
+  {
+    target: 'study-mobile-tutorial',
+    title: 'Tutorial',
+    kicker: 'Study Guide',
+    text: 'Tutorial walks you through one short mission at a time.',
+    doThis: 'Use it when you want guided actions instead of explanations.',
+    notice: 'Tutorial is for doing. Help is for understanding.',
   },
   {
     target: 'study-mobile-present',
@@ -665,7 +671,7 @@ const MOBILE_STUDY_TUTORIAL: TutorialStep[] = [
     success: 'Loop stopped.',
   },
   {
-    target: 'study-mobile-playback',
+    target: 'study-mobile-random',
     title: 'Load A New Example',
     mission: 'Press Random once.',
     hint: 'This gives you a new starting study without needing to build one first.',
@@ -685,6 +691,41 @@ const MOBILE_STUDY_TUTORIAL: TutorialStep[] = [
     title: 'Enter Close Write Mode',
     mission: 'Tap Focus Pattern.',
     hint: 'This is the fastest way to write one ring clearly.',
+    completeOn: 'study-open-pattern-editor',
+    success: 'Pattern editor ready.',
+  },
+];
+
+const DESKTOP_STUDY_TUTORIAL: TutorialStep[] = [
+  {
+    target: 'study-desktop-transport',
+    title: 'Hear The Cycle',
+    mission: 'Press Play to start the study.',
+    hint: 'Listen for one shared loop before you edit anything.',
+    completeOn: 'study-play',
+    success: 'Study started.',
+  },
+  {
+    target: 'study-desktop-transport',
+    title: 'Stop The Cycle',
+    mission: 'Press Pause to stop the study.',
+    hint: 'The rest of the tutorial stays quiet so you can focus on the writing tools.',
+    completeOn: 'study-pause',
+    success: 'Study stopped.',
+  },
+  {
+    target: 'study-desktop-transport',
+    title: 'Load A New Study',
+    mission: 'Press Random once.',
+    hint: 'This gives you a new starting relationship without needing to build one first.',
+    completeOn: 'study-random',
+    success: 'New study loaded.',
+  },
+  {
+    target: 'study-desktop-quick',
+    title: 'Enter Close Write Mode',
+    mission: 'Press Focus Pattern.',
+    hint: 'This opens the close writing view for one ring.',
     completeOn: 'study-open-pattern-editor',
     success: 'Pattern editor ready.',
   },
@@ -721,7 +762,7 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
     title: 'Quick Edit',
     kicker: 'Study Guide',
     text: 'The left card is the fast editing area.',
-    doThis: 'Pick a ring, adjust steps, offset, and radius, then open Edit Pattern when you want the roll.',
+    doThis: 'Pick a ring, adjust steps, offset, and radius, then open Focus Pattern when you want the roll.',
     notice: 'Quick edit changes structure. The focused editor is for writing.',
   },
   {
@@ -745,7 +786,7 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
     title: 'Pattern Tools',
     kicker: 'Study Guide',
     text: 'Invert and Clear are quick actions.',
-    doThis: 'Use Edit Pattern when you want to write hits directly.',
+    doThis: 'Use Focus Pattern when you want to write hits directly.',
     notice: 'The roll is the circle flattened into a straight row for faster editing.',
     actionLabel: 'Open Pattern Editor',
     actionId: 'study-open-pattern-editor',
@@ -949,6 +990,33 @@ const MOBILE_RIFF_TUTORIAL: TutorialStep[] = [
   },
 ];
 
+const DESKTOP_RIFF_TUTORIAL: TutorialStep[] = [
+  {
+    target: 'riff-desktop-transport',
+    title: 'Hear The Groove',
+    mission: 'Press Play to start the loop.',
+    hint: 'Listen for the fixed frame and the moving riff inside it.',
+    completeOn: 'riff-play',
+    success: 'Loop started.',
+  },
+  {
+    target: 'riff-desktop-transport',
+    title: 'Stop The Groove',
+    mission: 'Press Pause to stop the loop.',
+    hint: 'The rest of the tutorial stays quiet so you can focus on the writing tools.',
+    completeOn: 'riff-pause',
+    success: 'Loop stopped.',
+  },
+  {
+    target: 'riff-desktop-quick',
+    title: 'Enter Close Write Mode',
+    mission: 'Press Focus Pattern.',
+    hint: 'This opens the focused writing surface for the riff.',
+    completeOn: 'riff-open-pattern-editor',
+    success: 'Pattern editor ready.',
+  },
+];
+
 const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-editor-bar-tab',
@@ -1024,6 +1092,25 @@ const DESKTOP_RIFF_EDITOR_GUIDE: StartGuideStep[] = [
     text: 'Each selected step can be off, on, or accented.',
     doThis: 'Select one step, then compare Rest, Hit, and Accent.',
     notice: 'Accent changes emphasis, not timing.',
+  },
+];
+
+const DESKTOP_RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
+  {
+    target: 'riff-editor-roll',
+    title: 'Write One Step',
+    mission: 'Tap one step in the roll.',
+    hint: 'The large shape above should update immediately.',
+    completeOn: 'riff-editor-toggle-step',
+    success: 'One step changed.',
+  },
+  {
+    target: 'riff-editor-offset',
+    title: 'Move The Phrase',
+    mission: 'Shift the pattern by 1 step.',
+    hint: 'You are moving the same phrase to a new landing point.',
+    completeOn: 'riff-editor-offset',
+    success: 'Phrase shifted.',
   },
 ];
 
@@ -1160,20 +1247,34 @@ type RiffEditMode = 'phrase' | 'landing';
 type GuideContext = 'surface' | 'study-editor' | 'riff-editor';
 type BeginnerGuideSeenState = Partial<Record<AppSurface, boolean>>;
 
-function loadAppSurface(): AppSurface {
+function parseAppSurfaceParam(raw: string | null | undefined): AppSurface | null {
+  if (
+    raw === 'orbital' ||
+    raw === 'polyrhythm-study' ||
+    raw === 'riff-cycle-study' ||
+    raw === 'flow'
+  ) {
+    return raw;
+  }
+
+  return null;
+}
+
+function loadAppSurface(preferredSurface?: string | null): AppSurface {
   if (typeof window === 'undefined') {
     return 'orbital';
   }
 
+  const normalizedPreferredSurface = parseAppSurfaceParam(preferredSurface);
+  if (normalizedPreferredSurface) {
+    return normalizedPreferredSurface;
+  }
+
   try {
     const raw = window.localStorage.getItem(APP_SURFACE_STORAGE_KEY);
-    if (
-      raw === 'orbital' ||
-      raw === 'polyrhythm-study' ||
-      raw === 'riff-cycle-study' ||
-      raw === 'flow'
-    ) {
-      return raw;
+    const normalizedStoredSurface = parseAppSurfaceParam(raw);
+    if (normalizedStoredSurface) {
+      return normalizedStoredSurface;
     }
   } catch {
     return 'orbital';
@@ -3646,6 +3747,7 @@ function OrbitalPolymeter() {
   const captureSpeed = Math.max(0.5, Math.min(3, Number(searchParams?.get('captureSpeed') ?? '1') || 1));
   const captureBeatsParam = Number(searchParams?.get('captureBeats') ?? '');
   const siteSceneId = searchParams?.get('scene');
+  const launchMode = parseAppSurfaceParam(searchParams?.get('mode'));
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
     state.orbits = DEFAULT_ORBITS.map((def) => createOrbit(def));
@@ -3656,7 +3758,7 @@ function OrbitalPolymeter() {
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
 
-  const [appSurface, setAppSurface] = useState<AppSurface>(() => loadAppSurface());
+  const [appSurface, setAppSurface] = useState<AppSurface>(() => loadAppSurface(launchMode));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -3730,7 +3832,7 @@ function OrbitalPolymeter() {
   const [, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
   const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'audio' | 'sound' | 'view'>('sound');
   const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
-    useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>('scenes');
+    useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [polyrhythmMobileSceneTab, setPolyrhythmMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
   const [polyrhythmMobileSceneGroup, setPolyrhythmMobileSceneGroup] =
@@ -3748,7 +3850,7 @@ function OrbitalPolymeter() {
   const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(false);
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(false);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
-  const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>('scenes');
+  const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
   const [riffMobileEditTab, setRiffMobileEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
@@ -3837,6 +3939,8 @@ function OrbitalPolymeter() {
     riffDesktopLaneView === 'pattern'
       ? `${riffCycleStudy.riff.stepCount} Step Pattern`
       : `${riffDesktopLaneView} Bar${riffDesktopLaneView === 1 ? '' : 's'}`;
+  const riffDesktopPanelBottom = riffCycleStudy.viewMode === 'unwrapped' ? '17.25rem' : '8.9rem';
+  const riffDesktopMenuBottom = riffCycleStudy.viewMode === 'unwrapped' ? '21.7rem' : '13.35rem';
   const polyrhythmDisplaySummary = getCanvasDisplayTheme(canvasDisplayState.polyrhythm.theme).shortLabel;
   const riffDisplaySummary = getCanvasDisplayTheme(canvasDisplayState.riff.theme).shortLabel;
   const handleMobileSliderPointerDown = useCallback(
@@ -4774,17 +4878,21 @@ function OrbitalPolymeter() {
               ? MOBILE_START_GUIDE
               : DESKTOP_START_GUIDE;
   const tutorialSteps =
-    !isMobile
-      ? []
-      : tutorialContext === 'study-editor'
-        ? STUDY_EDITOR_TUTORIAL
-        : tutorialContext === 'riff-editor'
+    tutorialContext === 'study-editor'
+      ? STUDY_EDITOR_TUTORIAL
+      : tutorialContext === 'riff-editor'
+        ? isMobile
           ? RIFF_EDITOR_TUTORIAL
-          : appSurface === 'riff-cycle-study'
+          : DESKTOP_RIFF_EDITOR_TUTORIAL
+        : appSurface === 'riff-cycle-study'
+          ? isMobile
             ? MOBILE_RIFF_TUTORIAL
-            : appSurface === 'polyrhythm-study'
+            : DESKTOP_RIFF_TUTORIAL
+          : appSurface === 'polyrhythm-study'
+            ? isMobile
               ? MOBILE_STUDY_TUTORIAL
-              : [];
+              : DESKTOP_STUDY_TUTORIAL
+            : [];
   const currentModeCopy = MODE_BEGINNER_COPY[appSurface];
   const guideLabel = getGuideLabel(appSurface, helpContext);
   const tutorialLabel = getTutorialLabel(appSurface, tutorialContext);
@@ -5380,15 +5488,14 @@ function OrbitalPolymeter() {
   }, [presentationMode]);
 
   useEffect(() => {
-    if (!isMobile) {
-      return;
-    }
+    const studyEditorOpen = isMobile ? polyrhythmMobileEditorOpen : polyrhythmDesktopPatternEditorOpen;
+    const riffEditorOpen = isMobile ? riffMobileEditorOpen : riffDesktopPatternEditorOpen;
 
     if (
       helpOpen &&
       (
-        (helpContext === 'study-editor' && !polyrhythmMobileEditorOpen) ||
-        (helpContext === 'riff-editor' && !riffMobileEditorOpen)
+        (helpContext === 'study-editor' && !studyEditorOpen) ||
+        (helpContext === 'riff-editor' && !riffEditorOpen)
       )
     ) {
       setHelpOpen(false);
@@ -5397,8 +5504,8 @@ function OrbitalPolymeter() {
     if (
       tutorialOpen &&
       (
-        (tutorialContext === 'study-editor' && !polyrhythmMobileEditorOpen) ||
-        (tutorialContext === 'riff-editor' && !riffMobileEditorOpen)
+        (tutorialContext === 'study-editor' && !studyEditorOpen) ||
+        (tutorialContext === 'riff-editor' && !riffEditorOpen)
       )
     ) {
       setTutorialOpen(false);
@@ -5407,7 +5514,9 @@ function OrbitalPolymeter() {
     helpContext,
     helpOpen,
     isMobile,
+    polyrhythmDesktopPatternEditorOpen,
     polyrhythmMobileEditorOpen,
+    riffDesktopPatternEditorOpen,
     riffMobileEditorOpen,
     tutorialContext,
     tutorialOpen,
@@ -5459,6 +5568,31 @@ function OrbitalPolymeter() {
   useEffect(() => {
     if (!helpOpen || appSurface !== 'riff-cycle-study' || !currentGuideStep) {
       return;
+    }
+
+    if (
+      !isMobile &&
+      (
+        currentGuideStep.target === 'riff-desktop-quick' ||
+        currentGuideStep.target === 'riff-desktop-roll-size' ||
+        currentGuideStep.target === 'riff-layer-1' ||
+        currentGuideStep.target === 'riff-layer-2' ||
+        currentGuideStep.target === 'riff-ending'
+      )
+    ) {
+      setRiffDesktopQuickCollapsed(false);
+    }
+
+    if (
+      !isMobile &&
+      (
+        currentGuideStep.target === 'riff-desktop-audio' ||
+        currentGuideStep.target === 'riff-desktop-sound' ||
+        currentGuideStep.target === 'riff-desktop-view' ||
+        currentGuideStep.target === 'riff-desktop-menu'
+      )
+    ) {
+      setRiffDesktopUtilityCollapsed(false);
     }
 
     if (isMobile && currentGuideStep.target === 'riff-mobile-edit') {
@@ -5536,7 +5670,7 @@ function OrbitalPolymeter() {
       }
       return;
     }
-    if (isMobile && currentGuideStep.target === 'riff-mobile-audio') {
+    if (isMobile && currentGuideStep.target === 'riff-mobile-audio-tab') {
       setRiffMobileSection('audio');
       return;
     }
@@ -5572,12 +5706,36 @@ function OrbitalPolymeter() {
       return;
     }
 
+    if (
+      !isMobile &&
+      (
+        currentGuideStep.target === 'study-desktop-quick' ||
+        currentGuideStep.target === 'study-quick-layer' ||
+        currentGuideStep.target === 'study-quick-stack' ||
+        currentGuideStep.target === 'study-quick-shape'
+      )
+    ) {
+      setPolyrhythmDesktopQuickCollapsed(false);
+    }
+
+    if (
+      !isMobile &&
+      (
+        currentGuideStep.target === 'study-desktop-audio' ||
+        currentGuideStep.target === 'study-desktop-sound' ||
+        currentGuideStep.target === 'study-desktop-view' ||
+        currentGuideStep.target === 'study-desktop-menu'
+      )
+    ) {
+      setPolyrhythmDesktopUtilityCollapsed(false);
+    }
+
     if (isMobile && currentGuideStep.target === 'study-mobile-edit') {
       setPolyrhythmMobileSection('edit');
       setPolyrhythmMobileEditTab('pattern');
       return;
     }
-    if (isMobile && currentGuideStep.target === 'study-mobile-audio') {
+    if (isMobile && currentGuideStep.target === 'study-mobile-audio-tab') {
       setPolyrhythmMobileSection('audio');
       return;
     }
@@ -5636,6 +5794,122 @@ function OrbitalPolymeter() {
       setPolyrhythmUtilityPanel('view');
     }
   }, [appSurface, currentGuideStep, helpOpen, isMobile]);
+
+  useEffect(() => {
+    if (!tutorialOpen || !currentTutorialStep) {
+      return;
+    }
+
+    if (tutorialContext === 'surface' && appSurface === 'polyrhythm-study') {
+      if (
+        isMobile &&
+        (
+          currentTutorialStep.target === 'study-mobile-random' ||
+          currentTutorialStep.target === 'study-mobile-scenes'
+        )
+      ) {
+        setPolyrhythmMobileSection('scenes');
+        return;
+      }
+      if (isMobile && currentTutorialStep.target === 'study-mobile-focus-pattern') {
+        setPolyrhythmMobileSection('edit');
+        setPolyrhythmMobileEditTab('layer');
+        return;
+      }
+      if (isMobile && currentTutorialStep.target === 'study-mobile-audio-tab') {
+        setPolyrhythmMobileSection('audio');
+        return;
+      }
+      if (isMobile && currentTutorialStep.target === 'study-mobile-canvas') {
+        setPolyrhythmMobileSection('canvas');
+        return;
+      }
+    }
+
+    if (tutorialContext === 'study-editor') {
+      if (currentTutorialStep.target === 'study-editor-steps') {
+        setPolyrhythmMobileEditTab('layer');
+        return;
+      }
+      if (
+        currentTutorialStep.target === 'study-editor-roll' ||
+        currentTutorialStep.target === 'study-editor-offset' ||
+        currentTutorialStep.target === 'study-editor-invert' ||
+        currentTutorialStep.target === 'study-editor-clear'
+      ) {
+        setPolyrhythmMobileEditTab('pattern');
+        return;
+      }
+    }
+
+    if (tutorialContext === 'surface' && appSurface === 'riff-cycle-study') {
+      if (
+        isMobile &&
+        (
+          currentTutorialStep.target === 'riff-mobile-scenes' ||
+          currentTutorialStep.target === 'riff-mobile-random'
+        )
+      ) {
+        setRiffMobileSection('scenes');
+        return;
+      }
+      if (
+        isMobile &&
+        (
+          currentTutorialStep.target === 'riff-layer-1' ||
+          currentTutorialStep.target === 'riff-layer-2' ||
+          currentTutorialStep.target === 'riff-ending' ||
+          currentTutorialStep.target === 'riff-mobile-focus-pattern'
+        )
+      ) {
+        setRiffMobileSection('edit');
+        if (currentTutorialStep.target === 'riff-mobile-focus-pattern') {
+          setRiffMobileEditTab('phrase');
+        }
+        return;
+      }
+      if (isMobile && currentTutorialStep.target === 'riff-mobile-audio-tab') {
+        setRiffMobileSection('audio');
+        return;
+      }
+      if (isMobile && currentTutorialStep.target === 'riff-mobile-canvas') {
+        setRiffMobileSection('canvas');
+        return;
+      }
+    }
+
+    if (tutorialContext === 'riff-editor') {
+      if (
+        currentTutorialStep.target === 'riff-editor-view-width' ||
+        currentTutorialStep.target === 'riff-editor-window' ||
+        currentTutorialStep.target === 'riff-editor-roll' ||
+        currentTutorialStep.target === 'riff-editor-step-states'
+      ) {
+        handleSetRiffEditMode('phrase');
+        if (isMobile) {
+          setRiffMobileEditTab('phrase');
+        }
+      }
+    }
+  }, [appSurface, currentTutorialStep, handleSetRiffEditMode, isMobile, tutorialContext, tutorialOpen]);
+
+  useEffect(() => {
+    if ((!helpOpen && !tutorialOpen) || !activeOverlayStep || !isMobile) {
+      return;
+    }
+
+    const targetSelector = `[data-guide="${activeOverlayStep.target}"]`;
+    const timeout = window.setTimeout(() => {
+      const element = document.querySelector<HTMLElement>(targetSelector);
+      element?.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'smooth',
+      });
+    }, 60);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeOverlayStep, helpOpen, isMobile, tutorialOpen]);
 
   useEffect(() => {
     if ((!helpOpen && !tutorialOpen) || !activeOverlayStep) {
@@ -5805,10 +6079,6 @@ function OrbitalPolymeter() {
   }, []);
 
   const prepareTutorialContext = useCallback((context: GuideContext) => {
-    if (!isMobile) {
-      return;
-    }
-
     if (context === 'surface') {
       if (appSurface === 'polyrhythm-study') {
         setPolyrhythmStudy((current) => ({
@@ -5816,9 +6086,14 @@ function OrbitalPolymeter() {
           playing: false,
         }));
         setPolyrhythmRestartToken((value) => value + 1);
-        setPolyrhythmMobileEditorOpen(false);
-        setPolyrhythmMobileSection(null);
-        setPolyrhythmMobileEditTab('pattern');
+        if (isMobile) {
+          setPolyrhythmMobileEditorOpen(false);
+          setPolyrhythmMobileSection(null);
+          setPolyrhythmMobileEditTab('pattern');
+        } else {
+          setPolyrhythmDesktopPatternEditorOpen(false);
+          setPolyrhythmDesktopQuickCollapsed(false);
+        }
         setSelectedPolyrhythmStep(null);
         return;
       }
@@ -5829,11 +6104,17 @@ function OrbitalPolymeter() {
           playing: false,
         }));
         setRiffCycleRestartToken((value) => value + 1);
-        setRiffMobileEditorOpen(false);
-        setRiffMobileSection(null);
-        setRiffMobileEditTab('phrase');
-        setRiffMobileLanePage(0);
+        if (isMobile) {
+          setRiffMobileEditorOpen(false);
+          setRiffMobileSection(null);
+          setRiffMobileEditTab('phrase');
+          setRiffMobileLanePage(0);
+        } else {
+          setRiffDesktopPatternEditorOpen(false);
+          setRiffDesktopQuickCollapsed(false);
+        }
         setSelectedRiffCycleStep(null);
+        setRiffQuickPanel('phrase');
         handleSetRiffEditMode('phrase');
         return;
       }
@@ -5847,8 +6128,13 @@ function OrbitalPolymeter() {
         playing: false,
       }));
       setPolyrhythmRestartToken((value) => value + 1);
-      setPolyrhythmMobileSection('edit');
-      setPolyrhythmMobileEditTab('pattern');
+      if (isMobile) {
+        setPolyrhythmMobileEditorOpen(true);
+        setPolyrhythmMobileSection('edit');
+        setPolyrhythmMobileEditTab('pattern');
+      } else {
+        setPolyrhythmDesktopPatternEditorOpen(true);
+      }
       setSelectedPolyrhythmStep(null);
       return;
     }
@@ -5859,9 +6145,14 @@ function OrbitalPolymeter() {
         playing: false,
       }));
       setRiffCycleRestartToken((value) => value + 1);
-      setRiffMobileSection('edit');
-      setRiffMobileEditTab('phrase');
-      setRiffMobileLanePage(0);
+      if (isMobile) {
+        setRiffMobileEditorOpen(true);
+        setRiffMobileSection('edit');
+        setRiffMobileEditTab('phrase');
+        setRiffMobileLanePage(0);
+      } else {
+        setRiffDesktopPatternEditorOpen(true);
+      }
       setSelectedRiffCycleStep(null);
       handleSetRiffEditMode('phrase');
     }
@@ -5879,9 +6170,6 @@ function OrbitalPolymeter() {
   }, [isMobile]);
 
   const openTutorial = useCallback((context: GuideContext = 'surface') => {
-    if (!isMobile) {
-      return;
-    }
     setHelpOpen(false);
     setSidebarOpen(false);
     setRadialMenu(null);
@@ -5890,7 +6178,7 @@ function OrbitalPolymeter() {
     setTutorialStepIndex(0);
     setTutorialStepStartTick(tutorialEvent?.tick ?? 0);
     setTutorialOpen(true);
-  }, [isMobile, prepareTutorialContext, tutorialEvent?.tick]);
+  }, [prepareTutorialContext, tutorialEvent?.tick]);
 
   const markCurrentGuideSeen = useCallback((surface: AppSurface) => {
     setBeginnerGuideSeen((current) => {
@@ -7601,12 +7889,22 @@ function OrbitalPolymeter() {
         : riffEditMode === 'landing'
           ? 'Ending'
           : 'Riff';
+  const riffDesktopFocusActionLabel =
+    riffQuickFocusLabel === 'Ending' ? 'Focus Ending' : 'Focus Pattern';
   const riffSelectedStepActive =
     selectedRiffCycleStep != null ? Boolean(riffCycleStudy.riff.activeSteps[selectedRiffCycleStep]) : null;
   const riffSelectedStepAccented =
     selectedRiffCycleStep != null ? Boolean(riffCycleStudy.riff.accents[selectedRiffCycleStep]) : null;
   const riffActiveStepCount = riffCycleStudy.riff.activeSteps.filter(Boolean).length;
   const riffOffsetSteps = getRiffOffsetSteps(riffCycleStudy.riff);
+  const openRiffDesktopFocusEditor = (focus?: 'phrase' | 'landing') => {
+    const nextFocus =
+      focus ??
+      (riffQuickPanel === 'return' || riffEditMode === 'landing' ? 'landing' : 'phrase');
+    handleSetRiffEditMode(nextFocus);
+    setRiffDesktopPatternEditorOpen(true);
+    recordTutorialEvent(nextFocus === 'landing' ? 'riff-open-ending-editor' : 'riff-open-pattern-editor');
+  };
   const currentModeAccent =
     appSurface === 'polyrhythm-study'
       ? selectedPolyrhythmLayer?.color ?? '#72F1B8'
@@ -7835,8 +8133,22 @@ function OrbitalPolymeter() {
                 </button>
                 <button
                   onClick={() => {
+                    const nextTutorialContext =
+                      tutorialContext === 'surface' &&
+                      currentTutorialStep.completeOn === 'study-open-pattern-editor'
+                        ? 'study-editor'
+                        : tutorialContext === 'surface' &&
+                            currentTutorialStep.completeOn === 'riff-open-pattern-editor'
+                          ? 'riff-editor'
+                          : null;
                     if (tutorialStepIndex >= tutorialSteps.length - 1) {
                       closeTutorial();
+                      return;
+                    }
+                    if (nextTutorialContext) {
+                      prepareTutorialContext(nextTutorialContext);
+                      setTutorialContext(nextTutorialContext);
+                      setTutorialStepIndex(0);
                       return;
                     }
                     setTutorialStepIndex((current) => Math.min(tutorialSteps.length - 1, current + 1));
@@ -8090,7 +8402,7 @@ function OrbitalPolymeter() {
                       {activeFlowScene?.name ?? flowExperience.name} · {activeFlowSound.name}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       data-guide="flow-mobile-present"
                       onClick={handleTogglePresentation}
@@ -8725,6 +9037,7 @@ function OrbitalPolymeter() {
                       <CircleHelp size={17} />
                     </button>
                     <button
+                      data-guide="study-mobile-tutorial"
                       onClick={handleToggleTutorial}
                       type="button"
                       className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]"
@@ -8779,10 +9092,10 @@ function OrbitalPolymeter() {
                     highlighted={polyrhythmStudy.soundEnabled}
                     icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                     onClick={handleTogglePolyrhythmSound}
-                    data-guide="study-mobile-audio"
+                    data-guide="study-mobile-mute"
                     className="w-full"
                   >
-                    Audio
+                    {polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
                   </StudyShellButton>
                 </div>
 
@@ -9065,7 +9378,6 @@ function OrbitalPolymeter() {
 	                                />
 	                              </div>
 	                              <StudyShellButton
-                                  data-guide="study-mobile-focus-pattern"
 	                                size="compact"
 	                                tone="blue"
 	                                highlighted
@@ -9131,7 +9443,7 @@ function OrbitalPolymeter() {
               </div>
 
               <div
-                data-guide="study-mobile-audio"
+                data-guide="study-mobile-audio-tab"
                 className="rounded-[28px] border"
                 style={{
                   order: 4,
@@ -9327,6 +9639,7 @@ function OrbitalPolymeter() {
                   </button>
                   <div className="flex items-center gap-1.5">
                     <button
+                      data-guide="study-mobile-random"
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -9663,6 +9976,15 @@ function OrbitalPolymeter() {
                   <div className="flex items-center gap-2">
                     <StudyShellButton
                       size="compact"
+                      tone={polyrhythmStudy.playing ? 'red' : 'green'}
+                      highlighted
+                      icon={polyrhythmStudy.playing ? <Pause size={14} /> : <Play size={14} />}
+                      onClick={handleTutorialAwareStudyPlaybackToggle}
+                    >
+                      {polyrhythmStudy.playing ? 'Pause' : 'Play'}
+                    </StudyShellButton>
+                    <StudyShellButton
+                      size="compact"
                       tone="neutral"
                       highlighted={helpOpen && helpContext === 'study-editor'}
                       icon={<CircleHelp size={14} />}
@@ -9690,7 +10012,7 @@ function OrbitalPolymeter() {
                 </div>
 
                 <div data-guide="study-editor-rings" className="-mx-1 mb-3 overflow-x-auto pb-1 [scrollbar-width:none]">
-                  <div className="flex gap-2 px-1">
+                  <div className="flex items-center gap-2 px-1">
                     {polyrhythmStudy.layers.map((layer, index) => {
                       const active = layer.id === selectedPolyrhythmLayer?.id;
                       return (
@@ -9718,6 +10040,29 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       );
                     })}
+                    <StudyShellButton
+                      size="square"
+                      tone="blue"
+                      highlighted
+                      icon={<Plus size={14} />}
+                      onClick={handleAddPolyrhythmLayer}
+                      aria-label="Add ring"
+                      title="Add ring"
+                    />
+                    <StudyShellButton
+                      size="square"
+                      tone="red"
+                      highlighted={polyrhythmStudy.layers.length > 1}
+                      icon={<Trash2 size={14} />}
+                      onClick={() =>
+                        selectedPolyrhythmLayer &&
+                        polyrhythmStudy.layers.length > 1 &&
+                        handleRemovePolyrhythmLayer(selectedPolyrhythmLayer.id)
+                      }
+                      disabled={!selectedPolyrhythmLayer || polyrhythmStudy.layers.length <= 1}
+                      aria-label="Remove selected ring"
+                      title="Remove selected ring"
+                    />
                   </div>
                 </div>
 
@@ -10035,7 +10380,7 @@ function OrbitalPolymeter() {
         {!presentationMode ? (
           polyrhythmDesktopQuickCollapsed ? (
             <div data-guide="study-desktop-quick" className="fixed z-30 left-6 bottom-[8.9rem] w-[18.25rem]">
-              <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="p-0">
+              <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="space-y-1.5">
                 <button
                   type="button"
                   onClick={() => setPolyrhythmDesktopQuickCollapsed(false)}
@@ -10065,11 +10410,24 @@ function OrbitalPolymeter() {
                     <ChevronUp size={16} />
                   </div>
                 </button>
+                <StudyShellButton
+                  size="compact"
+                  tone="blue"
+                  highlighted
+                  icon={<Maximize2 size={13} />}
+                  className="w-full"
+                  onClick={() => {
+                    setPolyrhythmDesktopPatternEditorOpen(true);
+                    recordTutorialEvent('study-open-pattern-editor');
+                  }}
+                >
+                  Focus Pattern
+                </StudyShellButton>
               </StudyShellPremiumPanel>
             </div>
           ) : (
-          <div data-guide="study-desktop-quick" className="fixed z-20 left-6 top-20 w-[18.25rem]">
-            <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="space-y-2">
+          <div data-guide="study-desktop-quick" className="fixed z-20 left-6 top-20 bottom-[8.9rem] w-[18.25rem]">
+            <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="h-full space-y-2 overflow-y-auto pr-1 [scrollbar-width:none]">
               <div className="flex items-center justify-between gap-2">
                 <div
                   className="text-[10px] font-mono uppercase tracking-[0.2em]"
@@ -10291,9 +10649,13 @@ function OrbitalPolymeter() {
                       size="compact"
                       tone="blue"
                       highlighted
-                      onClick={() => setPolyrhythmDesktopPatternEditorOpen(true)}
+                      icon={<Maximize2 size={13} />}
+                      onClick={() => {
+                        setPolyrhythmDesktopPatternEditorOpen(true);
+                        recordTutorialEvent('study-open-pattern-editor');
+                      }}
                     >
-                      Edit Pattern
+                      Focus Pattern
                     </StudyShellButton>
                   </div>
                 </>
@@ -10333,21 +10695,33 @@ function OrbitalPolymeter() {
               </StudyShellPremiumPanel>
             </div>
           ) : (
-          <div className="fixed right-6 top-20 z-20 w-[18rem]">
-            <StudyShellPremiumPanel accent="#88CCFF" className="space-y-2.5">
+          <div className="fixed right-6 top-20 bottom-[8.9rem] z-20 w-[18rem]">
+            <StudyShellPremiumPanel accent="#88CCFF" className="h-full space-y-2.5 overflow-y-auto pr-1 [scrollbar-width:none]">
               <div className="flex items-center justify-between gap-2 px-0.5">
                 <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#88CCFF]">
                   Utility
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmDesktopUtilityCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
-                  aria-label="Collapse study utility menu"
-                  title="Collapse utility"
-                >
-                  <ChevronDown size={14} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-guide="study-desktop-menu"
+                    onClick={() => setSidebarOpen(true)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    aria-label="Open study menu"
+                    title="Open study menu"
+                  >
+                    <Menu size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPolyrhythmDesktopUtilityCollapsed(true)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    aria-label="Collapse study utility menu"
+                    title="Collapse utility"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
               </div>
               <div
                 data-guide="study-desktop-audio"
@@ -10650,6 +11024,29 @@ function OrbitalPolymeter() {
                         </button>
                       );
                     })}
+                    <button
+                      type="button"
+                      onClick={handleAddPolyrhythmLayer}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7FD7FF]/26 bg-[#7FD7FF]/10 text-[#7FD7FF] transition active:scale-[0.97]"
+                      aria-label="Add ring"
+                      title="Add ring"
+                    >
+                      <Plus size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!selectedPolyrhythmLayer || polyrhythmStudy.layers.length <= 1}
+                      onClick={() =>
+                        selectedPolyrhythmLayer &&
+                        polyrhythmStudy.layers.length > 1 &&
+                        handleRemovePolyrhythmLayer(selectedPolyrhythmLayer.id)
+                      }
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#FF668A]/20 bg-[#FF668A]/8 text-[#FF668A] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Remove selected ring"
+                      title="Remove selected ring"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
                 <StudyShellButton
@@ -10663,10 +11060,18 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
                 <StudyShellButton
                   size="compact"
+                  tone="blue"
+                  highlighted={tutorialOpen && tutorialContext === 'study-editor'}
+                  onClick={() => openTutorial('study-editor')}
+                >
+                  Tutorial
+                </StudyShellButton>
+                <StudyShellButton
+                  size="compact"
                   tone={polyrhythmStudy.playing ? 'red' : 'green'}
                   highlighted
                   icon={polyrhythmStudy.playing ? <Pause size={14} /> : <Play size={14} />}
-                  onClick={handleTogglePolyrhythmPlayback}
+                  onClick={handleTutorialAwareStudyPlaybackToggle}
                 >
                   {polyrhythmStudy.playing ? 'Pause' : 'Play'}
                 </StudyShellButton>
@@ -10897,8 +11302,8 @@ function OrbitalPolymeter() {
           >
             <StudyShellFloatingMenuButton
               accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-              label="Open Study Menu"
-              detail="Scenes, rings, sound, export"
+                label="Open Study Menu"
+              detail="Scenes, save, account"
               icon={<Menu size={16} />}
               onClick={() => setSidebarOpen(true)}
               aria-label="Open study menu"
@@ -10994,13 +11399,14 @@ function OrbitalPolymeter() {
                   title={polyrhythmStudy.showStepLabels ? 'Hide labels' : 'Show labels'}
                 />
                 <MobilePresentActionButton
-                  label="Audio"
+                  label={polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
                   icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                   accent="#88CCFF"
                   active={polyrhythmStudy.soundEnabled}
                   onClick={handleTogglePolyrhythmSound}
+                  data-guide="study-mobile-mute"
                   aria-label={polyrhythmStudy.soundEnabled ? 'Mute study audio' : 'Enable study audio'}
-                  title={polyrhythmStudy.soundEnabled ? 'Audio On' : 'Audio Off'}
+                  title={polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
                 />
                 <MobilePresentActionButton
                   label="Exit"
@@ -11017,7 +11423,7 @@ function OrbitalPolymeter() {
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
             <StudyShellDock className={isMobile ? 'space-y-3' : 'grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3'}>
               <div data-guide={isMobile ? 'study-mobile-playback' : 'study-desktop-transport'} className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}>
-                <StudyShellButton tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleTogglePolyrhythmPlayback}>
+                <StudyShellButton tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleTutorialAwareStudyPlaybackToggle}>
                   {polyrhythmStudy.playing ? 'Pause' : 'Play'}
                 </StudyShellButton>
                 <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartPolyrhythmTransport}>
@@ -11086,9 +11492,9 @@ function OrbitalPolymeter() {
                   highlighted={polyrhythmStudy.soundEnabled}
                   icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                   onClick={handleTogglePolyrhythmSound}
-                  data-guide={isMobile ? 'study-mobile-audio' : undefined}
+                  data-guide={isMobile ? 'study-mobile-mute' : undefined}
                 >
-                  {polyrhythmStudy.soundEnabled ? 'Audio On' : 'Audio Off'}
+                  {polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
                 </StudyShellButton>
                 <StudyShellButton
                   tone="green"
@@ -11101,21 +11507,19 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
                 <StudyShellButton
                   tone="neutral"
-                  highlighted={helpOpen}
+                  highlighted={helpOpen && helpContext === 'surface'}
                   icon={<CircleHelp size={15} />}
                   onClick={handleToggleHelpGuide}
                 >
                   Help
                 </StudyShellButton>
-                {isMobile ? (
-                  <StudyShellButton
-                    tone="blue"
-                    highlighted={tutorialOpen && tutorialContext === 'surface'}
-                    onClick={handleToggleTutorial}
-                  >
-                    Tutorial
-                  </StudyShellButton>
-                ) : null}
+                <StudyShellButton
+                  tone="blue"
+                  highlighted={tutorialOpen && tutorialContext === 'surface'}
+                  onClick={handleToggleTutorial}
+                >
+                  Tutorial
+                </StudyShellButton>
                 {isMobile ? (
                   <StudyShellButton
                     size="square"
@@ -11290,6 +11694,7 @@ function OrbitalPolymeter() {
                       <CircleHelp size={17} />
                     </button>
                     <button
+                      data-guide="riff-mobile-tutorial"
                       onClick={handleToggleTutorial}
                       type="button"
                       className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]"
@@ -11344,10 +11749,10 @@ function OrbitalPolymeter() {
                     highlighted={riffCycleStudy.soundEnabled}
                     icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                     onClick={handleToggleRiffCycleSound}
-                    data-guide="riff-mobile-audio"
+                    data-guide="riff-mobile-mute"
                     className="w-full"
                   >
-                    Audio
+                    {riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                   </StudyShellButton>
                 </div>
 
@@ -11682,7 +12087,6 @@ function OrbitalPolymeter() {
                         </div>
 
                         <StudyShellButton
-                          data-guide="riff-mobile-focus-pattern"
                           size="compact"
                           tone="blue"
                           highlighted
@@ -11923,7 +12327,7 @@ function OrbitalPolymeter() {
               </div>
 
               <div
-                data-guide="riff-mobile-audio"
+                data-guide="riff-mobile-audio-tab"
                 className="rounded-[28px] border"
                 style={{
                   order: 4,
@@ -12181,6 +12585,7 @@ function OrbitalPolymeter() {
                   </button>
                   <div className="flex items-center gap-1.5">
                     <button
+                      data-guide="riff-mobile-random"
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -13123,8 +13528,8 @@ function OrbitalPolymeter() {
         {!presentationMode ? appSurfaceToggle : null}
         {!presentationMode ? (
           !isMobile && riffDesktopQuickCollapsed ? (
-            <div data-guide="riff-desktop-quick" className="fixed left-6 bottom-[17.25rem] z-30 w-[18.25rem]">
-              <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="p-0">
+            <div data-guide="riff-desktop-quick" className="fixed left-6 z-30 w-[18.25rem]" style={{ bottom: riffDesktopPanelBottom }}>
+              <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="space-y-1.5">
                 <button
                   type="button"
                   onClick={() => setRiffDesktopQuickCollapsed(false)}
@@ -13137,7 +13542,7 @@ function OrbitalPolymeter() {
                       Quick Edit
                     </div>
                     <div className="mt-1 truncate text-[10px] font-mono uppercase tracking-[0.12em] text-white/42">
-                      {riffQuickFocusLabel} · {riffCycleStudy.reference.subdivision} res · {riffCycleStudy.riff.stepCount} steps
+                      {riffQuickFocusLabel} · {riffCycleStudy.viewMode === 'unwrapped' ? riffDesktopLaneWindowLabel : 'Roll Hidden'} · {riffCycleStudy.riff.stepCount} steps
                     </div>
                   </div>
                   <div
@@ -13151,14 +13556,25 @@ function OrbitalPolymeter() {
                     <ChevronUp size={16} />
                   </div>
                 </button>
+                <StudyShellButton
+                  size="compact"
+                  tone={riffQuickFocusLabel === 'Ending' ? 'blue' : 'amber'}
+                  highlighted
+                  icon={<Maximize2 size={13} />}
+                  className="w-full"
+                  onClick={() => openRiffDesktopFocusEditor()}
+                >
+                  {riffDesktopFocusActionLabel}
+                </StudyShellButton>
               </StudyShellPremiumPanel>
             </div>
           ) : (
         <div
           data-guide={isMobile ? 'riff-mobile-quick' : 'riff-desktop-quick'}
           className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[18.25rem]'}`}
+          style={!isMobile ? { bottom: riffDesktopPanelBottom } : undefined}
         >
-          <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="max-h-[calc(100vh-22rem)] space-y-2.5 overflow-y-auto pr-1 [scrollbar-width:none]">
+          <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : 'h-full'} space-y-2.5 overflow-y-auto pr-1 [scrollbar-width:none]`}>
             <div className="flex items-center justify-between gap-3 px-0.5">
               <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: riffCycleStudy.riff.color }}>
                 Quick Edit
@@ -13279,6 +13695,77 @@ function OrbitalPolymeter() {
               </button>
             </div>
 
+            {!isMobile ? (
+              <div
+                data-guide="riff-desktop-roll-size"
+                className="rounded-2xl border p-2.5 space-y-2"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.026))',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                }}
+              >
+                <div className="flex items-center justify-between gap-2 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  <span>Roll Size</span>
+                  <span className="text-white/28">
+                    {riffCycleStudy.viewMode === 'circular' ? 'Hidden' : riffDesktopLaneWindowLabel}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={riffCycleStudy.viewMode === 'unwrapped'}
+                    onClick={() =>
+                      setRiffCycleStudy((current) => ({
+                        ...current,
+                        viewMode: 'unwrapped',
+                      }))
+                    }
+                  >
+                    Show Roll
+                  </StudyShellButton>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={riffCycleStudy.viewMode === 'circular'}
+                    onClick={() =>
+                      setRiffCycleStudy((current) => ({
+                        ...current,
+                        viewMode: 'circular',
+                      }))
+                    }
+                  >
+                    Hide Roll
+                  </StudyShellButton>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { value: 1 as const, label: '1 Bar' },
+                    { value: 2 as const, label: '2 Bars' },
+                    { value: 4 as const, label: '4 Bars' },
+                    { value: 'pattern' as const, label: 'Pattern' },
+                  ].map((option) => (
+                    <StudyShellButton
+                      key={option.label}
+                      size="compact"
+                      tone="blue"
+                      highlighted={riffDesktopLaneView === option.value}
+                      onClick={() => {
+                        setRiffDesktopLaneView(option.value);
+                        setRiffCycleStudy((current) => ({
+                          ...current,
+                          viewMode: 'unwrapped',
+                        }));
+                      }}
+                    >
+                      {option.label}
+                    </StudyShellButton>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {riffQuickPanel === 'bar' ? (
               <div
                 data-guide="riff-layer-1"
@@ -13396,39 +13883,6 @@ function OrbitalPolymeter() {
 	                        {value}
 	                      </StudyShellButton>
 	                    ))}
-	                  </div>
-	                </div>
-	                <div className="space-y-1">
-	                  <div className="flex items-center justify-between gap-2 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
-	                    <span>Lane View</span>
-	                    <span className="text-white/28">{riffDesktopLaneWindowLabel}</span>
-	                  </div>
-	                  <div className="grid grid-cols-2 gap-2">
-	                    {[
-	                      { value: 1 as const, label: '1 Bar' },
-	                      { value: 2 as const, label: '2 Bars' },
-	                      { value: 4 as const, label: '4 Bars' },
-	                      { value: 'pattern' as const, label: 'Pattern' },
-	                    ].map((option) => (
-	                      <StudyShellButton
-	                        key={option.label}
-	                        size="compact"
-	                        tone="blue"
-	                        highlighted={riffDesktopLaneView === option.value}
-	                        onClick={() => {
-	                          setRiffDesktopLaneView(option.value);
-	                          setRiffCycleStudy((current) => ({
-	                            ...current,
-	                            viewMode: 'unwrapped',
-	                          }));
-	                        }}
-	                      >
-	                        {option.label}
-	                      </StudyShellButton>
-	                    ))}
-	                  </div>
-	                  <div className="text-[10px] leading-relaxed text-white/38">
-	                    This controls how much of the reference lane is visible.
 	                  </div>
 	                </div>
                 <div className="space-y-1">
@@ -13568,12 +14022,12 @@ function OrbitalPolymeter() {
                   tone="blue"
                   highlighted
                   onClick={() => {
-                    handleSetRiffEditMode('phrase');
-                    setRiffDesktopPatternEditorOpen(true);
+                    openRiffDesktopFocusEditor('phrase');
                   }}
+                  icon={<Maximize2 size={13} />}
                   className="w-full"
                 >
-                  Edit Pattern
+                  Focus Pattern
                 </StudyShellButton>
               </div>
             ) : null}
@@ -13646,6 +14100,16 @@ function OrbitalPolymeter() {
 	                <StudyShellButton
                   size="compact"
                   tone="blue"
+                  highlighted
+                  icon={<Maximize2 size={13} />}
+                  onClick={() => openRiffDesktopFocusEditor('landing')}
+                  className="w-full"
+                >
+                  Focus Ending
+                </StudyShellButton>
+	                <StudyShellButton
+                  size="compact"
+                  tone="blue"
                   highlighted={riffCycleStudy.landingOverrides.some((value) => value !== 'inherit')}
                   icon={<RotateCcw size={13} />}
                   onClick={() => {
@@ -13665,7 +14129,7 @@ function OrbitalPolymeter() {
 
         {!isMobile && !presentationMode ? (
           riffDesktopUtilityCollapsed ? (
-            <div className="fixed right-6 bottom-[17.25rem] z-30 w-[18rem]">
+            <div className="fixed right-6 z-30 w-[18rem]" style={{ bottom: riffDesktopPanelBottom }}>
               <StudyShellPremiumPanel accent="#88CCFF" className="p-0">
                 <button
                   type="button"
@@ -13689,21 +14153,36 @@ function OrbitalPolymeter() {
               </StudyShellPremiumPanel>
             </div>
           ) : (
-          <div className="fixed right-6 top-20 z-20 w-[18rem]">
-            <StudyShellPremiumPanel accent="#88CCFF" className="max-h-[calc(100vh-22rem)] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none]">
+          <div className="fixed right-6 top-20 z-20 w-[18rem]" style={{ bottom: riffDesktopPanelBottom }}>
+            <StudyShellPremiumPanel accent="#88CCFF" className="h-full space-y-3 overflow-y-auto pr-1 [scrollbar-width:none]">
               <div className="flex items-center justify-between gap-2 px-0.5">
                 <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#88CCFF]">
                   Utility
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setRiffDesktopUtilityCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
-                  aria-label="Collapse riff utility menu"
-                  title="Collapse utility"
-                >
-                  <ChevronDown size={14} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-guide="riff-desktop-menu"
+                    onClick={() => {
+                      setRiffQuickPanel(null);
+                      setSidebarOpen(true);
+                    }}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    aria-label="Open riff menu"
+                    title="Open riff menu"
+                  >
+                    <Menu size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRiffDesktopUtilityCollapsed(true)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    aria-label="Collapse riff utility menu"
+                    title="Collapse utility"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
               </div>
               <div
                 data-guide="riff-desktop-audio"
@@ -14047,34 +14526,6 @@ function OrbitalPolymeter() {
 	                    <div className="grid grid-cols-2 gap-2">
 	                      <StudyShellButton
 	                        size="compact"
-	                        tone="blue"
-	                        highlighted={riffCycleStudy.viewMode === 'unwrapped'}
-                        onClick={() =>
-                          setRiffCycleStudy((current) => ({
-                            ...current,
-                            viewMode: 'unwrapped',
-	                          }))
-	                        }
-	                      >
-	                        Show Roll
-	                      </StudyShellButton>
-	                      <StudyShellButton
-	                        size="compact"
-	                        tone="blue"
-	                        highlighted={riffCycleStudy.viewMode === 'circular'}
-                        onClick={() =>
-                          setRiffCycleStudy((current) => ({
-                            ...current,
-                            viewMode: 'circular',
-	                          }))
-	                        }
-	                      >
-	                        Hide Roll
-	                      </StudyShellButton>
-	                    </div>
-	                    <div className="grid grid-cols-2 gap-2">
-	                      <StudyShellButton
-	                        size="compact"
 	                        tone="amber"
 	                        highlighted={Boolean(riffCycleStudy.showStepLabels)}
 	                        onClick={handleToggleRiffStepLabels}
@@ -14190,10 +14641,18 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
                 <StudyShellButton
                   size="compact"
+                  tone="blue"
+                  highlighted={tutorialOpen && tutorialContext === 'riff-editor'}
+                  onClick={() => openTutorial('riff-editor')}
+                >
+                  Tutorial
+                </StudyShellButton>
+                <StudyShellButton
+                  size="compact"
                   tone={riffCycleStudy.playing ? 'red' : 'green'}
                   highlighted
                   icon={riffCycleStudy.playing ? <Pause size={14} /> : <Play size={14} />}
-                  onClick={handleToggleRiffCyclePlayback}
+                  onClick={handleTutorialAwareRiffPlaybackToggle}
                 >
                   {riffCycleStudy.playing ? 'Pause' : 'Play'}
                 </StudyShellButton>
@@ -14314,14 +14773,20 @@ function OrbitalPolymeter() {
                     <StudyShellButton
                       size="compact"
                       tone="neutral"
-                      onClick={() => handleRotateRiffCycle(-1)}
+                      onClick={() => {
+                        handleRotateRiffCycle(-1);
+                        recordTutorialEvent('riff-editor-offset');
+                      }}
                     >
                       -1
                     </StudyShellButton>
                     <StudyShellButton
                       size="compact"
                       tone="neutral"
-                      onClick={() => handleRotateRiffCycle(1)}
+                      onClick={() => {
+                        handleRotateRiffCycle(1);
+                        recordTutorialEvent('riff-editor-offset');
+                      }}
                     >
                       +1
                     </StudyShellButton>
@@ -14411,18 +14876,20 @@ function OrbitalPolymeter() {
               </StudyShellPremiumPanel>
             </div>
             {helpOpen && helpContext === 'riff-editor' ? renderGuideOverlay(guideAccent, 60) : null}
+            {tutorialOpen && tutorialContext === 'riff-editor' ? renderTutorialOverlay(guideAccent, 60) : null}
           </div>
         ) : null}
 
         {!isMobile && !presentationMode && !sidebarOpen && riffDesktopUtilityCollapsed ? (
           <div
-            className="fixed right-6 bottom-[21.7rem] z-30"
+            className="fixed right-6 z-30"
+            style={{ bottom: riffDesktopMenuBottom }}
             data-guide="riff-desktop-menu"
           >
             <StudyShellFloatingMenuButton
               accent={riffCycleStudy.riff.color}
               label="Open Riff Menu"
-              detail="Scenes, phrase, ending, export"
+              detail="Scenes, save, account"
               icon={<Menu size={16} />}
               onClick={() => {
                 setRiffQuickPanel(null);
@@ -14540,14 +15007,14 @@ function OrbitalPolymeter() {
                   title={riffCycleStudy.showAlignmentMarkers ? 'Hide markers' : 'Show markers'}
                 />
                 <MobilePresentActionButton
-                  label="Audio"
+                  label={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                   icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                   accent="#88CCFF"
                   active={riffCycleStudy.soundEnabled}
                   onClick={handleToggleRiffCycleSound}
-                  data-guide="riff-mobile-audio"
+                  data-guide="riff-mobile-mute"
                   aria-label={riffCycleStudy.soundEnabled ? 'Mute riff cycle sound' : 'Enable riff cycle sound'}
-                  title={riffCycleStudy.soundEnabled ? 'Audio On' : 'Audio Off'}
+                  title={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                 />
                 <MobilePresentActionButton
                   label="Exit"
@@ -14739,9 +15206,9 @@ function OrbitalPolymeter() {
                   highlighted={riffCycleStudy.soundEnabled}
                   icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                   onClick={handleToggleRiffCycleSound}
-                  data-guide={isMobile ? 'riff-mobile-audio' : undefined}
+                  data-guide={isMobile ? 'riff-mobile-mute' : undefined}
                 >
-                  {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
+                  {riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                 </StudyShellButton>
                 <StudyShellButton
                   tone="green"
@@ -14754,21 +15221,19 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
                 <StudyShellButton
                   tone="neutral"
-                  highlighted={helpOpen}
+                  highlighted={helpOpen && helpContext === 'surface'}
                   icon={<CircleHelp size={15} />}
                   onClick={handleToggleHelpGuide}
                 >
                   Help
                 </StudyShellButton>
-                {isMobile ? (
-                  <StudyShellButton
-                    tone="blue"
-                    highlighted={tutorialOpen && tutorialContext === 'surface'}
-                    onClick={handleToggleTutorial}
-                  >
-                    Tutorial
-                  </StudyShellButton>
-                ) : null}
+                <StudyShellButton
+                  tone="blue"
+                  highlighted={tutorialOpen && tutorialContext === 'surface'}
+                  onClick={handleToggleTutorial}
+                >
+                  Tutorial
+                </StudyShellButton>
                 {isMobile ? (
                   <StudyShellButton
                     size="square"
