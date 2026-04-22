@@ -9,6 +9,7 @@ import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
 import type { PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import {
+  MAX_POLYRHYTHM_LAYERS,
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESET_GROUP_META,
   POLYRHYTHM_PRESETS,
@@ -77,6 +78,22 @@ const POLYRHYTHM_SOUND_PALETTES: Array<{
 
 const TAU = Math.PI * 2;
 
+const STUDY_SCENE_ASSET_MAP: Partial<Record<PolyrhythmStudyPreset['id'], string>> = {
+  'bo-diddley': '/scene-captures/study-bo-diddley.png',
+  bossa: '/scene-captures/study-bossa.png',
+  'jazz-ride': '/scene-captures/study-jazz-ride.png',
+  'two-three': '/scene-captures/study-two-three.png',
+  'three-four': '/scene-captures/study-three-four.png',
+  'three-five': '/scene-captures/study-three-five.png',
+  'four-five': '/scene-captures/study-four-five.png',
+  'five-six': '/scene-captures/study-five-six.png',
+  'triple-grid': '/scene-captures/study-triple-grid.png',
+  'three-five-six': '/scene-captures/study-three-five-six.png',
+  'four-five-ten': '/scene-captures/study-four-five-ten.png',
+  'nested-three-five': '/scene-captures/study-nested-three-five.png',
+  'counter-mesh': '/scene-captures/study-counter-mesh.png',
+};
+
 export function PolyrhythmSceneThumbnail({
   preset,
   className = 'h-24 w-24',
@@ -84,6 +101,20 @@ export function PolyrhythmSceneThumbnail({
   preset: PolyrhythmStudyPreset;
   className?: string;
 }) {
+  const presetAsset = STUDY_SCENE_ASSET_MAP[preset.id];
+  if (presetAsset) {
+    return (
+      <div className={`${className} overflow-hidden rounded-lg border border-white/10 bg-[#14141b]/80`}>
+        <img
+          src={presetAsset}
+          alt={preset.name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
   const { study } = preset;
   const centerX = 80;
   const centerY = 72;
@@ -258,6 +289,7 @@ export default function PolyrhythmSidebar({
     selectedLayer && selectedStep?.layerId === selectedLayer.id
       ? Boolean(selectedLayer.activeSteps[selectedStep.stepIndex])
       : null;
+  const canAddLayer = study.layers.length < MAX_POLYRHYTHM_LAYERS;
   const soundFocus =
     !study.soundEnabled
       ? 'mute'
@@ -590,12 +622,14 @@ export default function PolyrhythmSidebar({
                       <button
                         type="button"
                         onClick={onAddLayer}
-                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                        disabled={!canAddLayer}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em] disabled:opacity-40"
                         style={{
                           background: 'rgba(127,215,255,0.12)',
                           borderColor: 'rgba(127,215,255,0.22)',
                           color: '#7FD7FF',
                         }}
+                        title={canAddLayer ? 'Add layer' : `Layer limit (${MAX_POLYRHYTHM_LAYERS}) reached`}
                       >
                         Add Layer
                       </button>
@@ -851,12 +885,14 @@ export default function PolyrhythmSidebar({
                     <button
                       type="button"
                       onClick={onAddLayer}
-                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                      disabled={!canAddLayer}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em] disabled:opacity-40"
                       style={{
                         background: 'rgba(114,241,184,0.12)',
                         borderColor: 'rgba(114,241,184,0.24)',
                         color: '#72F1B8',
                       }}
+                      title={canAddLayer ? 'Add layer' : `Layer limit (${MAX_POLYRHYTHM_LAYERS}) reached`}
                     >
                       Add Layer
                     </button>

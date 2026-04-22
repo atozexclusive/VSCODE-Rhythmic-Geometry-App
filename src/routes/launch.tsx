@@ -58,63 +58,43 @@ function LaunchChooserPage() {
 
       <main className="px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
         <div className="mx-auto max-w-7xl">
-          <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
-              Choose Your Starting Mode
-            </div>
-            <h1 className="mt-8 text-5xl font-light tracking-[-0.058em] leading-[0.98] text-white sm:text-6xl lg:text-[4.9rem]">
-              Start where the idea makes sense.
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="font-serif text-5xl font-light tracking-[-0.05em] leading-[0.92] text-white sm:text-6xl lg:text-[5.2rem]">
+              Geometry Modes
             </h1>
-            <p className="mt-6 max-w-3xl text-base leading-8 text-white/60 sm:text-lg">
-              Orbit is the moving visual surface. Study is the shared-loop rhythm view. Riff is the groove-writing surface.
-            </p>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-white/42 sm:text-base">
-              This only chooses the first mode you see. Once you are inside the app, you can move between the instruments any time.
-            </p>
-            <div className="mt-7 grid gap-3 sm:grid-cols-3">
-              {SITE_MODE_CARDS.map((mode) => (
-                <div
-                  key={mode.id}
-                  className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-3"
-                >
-                  <div
-                    className="text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: mode.accent }}
-                  >
-                    {mode.name}
-                  </div>
-                  <div className="mt-2 text-sm leading-6 text-white/58">
-                    {mode.bestFor}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          <div className="mt-16 grid gap-5 lg:grid-cols-3">
             {SITE_MODE_CARDS.map((mode) => {
               const ModeIcon = getModeIcon(mode.id);
 
               return (
-                <div
+                <a
                   key={mode.id}
-                  className="overflow-hidden rounded-[1.9rem] border border-white/8 bg-white/[0.03] shadow-[0_30px_100px_rgba(0,0,0,0.28)] backdrop-blur-xl"
+                  href={getModeLaunchHref(mode.id)}
+                  className="group relative min-h-[34rem] overflow-hidden rounded-[2.35rem] border border-white/8 bg-[#0c0f16] shadow-[0_34px_140px_rgba(0,0,0,0.36)] transition hover:border-white/14 lg:min-h-[39rem]"
                 >
-                  <div className="border-b border-white/8 px-6 py-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div
-                          className="text-[11px] font-mono uppercase tracking-[0.18em]"
-                          style={{ color: mode.accent }}
-                        >
-                          {mode.eyebrow}
-                        </div>
-                        <div className="mt-3 text-3xl font-light tracking-[-0.04em] text-white">
-                          {mode.name}
-                        </div>
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.12),rgba(9,10,16,0.26)_32%,rgba(9,10,16,0.88)_100%)]" />
+                  <div
+                    className="absolute inset-0 opacity-75"
+                    style={{
+                      background: `radial-gradient(circle at 22% 18%, ${mode.accent}24, transparent 24%), radial-gradient(circle at 75% 70%, rgba(255,255,255,0.12), transparent 20%)`,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-[1.15rem] rounded-[2rem] blur-3xl"
+                    style={{
+                      background: `radial-gradient(circle at 35% 28%, ${mode.accent}24, transparent 28%), radial-gradient(circle at 70% 72%, rgba(255,255,255,0.08), transparent 20%)`,
+                    }}
+                  />
+
+                  <div className="relative flex h-full flex-col justify-between p-6 sm:p-7">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="rounded-full border border-white/10 bg-black/24 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
+                        {mode.eyebrow}
                       </div>
                       <div
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border backdrop-blur-sm"
                         style={{
                           background: `${mode.accent}12`,
                           borderColor: `${mode.accent}22`,
@@ -124,68 +104,70 @@ function LaunchChooserPage() {
                         <ModeIcon size={18} />
                       </div>
                     </div>
-                    <p className="mt-4 text-sm leading-7 text-white/56">{mode.summary}</p>
-                  </div>
 
-                  <div className="px-6 py-6">
-                    <div className="overflow-hidden rounded-[1.45rem] border border-white/8 bg-[#090a10]">
-                      <img
-                        src={mode.image}
-                        alt={`${mode.name} preview`}
-                        className="h-48 w-full object-cover"
-                        style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
-                      />
-                    </div>
-
-                    <p className="mt-5 text-sm leading-7 text-white/54">{mode.description}</p>
-
-                    <div className="mt-5 rounded-[1.2rem] border border-white/8 bg-[#090a10]/76 px-4 py-3">
-                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
-                        Best for
+                    <div className="mt-6 flex-1 rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_90px_rgba(0,0,0,0.34)]">
+                      <div className="h-full overflow-hidden rounded-[1.45rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
+                        <img
+                          src={mode.image}
+                          alt={`${mode.name} preview`}
+                          className="h-full w-full object-contain p-5 transition duration-700 group-hover:scale-[1.03]"
+                          style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
+                        />
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-white/62">{mode.bestFor}</div>
                     </div>
 
-                    <div className="mt-4 rounded-[1.2rem] border border-white/8 bg-white/[0.025] px-4 py-3">
-                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
-                        First move
+                    <div className="space-y-4 pt-6">
+                      <div>
+                        <div className="font-serif text-[2.7rem] font-light tracking-[-0.05em] leading-[0.94] text-white">{mode.name}</div>
+                        <p className="mt-3 max-w-sm text-sm leading-7 text-white/66">{mode.summary}</p>
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-white/62">{mode.firstMove}</div>
-                    </div>
 
-                    <div className="mt-5 space-y-2">
-                      {mode.details.map((detail) => (
-                        <div key={detail} className="flex items-start gap-3 text-sm text-white/66">
-                          <div
-                            className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full"
-                            style={{ background: mode.accent }}
-                          />
-                          <span>{detail}</span>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[1.35rem] border border-white/10 bg-black/28 p-4 backdrop-blur-md">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/36">Best for</div>
+                          <div className="mt-2 text-sm leading-7 text-white/70">{mode.bestFor}</div>
                         </div>
-                      ))}
-                    </div>
 
-                    <a
-                      href={getModeLaunchHref(mode.id)}
-                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] transition"
-                      style={{
-                        borderColor: `${mode.accent}30`,
-                        background: `${mode.accent}12`,
-                        color: mode.accent,
-                      }}
-                    >
-                      {mode.launchLabel}
-                      <ArrowRight size={15} />
-                    </a>
+                        <div className="rounded-[1.35rem] border border-white/10 bg-black/28 p-4 backdrop-blur-md">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/36">First move</div>
+                          <div className="mt-2 text-sm leading-7 text-white/70">{mode.firstMove}</div>
+                        </div>
+                      </div>
+
+                      <div
+                        className="inline-flex items-center gap-2 rounded-full border px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] transition"
+                        style={{
+                          borderColor: `${mode.accent}30`,
+                          background: `${mode.accent}12`,
+                          color: mode.accent,
+                          boxShadow: `0 0 34px ${mode.accent}12`,
+                        }}
+                      >
+                        {mode.launchLabel}
+                        <ArrowRight size={15} />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </a>
               );
             })}
           </div>
 
-          <div className="mt-8 rounded-[1.75rem] border border-white/8 bg-white/[0.03] px-5 py-5 text-sm leading-7 text-white/52 sm:px-6">
-            <span className="font-mono uppercase tracking-[0.16em] text-white/38">Not sure?</span>{' '}
-            Start with Orbit if you want the strongest first impression. Start with Study if you want to understand rhythm relationships. Start with Riff if you already want to write.
+          <div className="mt-10 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="rounded-[1.8rem] border border-white/8 bg-white/[0.03] px-6 py-6 text-sm leading-8 text-white/52 sm:px-7">
+              <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/38">How to choose</div>
+              <div className="mt-4 space-y-3">
+                <p>Start with <span className="text-white/78">Orbits</span> if you want the strongest first impression.</p>
+                <p>Start with <span className="text-white/78">Polyrhythm Study</span> if you want to hear how layered rhythms meet.</p>
+                <p>Start with <span className="text-white/78">Riff Cycle</span> if you already want to write phrases against a bar frame.</p>
+              </div>
+            </div>
+            <div className="rounded-[1.8rem] border border-white/8 bg-[#0c0f16] px-6 py-6 text-sm leading-8 text-white/54 sm:px-7">
+              <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/38">After launch</div>
+              <p className="mt-4">
+                The choice is not permanent. The app opens on one surface first, but the system stays connected once you are inside.
+              </p>
+            </div>
           </div>
         </div>
       </main>

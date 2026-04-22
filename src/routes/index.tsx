@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, CircleDot, GalleryVerticalEnd, KeyRound, Layers3, LogIn, LogOut, Mail, MonitorPlay, Play, Sparkles, SquarePlay, UserRound, Waves, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,19 +21,21 @@ const websiteSceneOverrides: Record<string, string> = {
 const showcaseCards = BUILT_IN_SCENES.map((scene, index) => ({
   id: scene.id,
   title: scene.name,
-  tag: index === 0 ? 'Featured Orbit Scene' : 'Orbit Scene',
+  tag: index === 0 ? 'Featured Orbits Scene' : 'Orbits Scene',
   description: scene.description,
   accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#66DDFF', '#AA88FF', '#AA88FF', '#44E0B0', '#FF7799'][index % 8],
   image: websiteSceneOverrides[scene.id] ?? scene.thumbnailDataUrl,
 }));
 
+const showcaseGridCards = showcaseCards.slice(0, 4);
+
 const featureGrid = [
-  { icon: GalleryVerticalEnd, title: 'Scene Library', text: 'Built-in scenes give Orbit, Study, and Riff a strong starting point instead of a blank canvas.' },
-  { icon: SquarePlay, title: 'Focused Editors', text: 'Open a close writing view when you want to shape one ring or one groove directly.' },
-  { icon: MonitorPlay, title: 'Loop Capture', text: 'Record short moving studies directly from the live canvas.' },
-  { icon: Play, title: 'Presentation Mode', text: 'Strip the chrome back for cleaner watching, sharing, and playback.' },
-  { icon: Layers3, title: 'Desktop + Mobile', text: 'A wide desktop instrument or a tighter mobile flow, without changing the core ideas.' },
-  { icon: Waves, title: 'Three Clear Entries', text: 'Orbit is for discovery, Study is for clarity, and Riff is for writing.' },
+  { icon: GalleryVerticalEnd, label: 'Library', title: 'Scene Library', text: 'Built-in scenes give Orbits, Polyrhythm Study, and Riff Cycle a strong starting point instead of a blank canvas.' },
+  { icon: SquarePlay, label: 'Edit', title: 'Focused Editors', text: 'Open a close writing view when you want to shape one ring or one groove directly.' },
+  { icon: MonitorPlay, label: 'Capture', title: 'Loop Capture', text: 'Record short moving studies directly from the live canvas.' },
+  { icon: Play, label: 'Present', title: 'Presentation Mode', text: 'Strip the chrome back for cleaner watching, sharing, and playback.' },
+  { icon: Layers3, label: 'Layouts', title: 'Desktop + Mobile', text: 'A wide desktop instrument or a tighter mobile flow, without changing the core ideas.' },
+  { icon: Waves, label: 'Entry', title: 'Three Clear Entries', text: 'Orbits is for discovery, Polyrhythm Study is for clarity, and Riff Cycle is for writing.' },
 ] as const;
 
 const proHighlights = [
@@ -76,8 +78,101 @@ function OrbitalPolymeterLanding() {
   const [accountEmail, setAccountEmail] = useState('');
   const [accountPassword, setAccountPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [activeModeId, setActiveModeId] = useState<SiteModeId>('orbital');
+  const [visibleSections, setVisibleSections] = useState<Record<string, boolean>>({
+    hero: true,
+    modes: false,
+    showcase: false,
+    tools: false,
+    pro: false,
+    cta: false,
+  });
+  const modeStepRefs = useRef<Record<SiteModeId, HTMLDivElement | null>>({
+    orbital: null,
+    'polyrhythm-study': null,
+    'riff-cycle-study': null,
+  });
+  const revealSectionRefs = useRef<Record<string, HTMLElement | null>>({
+    hero: null,
+    modes: null,
+    showcase: null,
+    tools: null,
+    pro: null,
+    cta: null,
+  });
   const planLabel = account?.plan === 'pro' ? (account.comped ? 'Pro Included' : 'Pro') : 'Free';
   const isCreateMode = authMode === 'create-account';
+  const activeMode = SITE_MODE_CARDS.find((mode) => mode.id === activeModeId) ?? SITE_MODE_CARDS[0];
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const mostVisible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((entryA, entryB) => entryB.intersectionRatio - entryA.intersectionRatio)[0];
+
+        if (!mostVisible) {
+          return;
+        }
+
+        const nextModeId = mostVisible.target.getAttribute('data-mode-id') as SiteModeId | null;
+        if (nextModeId) {
+          setActiveModeId(nextModeId);
+        }
+      },
+      {
+        threshold: [0.35, 0.55, 0.75],
+        rootMargin: '-18% 0px -18% 0px',
+      },
+    );
+
+    Object.values(modeStepRefs.current).forEach((element) => {
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          const sectionId = entry.target.getAttribute('data-reveal-id');
+          if (!sectionId) {
+            return;
+          }
+
+          setVisibleSections((current) => (
+            current[sectionId] ? current : { ...current, [sectionId]: true }
+          ));
+          observer.unobserve(entry.target);
+        });
+      },
+      {
+        threshold: 0.18,
+        rootMargin: '-10% 0px -10% 0px',
+      },
+    );
+
+    Object.values(revealSectionRefs.current).forEach((element) => {
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const getRevealClass = (sectionId: keyof typeof visibleSections) =>
+    visibleSections[sectionId]
+      ? 'translate-y-0 scale-100 opacity-100'
+      : 'translate-y-8 scale-[0.985] opacity-0';
 
   const handleSignIn = async () => {
     const email = accountEmail.trim();
@@ -309,8 +404,8 @@ function OrbitalPolymeterLanding() {
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
             <a href="#showcase" className="transition-colors hover:text-white">Showcase</a>
-            <a href="#why" className="transition-colors hover:text-white">Why It Matters</a>
-            <a href="#export" className="transition-colors hover:text-white">Export</a>
+            <a href="#tools" className="transition-colors hover:text-white">Tools</a>
+            <a href="#pro" className="transition-colors hover:text-white">Pro</a>
           </nav>
           <div className="flex items-center gap-3">
             <button
@@ -339,41 +434,35 @@ function OrbitalPolymeterLanding() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
-          <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative overflow-hidden border-b border-white/10 px-5 pb-20 pt-10 sm:px-8 sm:pb-28 sm:pt-16">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.hero = element;
+            }}
+            data-reveal-id="hero"
+            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.84fr_1.16fr] lg:items-end ${getRevealClass('hero')}`}
+          >
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
                 Three instruments for rhythmic form
               </div>
-              <h1 className="mt-8 max-w-3xl text-5xl font-light tracking-[-0.058em] leading-[0.98] text-white sm:text-6xl lg:text-[4.9rem]">
-                See form. Compare rhythm. Write the groove.
+              <h1 className="mt-12 max-w-2xl font-serif text-[3.45rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:mt-14 sm:text-[4.65rem] lg:text-[5.45rem]">
+                Watch
+                <br />
+                Rhythm
+                <br />
+                Create
+                <br />
+                Structure
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-8 text-white/62 sm:text-lg">
-                Set the constraints. Watch the structure appear.
+              <p className="mt-12 max-w-xl text-lg leading-8 text-white/64">
+                Set constraints. Write Patterns. Create Form
               </p>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-white/44 sm:text-base">
-                Rhythmic Geometry opens into three entry points. Orbit is the moving surface. Study reveals shared rhythm relationships. Riff lets you build a groove against a clear bar frame.
+              <p className="mt-10 max-w-xl text-sm leading-8 text-white/44 sm:text-base">
+                Orbits, Polyrhythm Study, and Riff Cycle are three perspectives of the same rhythmic system.
               </p>
-              <div className="mt-7 grid gap-3 sm:grid-cols-3">
-                {SITE_MODE_CARDS.map((mode) => (
-                  <div
-                    key={mode.id}
-                    className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] px-4 py-3"
-                  >
-                    <div
-                      className="text-[10px] font-mono uppercase tracking-[0.16em]"
-                      style={{ color: mode.accent }}
-                    >
-                      {mode.name}
-                    </div>
-                    <div className="mt-2 text-sm leading-6 text-white/58">
-                      {mode.bestFor}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-10 flex flex-wrap items-center gap-4">
+              <div className="mt-14 flex flex-wrap items-center gap-4">
                 <Link
                   to="/launch"
                   className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
@@ -382,298 +471,345 @@ function OrbitalPolymeterLanding() {
                   <ArrowRight size={15} />
                 </Link>
                 <a
-                  href="#showcase"
+                  href="#modes"
                   className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
                 >
-                  View Structures
+                  See How They Differ
                 </a>
+              </div>
+              <div className="mt-12 grid gap-3 sm:grid-cols-3">
+                {SITE_MODE_CARDS.map((mode) => {
+                  const ModeIcon = getModeIcon(mode.id);
+                  const isActive = mode.id === activeModeId;
+
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setActiveModeId(mode.id)}
+                      onMouseEnter={() => setActiveModeId(mode.id)}
+                      className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${isActive ? 'bg-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.04)]' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
+                      style={{
+                        borderColor: isActive ? `${mode.accent}30` : 'rgba(255,255,255,0.08)',
+                        boxShadow: isActive ? `0 0 48px ${mode.accent}22, inset 0 1px 0 rgba(255,255,255,0.06)` : 'none',
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
+                          {mode.name}
+                        </div>
+                        <ModeIcon size={15} style={{ color: mode.accent }} />
+                      </div>
+                      <div className="mt-3 text-sm leading-6 text-white/60">{mode.bestFor}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="relative">
-              <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_50%_40%,rgba(0,255,170,0.14),transparent_34%),radial-gradient(circle_at_66%_58%,rgba(51,136,255,0.14),transparent_30%),radial-gradient(circle_at_42%_66%,rgba(255,51,102,0.12),transparent_26%)] blur-3xl" />
-              <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Choose Your Entry</div>
-                    <div className="mt-2 text-[11px] font-mono text-white/38">Start with the mode that matches what you want to do first.</div>
+              <div
+                className="absolute inset-0 rounded-[2.6rem] blur-3xl"
+                style={{
+                  background: `radial-gradient(circle at 30% 24%, ${activeMode.accent}34, transparent 30%), radial-gradient(circle at 74% 26%, rgba(255,255,255,0.14), transparent 20%), radial-gradient(circle at 70% 72%, ${activeMode.accent}14, transparent 26%), linear-gradient(180deg, rgba(9,10,16,0.22), rgba(9,10,16,0.02))`,
+                }}
+              />
+              <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0b0e14]/82 shadow-[0_40px_160px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+                <div className="border-b border-white/10 px-6 py-5">
+                  <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: activeMode.accent }}>
+                      {activeMode.eyebrow}
+                    </div>
+                    <div className="mt-2 font-serif text-[2.05rem] font-light tracking-[-0.05em] leading-[0.95] text-white">
+                      {activeMode.name}
+                    </div>
+                    <p className="mt-2 text-sm leading-7 text-white/58">{activeMode.summary}</p>
                   </div>
-                  <Link
-                    to="/launch"
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
-                  >
-                    Compare
-                  </Link>
                 </div>
 
-                <div className="mt-5 grid gap-3">
-                  {SITE_MODE_CARDS.map((mode) => {
-                    const ModeIcon = getModeIcon(mode.id);
+                <div className="relative aspect-[1.08/0.86] overflow-hidden">
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.08),rgba(9,10,16,0.2)_36%,rgba(9,10,16,0.72)_100%)]" />
+                  <div
+                    className="absolute inset-0 opacity-60"
+                    style={{
+                      background: `radial-gradient(circle at 20% 22%, ${activeMode.accent}26, transparent 24%), radial-gradient(circle at 74% 20%, rgba(255,255,255,0.12), transparent 18%), radial-gradient(circle at 70% 76%, ${activeMode.accent}16, transparent 24%)`,
+                    }}
+                  />
+                  <div className="absolute inset-[3.1rem] rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
+                    <div className="absolute inset-[1.35rem] overflow-hidden rounded-[1.4rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
+                      <img
+                        src={activeMode.image}
+                        alt={`${activeMode.name} preview`}
+                        className="h-full w-full object-contain object-center p-5"
+                        style={{ objectPosition: '50% 50%' }}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-                    return (
-                      <a
-                        key={mode.id}
-                        href={getModeLaunchHref(mode.id)}
-                        className="group rounded-[1.4rem] border border-white/8 bg-[#090a10]/88 p-4 transition hover:border-white/14 hover:bg-[#0c0f16]"
+                <div className="grid gap-3 border-t border-white/10 px-6 py-6 md:grid-cols-[1fr_1fr]">
+                  <div className="rounded-[1.4rem] border border-white/10 bg-black/24 p-4 backdrop-blur-md">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
+                    <div className="mt-2 text-sm leading-7 text-white/68">{activeMode.bestFor}</div>
+                  </div>
+                  <div className="rounded-[1.4rem] border border-white/10 bg-black/24 p-4 backdrop-blur-md">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">First move</div>
+                    <div className="mt-2 text-sm leading-7 text-white/68">{activeMode.firstMove}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="modes" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.modes = element;
+            }}
+            data-reveal-id="modes"
+            className={`mx-auto max-w-7xl transition-all duration-700 ease-out lg:grid lg:grid-cols-[0.6fr_0.4fr] lg:gap-14 ${getRevealClass('modes')}`}
+          >
+            <div>
+              <div className="max-w-2xl">
+                <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Three Clear Entries</div>
+                <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
+                  One rhythmic world, three different modes.
+                </h2>
+                <p className="mt-5 max-w-2xl text-sm leading-8 text-white/48 sm:text-base">
+                  Scroll through the three surfaces and experiment. Orbits gives polymeter shape. Polyrhythm Study makes shared rhythmic patterns legible. Riff Cycle turns the idea into a phrase you can actually shape and play.
+                </p>
+              </div>
+
+              <div className="mt-12 space-y-10 lg:space-y-0">
+                {SITE_MODE_CARDS.map((mode) => {
+                  const ModeIcon = getModeIcon(mode.id);
+                  const isActive = mode.id === activeModeId;
+
+                  return (
+                    <div
+                      key={mode.id}
+                      ref={(element) => {
+                        modeStepRefs.current[mode.id] = element;
+                      }}
+                      data-mode-id={mode.id}
+                      className="lg:flex lg:min-h-[78vh] lg:items-center"
+                    >
+                      <div
+                        className={`max-w-xl rounded-[2rem] border p-6 transition sm:p-8 ${isActive ? 'bg-white/[0.055]' : 'bg-white/[0.02]'}`}
+                        style={{
+                          borderColor: isActive ? `${mode.accent}30` : 'rgba(255,255,255,0.08)',
+                          boxShadow: isActive ? `0 0 80px ${mode.accent}10, inset 0 1px 0 rgba(255,255,255,0.06)` : 'none',
+                        }}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
-                              {mode.eyebrow}
-                            </div>
-                            <div className="mt-2 text-xl font-light text-white">
-                              {mode.name}
-                            </div>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: mode.accent }}>
+                            {mode.eyebrow}
                           </div>
                           <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border"
+                            className="flex h-10 w-10 items-center justify-center rounded-2xl border"
                             style={{
                               background: `${mode.accent}12`,
-                              borderColor: `${mode.accent}22`,
+                              borderColor: `${mode.accent}1f`,
                               color: mode.accent,
                             }}
                           >
                             <ModeIcon size={16} />
                           </div>
                         </div>
-                        <div className="mt-4 overflow-hidden rounded-[1.1rem] border border-white/8 bg-[#090a10]">
-                          <img
-                            src={mode.image}
-                            alt={`${mode.name} preview`}
-                            className="h-28 w-full object-cover"
-                            style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
-                          />
+                        <div className="mt-5 font-serif text-[2.65rem] font-light tracking-[-0.05em] leading-[0.95] text-white">{mode.name}</div>
+                        <p className="mt-4 text-lg leading-8 text-white/72">{mode.summary}</p>
+                        <div className="mt-6 border-t border-white/10 pt-6">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-[1.3rem] border border-white/8 bg-[#090a10]/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
+                              <div className="mt-2 text-sm leading-7 text-white/66">{mode.bestFor}</div>
+                            </div>
+                            <div className="rounded-[1.3rem] border border-white/8 bg-white/[0.025] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">First move</div>
+                              <div className="mt-2 text-sm leading-7 text-white/66">{mode.firstMove}</div>
+                            </div>
+                          </div>
                         </div>
-                        <p className="mt-4 text-sm leading-7 text-white/56">{mode.summary}</p>
-                        <div className="mt-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
-                          First move
+
+                        <div className="mt-6 border-t border-white/10 pt-6">
+                          <div className="space-y-3">
+                            {mode.details.slice(0, 2).map((detail) => (
+                              <div key={detail} className="flex items-start gap-3 text-sm leading-7 text-white/62">
+                                <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: mode.accent, boxShadow: `0 0 10px ${mode.accent}` }} />
+                                <span>{detail}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <p className="mt-2 text-sm leading-7 text-white/46">{mode.firstMove}</p>
-                        <div className="mt-4 inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: mode.accent }}>
-                          {mode.launchLabel}
-                          <ArrowRight size={14} />
+
+                        <div className="mt-7">
+                          <a
+                            href={getModeLaunchHref(mode.id)}
+                            className="inline-flex items-center gap-2 rounded-full border px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] transition"
+                            style={{
+                              borderColor: `${mode.accent}30`,
+                              background: `${mode.accent}12`,
+                              color: mode.accent,
+                              boxShadow: `0 0 26px ${mode.accent}10`,
+                            }}
+                          >
+                            {mode.launchLabel}
+                            <ArrowRight size={15} />
+                          </a>
                         </div>
-                      </a>
-                    );
-                  })}
+
+                        <div className="mt-8 lg:hidden">
+                          <div className="overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10] shadow-[0_24px_60px_rgba(0,0,0,0.3)]">
+                            <img
+                              src={mode.image}
+                              alt={`${mode.name} preview`}
+                              className="h-72 w-full object-contain object-center p-5"
+                              style={{ objectPosition: '50% 50%' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="hidden lg:block">
+              <div className="sticky top-24 pt-24">
+                <div
+                  className="absolute inset-0 rounded-[2.2rem] blur-3xl"
+                  style={{
+                    background: `radial-gradient(circle at 40% 26%, ${activeMode.accent}28, transparent 30%), radial-gradient(circle at 72% 18%, rgba(255,255,255,0.14), transparent 18%), radial-gradient(circle at 68% 74%, ${activeMode.accent}14, transparent 22%)`,
+                  }}
+                />
+                <div className="relative overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#0b0e14]/86 shadow-[0_30px_120px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+                  <div className="relative aspect-[0.95/1.18] overflow-hidden">
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.08),rgba(9,10,16,0.22)_32%,rgba(9,10,16,0.78)_100%)]" />
+                    <div className="absolute inset-[2rem] rounded-[1.8rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
+                      <div className="absolute inset-[1.1rem] overflow-hidden rounded-[1.35rem] bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
+                        <img
+                          src={activeMode.image}
+                          alt={`${activeMode.name} preview`}
+                          className="h-full w-full object-contain p-5"
+                          style={{ objectPosition: activeMode.imagePosition ?? '50% 50%' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="absolute inset-x-6 top-6 flex justify-start">
+                      <div className="rounded-full border border-white/10 bg-black/28 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
+                        Scroll To Compare
+                      </div>
+                    </div>
+                    <div className="absolute inset-x-6 bottom-6 rounded-[1.6rem] border border-white/10 bg-black/34 p-5 backdrop-blur-md">
+                      <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: activeMode.accent }}>
+                        {activeMode.name}
+                      </div>
+                      <div className="mt-3 font-serif text-[2.15rem] font-light tracking-[-0.05em] leading-[0.95] text-white">{activeMode.eyebrow}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="showcase" className="px-5 py-18 sm:px-8 sm:py-24">
-          <div className="mx-auto max-w-7xl">
+        <section id="showcase" className="border-y border-white/10 px-5 py-18 sm:px-8 sm:py-24">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.showcase = element;
+            }}
+            data-reveal-id="showcase"
+            className={`mx-auto max-w-7xl transition-all duration-700 ease-out ${getRevealClass('showcase')}`}
+          >
             <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Orbit Showcase</div>
-              <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Orbit scenes where moving ratios leave visible form behind.
+              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Orbits Showcase</div>
+              <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
+                Orbits scenes where moving ratios leave visible form behind.
               </h2>
             </div>
-            <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {showcaseCards.map((card) => (
+            <div className="mt-10 grid gap-5 md:grid-cols-2">
+              {showcaseGridCards.map((card, index) => (
                 <a
                   key={card.title}
                   href={`/app?mode=orbital&scene=${card.id}`}
-                  className="group rounded-[1.6rem] border border-white/8 bg-white/[0.03] p-4 transition hover:border-white/14 hover:bg-white/[0.045]"
+                  className="group overflow-hidden rounded-[1.8rem] border border-white/8 bg-white/[0.03] shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition hover:border-white/14 hover:bg-white/[0.045]"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between px-5 pt-5">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: card.accent }}>
-                      {card.tag}
+                      {index === 0 ? 'Featured Orbits Scene' : 'Orbits Scene'}
                     </div>
                     <CircleDot size={14} style={{ color: card.accent }} />
                   </div>
-                  <div className="relative mt-4 aspect-square overflow-hidden rounded-[1.25rem] border border-white/8 bg-[#090a10]">
-                    <img src={card.image} alt={card.title} className="h-full w-full p-3 object-contain" />
+                  <div className="relative mt-4 aspect-[1.14/1] overflow-hidden border-y border-white/8 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.05),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
+                    <img
+                      src={card.image}
+                      alt={card.title}
+                      className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-[1.02]"
+                    />
                   </div>
-                  <div className="mt-4 text-lg font-light text-white">{card.title}</div>
-                  <p className="mt-2 text-sm leading-7 text-white/52">{card.description}</p>
+                  <div className="px-5 py-5">
+                    <div className="font-serif text-[1.75rem] font-light leading-[0.96] text-white">{card.title}</div>
+                    <p className="mt-2 text-sm leading-7 text-white/52">{card.description}</p>
+                  </div>
                 </a>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="border-y border-white/6 bg-white/[0.02] px-5 py-18 sm:px-8 sm:py-24">
-          <div className="mx-auto max-w-7xl">
-            <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">How To Enter</div>
-              <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                A simple first path, whether you are on desktop or mobile.
-              </h2>
-            </div>
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {[
-                {
-                  icon: Layers3,
-                  title: 'Choose by intent',
-                  text: 'Orbit for motion, Study for relationship, Riff for groove writing.',
-                  accent: '#00FFAA',
-                },
-                {
-                  icon: CircleDot,
-                  title: 'Start from a scene',
-                  text: 'Each mode opens faster when you begin from a built-in example instead of a blank surface.',
-                  accent: '#88CCFF',
-                },
-                {
-                  icon: Waves,
-                  title: 'Change one thing',
-                  text: 'Press Play, then change one control at a time. The system teaches itself better that way.',
-                  accent: '#FFAA00',
-                },
-              ].map((step) => (
-                <div key={step.title} className="rounded-[1.5rem] border border-white/8 bg-[#0c0f16] p-6">
-                  <step.icon size={18} style={{ color: step.accent }} />
-                  <div className="mt-5 text-xl font-light text-white">{step.title}</div>
-                  <p className="mt-3 text-sm leading-7 text-white/54">{step.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="modes" className="px-5 py-18 sm:px-8 sm:py-24">
-          <div className="mx-auto max-w-7xl">
-            <div className="max-w-3xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Three Instruments</div>
-              <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Three clear ways into the same rhythmic world.
-              </h2>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/46 sm:text-base">
-                The system is shared, but the entry point matters. Pick the mode that matches your intent, then move between them once the idea is clear.
-              </p>
-            </div>
-            <div className="mt-10 grid gap-5 lg:grid-cols-3">
-              {SITE_MODE_CARDS.map((mode) => {
-                const ModeIcon = getModeIcon(mode.id);
-
-                return (
-                <div key={mode.id} className="rounded-[1.75rem] border border-white/8 bg-white/[0.03] p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: mode.accent }}>
-                        {mode.eyebrow}
-                      </div>
-                      <div className="mt-3 text-3xl font-light tracking-[-0.04em] text-white">
-                        {mode.name}
-                      </div>
-                    </div>
-                    <div
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
-                      style={{
-                        background: `${mode.accent}12`,
-                        borderColor: `${mode.accent}24`,
-                        color: mode.accent,
-                      }}
-                    >
-                      <ModeIcon size={18} />
-                    </div>
-                  </div>
-                  <div className="relative mt-5 aspect-[1.15/1] overflow-hidden rounded-[1.35rem] border border-white/8 bg-[#090a10]">
-                    <img
-                      src={mode.image}
-                      alt={`${mode.name} preview`}
-                      className="h-full w-full object-cover"
-                      style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
-                    />
-                  </div>
-                  <p className="mt-5 text-sm leading-7 text-white/56">{mode.description}</p>
-                  <div className="mt-5 rounded-[1.15rem] border border-white/8 bg-[#090a10]/72 px-4 py-3">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
-                      Best for
-                    </div>
-                    <div className="mt-2 text-sm leading-7 text-white/62">{mode.bestFor}</div>
-                  </div>
-                  <div className="mt-4 rounded-[1.15rem] border border-white/8 bg-white/[0.025] px-4 py-3">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
-                      First move
-                    </div>
-                    <div className="mt-2 text-sm leading-7 text-white/62">{mode.firstMove}</div>
-                  </div>
-                  <div className="mt-5 space-y-2">
-                    {mode.details.map((detail) => (
-                      <div key={detail} className="flex items-start gap-3 text-sm text-white/66">
-                        <div
-                          className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full"
-                          style={{ background: mode.accent }}
-                        />
-                        <span>{detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <a
-                    href={getModeLaunchHref(mode.id)}
-                    className="mt-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] transition"
-                    style={{
-                      borderColor: `${mode.accent}30`,
-                      background: `${mode.accent}12`,
-                      color: mode.accent,
-                    }}
-                  >
-                    {mode.launchLabel}
-                    <ArrowRight size={14} />
-                  </a>
-                </div>
-              )})}
-            </div>
-          </div>
-        </section>
-
-        <section id="why" className="border-y border-white/6 bg-white/[0.02] px-5 py-18 sm:px-8 sm:py-24">
-          <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Why It Matters</div>
-              <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Not decoration. A structure you can steer.
-              </h2>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-white/58">
-                The point is not to decorate sound. It is to make structure visible enough to shape. Orbit reveals form through motion. Study reveals relationship through overlap. Riff reveals groove through return and phrase.
-              </p>
-              <div className="mt-8 space-y-4 text-sm leading-7 text-white/52">
-                <p>Orbit is for discovery.</p>
-                <p>Study is for clarity.</p>
-                <p>Riff is for writing.</p>
+        <section id="tools" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.tools = element;
+            }}
+            data-reveal-id="tools"
+            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.92fr_1.08fr] ${getRevealClass('tools')}`}
+          >
+            <div className="max-w-xl">
+              <div className="inline-flex items-center rounded-full border border-[#FFB454]/20 bg-[#FFB454]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFB454] shadow-[0_0_24px_rgba(255,180,84,0.09)]">
+                Tools Around The Form
               </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                { title: 'Orbit reveals form', text: 'Pulse counts and motion turn into visible geometry.' },
-                { title: 'Study reveals relationship', text: 'Shared loops make polyrhythms easier to hear and see.' },
-                { title: 'Riff reveals structure', text: 'Bar, phrase, and ending stay separate enough to edit clearly.' },
-                { title: 'One app, multiple entry points', text: 'You can move between discovery, learning, and writing without leaving the system.' },
-              ].map((item) => (
-                <div key={item.title} className="rounded-[1.4rem] border border-white/8 bg-[#0c0f16] p-5">
-                  <div className="text-lg font-light text-white">{item.title}</div>
-                  <p className="mt-3 text-sm leading-7 text-white/52">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="export" className="px-5 py-18 sm:px-8 sm:py-24">
-          <div className="mx-auto max-w-7xl">
-            <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Tools Around The Form</div>
-              <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
+              <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
                 Keep what you find, export what you make, and present it cleanly.
               </h2>
+              <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
+                The site should not just describe the instrument. It should show that the app can move from discovery into authorship. These are the parts that make that promise credible.
+              </p>
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {featureGrid.map((feature) => (
-                <div key={feature.title} className="rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-5">
-                  <feature.icon size={18} className="text-white/72" />
-                  <div className="mt-5 text-lg font-light text-white">{feature.title}</div>
-                  <p className="mt-3 text-sm leading-7 text-white/54">{feature.text}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {featureGrid.slice(0, 4).map((feature) => (
+                <div
+                  key={feature.title}
+                  className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(10,12,18,0.96))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_64px_rgba(0,0,0,0.22)]"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#FFB454] drop-shadow-[0_0_10px_rgba(255,180,84,0.16)]">
+                      {feature.label}
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#FFB454]/16 bg-[#FFB454]/[0.08] text-[#FFB454] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_18px_rgba(255,180,84,0.08)]">
+                      <feature.icon size={18} />
+                    </div>
+                  </div>
+                  <div className="mt-5 h-px bg-white/10" />
+                  <div className="mt-5 text-[1.7rem] font-light tracking-[-0.04em] text-white">{feature.title}</div>
+                  <p className="mt-4 text-sm leading-7 text-white/54">{feature.text}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="px-5 py-8 sm:px-8 sm:py-10">
-          <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.1rem] border border-white/8 bg-[#0d1017]/88 shadow-[0_30px_120px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+        <section id="pro" className="border-y border-white/10 px-5 py-8 sm:px-8 sm:py-10">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.pro = element;
+            }}
+            data-reveal-id="pro"
+            className={`mx-auto max-w-7xl transition-all duration-700 ease-out ${getRevealClass('pro')}`}
+          >
+          <div className="overflow-hidden rounded-[2.1rem] border border-white/10 bg-[#0d1017]/88 shadow-[0_30px_120px_rgba(0,0,0,0.32)] backdrop-blur-xl">
             <div className="grid gap-0 lg:grid-cols-[0.92fr_1.08fr]">
               <div className="relative px-6 py-8 sm:px-8 sm:py-10">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,170,0,0.12),transparent_30%),radial-gradient(circle_at_76%_72%,rgba(0,255,170,0.08),transparent_28%)]" />
@@ -683,7 +819,7 @@ function OrbitalPolymeterLanding() {
                     For the forms you want to keep.
                   </h2>
                   <p className="mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
-                    Pro is where discovery becomes authorship. Save what you find across Orbit, Study, and Riff, shape the instruments more deeply, and carry the work out as stills, loops, and a lasting library of scenes.
+                    Pro is where discovery becomes authorship. Save what you find across Orbits, Polyrhythm Study, and Riff Cycle, shape the instruments more deeply, and carry the work out as stills, loops, and a lasting library of scenes.
                   </p>
                   <p className="mt-4 max-w-xl text-[13px] leading-7 text-white/42 sm:text-sm">
                     Free is for exploration. Pro is for keeping, refining, and releasing the work.
@@ -715,12 +851,20 @@ function OrbitalPolymeterLanding() {
               </div>
             </div>
           </div>
+          </div>
         </section>
 
-        <section className="px-5 pb-20 pt-8 sm:px-8 sm:pb-28">
-          <div className="mx-auto max-w-5xl rounded-[2rem] border border-white/8 bg-white/[0.035] px-6 py-10 text-center sm:px-10 sm:py-14">
+        <section className="border-t border-white/10 px-5 pb-20 pt-8 sm:px-8 sm:pb-28">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.cta = element;
+            }}
+            data-reveal-id="cta"
+            className={`mx-auto max-w-5xl transition-all duration-700 ease-out ${getRevealClass('cta')}`}
+          >
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] px-6 py-10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.24)] sm:px-10 sm:py-14">
             <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Open The Instrument</div>
-            <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
+            <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
               Start where it makes sense.
             </h2>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -738,6 +882,7 @@ function OrbitalPolymeterLanding() {
                 Explore The Modes
               </a>
             </div>
+          </div>
           </div>
         </section>
       </main>

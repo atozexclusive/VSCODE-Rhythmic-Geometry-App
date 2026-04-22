@@ -19,7 +19,6 @@ import {
   StudyShellButton,
   StudyShellChip,
   StudyShellDock,
-  StudyShellFloatingMenuButton,
   StudyShellPanel,
   StudyShellPremiumPanel,
 } from '../components/StudyInstrumentShell';
@@ -75,6 +74,7 @@ import {
   isProPlan,
 } from '../lib/entitlements';
 import {
+  MAX_POLYRHYTHM_LAYERS,
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESET_GROUP_META,
   POLYRHYTHM_PRESETS,
@@ -273,7 +273,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   panel_utility: {
     title: 'Utility',
-    body: 'Listening and display controls live here. Use it for sound, roll view, overlays, and canvas mood.',
+    body: 'Listening and display controls live here. Use it for sound, lane view, overlays, and canvas mood.',
   },
   study_layers: {
     title: 'Layers',
@@ -589,10 +589,10 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-desktop-roll-size',
-    title: 'Roll Size',
+    title: 'Lane View',
     kicker: 'Riff Guide',
-    text: 'Roll Size controls whether the lane is visible and how much of the phrase you see at once.',
-    doThis: 'Use 1 Bar for close writing, Pattern for the full phrase, and Hide Roll when you want the canvas alone.',
+    text: 'Lane View controls whether the lane is visible and how much of the phrase you see at once.',
+    doThis: 'Use 1 Bar for close writing, Pattern for the full phrase, and Hide Lane when you want the canvas alone.',
     notice: 'This changes the view, not the notes.',
   },
   {
@@ -633,10 +633,10 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-desktop-audio',
-    title: 'Audio',
+    title: 'Listening',
     kicker: 'Riff Guide',
-    text: 'Choose whether you want to hear the bar, the riff, or both together.',
-    doThis: 'Solo one layer when you need to hear the structure more clearly.',
+    text: 'Choose whether you want to hear the frame, the riff, or both together.',
+    doThis: 'Solo one part when you need to hear the structure more clearly.',
   },
   {
     target: 'riff-desktop-sound',
@@ -647,9 +647,9 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-desktop-view',
-    title: 'View',
+    title: 'Overlays',
     kicker: 'Riff Guide',
-    text: 'View changes labels, start lines, riff shape, and canvas mood without changing the groove.',
+    text: 'Overlays change labels, start lines, and pattern shape without changing the groove.',
     doThis: 'Use labels and start lines when learning, then simplify the view once the phrase feels familiar.',
   },
   {
@@ -901,10 +901,10 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'study-desktop-audio',
-    title: 'Audio',
+    title: 'Listening',
     kicker: 'Study Guide',
-    text: 'Audio lets you hear the selected layer, the full stack, or mute the study entirely.',
-    doThis: 'Solo one layer when the stack feels too dense.',
+    text: 'Listening lets you choose what part of the study you hear right now.',
+    doThis: 'Solo one layer when the stack feels too dense, then switch the target layer if needed.',
   },
   {
     target: 'study-desktop-sound',
@@ -915,9 +915,9 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'study-desktop-view',
-    title: 'View',
+    title: 'Overlays',
     kicker: 'Study Guide',
-    text: 'View controls numbers, ghost steps, canvas mood, atmosphere, and glow without changing the rhythm.',
+    text: 'Overlays control labels and guide marks without changing the rhythm itself.',
     doThis: 'Use numbers when learning and hide them when the cycle feels familiar.',
   },
   {
@@ -4135,7 +4135,7 @@ function OrbitalPolymeter() {
     useState<PolyrhythmStepSelection | null>(null);
   const [polyrhythmRestartToken, setPolyrhythmRestartToken] = useState(0);
   const [, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
-  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'view'>('sound');
+  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'overlay' | 'canvas'>('sound');
   const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
     useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [polyrhythmMobileSceneTab, setPolyrhythmMobileSceneTab] =
@@ -4272,11 +4272,10 @@ function OrbitalPolymeter() {
       ? `${riffCycleStudy.riff.stepCount} Step Pattern`
       : `${riffDesktopLaneView} Bar${riffDesktopLaneView === 1 ? '' : 's'}`;
   const riffDesktopPanelBottom = riffCycleStudy.viewMode === 'unwrapped' ? '20.75rem' : '9.5rem';
-  const riffDesktopMenuBottom = riffCycleStudy.viewMode === 'unwrapped' ? '25.2rem' : '14rem';
   const studyDesktopPanelBottom = '10.75rem';
-  const studyDesktopMenuBottom = '15.2rem';
   const riffDesktopEditorTrayMinVisibleHeight = 140;
   const studyDesktopQuickMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
+  const studyDesktopQuickLayersMaxHeight = `calc(${studyDesktopQuickMaxHeight} - 12.5rem)`;
   const studyDesktopUtilityMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
   const riffDesktopQuickMaxHeight = `calc(100vh - 5rem - ${riffDesktopPanelBottom})`;
   const riffDesktopUtilityMaxHeight = `calc(100vh - 5rem - ${riffDesktopPanelBottom})`;
@@ -4596,7 +4595,12 @@ function OrbitalPolymeter() {
 
   const handleAddPolyrhythmLayer = useCallback(() => {
     let nextLayerId: string | null = null;
+    let hitLayerLimit = false;
     setPolyrhythmStudy((current) => {
+      if (current.layers.length >= MAX_POLYRHYTHM_LAYERS) {
+        hitLayerLimit = true;
+        return current;
+      }
       const lastLayer = current.layers[current.layers.length - 1];
       const nextLayerIndex = current.layers.length;
       const nextBeatCount = Math.min(64, Math.max(6, (lastLayer?.beatCount ?? 8) + 2));
@@ -4620,6 +4624,10 @@ function OrbitalPolymeter() {
         ],
       };
     });
+    if (hitLayerLimit) {
+      toast.message(`Study is limited to ${MAX_POLYRHYTHM_LAYERS} layers.`);
+      return;
+    }
     if (nextLayerId) {
       setSelectedPolyrhythmLayerId(nextLayerId);
       setSelectedPolyrhythmStep(null);
@@ -6260,7 +6268,7 @@ function OrbitalPolymeter() {
       return;
     }
     if (currentGuideStep.target === 'study-desktop-view') {
-      setPolyrhythmUtilityPanel('view');
+      setPolyrhythmUtilityPanel('overlay');
     }
   }, [appSurface, currentGuideStep, helpOpen, isMobile]);
 
@@ -8323,6 +8331,7 @@ function OrbitalPolymeter() {
   const orbitMinBpm = Math.round(engineState.baseBPM * 0.1);
   const orbitMaxBpm = Math.round(engineState.baseBPM * 10);
   const polyrhythmLayerCount = polyrhythmStudy.layers.length;
+  const canAddPolyrhythmLayer = polyrhythmLayerCount < MAX_POLYRHYTHM_LAYERS;
   const polyrhythmStepCount = polyrhythmStudy.layers.reduce(
     (count, layer) => count + layer.beatCount,
     0,
@@ -8439,6 +8448,9 @@ function OrbitalPolymeter() {
     color: 'rgba(198, 223, 246, 0.6)',
     textShadow: '0 0 10px rgba(136,204,255,0.2)',
   } as const;
+  const utilityButtonClass = 'text-[9px] tracking-[0.12em]';
+  const utilityGroupCardClass =
+    'rounded-xl border border-white/8 bg-white/[0.03] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
   const guideAccent =
     activeOverlayContext === 'study-editor'
       ? selectedPolyrhythmLayer?.color ?? '#72F1B8'
@@ -9790,7 +9802,14 @@ function OrbitalPolymeter() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                          <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer} className="w-full">
+                          <StudyShellButton
+                            tone="blue"
+                            highlighted={canAddPolyrhythmLayer}
+                            icon={<Plus size={15} />}
+                            onClick={handleAddPolyrhythmLayer}
+                            disabled={!canAddPolyrhythmLayer}
+                            className="w-full"
+                          >
                             Add Layer
                           </StudyShellButton>
                           <StudyShellButton
@@ -10467,7 +10486,13 @@ function OrbitalPolymeter() {
                 {polyrhythmMobileSection === 'canvas' ? (
                   <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                     <div className="grid grid-cols-2 gap-2">
-                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        highlighted={polyrhythmStudy.showInactiveSteps}
+                        onClick={handleTogglePolyrhythmInactiveSteps}
+                        className={utilityButtonClass}
+                      >
                         Ghost Steps
                       </StudyShellButton>
                       <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
@@ -10578,11 +10603,12 @@ function OrbitalPolymeter() {
                     <StudyShellButton
                       size="square"
                       tone="blue"
-                      highlighted
+                      highlighted={canAddPolyrhythmLayer}
                       icon={<Plus size={14} />}
                       onClick={handleAddPolyrhythmLayer}
+                      disabled={!canAddPolyrhythmLayer}
                       aria-label="Add layer"
-                      title="Add layer"
+                      title={canAddPolyrhythmLayer ? 'Add layer' : `Layer limit (${MAX_POLYRHYTHM_LAYERS}) reached`}
                     />
                     <StudyShellButton
                       size="square"
@@ -10692,7 +10718,14 @@ function OrbitalPolymeter() {
                     selectedPolyrhythmLayer ? (
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2">
-                          <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer} className="w-full">
+                          <StudyShellButton
+                            tone="blue"
+                            highlighted={canAddPolyrhythmLayer}
+                            icon={<Plus size={15} />}
+                            onClick={handleAddPolyrhythmLayer}
+                            disabled={!canAddPolyrhythmLayer}
+                            className="w-full"
+                          >
                             Add Layer
                           </StudyShellButton>
                           <StudyShellButton
@@ -11041,7 +11074,10 @@ function OrbitalPolymeter() {
                     <Plus size={13} />
                   </button>
                 </div>
-                <div className="space-y-1">
+                <div
+                  className="space-y-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none]"
+                  style={{ maxHeight: studyDesktopQuickLayersMaxHeight }}
+                >
                   {polyrhythmStudy.layers.map((layer, index) => {
                     const active = layer.id === selectedPolyrhythmLayer?.id;
                     return (
@@ -11266,7 +11302,7 @@ function OrbitalPolymeter() {
               className="fixed right-6 z-30 w-[18rem]"
               style={{ bottom: studyDesktopPanelBottom }}
             >
-              <StudyShellPremiumPanel accent="#88CCFF" className="p-0">
+              <StudyShellPremiumPanel accent="#88CCFF" className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3 rounded-[1.35rem] px-0.5 py-0.5">
                   <div className="min-w-0 flex-1 text-center">
                     <InlineInfoLabel
@@ -11276,16 +11312,43 @@ function OrbitalPolymeter() {
                       labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setPolyrhythmDesktopUtilityCollapsed(false)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
-                    aria-label="Expand study utility menu"
-                    title="Expand study utility menu"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-guide="study-desktop-menu"
+                      onClick={() => setSidebarOpen(true)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/28 bg-[#88CCFF]/10 text-[#88CCFF] shadow-[0_0_0_1px_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(136,204,255,0.14),0_0_18px_rgba(255,255,255,0.08)] transition active:scale-[0.99]"
+                      aria-label="Open study menu"
+                      title="Open study menu"
+                    >
+                      <Menu size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPolyrhythmDesktopUtilityCollapsed(false)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
+                      aria-label="Expand study utility menu"
+                      title="Expand study utility menu"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                  </div>
                 </div>
+                <StudyShellButton
+                  size="compact"
+                  tone={polyrhythmSoundFocus === 'layer' ? 'green' : 'blue'}
+                  highlighted
+                  className="w-full"
+                  onClick={() =>
+                    handleSetPolyrhythmSoundFocus(
+                      polyrhythmSoundFocus === 'layer' ? 'stack' : 'layer',
+                    )
+                  }
+                >
+                  {polyrhythmSoundFocus === 'layer'
+                    ? 'Full Stack'
+                    : `Solo ${selectedPolyrhythmLayerLabel}`}
+                </StudyShellButton>
               </StudyShellPremiumPanel>
             </div>
           ) : (
@@ -11307,7 +11370,7 @@ function OrbitalPolymeter() {
                     type="button"
                     data-guide="study-desktop-menu"
                     onClick={() => setSidebarOpen(true)}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#88CCFF]/28 bg-[#88CCFF]/10 text-[#88CCFF] shadow-[0_0_0_1px_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(136,204,255,0.14),0_0_18px_rgba(255,255,255,0.08)] transition active:scale-[0.96]"
                     aria-label="Open study menu"
                     title="Open study menu"
                   >
@@ -11516,7 +11579,7 @@ function OrbitalPolymeter() {
                       textShadow: polyrhythmUtilityPanel === 'audio' ? '0 0 12px rgba(114,241,184,0.22)' : 'none',
                     }}
                   >
-                    Audio
+                    Listening
                   </div>
                   <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={{ background: polyrhythmUtilityPanel === 'audio' ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)', borderColor: polyrhythmUtilityPanel === 'audio' ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)', color: polyrhythmUtilityPanel === 'audio' ? '#72F1B8' : 'rgba(255,255,255,0.56)' }}>
                     {polyrhythmUtilityPanel === 'audio' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -11524,27 +11587,113 @@ function OrbitalPolymeter() {
                 </button>
                 {polyrhythmUtilityPanel === 'audio' ? (
                   <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
-                    <div className="grid grid-cols-[1fr_auto] gap-2">
-                      <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundEnabled} onClick={handleTogglePolyrhythmSound}>
+                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
+                      <div className="mb-2 text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
+                        Output
+                      </div>
+                      <StudyShellButton
+                        size="compact"
+                        tone="green"
+                        highlighted={polyrhythmStudy.soundEnabled}
+                        onClick={handleTogglePolyrhythmSound}
+                        className="w-full"
+                      >
                         {polyrhythmStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
                       </StudyShellButton>
-                      <div className="rounded-xl border border-white/8 bg-white/[0.035] px-2.5 py-2 text-[9px] font-mono uppercase tracking-[0.12em] text-white/44">
-                        {selectedPolyrhythmLayerLabel}
+                    </div>
+
+                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
+                          Listen To
+                        </div>
+                        <div className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/44">
+                          {polyrhythmSoundFocus === 'layer'
+                            ? 'Solo Selected'
+                            : polyrhythmSoundFocus === 'stack'
+                              ? 'Full Stack'
+                              : 'Muted'}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          highlighted={polyrhythmSoundFocus === 'layer'}
+                          onClick={() => handleSetPolyrhythmSoundFocus('layer')}
+                        >
+                          Solo
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="green"
+                          highlighted={polyrhythmSoundFocus === 'stack'}
+                          onClick={() => handleSetPolyrhythmSoundFocus('stack')}
+                        >
+                          Full Stack
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          tone="red"
+                          highlighted={polyrhythmSoundFocus === 'mute'}
+                          onClick={() => handleSetPolyrhythmSoundFocus('mute')}
+                        >
+                          Mute
+                        </StudyShellButton>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'layer'} onClick={() => handleSetPolyrhythmSoundFocus('layer')}>
-                        Solo Layer
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'stack'} onClick={() => handleSetPolyrhythmSoundFocus('stack')}>
-                        All Layers
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'mute'} onClick={() => handleSetPolyrhythmSoundFocus('mute')}>
-                        Mute
-                      </StudyShellButton>
+
+                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
+                          Target Layer
+                        </div>
+                        <div
+                          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}10`,
+                            borderColor: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}22`,
+                            color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
+                          }}
+                        >
+                          {selectedPolyrhythmLayerLabel}
+                        </div>
+                      </div>
+                      <div className="-mx-0.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+                        <div className="flex gap-1.5 px-0.5">
+                          {polyrhythmStudy.layers.map((layer, index) => {
+                            const active = layer.id === selectedPolyrhythmLayer?.id;
+                            return (
+                              <StudyShellButton
+                                key={layer.id}
+                                size="compact"
+                                tone="neutral"
+                                highlighted={active}
+                                onClick={() => {
+                                  handleSelectPolyrhythmLayer(layer.id);
+                                  setSelectedPolyrhythmStep(null);
+                                }}
+                                style={
+                                  active
+                                    ? {
+                                        background: `${layer.color}16`,
+                                        borderColor: `${layer.color}44`,
+                                        color: layer.color,
+                                        boxShadow: `0 0 0 1px ${layer.color}22 inset`,
+                                      }
+                                    : undefined
+                                }
+                              >
+                                Layer {index + 1}
+                              </StudyShellButton>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
+
                     <div className="text-[10px] leading-relaxed text-white/40">
-                      Solo hears only the selected layer. All Layers restores the full study.
+                      Solo follows the selected layer. Full Stack restores the whole study without changing the target.
                     </div>
                   </div>
                 ) : null}
@@ -11664,47 +11813,107 @@ function OrbitalPolymeter() {
                 className="rounded-2xl border"
                 style={{
                   background:
-                    polyrhythmUtilityPanel === 'view'
+                    polyrhythmUtilityPanel === 'overlay'
                       ? 'linear-gradient(180deg, rgba(255,184,107,0.12), rgba(255,255,255,0.035))'
                       : 'rgba(255,255,255,0.035)',
                   borderColor:
-                    polyrhythmUtilityPanel === 'view'
+                    polyrhythmUtilityPanel === 'overlay'
                       ? 'rgba(255,184,107,0.2)'
                       : 'rgba(255,255,255,0.08)',
                   boxShadow:
-                    polyrhythmUtilityPanel === 'view'
+                    polyrhythmUtilityPanel === 'overlay'
                       ? '0 0 0 1px rgba(255,184,107,0.09) inset, 0 12px 28px rgba(0,0,0,0.24), 0 0 24px rgba(255,184,107,0.1)'
                       : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'view' ? null : 'view'))}
+                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'overlay' ? null : 'overlay'))}
                   className="relative flex w-full items-center justify-center px-12 py-3 text-center"
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
                     style={{
-                      color: polyrhythmUtilityPanel === 'view' ? '#FFB86B' : 'rgba(255,255,255,0.72)',
-                      textShadow: polyrhythmUtilityPanel === 'view' ? '0 0 12px rgba(255,184,107,0.22)' : 'none',
+                      color: polyrhythmUtilityPanel === 'overlay' ? '#FFB86B' : 'rgba(255,255,255,0.72)',
+                      textShadow: polyrhythmUtilityPanel === 'overlay' ? '0 0 12px rgba(255,184,107,0.22)' : 'none',
                     }}
                   >
-                    View
+                    Overlays
                   </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={{ background: polyrhythmUtilityPanel === 'view' ? 'rgba(255,184,107,0.12)' : 'rgba(255,255,255,0.04)', borderColor: polyrhythmUtilityPanel === 'view' ? 'rgba(255,184,107,0.22)' : 'rgba(255,255,255,0.08)', color: polyrhythmUtilityPanel === 'view' ? '#FFB86B' : 'rgba(255,255,255,0.56)' }}>
-                    {polyrhythmUtilityPanel === 'view' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={{ background: polyrhythmUtilityPanel === 'overlay' ? 'rgba(255,184,107,0.12)' : 'rgba(255,255,255,0.04)', borderColor: polyrhythmUtilityPanel === 'overlay' ? 'rgba(255,184,107,0.22)' : 'rgba(255,255,255,0.08)', color: polyrhythmUtilityPanel === 'overlay' ? '#FFB86B' : 'rgba(255,255,255,0.56)' }}>
+                    {polyrhythmUtilityPanel === 'overlay' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
                 </button>
-                {polyrhythmUtilityPanel === 'view' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
-                    <div className="grid grid-cols-2 gap-2">
+                {polyrhythmUtilityPanel === 'overlay' ? (
+                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className={utilityGroupCardClass}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+                          Labels
+                        </div>
+                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
+                          Canvas Guides
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-[0.95fr,1.05fr] gap-2">
                       <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
                         Ghost Steps
                       </StudyShellButton>
-                      <StudyShellButton size="compact" tone="amber" highlighted={Boolean(polyrhythmStudy.showStepLabels)} onClick={handleTogglePolyrhythmStepLabels}>
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted={Boolean(polyrhythmStudy.showStepLabels)}
+                        onClick={handleTogglePolyrhythmStepLabels}
+                        className={utilityButtonClass}
+                      >
                         Step Numbers
                       </StudyShellButton>
+                      </div>
+                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
+                        Step Numbers makes the cycle easier to count. Ghost Steps keeps the unused positions visible.
+                      </div>
                     </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div
+                className="rounded-2xl border"
+                style={{
+                  background:
+                    polyrhythmUtilityPanel === 'canvas'
+                      ? 'linear-gradient(180deg, rgba(136,204,255,0.12), rgba(255,255,255,0.035))'
+                      : 'rgba(255,255,255,0.035)',
+                  borderColor:
+                    polyrhythmUtilityPanel === 'canvas'
+                      ? 'rgba(136,204,255,0.2)'
+                      : 'rgba(255,255,255,0.08)',
+                  boxShadow:
+                    polyrhythmUtilityPanel === 'canvas'
+                      ? '0 0 0 1px rgba(136,204,255,0.09) inset, 0 12px 28px rgba(0,0,0,0.24), 0 0 24px rgba(136,204,255,0.1)'
+                      : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'))}
+                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                >
+                  <div
+                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
+                    style={{
+                      color: polyrhythmUtilityPanel === 'canvas' ? '#88CCFF' : 'rgba(255,255,255,0.72)',
+                      textShadow: polyrhythmUtilityPanel === 'canvas' ? '0 0 12px rgba(136,204,255,0.22)' : 'none',
+                    }}
+                  >
+                    Canvas
+                  </div>
+                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={{ background: polyrhythmUtilityPanel === 'canvas' ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.04)', borderColor: polyrhythmUtilityPanel === 'canvas' ? 'rgba(136,204,255,0.22)' : 'rgba(255,255,255,0.08)', color: polyrhythmUtilityPanel === 'canvas' ? '#88CCFF' : 'rgba(255,255,255,0.56)' }}>
+                    {polyrhythmUtilityPanel === 'canvas' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                </button>
+                {polyrhythmUtilityPanel === 'canvas' ? (
+                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
                     <CanvasDisplayControls
                       settings={canvasDisplayState.polyrhythm}
                       onChange={handleUpdatePolyrhythmDisplay}
@@ -11810,9 +12019,10 @@ function OrbitalPolymeter() {
                     <button
                       type="button"
                       onClick={handleAddPolyrhythmLayer}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7FD7FF]/26 bg-[#7FD7FF]/10 text-[#7FD7FF] transition active:scale-[0.97]"
+                      disabled={!canAddPolyrhythmLayer}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7FD7FF]/26 bg-[#7FD7FF]/10 text-[#7FD7FF] transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label="Add layer"
-                      title="Add layer"
+                      title={canAddPolyrhythmLayer ? 'Add layer' : `Layer limit (${MAX_POLYRHYTHM_LAYERS}) reached`}
                     >
                       <Plus size={14} />
                     </button>
@@ -11928,8 +12138,8 @@ function OrbitalPolymeter() {
               <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="space-y-3">
                 {selectedPolyrhythmLayer ? (
                   <>
-                    <div className="flex flex-wrap items-center gap-3">
-	                      <div className="min-w-[14rem] flex-1">
+                    <div className="grid gap-3 xl:grid-cols-[13rem_minmax(28rem,34rem)_13rem_14rem_auto] xl:items-center xl:justify-center">
+	                      <div className="min-w-0 xl:max-w-[13rem]">
 	                        <InlineInfoLabel
                             infoId="study_pattern_roll"
                             label="Pattern Roll"
@@ -11941,7 +12151,91 @@ function OrbitalPolymeter() {
 	                        </div>
 	                      </div>
 
-                      <div className="min-w-[12rem] rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
+                      <div
+                        data-guide="study-editor-steps"
+                        className="w-full rounded-[1.55rem] border border-white/8 bg-white/[0.035] px-4 py-2 xl:max-w-[34rem] xl:justify-self-center"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <InlineInfoLabel
+                            infoId="study_steps"
+                            label="Steps"
+                            labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                            labelStyle={desktopMenuSubheaderStyle}
+                          />
+                          <input
+                            type="number"
+                            min="3"
+                            max="64"
+                            step="1"
+                            value={selectedPolyrhythmLayer.beatCount}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) => {
+                              const next = parseInt(event.target.value, 10);
+                              if (Number.isNaN(next)) {
+                                return;
+                              }
+                              handleSetPolyrhythmLayerBeatCount(
+                                selectedPolyrhythmLayer.id,
+                                Math.max(3, Math.min(64, next)),
+                              );
+                            }}
+                            className="w-[4.8rem] rounded-xl border px-2 py-1 text-center text-[14px] font-medium focus:outline-none"
+                            style={{
+                              background: `${selectedPolyrhythmLayer.color}12`,
+                              borderColor: `${selectedPolyrhythmLayer.color}30`,
+                              color: selectedPolyrhythmLayer.color,
+                            }}
+                            aria-label="Set layer steps"
+                          />
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleSetPolyrhythmLayerBeatCount(
+                                selectedPolyrhythmLayer.id,
+                                selectedPolyrhythmLayer.beatCount - 1,
+                              )
+                            }
+                            aria-label="Decrease layer steps"
+                          >
+                            <Minus size={14} />
+                          </StudyShellButton>
+                          <input
+                            type="range"
+                            min="3"
+                            max="64"
+                            step="1"
+                            value={selectedPolyrhythmLayer.beatCount}
+                            onChange={(event) =>
+                              handleSetPolyrhythmLayerBeatCount(
+                                selectedPolyrhythmLayer.id,
+                                parseInt(event.target.value, 10) || selectedPolyrhythmLayer.beatCount,
+                              )
+                            }
+                            className="touch-slider min-w-0 flex-1"
+                            style={{
+                              ['--slider-accent' as string]: selectedPolyrhythmLayer.color,
+                              accentColor: selectedPolyrhythmLayer.color,
+                            }}
+                            aria-label="Set layer step count"
+                          />
+                          <StudyShellButton
+                            size="square"
+                            onClick={() =>
+                              handleSetPolyrhythmLayerBeatCount(
+                                selectedPolyrhythmLayer.id,
+                                selectedPolyrhythmLayer.beatCount + 1,
+                              )
+                            }
+                            aria-label="Increase layer steps"
+                          >
+                            <Plus size={14} />
+                          </StudyShellButton>
+                        </div>
+                      </div>
+
+                      <div className="min-w-[13rem] rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
 	                        <div className="mb-1.5 flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
 	                          <InlineInfoLabel
                               infoId="study_radius"
@@ -11970,51 +12264,7 @@ function OrbitalPolymeter() {
 	                        />
 	                      </div>
 
-	                      <div data-guide="study-editor-steps" className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
-	                        <InlineInfoLabel
-                            infoId="study_steps"
-                            label="Steps"
-                            labelClassName="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34"
-                          />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleSetPolyrhythmLayerBeatCount(
-                              selectedPolyrhythmLayer.id,
-                              selectedPolyrhythmLayer.beatCount - 1,
-                            )
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                          aria-label="Decrease layer steps"
-                        >
-                          <Minus size={13} />
-                        </button>
-                        <div
-                          className="min-w-10 rounded-xl border px-2.5 py-1.5 text-center text-[12px] font-mono uppercase tracking-[0.1em]"
-                          style={{
-                            background: `${selectedPolyrhythmLayer.color}10`,
-                            borderColor: `${selectedPolyrhythmLayer.color}28`,
-                            color: selectedPolyrhythmLayer.color,
-                          }}
-                        >
-                          {selectedPolyrhythmLayer.beatCount}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleSetPolyrhythmLayerBeatCount(
-                              selectedPolyrhythmLayer.id,
-                              selectedPolyrhythmLayer.beatCount + 1,
-                            )
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                          aria-label="Increase layer steps"
-                        >
-                          <Plus size={13} />
-                        </button>
-                      </div>
-
-                      <div data-guide="study-editor-offset" className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5">
+                      <div data-guide="study-editor-offset" className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.035] p-1.5 xl:justify-self-stretch">
                         <InlineInfoLabel
                           infoId="study_offset_pattern"
                           label={`Offset ${selectedPolyrhythmOffsetSteps}`}
@@ -12037,7 +12287,7 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="grid grid-cols-2 gap-1.5 xl:justify-self-end">
                         <StudyShellButton
                           data-guide="study-editor-invert"
                           size="compact"
@@ -12085,22 +12335,6 @@ function OrbitalPolymeter() {
               </StudyShellPremiumPanel>
             </div>
             {helpOpen && helpContext === 'study-editor' ? renderGuideOverlay(guideAccent, 60) : null}
-          </div>
-        ) : null}
-
-        {!isMobile && !presentationMode && !sidebarOpen && polyrhythmDesktopUtilityCollapsed ? (
-          <div
-            className="fixed right-6 z-30"
-            data-guide="study-desktop-menu"
-            style={{ bottom: studyDesktopMenuBottom }}
-          >
-            <StudyShellFloatingMenuButton
-              accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-              label="Open Study Menu"
-              icon={<Menu size={16} />}
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open study menu"
-            />
           </div>
         ) : null}
 
@@ -12281,7 +12515,13 @@ function OrbitalPolymeter() {
 
               <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : 'justify-end'}`}>
                 {isMobile ? (
-                  <StudyShellButton tone="blue" highlighted icon={<Plus size={15} />} onClick={handleAddPolyrhythmLayer}>
+                  <StudyShellButton
+                    tone="blue"
+                    highlighted={canAddPolyrhythmLayer}
+                    icon={<Plus size={15} />}
+                    onClick={handleAddPolyrhythmLayer}
+                    disabled={!canAddPolyrhythmLayer}
+                  >
                     Add Layer
                   </StudyShellButton>
                 ) : null}
@@ -15005,15 +15245,30 @@ function OrbitalPolymeter() {
                       labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setRiffDesktopUtilityCollapsed(false)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
-                    aria-label="Expand riff utility menu"
-                    title="Expand riff utility menu"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-guide="riff-desktop-menu"
+                      onClick={() => {
+                        setRiffQuickPanel(null);
+                        setSidebarOpen(true);
+                      }}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/28 bg-[#88CCFF]/10 text-[#88CCFF] shadow-[0_0_0_1px_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(136,204,255,0.14),0_0_18px_rgba(255,255,255,0.08)] transition active:scale-[0.99]"
+                      aria-label="Open riff menu"
+                      title="Open riff menu"
+                    >
+                      <Menu size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiffDesktopUtilityCollapsed(false)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
+                      aria-label="Expand riff utility menu"
+                      title="Expand riff utility menu"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                  </div>
                 </div>
                 <StudyShellButton
                   size="compact"
@@ -15048,7 +15303,7 @@ function OrbitalPolymeter() {
                       setRiffQuickPanel(null);
                       setSidebarOpen(true);
                     }}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#88CCFF]/28 bg-[#88CCFF]/10 text-[#88CCFF] shadow-[0_0_0_1px_rgba(255,255,255,0.08)_inset,0_0_0_1px_rgba(136,204,255,0.14),0_0_18px_rgba(255,255,255,0.08)] transition active:scale-[0.96]"
                     aria-label="Open riff menu"
                     title="Open riff menu"
                   >
@@ -15098,7 +15353,7 @@ function OrbitalPolymeter() {
                       textShadow: riffUtilityPanel === 'audio' ? '0 0 12px rgba(114,241,184,0.22)' : 'none',
                     }}
                   >
-                    Audio
+                    Listening
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
@@ -15121,35 +15376,51 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'audio' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
-                    <StudyShellButton
-                      size="compact"
-                      tone="green"
-                      highlighted={riffCycleStudy.soundEnabled}
-                      onClick={handleToggleRiffCycleSound}
-                      className="w-full"
-                    >
-                      {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
-                    </StudyShellButton>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { id: 'bar', label: 'Bar Only', tone: 'pink' },
-                        { id: 'riff', label: 'Riff Only', tone: 'blue' },
-                        { id: 'full', label: 'Both', tone: 'green' },
-                      ] as const).map((focus) => (
-                        <StudyShellButton
-                          key={focus.id}
-                          size="compact"
-                          tone={focus.tone}
-                          highlighted={riffSoundFocus === focus.id}
-                          onClick={() => handleSetRiffSoundFocus(focus.id)}
-                        >
-                          {focus.label}
-                        </StudyShellButton>
-                      ))}
+                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className={utilityGroupCardClass}>
+                      <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+                        Output
+                      </div>
+                      <StudyShellButton
+                        size="compact"
+                        tone="green"
+                        highlighted={riffCycleStudy.soundEnabled}
+                        onClick={handleToggleRiffCycleSound}
+                        className={`w-full ${utilityButtonClass}`}
+                      >
+                        {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
+                      </StudyShellButton>
                     </div>
-                    <div className="text-[10px] leading-relaxed text-white/40">
-                      Bar Only keeps the pulse frame. Riff Only isolates the written pattern.
+                    <div className={utilityGroupCardClass}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+                          Hear
+                        </div>
+                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
+                          Focus
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { id: 'bar', label: 'Frame', tone: 'pink' },
+                          { id: 'riff', label: 'Riff', tone: 'blue' },
+                          { id: 'full', label: 'Both', tone: 'green' },
+                        ] as const).map((focus) => (
+                          <StudyShellButton
+                            key={focus.id}
+                            size="compact"
+                            tone={focus.tone}
+                            highlighted={riffSoundFocus === focus.id}
+                            onClick={() => handleSetRiffSoundFocus(focus.id)}
+                            className={utilityButtonClass}
+                          >
+                            {focus.label}
+                          </StudyShellButton>
+                        ))}
+                      </div>
+                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
+                        Frame isolates the pulse guide. Riff isolates the written phrase. Both restores the full groove.
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -15370,7 +15641,7 @@ function OrbitalPolymeter() {
                       textShadow: riffUtilityPanel === 'roll' ? '0 0 12px rgba(127,215,255,0.22)' : 'none',
                     }}
                   >
-                    Roll
+                    Lane View
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
@@ -15393,8 +15664,12 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'roll' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                    <div className={utilityGroupCardClass}>
+                      <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+                        Visibility
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
                       <StudyShellButton
                         size="compact"
                         tone="blue"
@@ -15405,8 +15680,9 @@ function OrbitalPolymeter() {
                             viewMode: 'unwrapped',
                           }))
                         }
+                        className={utilityButtonClass}
                       >
-                        Show Roll
+                        Show Lane
                       </StudyShellButton>
                       <StudyShellButton
                         size="compact"
@@ -15418,11 +15694,22 @@ function OrbitalPolymeter() {
                             viewMode: 'circular',
                           }))
                         }
+                        className={utilityButtonClass}
                       >
-                        Hide Roll
+                        Hide Lane
                       </StudyShellButton>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className={utilityGroupCardClass}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+                          Window
+                        </div>
+                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
+                          Visible Phrase
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
                       {[
                         { value: 1 as const, label: '1 Bar' },
                         { value: 2 as const, label: '2 Bars' },
@@ -15441,10 +15728,12 @@ function OrbitalPolymeter() {
                               viewMode: 'unwrapped',
                             }));
                           }}
+                          className={utilityButtonClass}
                         >
                           {option.label}
                         </StudyShellButton>
                       ))}
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -15483,7 +15772,7 @@ function OrbitalPolymeter() {
                       textShadow: riffUtilityPanel === 'overlay' ? '0 0 12px rgba(255,184,107,0.22)' : 'none',
                     }}
                   >
-                    Overlay
+                    Overlays
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
@@ -15506,40 +15795,69 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'overlay' ? (
-	                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
-	                    <div className="grid grid-cols-2 gap-2">
-	                      <StudyShellButton
-	                        size="compact"
-	                        tone="amber"
-	                        highlighted={Boolean(riffCycleStudy.showStepLabels)}
-	                        onClick={handleToggleRiffStepLabels}
-	                      >
-	                        Numbers
-	                      </StudyShellButton>
-	                      <StudyShellButton
-	                        size="compact"
-	                        tone="amber"
-	                        highlighted={Boolean(riffCycleStudy.showAlignmentMarkers)}
-	                        onClick={handleToggleRiffAlignmentMarkers}
-	                      >
-	                        Start Lines
-	                      </StudyShellButton>
-	                      <StudyShellButton
-	                        size="compact"
-	                        tone="green"
-	                        highlighted={Boolean(riffCycleStudy.showPhraseRing)}
-	                        onClick={handleToggleRiffPhraseBody}
-	                      >
-	                        Riff Shape
-	                      </StudyShellButton>
-	                      <StudyShellButton
-	                        size="compact"
-	                        tone="green"
-	                        highlighted={riffCycleStudy.emphasisMode === 'groove'}
-	                        onClick={handleToggleRiffEmphasisMode}
-	                      >
-	                        Filled Hits
-	                      </StudyShellButton>
+	                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+	                    <div className={utilityGroupCardClass}>
+	                      <div className="mb-2 flex items-center justify-between gap-2">
+	                        <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+	                          Labels
+	                        </div>
+	                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
+	                          Orientation
+	                        </div>
+	                      </div>
+	                      <div className="grid grid-cols-2 gap-2">
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="amber"
+	                          highlighted={Boolean(riffCycleStudy.showStepLabels)}
+	                          onClick={handleToggleRiffStepLabels}
+	                          className={utilityButtonClass}
+	                        >
+	                          Numbers
+	                        </StudyShellButton>
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="amber"
+	                          highlighted={Boolean(riffCycleStudy.showAlignmentMarkers)}
+	                          onClick={handleToggleRiffAlignmentMarkers}
+	                          className={utilityButtonClass}
+	                        >
+	                          Start Lines
+	                        </StudyShellButton>
+	                      </div>
+	                    </div>
+	                    <div className={utilityGroupCardClass}>
+	                      <div className="mb-2 flex items-center justify-between gap-2">
+	                        <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={desktopMenuSubheaderStyle}>
+	                          Pattern Shape
+	                        </div>
+	                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
+	                          Visual Weight
+	                        </div>
+	                      </div>
+	                      <div className="grid grid-cols-2 gap-2">
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="green"
+	                          highlighted={Boolean(riffCycleStudy.showPhraseRing)}
+	                          onClick={handleToggleRiffPhraseBody}
+	                          className={utilityButtonClass}
+	                        >
+	                          Riff Shape
+	                        </StudyShellButton>
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="green"
+	                          highlighted={riffCycleStudy.emphasisMode === 'groove'}
+	                          onClick={handleToggleRiffEmphasisMode}
+	                          className={utilityButtonClass}
+	                        >
+	                          Filled Hits
+	                        </StudyShellButton>
+	                      </div>
+	                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
+	                        These change how the groove reads on screen, not the notes themselves.
+	                      </div>
 	                    </div>
 	                  </div>
                 ) : null}
@@ -16465,25 +16783,6 @@ function OrbitalPolymeter() {
             </div>
             {helpOpen && helpContext === 'riff-editor' ? renderGuideOverlay(guideAccent, 60) : null}
             {tutorialOpen && tutorialContext === 'riff-editor' ? renderTutorialOverlay(guideAccent, 60) : null}
-          </div>
-        ) : null}
-
-        {!isMobile && !presentationMode && !sidebarOpen && riffDesktopUtilityCollapsed ? (
-          <div
-            className="fixed right-6 z-30"
-            style={{ bottom: riffDesktopMenuBottom }}
-            data-guide="riff-desktop-menu"
-          >
-            <StudyShellFloatingMenuButton
-              accent={riffCycleStudy.riff.color}
-              label="Open Riff Menu"
-              icon={<Menu size={16} />}
-              onClick={() => {
-                setRiffQuickPanel(null);
-                setSidebarOpen(true);
-              }}
-              aria-label="Open riff cycle menu"
-            />
           </div>
         ) : null}
 

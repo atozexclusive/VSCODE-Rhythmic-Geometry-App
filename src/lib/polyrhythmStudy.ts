@@ -12,6 +12,7 @@ export type PolyrhythmPitchMode = 'free' | 'keyed';
 export type PolyrhythmRegister = 'tight' | 'wide';
 export type PolyrhythmDisplayStyle = 'shared' | 'nested';
 export type PolyrhythmPresetGroup = 'one-layer' | 'two-layer' | 'advanced';
+export const MAX_POLYRHYTHM_LAYERS = 6;
 
 export interface PolyrhythmSoundSettings {
   palette: PolyrhythmSoundPalette;
