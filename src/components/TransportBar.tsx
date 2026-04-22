@@ -14,6 +14,7 @@ import InfoTip from './InfoTip';
 interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
+  baseBpm: number;
   traceMode: boolean;
   showPlanets: boolean;
   muted: boolean;
@@ -61,6 +62,7 @@ interface TransportBarProps {
 export default function TransportBar({
   playing,
   speedMultiplier,
+  baseBpm,
   traceMode,
   showPlanets,
   muted,
@@ -180,6 +182,15 @@ export default function TransportBar({
       (geometryMode === 'interference-trace' && quickOrbitControls.length < 4)) &&
     quickOrbitControls.length < 6;
   const canDeleteDesktopOrbit = geometryMode === 'standard-trace' && quickOrbitControls.length > 1;
+  const minOrbitBpm = Math.round(baseBpm * 0.1);
+  const maxOrbitBpm = Math.round(baseBpm * 10);
+  const currentOrbitBpm = Math.round(baseBpm * speedMultiplier);
+  const setOrbitBpm = useCallback(
+    (nextBpm: number) => {
+      onSpeedChange(Math.max(0.1, Math.min(10, nextBpm / baseBpm)));
+    },
+    [baseBpm, onSpeedChange],
+  );
 
   if (presentationMode) {
     return (
@@ -869,43 +880,43 @@ export default function TransportBar({
               </button>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Zap size={14} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Speed {speedMultiplier.toFixed(2)}×
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  10.0× max
-                </span>
+            <div className="flex items-center gap-3">
+              <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
+                Tempo
               </div>
               <input
                 type="range"
-                min="0.1"
-                max="10.0"
-                step="0.1"
-                value={speedMultiplier}
-                onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+                min={String(minOrbitBpm)}
+                max={String(maxOrbitBpm)}
+                step="1"
+                value={currentOrbitBpm}
+                onChange={(e) => setOrbitBpm(parseInt(e.target.value, 10) || currentOrbitBpm)}
                 onPointerDown={(event) =>
-                  handleTouchSliderPointerDown(event, 'mobile-speed', (value) => onSpeedChange(value))
+                  handleTouchSliderPointerDown(event, 'mobile-speed', (value) => setOrbitBpm(Math.round(value)))
                 }
                 onPointerMove={(event) =>
-                  handleTouchSliderPointerMove(event, 'mobile-speed', (value) => onSpeedChange(value))
+                  handleTouchSliderPointerMove(event, 'mobile-speed', (value) => setOrbitBpm(Math.round(value)))
                 }
                 onPointerUp={() => clearTouchSlider('mobile-speed')}
                 onPointerCancel={() => clearTouchSlider('mobile-speed')}
                 onBlur={() => clearTouchSlider('mobile-speed')}
                 data-dragging={activeTouchSlider === 'mobile-speed'}
-                className="touch-slider w-full cursor-pointer"
+                className="touch-slider min-w-0 flex-1 cursor-pointer"
                 style={{
                   background: 'transparent',
                   WebkitAppearance: 'none',
                   ['--slider-accent' as string]: '#00FFAA',
                 }}
-                title="Speed multiplier (0.1x to 10.0x)"
+                title={`Tempo (${minOrbitBpm} to ${maxOrbitBpm} BPM)`}
               />
+              <div className="w-12 shrink-0 text-right">
+                <div className="text-[14px] font-light leading-none text-white">
+                  {currentOrbitBpm}
+                </div>
+                <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                  BPM
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-5 gap-2">
@@ -1100,37 +1111,33 @@ export default function TransportBar({
           </button>
         </div>
 
-        {/* Center: Speed Multiplier */}
+        {/* Center: Tempo */}
         <div data-guide="desktop-speed" className="flex items-center gap-4 flex-1 mx-8">
-          <div className="flex items-center gap-2">
-            <Zap size={16} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
-            <span
-              className="text-xs font-mono font-light"
-              style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-            >
-              {speedMultiplier.toFixed(2)}×
-            </span>
+          <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+            Tempo
           </div>
           <input
             type="range"
-            min="0.1"
-            max="10.0"
-            step="0.1"
-            value={speedMultiplier}
-            onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+            min={String(minOrbitBpm)}
+            max={String(maxOrbitBpm)}
+            step="1"
+            value={currentOrbitBpm}
+            onChange={(e) => setOrbitBpm(parseInt(e.target.value, 10) || currentOrbitBpm)}
             className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
             style={{
               background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
               WebkitAppearance: 'none',
             }}
-            title="Speed multiplier (0.1x to 10.0x)"
+            title={`Tempo (${minOrbitBpm} to ${maxOrbitBpm} BPM)`}
           />
-          <span
-            className="text-xs font-mono font-light"
-            style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-          >
-            10.0×
-          </span>
+          <div className="w-[52px] shrink-0 text-right">
+            <div className="text-[18px] font-light leading-none text-white">
+              {currentOrbitBpm}
+            </div>
+            <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+              BPM
+            </div>
+          </div>
         </div>
 
         {/* Right: Trace Toggle + Menu */}

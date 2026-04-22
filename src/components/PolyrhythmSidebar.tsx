@@ -7,6 +7,7 @@ import {
 import AccountPanel from './AccountPanel';
 import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
+import type { PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import {
   POLYRHYTHM_LAYER_COLORS,
   POLYRHYTHM_PRESET_GROUP_META,
@@ -55,6 +56,7 @@ interface PolyrhythmSidebarProps {
     aspect: 'landscape' | 'square' | 'portrait' | 'story';
     scale: 1 | 2 | 4;
   }) => void;
+  onExportMidi: (mode: PolyrhythmMidiExportMode) => void;
   onExportScene: () => void;
   onSaveScene: () => void;
   onHardRefresh: () => void;
@@ -234,6 +236,7 @@ export default function PolyrhythmSidebar({
   onSetLayerBeatCount,
   onToggleLayerStep,
   onExportPng,
+  onExportMidi,
   onExportScene,
   onSaveScene,
   onHardRefresh,
@@ -243,6 +246,7 @@ export default function PolyrhythmSidebar({
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
+  const [exportMidiMode, setExportMidiMode] = useState<PolyrhythmMidiExportMode>('per-layer');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   const selectedLayer =
@@ -272,7 +276,7 @@ export default function PolyrhythmSidebar({
       ]
     : [
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
-        { id: 'layers', label: 'Rings', color: selectedLayer?.color ?? '#7FD7FF' },
+        { id: 'layers', label: 'Layers', color: selectedLayer?.color ?? '#7FD7FF' },
         { id: 'sound', label: 'Audio', color: '#88CCFF' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#88CCFF' },
@@ -341,7 +345,23 @@ export default function PolyrhythmSidebar({
           }}
         >
           <div>
-            <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">{isMobile ? 'Menu' : 'Study'}</div>
+            <div className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: selectedLayer?.color ?? '#72F1B8',
+                  boxShadow: `0 0 18px ${(selectedLayer?.color ?? '#72F1B8')}66`,
+                }}
+              />
+              <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">
+                {isMobile ? 'Study Menu' : 'Study'}
+              </div>
+            </div>
+            {isMobile ? (
+              <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                Scenes, saved studies, and account tools for the rhythm study mode.
+              </div>
+            ) : null}
             {!isMobile ? (
               <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/34">
                 scenes · export · account
@@ -365,39 +385,52 @@ export default function PolyrhythmSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
-              Mode
-            </div>
-            <div className="flex gap-2">
-              {([
-                ['orbital', 'Orbit'],
-                ['polyrhythm-study', 'Study'],
-                ['riff-cycle-study', 'Riff'],
-              ] as const).map(([surfaceId, label]) => {
-                const active = currentSurface === surfaceId;
-                return (
-                  <button
-                    key={surfaceId}
-                    type="button"
-                    onClick={() => onSurfaceChange(surfaceId)}
-                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+                    Mode
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                    Switch instruments without leaving the app.
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  3 Modes
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {([
+                  ['orbital', 'Orbit'],
+                  ['polyrhythm-study', 'Study'],
+                  ['riff-cycle-study', 'Riff'],
+                ] as const).map(([surfaceId, label]) => {
+                  const active = currentSurface === surfaceId;
+                  return (
+                    <button
+                      key={surfaceId}
+                      type="button"
+                      onClick={() => onSurfaceChange(surfaceId)}
+                      className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                        borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                        color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                        boxShadow: active ? '0 0 0 1px rgba(114,241,184,0.12) inset, 0 10px 24px rgba(0,0,0,0.18)' : 'none',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}
 
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
           {isMobile ? (
-            <div className="-mx-3 border-b border-white/5 px-3 pt-3 pb-1">
+            <div className="-mx-1 rounded-[1.35rem] border border-white/8 bg-white/[0.028] p-1.5">
               <div className="flex min-w-max gap-1 overflow-x-auto">
                 {tabMeta.map((tab) => {
                   const active = tab.id === activeTab;
@@ -406,11 +439,12 @@ export default function PolyrhythmSidebar({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className="shrink-0 rounded-t-lg px-3 py-3 text-xs font-mono font-light transition-all duration-200"
+                      className="shrink-0 rounded-xl px-3 py-2.5 text-xs font-mono font-light transition-all duration-200"
                       style={{
                         color: active ? tab.color : 'rgba(255,255,255,0.4)',
-                        borderBottom: active ? `2px solid ${tab.color}` : 'none',
-                        background: active ? `${tab.color}10` : 'transparent',
+                        border: active ? `1px solid ${tab.color}32` : '1px solid transparent',
+                        background: active ? `${tab.color}14` : 'transparent',
+                        boxShadow: active ? `0 0 0 1px ${tab.color}1c inset` : 'none',
                       }}
                     >
                       {tab.label.toUpperCase()}
@@ -540,267 +574,506 @@ export default function PolyrhythmSidebar({
           ) : null}
 
           {activeTab === 'layers' ? (
-            <section className="space-y-3">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                      Stack
+            isMobile ? (
+              <section className="space-y-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                        Stack
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/52">
+                        Select a layer, adjust its size, then shape its mask.
+                      </div>
                     </div>
-                    <div className="mt-1 text-[11px] text-white/52">
-                      Select a ring, adjust its size, then shape its mask.
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={onAddLayer}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
+                        style={{
+                          background: 'rgba(127,215,255,0.12)',
+                          borderColor: 'rgba(127,215,255,0.22)',
+                          color: '#7FD7FF',
+                        }}
+                      >
+                        Add Layer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedLayer && study.layers.length > 1 && onRemoveLayer(selectedLayer.id)}
+                        disabled={!selectedLayer || study.layers.length <= 1}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em] disabled:opacity-40"
+                        style={{
+                          background: 'rgba(255,51,102,0.12)',
+                          borderColor: 'rgba(255,51,102,0.22)',
+                          color: '#FF667F',
+                        }}
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {study.layers.map((layer, index) => {
+                      const active = layer.id === selectedLayer?.id;
+                      return (
+                        <button
+                          key={layer.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectLayer(layer.id);
+                            onSelectStep(null);
+                          }}
+                          className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: active ? `${layer.color}14` : 'rgba(255,255,255,0.03)',
+                            borderColor: active ? `${layer.color}40` : 'rgba(255,255,255,0.08)',
+                            color: active ? layer.color : 'rgba(255,255,255,0.58)',
+                          }}
+                        >
+                          L{index + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {selectedLayer ? (
+                  <div
+                    className="rounded-xl border p-3 space-y-3"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
+                      borderColor: `${selectedLayer.color}33`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: selectedLayer.color }}>
+                          Layer {selectedLayerIndex + 1}
+                        </div>
+                        <div className="mt-1 text-[11px] text-white/48">
+                          {countActiveSteps(selectedLayer)} on · {selectedLayer.beatCount} steps
+                        </div>
+                      </div>
+                      <div className="rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: `${selectedLayer.color}33`, color: selectedLayer.color }}>
+                        {Math.round(selectedLayer.rotationOffset)}°
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Steps</div>
+                      <div className="grid grid-cols-[40px,1fr,40px] gap-2 items-center">
+                        <button
+                          type="button"
+                          onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount - 1)}
+                          className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                        >
+                          −
+                        </button>
+                        <div className="rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
+                          {selectedLayer.beatCount}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount + 1)}
+                          className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                        <span>Radius</span>
+                        <span>{selectedLayer.radius}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="70"
+                        max="320"
+                        step="2"
+                        value={selectedLayer.radius}
+                        onChange={(event) =>
+                          onUpdateLayer(selectedLayer.id, {
+                            radius: parseInt(event.target.value, 10) || 70,
+                          })
+                        }
+                        className="w-full"
+                        style={{ accentColor: selectedLayer.color }}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Color</div>
+                      <div className="grid grid-cols-6 gap-2">
+                        {POLYRHYTHM_LAYER_COLORS.slice(0, 12).map((color) => {
+                          const active = selectedLayer.color === color;
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => onUpdateLayer(selectedLayer.id, { color })}
+                              className="h-9 rounded-lg border transition-transform active:scale-[0.97]"
+                              style={{
+                                background: `${color}18`,
+                                borderColor: active ? `${color}aa` : `${color}44`,
+                                boxShadow: active ? `0 0 0 1px ${color}aa inset` : 'none',
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onRotateLayer(selectedLayer.id, -1)}
+                        className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRotateLayer(selectedLayer.id, 1)}
+                        className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                      >
+                        <RotateCw size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onInvertLayerSteps(selectedLayer.id)}
+                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: 'rgba(255,170,0,0.12)',
+                          borderColor: 'rgba(255,170,0,0.2)',
+                          color: '#FFAA00',
+                        }}
+                      >
+                        Invert
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onClearLayer(selectedLayer.id)}
+                        className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: 'rgba(255,51,102,0.12)',
+                          borderColor: 'rgba(255,51,102,0.2)',
+                          color: '#FF667F',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    {selectedStep?.layerId === selectedLayer.id ? (
+                      <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+                        <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                          Step {selectedStep.stepIndex + 1}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedStepActive) {
+                                onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
+                              }
+                            }}
+                            className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                            style={{
+                              background: !selectedStepActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+                              borderColor: !selectedStepActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                              color: !selectedStepActive ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.56)',
+                            }}
+                          >
+                            Off
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!selectedStepActive) {
+                                onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
+                              }
+                            }}
+                            className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                            style={{
+                              background: selectedStepActive ? `${selectedLayer.color}16` : 'rgba(255,255,255,0.03)',
+                              borderColor: selectedStepActive ? `${selectedLayer.color}38` : 'rgba(255,255,255,0.08)',
+                              color: selectedStepActive ? selectedLayer.color : 'rgba(255,255,255,0.56)',
+                            }}
+                          >
+                            On
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-white/42">Tap a layer step on the canvas to edit it here.</div>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                      Tempo
+                    </div>
+                    <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-white/54">
+                      {study.bpm} BPM
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min="40"
+                    max="180"
+                    step="1"
+                    value={study.bpm}
+                    onChange={(event) => onBpmChange(parseInt(event.target.value, 10) || 40)}
+                    className="mt-3 w-full"
+                    style={{ accentColor: selectedLayer?.color ?? '#7FD7FF' }}
+                  />
+                </div>
+              </section>
+            ) : (
+              <section className="space-y-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                        Active Layers
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/52">
+                        Adjust multiple layers quickly, then select one to shape on the canvas.
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={onAddLayer}
                       className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
                       style={{
-                        background: 'rgba(127,215,255,0.12)',
-                        borderColor: 'rgba(127,215,255,0.22)',
-                        color: '#7FD7FF',
+                        background: 'rgba(114,241,184,0.12)',
+                        borderColor: 'rgba(114,241,184,0.24)',
+                        color: '#72F1B8',
                       }}
                     >
-                      Add Ring
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectedLayer && study.layers.length > 1 && onRemoveLayer(selectedLayer.id)}
-                      disabled={!selectedLayer || study.layers.length <= 1}
-                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em] disabled:opacity-40"
-                      style={{
-                        background: 'rgba(255,51,102,0.12)',
-                        borderColor: 'rgba(255,51,102,0.22)',
-                        color: '#FF667F',
-                      }}
-                    >
-                      Remove
+                      Add Layer
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="space-y-2.5">
                   {study.layers.map((layer, index) => {
                     const active = layer.id === selectedLayer?.id;
                     return (
-                      <button
+                      <div
                         key={layer.id}
-                        type="button"
-                        onClick={() => {
-                          onSelectLayer(layer.id);
-                          onSelectStep(null);
-                        }}
-                        className="rounded-full border px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        className="rounded-xl border p-3 transition-colors"
                         style={{
-                          background: active ? `${layer.color}14` : 'rgba(255,255,255,0.03)',
-                          borderColor: active ? `${layer.color}40` : 'rgba(255,255,255,0.08)',
-                          color: active ? layer.color : 'rgba(255,255,255,0.58)',
+                          background: active
+                            ? `linear-gradient(180deg, ${layer.color}12, rgba(255,255,255,0.025))`
+                            : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.024))',
+                          borderColor: active ? `${layer.color}4d` : 'rgba(255,255,255,0.09)',
+                          boxShadow: active ? `0 0 0 1px ${layer.color}1f inset` : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                         }}
                       >
-                        L{index + 1}
-                      </button>
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSelectLayer(layer.id);
+                              onSelectStep(null);
+                            }}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full"
+                                style={{ background: layer.color, boxShadow: `0 0 12px ${layer.color}88` }}
+                              />
+                              <span
+                                className="text-[10px] font-mono uppercase tracking-[0.16em]"
+                                style={{ color: active ? layer.color : 'rgba(255,255,255,0.82)' }}
+                              >
+                                Layer {index + 1}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-white/48">
+                              {countActiveSteps(layer)} on · {layer.beatCount} steps
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (study.layers.length > 1) {
+                                onRemoveLayer(layer.id);
+                              }
+                            }}
+                            disabled={study.layers.length <= 1}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-white/48 disabled:opacity-35"
+                            style={{
+                              background: 'rgba(255,255,255,0.03)',
+                              borderColor: active ? `${layer.color}28` : 'rgba(255,255,255,0.08)',
+                            }}
+                            aria-label={`Remove layer ${index + 1}`}
+                            title={`Remove layer ${index + 1}`}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-[34px,1fr,34px] gap-2 items-center">
+                          <button
+                            type="button"
+                            onClick={() => onSetLayerBeatCount(layer.id, layer.beatCount - 1)}
+                            className="h-9 rounded-lg border border-white/8 bg-white/[0.04] text-white/68"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSelectLayer(layer.id);
+                              onSelectStep(null);
+                            }}
+                            className="rounded-lg border px-3 py-2 text-center text-[13px] font-light"
+                            style={{
+                              background: active ? `${layer.color}12` : 'rgba(255,255,255,0.04)',
+                              borderColor: active ? `${layer.color}38` : 'rgba(255,255,255,0.08)',
+                              color: active ? layer.color : 'rgba(255,255,255,0.92)',
+                            }}
+                          >
+                            {layer.beatCount}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSetLayerBeatCount(layer.id, layer.beatCount + 1)}
+                            className="h-9 rounded-lg border border-white/8 bg-white/[0.04] text-white/68"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <input
+                          type="range"
+                          min="3"
+                          max="64"
+                          step="1"
+                          value={layer.beatCount}
+                          onChange={(event) =>
+                            onSetLayerBeatCount(layer.id, parseInt(event.target.value, 10) || 3)
+                          }
+                          onMouseDown={() => {
+                            onSelectLayer(layer.id);
+                            onSelectStep(null);
+                          }}
+                          className="mt-3 w-full"
+                          style={{ accentColor: layer.color }}
+                          aria-label={`Layer ${index + 1} steps`}
+                        />
+                      </div>
                     );
                   })}
                 </div>
-              </div>
 
-              {selectedLayer ? (
-                <div
-                  className="rounded-xl border p-3 space-y-3"
-                  style={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
-                    borderColor: `${selectedLayer.color}33`,
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: selectedLayer.color }}>
-                        Layer {selectedLayerIndex + 1}
+                {selectedLayer ? (
+                  <div
+                    className="rounded-xl border p-3 space-y-3"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
+                      borderColor: `${selectedLayer.color}33`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: selectedLayer.color }}>
+                          Selected Layer
+                        </div>
+                        <div className="mt-1 text-[11px] text-white/48">
+                          Layer {selectedLayerIndex + 1} stays highlighted on the canvas while you adjust it.
+                        </div>
                       </div>
-                      <div className="mt-1 text-[11px] text-white/48">
-                        {countActiveSteps(selectedLayer)} on · {selectedLayer.beatCount} steps
+                      <div
+                        className="rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]"
+                        style={{ borderColor: `${selectedLayer.color}33`, color: selectedLayer.color }}
+                      >
+                        {countActiveSteps(selectedLayer)} On
                       </div>
                     </div>
-                    <div className="rounded-full border px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: `${selectedLayer.color}33`, color: selectedLayer.color }}>
-                      {Math.round(selectedLayer.rotationOffset)}°
-                    </div>
-                  </div>
 
-                  <div className="space-y-1.5">
-                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Steps</div>
-                    <div className="grid grid-cols-[40px,1fr,40px] gap-2 items-center">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount - 1)}
-                        className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                        onClick={() => onRotateLayer(selectedLayer.id, -1)}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] text-[10px] font-mono uppercase tracking-[0.14em] text-white/68"
                       >
-                        −
+                        <RotateCcw size={14} />
+                        Earlier
                       </button>
-                      <div className="rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
-                        {selectedLayer.beatCount}
-                      </div>
                       <button
                         type="button"
-                        onClick={() => onSetLayerBeatCount(selectedLayer.id, selectedLayer.beatCount + 1)}
-                        className="h-10 rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
+                        onClick={() => onRotateLayer(selectedLayer.id, 1)}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] text-[10px] font-mono uppercase tracking-[0.14em] text-white/68"
                       >
-                        +
+                        <RotateCw size={14} />
+                        Later
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                        <span>Radius</span>
+                        <span>{selectedLayer.radius}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="70"
+                        max="320"
+                        step="2"
+                        value={selectedLayer.radius}
+                        onChange={(event) =>
+                          onUpdateLayer(selectedLayer.id, {
+                            radius: parseInt(event.target.value, 10) || 70,
+                          })
+                        }
+                        className="w-full"
+                        style={{ accentColor: selectedLayer.color }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onInvertLayerSteps(selectedLayer.id)}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: 'rgba(255,170,0,0.12)',
+                          borderColor: 'rgba(255,170,0,0.2)',
+                          color: '#FFAA00',
+                        }}
+                      >
+                        Invert
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onClearLayer(selectedLayer.id)}
+                        className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                        style={{
+                          background: 'rgba(255,51,102,0.12)',
+                          borderColor: 'rgba(255,51,102,0.2)',
+                          color: '#FF667F',
+                        }}
+                      >
+                        Clear
                       </button>
                     </div>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
-                      <span>Radius</span>
-                      <span>{selectedLayer.radius}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="70"
-                      max="320"
-                      step="2"
-                      value={selectedLayer.radius}
-                      onChange={(event) =>
-                        onUpdateLayer(selectedLayer.id, {
-                          radius: parseInt(event.target.value, 10) || 70,
-                        })
-                      }
-                      className="w-full"
-                      style={{ accentColor: selectedLayer.color }}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">Color</div>
-                    <div className="grid grid-cols-6 gap-2">
-                      {POLYRHYTHM_LAYER_COLORS.slice(0, 12).map((color) => {
-                        const active = selectedLayer.color === color;
-                        return (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => onUpdateLayer(selectedLayer.id, { color })}
-                            className="h-9 rounded-lg border transition-transform active:scale-[0.97]"
-                            style={{
-                              background: `${color}18`,
-                              borderColor: active ? `${color}aa` : `${color}44`,
-                              boxShadow: active ? `0 0 0 1px ${color}aa inset` : 'none',
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onRotateLayer(selectedLayer.id, -1)}
-                      className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRotateLayer(selectedLayer.id, 1)}
-                      className="inline-flex h-9 items-center justify-center rounded-xl border border-white/8 bg-white/[0.04] text-white/68"
-                    >
-                      <RotateCw size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onInvertLayerSteps(selectedLayer.id)}
-                      className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{
-                        background: 'rgba(255,170,0,0.12)',
-                        borderColor: 'rgba(255,170,0,0.2)',
-                        color: '#FFAA00',
-                      }}
-                    >
-                      Invert
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onClearLayer(selectedLayer.id)}
-                      className="rounded-xl border px-2 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{
-                        background: 'rgba(255,51,102,0.12)',
-                        borderColor: 'rgba(255,51,102,0.2)',
-                        color: '#FF667F',
-                      }}
-                    >
-                      Clear
-                    </button>
-                  </div>
-
-                  {selectedStep?.layerId === selectedLayer.id ? (
-                    <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
-                      <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
-                        Step {selectedStep.stepIndex + 1}
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedStepActive) {
-                              onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
-                            }
-                          }}
-                          className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                          style={{
-                            background: !selectedStepActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
-                            borderColor: !selectedStepActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
-                            color: !selectedStepActive ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.56)',
-                          }}
-                        >
-                          Off
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!selectedStepActive) {
-                              onToggleLayerStep(selectedLayer.id, selectedStep.stepIndex);
-                            }
-                          }}
-                          className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                          style={{
-                            background: selectedStepActive ? `${selectedLayer.color}16` : 'rgba(255,255,255,0.03)',
-                            borderColor: selectedStepActive ? `${selectedLayer.color}38` : 'rgba(255,255,255,0.08)',
-                            color: selectedStepActive ? selectedLayer.color : 'rgba(255,255,255,0.56)',
-                          }}
-                        >
-                          On
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-white/42">Tap a ring step on the canvas to edit it here.</div>
-                  )}
-                </div>
-              ) : null}
-
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    Tempo
-                  </div>
-                  <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-white/54">
-                    {study.bpm} BPM
-                  </div>
-                </div>
-                <input
-                  type="range"
-                  min="40"
-                  max="180"
-                  step="1"
-                  value={study.bpm}
-                  onChange={(event) => onBpmChange(parseInt(event.target.value, 10) || 40)}
-                  className="mt-3 w-full"
-                  style={{ accentColor: selectedLayer?.color ?? '#7FD7FF' }}
-                />
-              </div>
-            </section>
+                ) : null}
+              </section>
+            )
           ) : null}
 
           {activeTab === 'sound' ? (
@@ -812,7 +1085,7 @@ export default function PolyrhythmSidebar({
                       Audio
                     </div>
                     <div className="mt-1 text-[11px] text-white/52">
-                      Focus one ring or hear the full stack.
+                      Focus one layer or hear the full stack.
                     </div>
                   </div>
                   <button
@@ -1088,6 +1361,69 @@ export default function PolyrhythmSidebar({
                   }}
                 >
                   Export PNG
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                    MIDI Export
+                  </div>
+                  <div className="mt-1 text-[11px] text-white/52">
+                    Export one shared study cycle as MIDI.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ['per-layer', 'Per Layer'],
+                    ['merged', 'Merged'],
+                    ['selected-layer', selectedLayer ? selectedLayerIndex >= 0 ? `Layer ${selectedLayerIndex + 1}` : 'Selected' : 'Selected'],
+                  ] as const).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setExportMidiMode(mode)}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportMidiMode === mode ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportMidiMode === mode ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.64)',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-[11px] leading-relaxed text-white/46">
+                  {exportMidiMode === 'per-layer'
+                    ? 'Each layer gets its own MIDI track over one shared cycle.'
+                    : exportMidiMode === 'merged'
+                      ? 'All layers are merged into one MIDI track over one shared cycle.'
+                      : 'Only the current selected layer is exported.'}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onExportMidi(exportMidiMode);
+                    setExportNotice(
+                      exportMidiMode === 'per-layer'
+                        ? 'Study per-layer MIDI exported.'
+                        : exportMidiMode === 'merged'
+                          ? 'Study merged MIDI exported.'
+                          : 'Study selected-layer MIDI exported.',
+                    );
+                  }}
+                  className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
+                  style={{
+                    background: 'rgba(127,215,255,0.1)',
+                    borderColor: 'rgba(127,215,255,0.22)',
+                    color: '#7FD7FF',
+                  }}
+                >
+                  Export MIDI
                 </button>
               </div>
 

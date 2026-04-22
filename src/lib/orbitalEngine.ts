@@ -29,6 +29,7 @@ export interface EngineState {
 
 // Two-pi constant (double precision)
 const TAU: number = 2.0 * Math.PI;
+export const DEFAULT_BASE_BPM = 120.0;
 
 /**
  * Create a fresh engine state.
@@ -40,7 +41,7 @@ export function createEngineState(): EngineState {
     speedMultiplier: 1.0,
     elapsedBeats: 0.0,
     lastTimestamp: -1.0,
-    baseBPM: 120.0,
+    baseBPM: DEFAULT_BASE_BPM,
   };
 }
 

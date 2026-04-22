@@ -17,6 +17,7 @@ import {
   type RiffCycleStudy,
   type RiffPhrase,
 } from '../lib/riffCycleStudy';
+import type { RiffMidiExportMode } from '../lib/riffCycleMidi';
 
 interface RiffCycleSidebarProps {
   isOpen: boolean;
@@ -59,6 +60,7 @@ interface RiffCycleSidebarProps {
     aspect: 'landscape' | 'square' | 'portrait' | 'story';
     scale: 1 | 2 | 4;
   }) => void;
+  onExportMidi: (mode: RiffMidiExportMode) => void;
   onExportScene: () => void;
   onSaveScene: () => void;
   onHardRefresh: () => void;
@@ -278,6 +280,7 @@ export default function RiffCycleSidebar({
   onAccentLastLandingHit,
   onAccentLastTwoLandingHits,
   onExportPng,
+  onExportMidi,
   onExportScene,
   onSaveScene,
   onHardRefresh,
@@ -286,6 +289,7 @@ export default function RiffCycleSidebar({
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>(isMobile ? 'account' : 'scenes');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
+  const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
   const selectedStepEditable = selectedStep != null;
@@ -316,6 +320,11 @@ export default function RiffCycleSidebar({
       setActiveTab('ending');
     }
   }, [isMobile, study.landingEditEnabled]);
+
+  const pinEndingTab = () => {
+    onSetEditMode('landing');
+    setActiveTab('ending');
+  };
 
   useEffect(() => {
     if (!isMobile) {
@@ -362,7 +371,23 @@ export default function RiffCycleSidebar({
           }}
         >
           <div>
-            <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">{isMobile ? 'Menu' : 'Riff Cycle'}</div>
+            <div className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: study.riff.color,
+                  boxShadow: `0 0 18px ${study.riff.color}66`,
+                }}
+              />
+              <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">
+                {isMobile ? 'Riff Menu' : 'Riff Cycle'}
+              </div>
+            </div>
+            {isMobile ? (
+              <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                Scenes, saved grooves, and account tools for the riff builder.
+              </div>
+            ) : null}
             {!isMobile ? (
               <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/34">
                 scenes · export · account
@@ -386,39 +411,52 @@ export default function RiffCycleSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
-              Mode
-            </div>
-            <div className="flex gap-2">
-              {([
-                ['orbital', 'Orbit'],
-                ['polyrhythm-study', 'Study'],
-                ['riff-cycle-study', 'Riff'],
-              ] as const).map(([surfaceId, label]) => {
-                const active = currentSurface === surfaceId;
-                return (
-                  <button
-                    key={surfaceId}
-                    type="button"
-                    onClick={() => onSurfaceChange(surfaceId)}
-                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+                    Mode
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                    Switch instruments without losing your place.
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  3 Modes
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {([
+                  ['orbital', 'Orbit'],
+                  ['polyrhythm-study', 'Study'],
+                  ['riff-cycle-study', 'Riff'],
+                ] as const).map(([surfaceId, label]) => {
+                  const active = currentSurface === surfaceId;
+                  return (
+                    <button
+                      key={surfaceId}
+                      type="button"
+                      onClick={() => onSurfaceChange(surfaceId)}
+                      className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                        borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                        color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                        boxShadow: active ? '0 0 0 1px rgba(114,241,184,0.12) inset, 0 10px 24px rgba(0,0,0,0.18)' : 'none',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}
 
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
           {isMobile ? (
-            <div className="-mx-3 border-b border-white/5 px-3 pt-3 pb-1">
+            <div className="-mx-1 rounded-[1.35rem] border border-white/8 bg-white/[0.028] p-1.5">
               <div className="flex min-w-max gap-1 overflow-x-auto">
                 {tabMeta.map((tab) => {
                   const active = tab.id === activeTab;
@@ -427,11 +465,12 @@ export default function RiffCycleSidebar({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className="shrink-0 rounded-t-lg px-3 py-3 text-xs font-mono font-light transition-all duration-200"
+                      className="shrink-0 rounded-xl px-3 py-2.5 text-xs font-mono font-light transition-all duration-200"
                       style={{
                         color: active ? tab.color : 'rgba(255,255,255,0.4)',
-                        borderBottom: active ? `2px solid ${tab.color}` : 'none',
-                        background: active ? `${tab.color}10` : 'transparent',
+                        border: active ? `1px solid ${tab.color}32` : '1px solid transparent',
+                        background: active ? `${tab.color}14` : 'transparent',
+                        boxShadow: active ? `0 0 0 1px ${tab.color}1c inset` : 'none',
                       }}
                     >
                       {tab.label.toUpperCase()}
@@ -888,7 +927,10 @@ export default function RiffCycleSidebar({
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => onUpdateRiff({ resetMode: option.value as RiffPhrase['resetMode'] })}
+                    onClick={() => {
+                      pinEndingTab();
+                      onUpdateRiff({ resetMode: option.value as RiffPhrase['resetMode'] });
+                    }}
                     className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
                     style={{
                       background: active ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
@@ -903,7 +945,10 @@ export default function RiffCycleSidebar({
             </div>
             <button
               type="button"
-              onClick={() => onUpdateRiff({ resetMode: 'custom-cycle' })}
+              onClick={() => {
+                pinEndingTab();
+                onUpdateRiff({ resetMode: 'custom-cycle' });
+              }}
               className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
               style={{
                 background: study.riff.resetMode === 'custom-cycle' ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
@@ -921,7 +966,10 @@ export default function RiffCycleSidebar({
                   min="1"
                   max="16"
                   value={study.riff.resetBars}
-                  onChange={(event) => onUpdateRiff({ resetBars: parseInt(event.target.value, 10) || 4 })}
+                  onChange={(event) => {
+                    pinEndingTab();
+                    onUpdateRiff({ resetBars: parseInt(event.target.value, 10) || 4 });
+                  }}
                   className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"
                 />
               </label>
@@ -994,6 +1042,62 @@ export default function RiffCycleSidebar({
                 }}
               >
                 Export PNG
+              </button>
+            </div>
+
+            <div
+              className="rounded-lg border p-3 space-y-3"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
+                borderColor: 'rgba(127, 215, 255, 0.14)',
+              }}
+            >
+              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                MIDI Export
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ['pattern', 'Pattern Only'],
+                  ['cycle', 'Full Cycle'],
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setExportMidiMode(mode)}
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: exportMidiMode === mode ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+                      borderColor: exportMidiMode === mode ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.64)',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] leading-relaxed text-white/46">
+                {exportMidiMode === 'cycle'
+                  ? 'Export the performed return cycle with tempo, time signature, phrase restarts, and ending logic.'
+                  : 'Export the raw riff pattern only, without the return-cycle ending render.'}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onExportMidi(exportMidiMode);
+                  setExportNotice(
+                    exportMidiMode === 'cycle'
+                      ? 'Riff full-cycle MIDI exported.'
+                      : 'Riff pattern MIDI exported.',
+                  );
+                }}
+                className="w-full rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200"
+                style={{
+                  background: 'rgba(127, 215, 255, 0.08)',
+                  border: '1px solid rgba(127, 215, 255, 0.2)',
+                  color: '#7FD7FF',
+                }}
+              >
+                Export MIDI
               </button>
             </div>
 

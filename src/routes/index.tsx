@@ -2,84 +2,13 @@ import { useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowRight, CircleDot, GalleryVerticalEnd, KeyRound, Layers3, LogIn, LogOut, Mail, MonitorPlay, Play, Sparkles, SquarePlay, UserRound, Waves, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { BUILT_IN_SCENES, createScenePreviewDataUrl, type SceneSnapshot } from './app';
+import { BUILT_IN_SCENES } from './app';
 import { useAuth } from '../components/auth-provider';
+import { SITE_MODE_CARDS, type SiteModeId, getModeLaunchHref } from '../lib/siteModes';
 
 export const Route = createFileRoute('/')({
   component: OrbitalPolymeterLanding,
 });
-
-const modeCards = [
-  {
-    name: 'Standard',
-    description: 'Connects active orbits into a shared string field.',
-    accent: '#00FFAA',
-    snapshot: {
-      orbits: [
-        { pulseCount: 3, radius: 96, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: 0 },
-        { pulseCount: 4, radius: 156, direction: -1, color: '#FF3366', harmonyDegree: 2, harmonyRegister: 0 },
-        { pulseCount: 5, radius: 216, direction: 1, color: '#3388FF', harmonyDegree: 4, harmonyRegister: 0 },
-        { pulseCount: 7, radius: 276, direction: -1, color: '#FFAA00', harmonyDegree: 1, harmonyRegister: 1 },
-      ],
-      speedMultiplier: 3,
-      traceMode: true,
-      harmonySettings: {
-        tonePreset: 'scale-quantized',
-        rootNote: 'C',
-        scaleName: 'majorPentatonic',
-        mappingMode: 'orbit-index',
-        manualOrbitRoles: true,
-      },
-      geometryMode: 'standard-trace',
-      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: true },
-    } satisfies SceneSnapshot,
-  },
-  {
-    name: 'Interference',
-    description: 'Traces a live path from the relationship between a selected pair.',
-    accent: '#88CCFF',
-    snapshot: {
-      orbits: [
-        { pulseCount: 4, radius: 102, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: 0 },
-        { pulseCount: 7, radius: 168, direction: -1, color: '#FF3366', harmonyDegree: 2, harmonyRegister: 0 },
-        { pulseCount: 9, radius: 232, direction: 1, color: '#3388FF', harmonyDegree: 4, harmonyRegister: 1 },
-      ],
-      speedMultiplier: 3,
-      traceMode: true,
-      harmonySettings: {
-        tonePreset: 'scale-quantized',
-        rootNote: 'G',
-        scaleName: 'dorian',
-        mappingMode: 'pulse-count',
-        manualOrbitRoles: true,
-      },
-      geometryMode: 'interference-trace',
-      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 2, showConnectors: false },
-    } satisfies SceneSnapshot,
-  },
-  {
-    name: 'Sweep',
-    description: 'Plots a finite sampled figure from the selected pair.',
-    accent: '#FFAA00',
-    snapshot: {
-      orbits: [
-        { pulseCount: 3, radius: 108, direction: 1, color: '#00FFAA', harmonyDegree: 0, harmonyRegister: 0 },
-        { pulseCount: 5, radius: 176, direction: -1, color: '#FF3366', harmonyDegree: 2, harmonyRegister: 0 },
-      ],
-      speedMultiplier: 3,
-      traceMode: true,
-      harmonySettings: {
-        tonePreset: 'original',
-        rootNote: 'C',
-        scaleName: 'majorPentatonic',
-        mappingMode: 'orbit-index',
-        manualOrbitRoles: false,
-      },
-      geometryMode: 'sweep',
-      interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: false },
-    } satisfies SceneSnapshot,
-  },
-] as const;
 
 const websiteStandardImage = '/scene-captures/website_standard_replacement.png';
 const websiteSceneOverrides: Record<string, string> = {
@@ -92,45 +21,31 @@ const websiteSceneOverrides: Record<string, string> = {
 const showcaseCards = BUILT_IN_SCENES.map((scene, index) => ({
   id: scene.id,
   title: scene.name,
-  tag: index === 0 ? 'Featured' : 'Built-In Scene',
+  tag: index === 0 ? 'Featured Orbit Scene' : 'Orbit Scene',
   description: scene.description,
   accent: ['#00FFAA', '#88CCFF', '#FFAA00', '#66DDFF', '#AA88FF', '#AA88FF', '#44E0B0', '#FF7799'][index % 8],
   image: websiteSceneOverrides[scene.id] ?? scene.thumbnailDataUrl,
 }));
 
-const heroImage = websiteStandardImage;
-const modePreviews = modeCards.map((mode) => ({
-  ...mode,
-  image:
-    mode.name === 'Standard'
-      ? websiteStandardImage
-      : createScenePreviewDataUrl(mode.snapshot, 420, {
-          oversample: 2,
-          format: 'image/png',
-          cycleFactor: 0.9,
-          scaleRatio: mode.name === 'Sweep' ? 0.33 : 0.34,
-        }),
-}));
-
 const featureGrid = [
-  { icon: GalleryVerticalEnd, title: 'Scene Library', text: 'Return to built-in studies, saved work, and quick visual recall.' },
-  { icon: SquarePlay, title: 'Still Export', text: 'Capture clean images for posts, wallpapers, and printed studies.' },
-  { icon: MonitorPlay, title: 'Loop Capture', text: 'Record short WebM loops directly from the live structure.' },
-  { icon: Play, title: 'Presentation Mode', text: 'A quieter viewing state for demos, projection, and focused playback.' },
-  { icon: Layers3, title: 'Desktop + Mobile', text: 'The same instrument in a wide desktop view or a focused mobile flow.' },
-  { icon: Waves, title: 'Form From Constraint', text: 'Ratios, direction, and geometry mode decide what the system reveals.' },
+  { icon: GalleryVerticalEnd, title: 'Scene Library', text: 'Built-in scenes give Orbit, Study, and Riff a strong starting point instead of a blank canvas.' },
+  { icon: SquarePlay, title: 'Focused Editors', text: 'Open a close writing view when you want to shape one ring or one groove directly.' },
+  { icon: MonitorPlay, title: 'Loop Capture', text: 'Record short moving studies directly from the live canvas.' },
+  { icon: Play, title: 'Presentation Mode', text: 'Strip the chrome back for cleaner watching, sharing, and playback.' },
+  { icon: Layers3, title: 'Desktop + Mobile', text: 'A wide desktop instrument or a tighter mobile flow, without changing the core ideas.' },
+  { icon: Waves, title: 'Three Clear Entries', text: 'Orbit is for discovery, Study is for clarity, and Riff is for writing.' },
 ] as const;
 
 const proHighlights = [
   {
     label: 'Keep',
     title: 'A Living Library',
-    text: 'Save the studies worth returning to and build a body of work over time.',
+    text: 'Save the scenes worth returning to and build a body of work over time.',
   },
   {
     label: 'Bring Out',
     title: 'Still And Motion',
-    text: 'Carry the form beyond the instrument as clean images and short loops.',
+    text: 'Carry the work beyond the instrument as clean stills and short moving loops.',
   },
   {
     label: 'Shape',
@@ -140,9 +55,19 @@ const proHighlights = [
   {
     label: 'Open',
     title: 'Richer Studies',
-    text: 'Step into premium scenes, deeper randomization, and broader control.',
+    text: 'Step into premium scenes, deeper randomization, and broader control across every mode.',
   },
 ] as const;
+
+function getModeIcon(modeId: SiteModeId) {
+  if (modeId === 'orbital') {
+    return CircleDot;
+  }
+  if (modeId === 'polyrhythm-study') {
+    return Layers3;
+  }
+  return SquarePlay;
+}
 
 function OrbitalPolymeterLanding() {
   const { enabled, loading, user, account, signInWithPassword, signUpWithPassword, sendPasswordReset, signOut } = useAuth();
@@ -275,11 +200,11 @@ function OrbitalPolymeterLanding() {
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link
-                    to="/app"
+                    to="/launch"
                     className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
                     onClick={() => setAccountOpen(false)}
                   >
-                    Open App
+                    Choose Mode
                     <ArrowRight size={14} />
                   </Link>
                   <button
@@ -403,7 +328,7 @@ function OrbitalPolymeterLanding() {
               See Modes
             </a>
             <Link
-              to="/app"
+              to="/launch"
               className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
             >
               Launch App
@@ -419,23 +344,41 @@ function OrbitalPolymeterLanding() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
-                A visual instrument for rhythmic form
+                Three instruments for rhythmic form
               </div>
               <h1 className="mt-8 max-w-3xl text-5xl font-light tracking-[-0.058em] leading-[0.98] text-white sm:text-6xl lg:text-[4.9rem]">
-                Shape structure, motion, and tone through rhythm.
+                See form. Compare rhythm. Write the groove.
               </h1>
               <p className="mt-6 max-w-xl text-base leading-8 text-white/62 sm:text-lg">
                 Set the constraints. Watch the structure appear.
               </p>
               <p className="mt-4 max-w-xl text-sm leading-7 text-white/44 sm:text-base">
-                Rhythmic Geometry turns pulse ratios, direction, and motion into living form. Free is for play and discovery. Pro gives the work permanence, control, and a way out of the instrument.
+                Rhythmic Geometry opens into three entry points. Orbit is the moving surface. Study reveals shared rhythm relationships. Riff lets you build a groove against a clear bar frame.
               </p>
+              <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                {SITE_MODE_CARDS.map((mode) => (
+                  <div
+                    key={mode.id}
+                    className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] px-4 py-3"
+                  >
+                    <div
+                      className="text-[10px] font-mono uppercase tracking-[0.16em]"
+                      style={{ color: mode.accent }}
+                    >
+                      {mode.name}
+                    </div>
+                    <div className="mt-2 text-sm leading-6 text-white/58">
+                      {mode.bestFor}
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Link
-                  to="/app"
+                  to="/launch"
                   className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
                 >
-                  Open Rhythmic Geometry
+                  Choose A Mode
                   <ArrowRight size={15} />
                 </Link>
                 <a
@@ -452,37 +395,67 @@ function OrbitalPolymeterLanding() {
               <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-[0_40px_120px_rgba(0,0,0,0.4)] backdrop-blur-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Rhythmic Geometry</div>
-                    <div className="mt-2 text-[11px] font-mono text-white/38">A visual instrument for form, motion, and tone.</div>
+                    <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/72">Choose Your Entry</div>
+                    <div className="mt-2 text-[11px] font-mono text-white/38">Start with the mode that matches what you want to do first.</div>
                   </div>
                   <Link
-                    to="/app"
+                    to="/launch"
                     className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
                   >
-                    Launch
+                    Compare
                   </Link>
                 </div>
 
-                <div className="relative mt-5 aspect-[1/1] overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10]">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.02),transparent_62%)]" />
-                  <img
-                    src={heroImage}
-                    alt="Completed Rhythmic Geometry study"
-                    className="h-full w-full p-2 object-contain object-top"
-                  />
-                </div>
+                <div className="mt-5 grid gap-3">
+                  {SITE_MODE_CARDS.map((mode) => {
+                    const ModeIcon = getModeIcon(mode.id);
 
-                <div className="mt-6 grid grid-cols-3 gap-3">
-                  {modePreviews.map((mode) => (
-                    <div key={mode.name} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-[11px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
-                        {mode.name}
-                      </div>
-                      <div className="mt-3 overflow-hidden rounded-2xl border border-white/6 bg-[#090a10]">
-                        <img src={mode.image} alt={`${mode.name} preview`} className="h-20 w-full p-2 object-contain" />
-                      </div>
-                    </div>
-                  ))}
+                    return (
+                      <a
+                        key={mode.id}
+                        href={getModeLaunchHref(mode.id)}
+                        className="group rounded-[1.4rem] border border-white/8 bg-[#090a10]/88 p-4 transition hover:border-white/14 hover:bg-[#0c0f16]"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
+                              {mode.eyebrow}
+                            </div>
+                            <div className="mt-2 text-xl font-light text-white">
+                              {mode.name}
+                            </div>
+                          </div>
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border"
+                            style={{
+                              background: `${mode.accent}12`,
+                              borderColor: `${mode.accent}22`,
+                              color: mode.accent,
+                            }}
+                          >
+                            <ModeIcon size={16} />
+                          </div>
+                        </div>
+                        <div className="mt-4 overflow-hidden rounded-[1.1rem] border border-white/8 bg-[#090a10]">
+                          <img
+                            src={mode.image}
+                            alt={`${mode.name} preview`}
+                            className="h-28 w-full object-cover"
+                            style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
+                          />
+                        </div>
+                        <p className="mt-4 text-sm leading-7 text-white/56">{mode.summary}</p>
+                        <div className="mt-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
+                          First move
+                        </div>
+                        <p className="mt-2 text-sm leading-7 text-white/46">{mode.firstMove}</p>
+                        <div className="mt-4 inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: mode.accent }}>
+                          {mode.launchLabel}
+                          <ArrowRight size={14} />
+                        </div>
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -492,16 +465,16 @@ function OrbitalPolymeterLanding() {
         <section id="showcase" className="px-5 py-18 sm:px-8 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Visual Studies</div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Orbit Showcase</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Structures that feel discovered, not decorated.
+                Orbit scenes where moving ratios leave visible form behind.
               </h2>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {showcaseCards.map((card) => (
                 <a
                   key={card.title}
-                  href={`/app?scene=${card.id}`}
+                  href={`/app?mode=orbital&scene=${card.id}`}
                   className="group rounded-[1.6rem] border border-white/8 bg-white/[0.03] p-4 transition hover:border-white/14 hover:bg-white/[0.045]"
                 >
                   <div className="flex items-center justify-between">
@@ -524,29 +497,29 @@ function OrbitalPolymeterLanding() {
         <section className="border-y border-white/6 bg-white/[0.02] px-5 py-18 sm:px-8 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">How It Works</div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">How To Enter</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Three moves. One living system.
+                A simple first path, whether you are on desktop or mobile.
               </h2>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-3">
               {[
                 {
-                  icon: CircleDot,
-                  title: 'Set pulse ratios',
-                  text: 'Choose orbit counts and direction to define the rhythmic relationship.',
+                  icon: Layers3,
+                  title: 'Choose by intent',
+                  text: 'Orbit for motion, Study for relationship, Riff for groove writing.',
                   accent: '#00FFAA',
                 },
                 {
-                  icon: Layers3,
-                  title: 'Choose a geometry mode',
-                  text: 'Standard, Interference, and Sweep each reveal a different truth of the same system.',
+                  icon: CircleDot,
+                  title: 'Start from a scene',
+                  text: 'Each mode opens faster when you begin from a built-in example instead of a blank surface.',
                   accent: '#88CCFF',
                 },
                 {
                   icon: Waves,
-                  title: 'Let the structure accumulate',
-                  text: 'Trace history turns motion into a finished form that can be saved, exported, or performed.',
+                  title: 'Change one thing',
+                  text: 'Press Play, then change one control at a time. The system teaches itself better that way.',
                   accent: '#FFAA00',
                 },
               ].map((step) => (
@@ -563,28 +536,86 @@ function OrbitalPolymeterLanding() {
         <section id="modes" className="px-5 py-18 sm:px-8 sm:py-24">
           <div className="mx-auto max-w-7xl">
             <div className="max-w-3xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Geometry Modes</div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Three Instruments</div>
               <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-4xl">
-                Three projections of the same orbital system.
+                Three clear ways into the same rhythmic world.
               </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/46 sm:text-base">
+                The system is shared, but the entry point matters. Pick the mode that matches your intent, then move between them once the idea is clear.
+              </p>
             </div>
             <div className="mt-10 grid gap-5 lg:grid-cols-3">
-              {modePreviews.map((mode, index) => (
-                <div key={mode.name} className="rounded-[1.75rem] border border-white/8 bg-white/[0.03] p-6">
+              {SITE_MODE_CARDS.map((mode) => {
+                const ModeIcon = getModeIcon(mode.id);
+
+                return (
+                <div key={mode.id} className="rounded-[1.75rem] border border-white/8 bg-white/[0.03] p-6">
                   <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: mode.accent }}>
-                      {mode.name}
+                    <div>
+                      <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={{ color: mode.accent }}>
+                        {mode.eyebrow}
+                      </div>
+                      <div className="mt-3 text-3xl font-light tracking-[-0.04em] text-white">
+                        {mode.name}
+                      </div>
                     </div>
-                    <div className="rounded-full border border-white/8 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/44">
-                      Mode {index + 1}
+                    <div
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border"
+                      style={{
+                        background: `${mode.accent}12`,
+                        borderColor: `${mode.accent}24`,
+                        color: mode.accent,
+                      }}
+                    >
+                      <ModeIcon size={18} />
                     </div>
                   </div>
                   <div className="relative mt-5 aspect-[1.15/1] overflow-hidden rounded-[1.35rem] border border-white/8 bg-[#090a10]">
-                    <img src={mode.image} alt={`${mode.name} geometry`} className="h-full w-full p-3 object-contain" />
+                    <img
+                      src={mode.image}
+                      alt={`${mode.name} preview`}
+                      className="h-full w-full object-cover"
+                      style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
+                    />
                   </div>
                   <p className="mt-5 text-sm leading-7 text-white/56">{mode.description}</p>
+                  <div className="mt-5 rounded-[1.15rem] border border-white/8 bg-[#090a10]/72 px-4 py-3">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
+                      Best for
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-white/62">{mode.bestFor}</div>
+                  </div>
+                  <div className="mt-4 rounded-[1.15rem] border border-white/8 bg-white/[0.025] px-4 py-3">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">
+                      First move
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-white/62">{mode.firstMove}</div>
+                  </div>
+                  <div className="mt-5 space-y-2">
+                    {mode.details.map((detail) => (
+                      <div key={detail} className="flex items-start gap-3 text-sm text-white/66">
+                        <div
+                          className="mt-[0.42rem] h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: mode.accent }}
+                        />
+                        <span>{detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href={getModeLaunchHref(mode.id)}
+                    className="mt-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] transition"
+                    style={{
+                      borderColor: `${mode.accent}30`,
+                      background: `${mode.accent}12`,
+                      color: mode.accent,
+                    }}
+                  >
+                    {mode.launchLabel}
+                    <ArrowRight size={14} />
+                  </a>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         </section>
@@ -597,20 +628,20 @@ function OrbitalPolymeterLanding() {
                 Not decoration. A structure you can steer.
               </h2>
               <p className="mt-6 max-w-2xl text-base leading-8 text-white/58">
-                Rhythmic Geometry reveals what appears when rhythm, direction, and motion are held inside a simple system of rules.
+                The point is not to decorate sound. It is to make structure visible enough to shape. Orbit reveals form through motion. Study reveals relationship through overlap. Riff reveals groove through return and phrase.
               </p>
               <div className="mt-8 space-y-4 text-sm leading-7 text-white/52">
-                <p>It behaves like an instrument, not a template.</p>
-                <p>It is interactive, mathematically grounded, and visually musical.</p>
-                <p>The resulting forms feel inevitable because they are consequences, not decoration.</p>
+                <p>Orbit is for discovery.</p>
+                <p>Study is for clarity.</p>
+                <p>Riff is for writing.</p>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { title: 'Rhythm becomes structure', text: 'Pulse counts and direction shape the geometry directly.' },
-                { title: 'Geometry becomes memory', text: 'Trace turns passing motion into finished form.' },
-                { title: 'Motion becomes sound', text: 'The same system can be heard, not just seen.' },
-                { title: 'Constraint becomes discovery', text: 'What appears feels found rather than imposed.' },
+                { title: 'Orbit reveals form', text: 'Pulse counts and motion turn into visible geometry.' },
+                { title: 'Study reveals relationship', text: 'Shared loops make polyrhythms easier to hear and see.' },
+                { title: 'Riff reveals structure', text: 'Bar, phrase, and ending stay separate enough to edit clearly.' },
+                { title: 'One app, multiple entry points', text: 'You can move between discovery, learning, and writing without leaving the system.' },
               ].map((item) => (
                 <div key={item.title} className="rounded-[1.4rem] border border-white/8 bg-[#0c0f16] p-5">
                   <div className="text-lg font-light text-white">{item.title}</div>
@@ -652,17 +683,17 @@ function OrbitalPolymeterLanding() {
                     For the forms you want to keep.
                   </h2>
                   <p className="mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
-                    Pro is where discovery becomes authorship. Save what you find, shape the instrument more deeply, and carry the work out as stills, loops, and a lasting library of studies.
+                    Pro is where discovery becomes authorship. Save what you find across Orbit, Study, and Riff, shape the instruments more deeply, and carry the work out as stills, loops, and a lasting library of scenes.
                   </p>
                   <p className="mt-4 max-w-xl text-[13px] leading-7 text-white/42 sm:text-sm">
                     Free is for exploration. Pro is for keeping, refining, and releasing the work.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center gap-4">
                     <Link
-                      to="/app"
+                      to="/launch"
                       className="inline-flex items-center gap-2 rounded-full border border-[#FFAA00]/25 bg-[#FFAA00]/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#FFAA00] transition hover:bg-[#FFAA00]/16"
                     >
-                      {account?.plan === 'pro' ? 'Open Pro In App' : 'Unlock Pro In App'}
+                      {account?.plan === 'pro' ? 'Choose Pro Mode' : 'Unlock Pro In App'}
                       <ArrowRight size={15} />
                     </Link>
                     <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-white/42">
@@ -690,14 +721,14 @@ function OrbitalPolymeterLanding() {
           <div className="mx-auto max-w-5xl rounded-[2rem] border border-white/8 bg-white/[0.035] px-6 py-10 text-center sm:px-10 sm:py-14">
             <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Open The Instrument</div>
             <h2 className="mt-4 text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
-              A visual instrument for exploring form through rhythmic constraint.
+              Start where it makes sense.
             </h2>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
-                to="/app"
+                to="/launch"
                 className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
               >
-                Open Rhythmic Geometry
+                Choose A Mode
                 <ArrowRight size={15} />
               </Link>
               <a

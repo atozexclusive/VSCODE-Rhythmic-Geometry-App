@@ -84,6 +84,7 @@ interface OrbitSidebarProps {
   onImportScene: (file: File) => void;
   onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
   onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
+  onExportMidi: (options: { bars: 4 | 8 | 16 }) => void;
   isRecordingVideo: boolean;
   onHardReset: () => void;
 }
@@ -137,6 +138,7 @@ export default function OrbitSidebar({
   onImportScene,
   onExportPng,
   onExportVideo,
+  onExportMidi,
   isRecordingVideo,
   onHardReset,
 }: OrbitSidebarProps) {
@@ -150,6 +152,7 @@ export default function OrbitSidebar({
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<8 | 12>(8);
+  const [midiBars, setMidiBars] = useState<4 | 8 | 16>(8);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const currentModeLabel =
@@ -1023,6 +1026,49 @@ export default function OrbitSidebar({
                     {isRecordingVideo ? 'Recording…' : 'Record WebM'}
                   </button>
                 </div>
+              </div>
+
+              <div
+                className="rounded-lg border p-3 space-y-3"
+                style={exportCardStyle}
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  MIDI Export
+                </div>
+                <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                  Export the merged Orbit trigger field as MIDI over a fixed bar window.
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {([4, 8, 16] as const).map((bars) => (
+                    <button
+                      key={bars}
+                      type="button"
+                      onClick={() => setMidiBars(bars)}
+                      className="rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                      style={{
+                        background: midiBars === bars ? 'rgba(127, 215, 255, 0.12)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${midiBars === bars ? 'rgba(127, 215, 255, 0.24)' : 'rgba(255,255,255,0.1)'}`,
+                        color: midiBars === bars ? '#7FD7FF' : 'rgba(255,255,255,0.68)',
+                      }}
+                    >
+                      {bars} Bars
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    onExportMidi({ bars: midiBars });
+                    setExportNotice(`Orbit merged MIDI exported for ${midiBars} bars.`);
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(127, 215, 255, 0.08)',
+                    border: '1px solid rgba(127, 215, 255, 0.2)',
+                    color: '#7FD7FF',
+                  }}
+                >
+                  Export MIDI
+                </button>
               </div>
 
               <div
