@@ -27,7 +27,10 @@ const showcaseCards = BUILT_IN_SCENES.map((scene, index) => ({
   image: websiteSceneOverrides[scene.id] ?? scene.thumbnailDataUrl,
 }));
 
-const showcaseGridCards = showcaseCards.slice(0, 4);
+const showcaseGridSceneIds = ['prime_ritual', 'rose_engine', 'blue_mandala', 'metallic_whorl'] as const;
+const showcaseGridCards = showcaseGridSceneIds
+  .map((sceneId) => showcaseCards.find((card) => card.id === sceneId))
+  .filter((card): card is (typeof showcaseCards)[number] => Boolean(card));
 
 const featureGrid = [
   { icon: GalleryVerticalEnd, label: 'Library', title: 'Scene Library', text: 'Built-in scenes give Orbits, Polyrhythm Study, and Riff Cycle a strong starting point instead of a blank canvas.' },
@@ -40,24 +43,24 @@ const featureGrid = [
 
 const proHighlights = [
   {
-    label: 'Keep',
-    title: 'A Living Library',
-    text: 'Save the scenes worth returning to and build a body of work over time.',
+    label: 'Save',
+    title: 'Personal Scene Library',
+    text: 'Keep the scenes worth revisiting and return to them as the work grows.',
   },
   {
-    label: 'Bring Out',
-    title: 'Still And Motion',
-    text: 'Carry the work beyond the instrument as clean stills and short moving loops.',
+    label: 'Export',
+    title: 'Still + Motion',
+    text: 'Take scenes out as clean images and short captured loops.',
   },
   {
-    label: 'Shape',
-    title: 'The Instrument',
-    text: 'Tune color, tone, and structure with a more deliberate hand.',
+    label: 'Expand',
+    title: 'Deeper Control',
+    text: 'Open the wider control ranges and broader randomization across all three modes.',
   },
   {
-    label: 'Open',
-    title: 'Richer Studies',
-    text: 'Step into premium scenes, deeper randomization, and broader control across every mode.',
+    label: 'Access',
+    title: 'Premium Studies',
+    text: 'Step into the richer built-in scenes and more advanced starting points.',
   },
 ] as const;
 
@@ -434,35 +437,41 @@ function OrbitalPolymeterLanding() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden border-b border-white/10 px-5 pb-20 pt-10 sm:px-8 sm:pb-28 sm:pt-16">
+        <section className="relative overflow-hidden border-b border-white/10 px-4 pb-16 pt-8 sm:px-8 sm:pb-28 sm:pt-16">
           <div
             ref={(element) => {
               revealSectionRefs.current.hero = element;
             }}
             data-reveal-id="hero"
-            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.84fr_1.16fr] lg:items-end ${getRevealClass('hero')}`}
+            className={`mx-auto grid max-w-7xl gap-8 transition-all duration-700 ease-out sm:gap-12 lg:grid-cols-[0.84fr_1.16fr] lg:items-end ${getRevealClass('hero')}`}
           >
-            <div className="max-w-2xl">
+            <div className="flex max-w-2xl flex-col items-center sm:block">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
                 Three instruments for rhythmic form
               </div>
-              <h1 className="mt-12 max-w-2xl font-serif text-[3.45rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:mt-14 sm:text-[4.65rem] lg:text-[5.45rem]">
-                Watch
-                <br />
-                Rhythm
-                <br />
-                Create
-                <br />
-                Structure
+              <h1 className="mx-auto mt-8 w-fit text-center font-serif text-[2.35rem] font-light tracking-[-0.05em] leading-[0.9] text-white sm:mx-0 sm:mt-14 sm:max-w-2xl sm:w-auto sm:text-left sm:text-[4.65rem] sm:leading-[0.92] lg:text-[5.45rem]">
+                <span className="inline-flex flex-col items-center sm:hidden">
+                  <span className="block whitespace-nowrap">Watch Rhythm</span>
+                  <span className="mt-[-0.08em] block whitespace-nowrap">Create Structure</span>
+                </span>
+                <span className="hidden sm:inline">
+                  Watch
+                  <br />
+                  Rhythm
+                  <br />
+                  Create
+                  <br />
+                  Structure
+                </span>
               </h1>
-              <p className="mt-12 max-w-xl text-lg leading-8 text-white/64">
+              <p className="mt-6 max-w-lg text-center text-base leading-7 text-white/64 sm:mt-12 sm:max-w-xl sm:text-left sm:text-lg sm:leading-8">
                 Set constraints. Write Patterns. Create Form
               </p>
-              <p className="mt-10 max-w-xl text-sm leading-8 text-white/44 sm:text-base">
+              <p className="mt-8 hidden max-w-xl text-center text-sm leading-8 text-white/44 sm:block sm:text-left sm:text-base">
                 Orbits, Polyrhythm Study, and Riff Cycle are three perspectives of the same rhythmic system.
               </p>
-              <div className="mt-14 flex flex-wrap items-center gap-4">
+              <div className="mt-14 hidden flex-wrap items-center gap-4 sm:flex">
                 <Link
                   to="/launch"
                   className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
@@ -477,7 +486,7 @@ function OrbitalPolymeterLanding() {
                   See How They Differ
                 </a>
               </div>
-              <div className="mt-12 grid gap-3 sm:grid-cols-3">
+              <div className="mt-12 hidden gap-3 sm:grid sm:grid-cols-3">
                 {SITE_MODE_CARDS.map((mode) => {
                   const ModeIcon = getModeIcon(mode.id);
                   const isActive = mode.id === activeModeId;
@@ -509,25 +518,25 @@ function OrbitalPolymeterLanding() {
 
             <div className="relative">
               <div
-                className="absolute inset-0 rounded-[2.6rem] blur-3xl"
+                className="absolute inset-0 rounded-[2rem] blur-3xl sm:rounded-[2.6rem]"
                 style={{
                   background: `radial-gradient(circle at 30% 24%, ${activeMode.accent}34, transparent 30%), radial-gradient(circle at 74% 26%, rgba(255,255,255,0.14), transparent 20%), radial-gradient(circle at 70% 72%, ${activeMode.accent}14, transparent 26%), linear-gradient(180deg, rgba(9,10,16,0.22), rgba(9,10,16,0.02))`,
                 }}
               />
-              <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0b0e14]/82 shadow-[0_40px_160px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-                <div className="border-b border-white/10 px-6 py-5">
+              <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[#0b0e14]/82 shadow-[0_30px_110px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:rounded-[2.5rem] sm:shadow-[0_40px_160px_rgba(0,0,0,0.5)]">
+                <div className="border-b border-white/10 px-5 py-4 sm:px-6 sm:py-5">
                   <div className="mx-auto flex max-w-xl flex-col items-center text-center">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: activeMode.accent }}>
                       {activeMode.eyebrow}
                     </div>
-                    <div className="mt-2 font-serif text-[2.05rem] font-light tracking-[-0.05em] leading-[0.95] text-white">
+                    <div className="mt-2 font-serif text-[1.6rem] font-light tracking-[-0.05em] leading-[0.95] text-white sm:text-[2.05rem]">
                       {activeMode.name}
                     </div>
-                    <p className="mt-2 text-sm leading-7 text-white/58">{activeMode.summary}</p>
+                    <p className="mt-2 hidden text-sm leading-7 text-white/58 sm:block">{activeMode.summary}</p>
                   </div>
                 </div>
 
-                <div className="relative aspect-[1.08/0.86] overflow-hidden">
+                <div className="relative h-[14.5rem] overflow-hidden sm:aspect-[1.08/0.86] sm:h-auto">
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.08),rgba(9,10,16,0.2)_36%,rgba(9,10,16,0.72)_100%)]" />
                   <div
                     className="absolute inset-0 opacity-60"
@@ -535,19 +544,60 @@ function OrbitalPolymeterLanding() {
                       background: `radial-gradient(circle at 20% 22%, ${activeMode.accent}26, transparent 24%), radial-gradient(circle at 74% 20%, rgba(255,255,255,0.12), transparent 18%), radial-gradient(circle at 70% 76%, ${activeMode.accent}16, transparent 24%)`,
                     }}
                   />
-                  <div className="absolute inset-[3.1rem] rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
-                    <div className="absolute inset-[1.35rem] overflow-hidden rounded-[1.4rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
+                  <div className="absolute inset-[1rem] rounded-[1.2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_20px_48px_rgba(0,0,0,0.28)] sm:inset-[3.1rem] sm:rounded-[2rem] sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
+                    <div className="absolute inset-[0.7rem] overflow-hidden rounded-[0.95rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)] sm:inset-[1.35rem] sm:rounded-[1.4rem]">
                       <img
                         src={activeMode.image}
                         alt={`${activeMode.name} preview`}
-                        className="h-full w-full object-contain object-center p-5"
+                        className="h-full w-full object-contain object-center p-3 sm:p-5"
                         style={{ objectPosition: '50% 50%' }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-3 border-t border-white/10 px-6 py-6 md:grid-cols-[1fr_1fr]">
+                <div className="border-t border-white/10 px-4 py-4 sm:hidden">
+                  <div className="text-center text-[10px] font-mono uppercase tracking-[0.18em] text-white/38">
+                    Choose A Mode
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {SITE_MODE_CARDS.map((mode) => {
+                      const isActive = mode.id === activeModeId;
+                      const mobileLabel = mode.id === 'orbital' ? 'Orbits' : mode.id === 'polyrhythm-study' ? 'Study' : 'Riff';
+
+                      return (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setActiveModeId(mode.id)}
+                          className={`rounded-[1rem] border px-3 py-3 text-center text-[11px] font-mono uppercase tracking-[0.14em] transition ${isActive ? 'text-white' : 'text-white/60'}`}
+                          style={{
+                            borderColor: isActive ? `${mode.accent}3a` : 'rgba(255,255,255,0.08)',
+                            background: isActive ? `${mode.accent}16` : 'rgba(255,255,255,0.02)',
+                            boxShadow: isActive ? `0 0 22px ${mode.accent}14, inset 0 1px 0 rgba(255,255,255,0.05)` : 'none',
+                          }}
+                        >
+                          {mobileLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Link
+                    to={getModeLaunchHref(activeMode.id)}
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] transition"
+                    style={{
+                      borderColor: `${activeMode.accent}30`,
+                      background: `${activeMode.accent}12`,
+                      color: activeMode.accent,
+                      boxShadow: `0 0 26px ${activeMode.accent}10`,
+                    }}
+                  >
+                    {activeMode.launchLabel}
+                    <ArrowRight size={15} />
+                  </Link>
+                </div>
+
+                <div className="hidden gap-3 border-t border-white/10 px-6 py-6 md:grid-cols-[1fr_1fr] sm:grid">
                   <div className="rounded-[1.4rem] border border-white/10 bg-black/24 p-4 backdrop-blur-md">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
                     <div className="mt-2 text-sm leading-7 text-white/68">{activeMode.bestFor}</div>
@@ -572,7 +622,9 @@ function OrbitalPolymeterLanding() {
           >
             <div>
               <div className="max-w-2xl">
-                <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Three Clear Entries</div>
+                <div className="inline-flex items-center rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#7FD7FF] shadow-[0_0_24px_rgba(127,215,255,0.08)]">
+                  Three Clear Entries
+                </div>
                 <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
                   One rhythmic world, three different modes.
                 </h2>
@@ -620,15 +672,9 @@ function OrbitalPolymeterLanding() {
                         <div className="mt-5 font-serif text-[2.65rem] font-light tracking-[-0.05em] leading-[0.95] text-white">{mode.name}</div>
                         <p className="mt-4 text-lg leading-8 text-white/72">{mode.summary}</p>
                         <div className="mt-6 border-t border-white/10 pt-6">
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-[1.3rem] border border-white/8 bg-[#090a10]/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
-                              <div className="mt-2 text-sm leading-7 text-white/66">{mode.bestFor}</div>
-                            </div>
-                            <div className="rounded-[1.3rem] border border-white/8 bg-white/[0.025] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">First move</div>
-                              <div className="mt-2 text-sm leading-7 text-white/66">{mode.firstMove}</div>
-                            </div>
+                          <div className="rounded-[1.3rem] border border-white/8 bg-[#090a10]/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
+                            <div className="mt-2 text-sm leading-7 text-white/66">{mode.bestFor}</div>
                           </div>
                         </div>
 
@@ -715,6 +761,48 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
+        <section id="tools" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.tools = element;
+            }}
+            data-reveal-id="tools"
+            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.92fr_1.08fr] ${getRevealClass('tools')}`}
+          >
+            <div className="max-w-xl">
+              <div className="inline-flex items-center rounded-full border border-[#FFB454]/20 bg-[#FFB454]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFB454] shadow-[0_0_24px_rgba(255,180,84,0.09)]">
+                Workflow Tools
+              </div>
+              <h2 className="mt-6 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
+                Save, edit, capture, and present.
+              </h2>
+              <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
+                Once a scene is worth keeping, these are the tools that move it from exploration into something you can return to, refine, record, and show cleanly.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {featureGrid.slice(0, 4).map((feature) => (
+                <div
+                  key={feature.title}
+                  className="rounded-[1.2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(10,12,18,0.96))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_42px_rgba(0,0,0,0.18)] sm:rounded-[1.7rem] sm:p-6 sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_64px_rgba(0,0,0,0.22)]"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.14em] text-[#FFB454] drop-shadow-[0_0_10px_rgba(255,180,84,0.16)] sm:text-[10px] sm:tracking-[0.2em]">
+                      {feature.label}
+                    </div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-[0.9rem] border border-[#FFB454]/16 bg-[#FFB454]/[0.08] text-[#FFB454] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_18px_rgba(255,180,84,0.08)] sm:h-10 sm:w-10 sm:rounded-2xl">
+                      <feature.icon size={15} />
+                    </div>
+                  </div>
+                  <div className="mt-3 h-px bg-white/10 sm:mt-5" />
+                  <div className="mt-3 text-[1rem] font-light leading-[1.06] tracking-[-0.04em] text-white sm:mt-5 sm:text-[1.7rem]">{feature.title}</div>
+                  <p className="mt-2 text-[11px] leading-5 text-white/54 sm:mt-4 sm:text-sm sm:leading-7">{feature.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="showcase" className="border-y border-white/10 px-5 py-18 sm:px-8 sm:py-24">
           <div
             ref={(element) => {
@@ -724,7 +812,9 @@ function OrbitalPolymeterLanding() {
             className={`mx-auto max-w-7xl transition-all duration-700 ease-out ${getRevealClass('showcase')}`}
           >
             <div className="max-w-2xl">
-              <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Orbits Showcase</div>
+              <div className="inline-flex items-center rounded-full border border-[#00FFAA]/20 bg-[#00FFAA]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#00FFAA] shadow-[0_0_24px_rgba(0,255,170,0.08)]">
+                Orbits Showcase
+              </div>
               <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
                 Orbits scenes where moving ratios leave visible form behind.
               </h2>
@@ -759,48 +849,6 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section id="tools" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
-          <div
-            ref={(element) => {
-              revealSectionRefs.current.tools = element;
-            }}
-            data-reveal-id="tools"
-            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.92fr_1.08fr] ${getRevealClass('tools')}`}
-          >
-            <div className="max-w-xl">
-              <div className="inline-flex items-center rounded-full border border-[#FFB454]/20 bg-[#FFB454]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFB454] shadow-[0_0_24px_rgba(255,180,84,0.09)]">
-                Tools Around The Form
-              </div>
-              <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
-                Keep what you find, export what you make, and present it cleanly.
-              </h2>
-              <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
-                The site should not just describe the instrument. It should show that the app can move from discovery into authorship. These are the parts that make that promise credible.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {featureGrid.slice(0, 4).map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(10,12,18,0.96))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_64px_rgba(0,0,0,0.22)]"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#FFB454] drop-shadow-[0_0_10px_rgba(255,180,84,0.16)]">
-                      {feature.label}
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#FFB454]/16 bg-[#FFB454]/[0.08] text-[#FFB454] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_18px_rgba(255,180,84,0.08)]">
-                      <feature.icon size={18} />
-                    </div>
-                  </div>
-                  <div className="mt-5 h-px bg-white/10" />
-                  <div className="mt-5 text-[1.7rem] font-light tracking-[-0.04em] text-white">{feature.title}</div>
-                  <p className="mt-4 text-sm leading-7 text-white/54">{feature.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section id="pro" className="border-y border-white/10 px-5 py-8 sm:px-8 sm:py-10">
           <div
             ref={(element) => {
@@ -814,15 +862,17 @@ function OrbitalPolymeterLanding() {
               <div className="relative px-6 py-8 sm:px-8 sm:py-10">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,170,0,0.12),transparent_30%),radial-gradient(circle_at_76%_72%,rgba(0,255,170,0.08),transparent_28%)]" />
                 <div className="relative">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFAA00]">Pro Mode</div>
+                  <div className="inline-flex items-center rounded-full border border-[#FFAA00]/20 bg-[#FFAA00]/[0.08] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#FFAA00] shadow-[0_0_24px_rgba(255,170,0,0.09)]">
+                    Extended Access
+                  </div>
                   <h2 className="mt-4 max-w-lg text-3xl font-light tracking-[-0.04em] text-white sm:text-[2.65rem] sm:leading-[1.02]">
-                    For the forms you want to keep.
+                    Keep the scenes that matter and go further with them.
                   </h2>
                   <p className="mt-5 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
-                    Pro is where discovery becomes authorship. Save what you find across Orbits, Polyrhythm Study, and Riff Cycle, shape the instruments more deeply, and carry the work out as stills, loops, and a lasting library of scenes.
+                    Pro unlocks scene saving, premium studies, broader randomization, export tools, and the wider control set across Orbits, Polyrhythm Study, and Riff Cycle.
                   </p>
                   <p className="mt-4 max-w-xl text-[13px] leading-7 text-white/42 sm:text-sm">
-                    Free is for exploration. Pro is for keeping, refining, and releasing the work.
+                    It is for the version of the app you come back to: the one where strong ideas stay organized, get refined, and keep turning into finished work.
                   </p>
                   <div className="mt-8 flex flex-wrap items-center gap-4">
                     <Link
@@ -839,12 +889,12 @@ function OrbitalPolymeterLanding() {
                 </div>
               </div>
               <div className="border-t border-white/8 px-6 py-8 sm:px-8 sm:py-10 lg:border-l lg:border-t-0">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {proHighlights.map((item) => (
-                    <div key={item.title} className="rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-5">
+                    <div key={item.title} className="rounded-[1.15rem] border border-white/8 bg-white/[0.03] p-4 sm:rounded-[1.4rem] sm:p-5">
                       <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FFAA00]/84">{item.label}</div>
-                      <div className="mt-3 text-xl font-light text-white">{item.title}</div>
-                      <p className="mt-3 text-sm leading-7 text-white/52">{item.text}</p>
+                      <div className="mt-2 text-[1rem] font-light leading-[1.08] text-white sm:mt-3 sm:text-xl">{item.title}</div>
+                      <p className="mt-2 text-[11px] leading-5 text-white/52 sm:mt-3 sm:text-sm sm:leading-7">{item.text}</p>
                     </div>
                   ))}
                 </div>
@@ -865,7 +915,7 @@ function OrbitalPolymeterLanding() {
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] px-6 py-10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_24px_80px_rgba(0,0,0,0.24)] sm:px-10 sm:py-14">
             <div className="text-[11px] font-mono uppercase tracking-[0.24em] text-white/42">Open The Instrument</div>
             <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl">
-              Start where it makes sense.
+              Start exploring.
             </h2>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link
