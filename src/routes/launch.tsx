@@ -39,32 +39,33 @@ function LaunchChooserPage() {
       </div>
 
       <header className="sticky top-0 z-30 border-b border-white/6 bg-[#090a10]/72 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-8">
           <Link to="/" className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/58 transition hover:text-white">
             <ArrowLeft size={14} />
-            Back To Site
+            <span className="sm:hidden">Back</span>
+            <span className="hidden sm:inline">Back To Site</span>
           </Link>
-          <div className="text-[14px] font-medium uppercase tracking-[0.28em] text-white/78">
+          <div className="text-[12px] font-medium uppercase tracking-[0.2em] text-white/78 sm:text-[14px] sm:tracking-[0.28em]">
             Rhythmic Geometry
           </div>
           <a
             href="/app"
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white"
+            className="hidden items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white sm:inline-flex"
           >
             Last Used Mode
           </a>
         </div>
       </header>
 
-      <main className="px-5 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-14">
+      <main className="px-4 pb-14 pt-8 sm:px-8 sm:pb-20 sm:pt-14">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-4xl text-center">
-            <h1 className="font-serif text-5xl font-light tracking-[-0.05em] leading-[0.92] text-white sm:text-6xl lg:text-[5.2rem]">
+            <h1 className="font-serif text-[3rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:text-6xl lg:text-[5.2rem]">
               Geometry Modes
             </h1>
           </div>
 
-          <div className="mt-16 grid gap-5 lg:grid-cols-3">
+          <div className="-mx-4 mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mt-16 sm:gap-5 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
             {SITE_MODE_CARDS.map((mode) => {
               const ModeIcon = getModeIcon(mode.id);
 
@@ -72,7 +73,7 @@ function LaunchChooserPage() {
                 <a
                   key={mode.id}
                   href={getModeLaunchHref(mode.id)}
-                  className="group relative min-h-[34rem] overflow-hidden rounded-[2.35rem] border border-white/8 bg-[#0c0f16] shadow-[0_34px_140px_rgba(0,0,0,0.36)] transition hover:border-white/14 lg:min-h-[39rem]"
+                  className="group relative min-h-[28.5rem] w-[86vw] min-w-[86vw] max-w-xl snap-center overflow-hidden rounded-[1.85rem] border border-white/8 bg-[#0c0f16] shadow-[0_28px_110px_rgba(0,0,0,0.32)] transition hover:border-white/14 sm:min-h-[34rem] sm:rounded-[2.35rem] sm:shadow-[0_34px_140px_rgba(0,0,0,0.36)] lg:min-h-[39rem] lg:w-auto lg:min-w-0 lg:max-w-none"
                 >
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.12),rgba(9,10,16,0.26)_32%,rgba(9,10,16,0.88)_100%)]" />
                   <div
@@ -88,9 +89,9 @@ function LaunchChooserPage() {
                     }}
                   />
 
-                  <div className="relative flex h-full flex-col justify-between p-6 sm:p-7">
+                  <div className="relative flex h-full flex-col justify-between p-5 sm:p-7">
                     <div className="flex items-start justify-between gap-4">
-                      <div className="rounded-full border border-white/10 bg-black/24 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
+                      <div className="max-w-[12.5rem] rounded-full border border-white/10 bg-black/24 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: mode.accent }}>
                         {mode.eyebrow}
                       </div>
                       <div
@@ -105,20 +106,20 @@ function LaunchChooserPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6 flex-1 rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_90px_rgba(0,0,0,0.34)]">
+                    <div className="mt-5 flex-1 rounded-[1.55rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_72px_rgba(0,0,0,0.28)] sm:mt-6 sm:rounded-[1.9rem] sm:p-3 sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_90px_rgba(0,0,0,0.34)]">
                       <div className="h-full overflow-hidden rounded-[1.45rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
                         <img
                           src={mode.image}
                           alt={`${mode.name} preview`}
-                          className="h-full w-full object-contain p-5 transition duration-700 group-hover:scale-[1.03]"
+                          className="h-full w-full object-contain p-4 transition duration-700 group-hover:scale-[1.03] sm:p-5"
                           style={{ objectPosition: mode.imagePosition ?? '50% 50%' }}
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-4 pt-6">
+                    <div className="space-y-4 pt-5 sm:pt-6">
                       <div>
-                        <div className="font-serif text-[2.7rem] font-light tracking-[-0.05em] leading-[0.94] text-white">{mode.name}</div>
+                        <div className="font-serif text-[2.15rem] font-light tracking-[-0.05em] leading-[0.94] text-white sm:text-[2.7rem]">{mode.name}</div>
                         <p className="mt-3 max-w-sm text-sm leading-7 text-white/66">{mode.summary}</p>
                       </div>
 
@@ -153,8 +154,8 @@ function LaunchChooserPage() {
             })}
           </div>
 
-          <div className="mt-10 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-            <div className="rounded-[1.8rem] border border-white/8 bg-white/[0.03] px-6 py-6 text-sm leading-8 text-white/52 sm:px-7">
+          <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mt-10 lg:mx-0 lg:grid lg:grid-cols-[1.08fr_0.92fr] lg:overflow-visible lg:px-0 lg:pb-0">
+            <div className="w-[82vw] min-w-[82vw] snap-center rounded-[1.8rem] border border-white/8 bg-white/[0.03] px-6 py-6 text-sm leading-8 text-white/52 sm:w-auto sm:min-w-0 sm:px-7">
               <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/38">How to choose</div>
               <div className="mt-4 space-y-3">
                 <p>Start with <span className="text-white/78">Orbits</span> if you want the strongest first impression.</p>
@@ -162,7 +163,7 @@ function LaunchChooserPage() {
                 <p>Start with <span className="text-white/78">Riff Cycle</span> if you already want to write phrases against a bar frame.</p>
               </div>
             </div>
-            <div className="rounded-[1.8rem] border border-white/8 bg-[#0c0f16] px-6 py-6 text-sm leading-8 text-white/54 sm:px-7">
+            <div className="w-[82vw] min-w-[82vw] snap-center rounded-[1.8rem] border border-white/8 bg-[#0c0f16] px-6 py-6 text-sm leading-8 text-white/54 sm:w-auto sm:min-w-0 sm:px-7">
               <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/38">After launch</div>
               <p className="mt-4">
                 The choice is not permanent. The app opens on one surface first, but the system stays connected once you are inside.
