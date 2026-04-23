@@ -395,9 +395,9 @@ function OrbitalPolymeterLanding() {
       </div>
 
       <header className="sticky top-0 z-40 border-b border-white/6 bg-[#090a10]/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link to="/" className="group block">
-            <div className="text-[13px] font-medium uppercase tracking-[0.28em] text-white/82 transition-colors group-hover:text-white sm:text-[17px] sm:tracking-[0.34em]">
+            <div className="text-[15px] font-medium uppercase tracking-[0.34em] text-white/82 transition-colors group-hover:text-white sm:text-[17px]">
               Rhythmic Geometry
             </div>
           </Link>
@@ -412,10 +412,9 @@ function OrbitalPolymeterLanding() {
               type="button"
               onClick={() => setAccountOpen(true)}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white"
-              aria-label={user ? 'Account' : 'Sign In'}
             >
               {user ? <UserRound size={14} /> : <LogIn size={14} />}
-              <span className="hidden sm:inline">{user ? 'Account' : 'Sign In'}</span>
+              {user ? 'Account' : 'Sign In'}
             </button>
             <a
               href="#modes"
@@ -427,8 +426,7 @@ function OrbitalPolymeterLanding() {
               to="/launch"
               className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
             >
-              <span className="sm:hidden">Launch</span>
-              <span className="hidden sm:inline">Launch App</span>
+              Launch App
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -436,20 +434,20 @@ function OrbitalPolymeterLanding() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden border-b border-white/10 px-4 pb-16 pt-8 sm:px-8 sm:pb-28 sm:pt-16">
+        <section className="relative overflow-hidden border-b border-white/10 px-5 pb-20 pt-10 sm:px-8 sm:pb-28 sm:pt-16">
           <div
             ref={(element) => {
               revealSectionRefs.current.hero = element;
             }}
             data-reveal-id="hero"
-            className={`mx-auto grid max-w-7xl gap-10 transition-all duration-700 ease-out sm:gap-12 lg:grid-cols-[0.84fr_1.16fr] lg:items-end ${getRevealClass('hero')}`}
+            className={`mx-auto grid max-w-7xl gap-12 transition-all duration-700 ease-out lg:grid-cols-[0.84fr_1.16fr] lg:items-end ${getRevealClass('hero')}`}
           >
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
                 Three instruments for rhythmic form
               </div>
-              <h1 className="mt-10 max-w-[10ch] font-serif text-[2.85rem] font-light tracking-[-0.05em] leading-[0.88] text-white sm:mt-14 sm:max-w-2xl sm:text-[4.65rem] sm:leading-[0.92] lg:text-[5.45rem]">
+              <h1 className="mt-12 max-w-2xl font-serif text-[3.45rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:mt-14 sm:text-[4.65rem] lg:text-[5.45rem]">
                 Watch
                 <br />
                 Rhythm
@@ -458,28 +456,28 @@ function OrbitalPolymeterLanding() {
                 <br />
                 Structure
               </h1>
-              <p className="mt-10 max-w-xl text-base leading-7 text-white/64 sm:mt-12 sm:text-lg sm:leading-8">
+              <p className="mt-12 max-w-xl text-lg leading-8 text-white/64">
                 Set constraints. Write Patterns. Create Form
               </p>
               <p className="mt-10 max-w-xl text-sm leading-8 text-white/44 sm:text-base">
                 Orbits, Polyrhythm Study, and Riff Cycle are three perspectives of the same rhythmic system.
               </p>
-              <div className="mt-12 flex flex-col gap-3 sm:mt-14 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <div className="mt-14 flex flex-wrap items-center gap-4">
                 <Link
                   to="/launch"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
                 >
                   Choose A Mode
                   <ArrowRight size={15} />
                 </Link>
                 <a
                   href="#modes"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
                 >
                   See How They Differ
                 </a>
               </div>
-              <div className="-mx-4 mt-12 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:overflow-visible sm:px-0 sm:pb-0 sm:grid-cols-3">
+              <div className="mt-12 grid gap-3 sm:grid-cols-3">
                 {SITE_MODE_CARDS.map((mode) => {
                   const ModeIcon = getModeIcon(mode.id);
                   const isActive = mode.id === activeModeId;
@@ -490,7 +488,7 @@ function OrbitalPolymeterLanding() {
                       type="button"
                       onClick={() => setActiveModeId(mode.id)}
                       onMouseEnter={() => setActiveModeId(mode.id)}
-                      className={`min-w-[16.25rem] snap-start rounded-[1.25rem] border px-4 py-4 text-left transition sm:min-w-0 ${isActive ? 'bg-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.04)]' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
+                      className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${isActive ? 'bg-white/[0.07] shadow-[0_0_0_1px_rgba(255,255,255,0.04)]' : 'bg-white/[0.02] hover:bg-white/[0.04]'}`}
                       style={{
                         borderColor: isActive ? `${mode.accent}30` : 'rgba(255,255,255,0.08)',
                         boxShadow: isActive ? `0 0 48px ${mode.accent}22, inset 0 1px 0 rgba(255,255,255,0.06)` : 'none',
@@ -511,25 +509,25 @@ function OrbitalPolymeterLanding() {
 
             <div className="relative">
               <div
-                className="absolute inset-0 rounded-[2rem] blur-3xl sm:rounded-[2.6rem]"
+                className="absolute inset-0 rounded-[2.6rem] blur-3xl"
                 style={{
                   background: `radial-gradient(circle at 30% 24%, ${activeMode.accent}34, transparent 30%), radial-gradient(circle at 74% 26%, rgba(255,255,255,0.14), transparent 20%), radial-gradient(circle at 70% 72%, ${activeMode.accent}14, transparent 26%), linear-gradient(180deg, rgba(9,10,16,0.22), rgba(9,10,16,0.02))`,
                 }}
               />
-              <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b0e14]/82 shadow-[0_32px_120px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:rounded-[2.5rem] sm:shadow-[0_40px_160px_rgba(0,0,0,0.5)]">
-                <div className="border-b border-white/10 px-5 py-4 sm:px-6 sm:py-5">
+              <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0b0e14]/82 shadow-[0_40px_160px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+                <div className="border-b border-white/10 px-6 py-5">
                   <div className="mx-auto flex max-w-xl flex-col items-center text-center">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: activeMode.accent }}>
                       {activeMode.eyebrow}
                     </div>
-                    <div className="mt-2 font-serif text-[1.7rem] font-light tracking-[-0.05em] leading-[0.95] text-white sm:text-[2.05rem]">
+                    <div className="mt-2 font-serif text-[2.05rem] font-light tracking-[-0.05em] leading-[0.95] text-white">
                       {activeMode.name}
                     </div>
                     <p className="mt-2 text-sm leading-7 text-white/58">{activeMode.summary}</p>
                   </div>
                 </div>
 
-                <div className="relative aspect-[1/1.02] overflow-hidden sm:aspect-[1.08/0.86]">
+                <div className="relative aspect-[1.08/0.86] overflow-hidden">
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,10,16,0.08),rgba(9,10,16,0.2)_36%,rgba(9,10,16,0.72)_100%)]" />
                   <div
                     className="absolute inset-0 opacity-60"
@@ -537,19 +535,19 @@ function OrbitalPolymeterLanding() {
                       background: `radial-gradient(circle at 20% 22%, ${activeMode.accent}26, transparent 24%), radial-gradient(circle at 74% 20%, rgba(255,255,255,0.12), transparent 18%), radial-gradient(circle at 70% 76%, ${activeMode.accent}16, transparent 24%)`,
                     }}
                   />
-                  <div className="absolute inset-[1.2rem] rounded-[1.4rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_64px_rgba(0,0,0,0.3)] sm:inset-[3.1rem] sm:rounded-[2rem] sm:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
-                    <div className="absolute inset-[0.75rem] overflow-hidden rounded-[1rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)] sm:inset-[1.35rem] sm:rounded-[1.4rem]">
+                  <div className="absolute inset-[3.1rem] rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_80px_rgba(0,0,0,0.34)]">
+                    <div className="absolute inset-[1.35rem] overflow-hidden rounded-[1.4rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
                       <img
                         src={activeMode.image}
                         alt={`${activeMode.name} preview`}
-                        className="h-full w-full object-contain object-center p-3 sm:p-5"
+                        className="h-full w-full object-contain object-center p-5"
                         style={{ objectPosition: '50% 50%' }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-3 border-t border-white/10 px-5 py-5 sm:px-6 sm:py-6 md:grid-cols-[1fr_1fr]">
+                <div className="grid gap-3 border-t border-white/10 px-6 py-6 md:grid-cols-[1fr_1fr]">
                   <div className="rounded-[1.4rem] border border-white/10 bg-black/24 p-4 backdrop-blur-md">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
                     <div className="mt-2 text-sm leading-7 text-white/68">{activeMode.bestFor}</div>
@@ -564,7 +562,7 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section id="modes" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-16 sm:px-8 sm:py-24">
+        <section id="modes" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
           <div
             ref={(element) => {
               revealSectionRefs.current.modes = element;
@@ -583,7 +581,7 @@ function OrbitalPolymeterLanding() {
                 </p>
               </div>
 
-              <div className="-mx-4 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mt-12 lg:mx-0 lg:block lg:overflow-visible lg:px-0 lg:pb-0 lg:space-y-0">
+              <div className="mt-12 space-y-10 lg:space-y-0">
                 {SITE_MODE_CARDS.map((mode) => {
                   const ModeIcon = getModeIcon(mode.id);
                   const isActive = mode.id === activeModeId;
@@ -595,10 +593,10 @@ function OrbitalPolymeterLanding() {
                         modeStepRefs.current[mode.id] = element;
                       }}
                       data-mode-id={mode.id}
-                      className="w-[86vw] max-w-xl shrink-0 snap-center lg:w-auto lg:max-w-none lg:flex lg:min-h-[78vh] lg:items-center"
+                      className="lg:flex lg:min-h-[78vh] lg:items-center"
                     >
                       <div
-                        className={`max-w-xl rounded-[1.7rem] border p-5 transition sm:rounded-[2rem] sm:p-8 ${isActive ? 'bg-white/[0.055]' : 'bg-white/[0.02]'}`}
+                        className={`max-w-xl rounded-[2rem] border p-6 transition sm:p-8 ${isActive ? 'bg-white/[0.055]' : 'bg-white/[0.02]'}`}
                         style={{
                           borderColor: isActive ? `${mode.accent}30` : 'rgba(255,255,255,0.08)',
                           boxShadow: isActive ? `0 0 80px ${mode.accent}10, inset 0 1px 0 rgba(255,255,255,0.06)` : 'none',
@@ -619,8 +617,8 @@ function OrbitalPolymeterLanding() {
                             <ModeIcon size={16} />
                           </div>
                         </div>
-                        <div className="mt-5 font-serif text-[2.2rem] font-light tracking-[-0.05em] leading-[0.95] text-white sm:text-[2.65rem]">{mode.name}</div>
-                        <p className="mt-4 text-base leading-7 text-white/72 sm:text-lg sm:leading-8">{mode.summary}</p>
+                        <div className="mt-5 font-serif text-[2.65rem] font-light tracking-[-0.05em] leading-[0.95] text-white">{mode.name}</div>
+                        <p className="mt-4 text-lg leading-8 text-white/72">{mode.summary}</p>
                         <div className="mt-6 border-t border-white/10 pt-6">
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="rounded-[1.3rem] border border-white/8 bg-[#090a10]/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -662,11 +660,11 @@ function OrbitalPolymeterLanding() {
                         </div>
 
                         <div className="mt-8 lg:hidden">
-                          <div className="overflow-hidden rounded-[1.4rem] border border-white/8 bg-[#090a10] shadow-[0_20px_52px_rgba(0,0,0,0.28)] sm:rounded-[1.6rem] sm:shadow-[0_24px_60px_rgba(0,0,0,0.3)]">
+                          <div className="overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10] shadow-[0_24px_60px_rgba(0,0,0,0.3)]">
                             <img
                               src={mode.image}
                               alt={`${mode.name} preview`}
-                              className="h-64 w-full object-contain object-center p-4 sm:h-72 sm:p-5"
+                              className="h-72 w-full object-contain object-center p-5"
                               style={{ objectPosition: '50% 50%' }}
                             />
                           </div>
@@ -717,7 +715,7 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section id="showcase" className="border-y border-white/10 px-4 py-16 sm:px-8 sm:py-24">
+        <section id="showcase" className="border-y border-white/10 px-5 py-18 sm:px-8 sm:py-24">
           <div
             ref={(element) => {
               revealSectionRefs.current.showcase = element;
@@ -731,12 +729,12 @@ function OrbitalPolymeterLanding() {
                 Orbits scenes where moving ratios leave visible form behind.
               </h2>
             </div>
-            <div className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mt-10 sm:gap-5 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0">
+            <div className="mt-10 grid gap-5 md:grid-cols-2">
               {showcaseGridCards.map((card, index) => (
                 <a
                   key={card.title}
                   href={`/app?mode=orbital&scene=${card.id}`}
-                  className="group w-[82vw] min-w-[82vw] snap-center overflow-hidden rounded-[1.8rem] border border-white/8 bg-white/[0.03] shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition hover:border-white/14 hover:bg-white/[0.045] md:w-auto md:min-w-0"
+                  className="group overflow-hidden rounded-[1.8rem] border border-white/8 bg-white/[0.03] shadow-[0_24px_80px_rgba(0,0,0,0.24)] transition hover:border-white/14 hover:bg-white/[0.045]"
                 >
                   <div className="flex items-center justify-between px-5 pt-5">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: card.accent }}>
@@ -748,7 +746,7 @@ function OrbitalPolymeterLanding() {
                     <img
                       src={card.image}
                       alt={card.title}
-                      className="h-full w-full object-contain p-4 transition duration-500 group-hover:scale-[1.02] sm:p-5"
+                      className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-[1.02]"
                     />
                   </div>
                   <div className="px-5 py-5">
@@ -761,7 +759,7 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section id="tools" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-4 py-16 sm:px-8 sm:py-24">
+        <section id="tools" className="border-y border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-5 py-18 sm:px-8 sm:py-24">
           <div
             ref={(element) => {
               revealSectionRefs.current.tools = element;
@@ -780,11 +778,11 @@ function OrbitalPolymeterLanding() {
                 The site should not just describe the instrument. It should show that the app can move from discovery into authorship. These are the parts that make that promise credible.
               </p>
             </div>
-            <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="grid gap-4 sm:grid-cols-2">
               {featureGrid.slice(0, 4).map((feature) => (
                 <div
                   key={feature.title}
-                  className="w-[18rem] min-w-[18rem] snap-start rounded-[1.55rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(10,12,18,0.96))] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_64px_rgba(0,0,0,0.22)] sm:w-auto sm:min-w-0 sm:rounded-[1.7rem] sm:p-6"
+                  className="rounded-[1.7rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(10,12,18,0.96))] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_24px_64px_rgba(0,0,0,0.22)]"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#FFB454] drop-shadow-[0_0_10px_rgba(255,180,84,0.16)]">
@@ -795,7 +793,7 @@ function OrbitalPolymeterLanding() {
                     </div>
                   </div>
                   <div className="mt-5 h-px bg-white/10" />
-                  <div className="mt-5 text-[1.45rem] font-light tracking-[-0.04em] text-white sm:text-[1.7rem]">{feature.title}</div>
+                  <div className="mt-5 text-[1.7rem] font-light tracking-[-0.04em] text-white">{feature.title}</div>
                   <p className="mt-4 text-sm leading-7 text-white/54">{feature.text}</p>
                 </div>
               ))}
@@ -803,7 +801,7 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section id="pro" className="border-y border-white/10 px-4 py-8 sm:px-8 sm:py-10">
+        <section id="pro" className="border-y border-white/10 px-5 py-8 sm:px-8 sm:py-10">
           <div
             ref={(element) => {
               revealSectionRefs.current.pro = element;
@@ -841,9 +839,9 @@ function OrbitalPolymeterLanding() {
                 </div>
               </div>
               <div className="border-t border-white/8 px-6 py-8 sm:px-8 sm:py-10 lg:border-l lg:border-t-0">
-                <div className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {proHighlights.map((item) => (
-                    <div key={item.title} className="w-[17rem] min-w-[17rem] snap-start rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-5 sm:w-auto sm:min-w-0">
+                    <div key={item.title} className="rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-5">
                       <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#FFAA00]/84">{item.label}</div>
                       <div className="mt-3 text-xl font-light text-white">{item.title}</div>
                       <p className="mt-3 text-sm leading-7 text-white/52">{item.text}</p>
@@ -856,7 +854,7 @@ function OrbitalPolymeterLanding() {
           </div>
         </section>
 
-        <section className="border-t border-white/10 px-4 pb-20 pt-8 sm:px-8 sm:pb-28">
+        <section className="border-t border-white/10 px-5 pb-20 pt-8 sm:px-8 sm:pb-28">
           <div
             ref={(element) => {
               revealSectionRefs.current.cta = element;
