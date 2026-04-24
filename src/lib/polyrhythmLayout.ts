@@ -19,6 +19,31 @@ export interface PolyrhythmHitResult {
   stepIndex: number | null;
 }
 
+function isPointInsidePolygon(
+  x: number,
+  y: number,
+  polygon: Array<{ x: number; y: number }>,
+): boolean {
+  let inside = false;
+
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+    const intersects =
+      currentPoint.y > y !== previousPoint.y > y &&
+      x <
+        ((previousPoint.x - currentPoint.x) * (y - currentPoint.y)) /
+          ((previousPoint.y - currentPoint.y) || Number.EPSILON) +
+          currentPoint.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
 export function getPolyrhythmCanvasMetrics(
   study: PolyrhythmStudy,
   width: number,
@@ -99,6 +124,22 @@ export function findPolyrhythmHit(
     const radius = layer.radius * metrics.scale;
     const distanceToCenter = Math.hypot(x - metrics.centerX, y - metrics.centerY);
     if (Math.abs(distanceToCenter - radius) <= ringHitPadding) {
+      return {
+        layerId: layer.id,
+        stepIndex: null,
+      };
+    }
+  }
+
+  for (const layer of orderedLayers) {
+    const activePoints = getLayerStepPoints(
+      layer,
+      metrics.centerX,
+      metrics.centerY,
+      metrics.scale,
+    ).filter((point) => point.active);
+
+    if (activePoints.length >= 3 && isPointInsidePolygon(x, y, activePoints)) {
       return {
         layerId: layer.id,
         stepIndex: null,

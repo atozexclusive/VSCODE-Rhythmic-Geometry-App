@@ -70,29 +70,12 @@ const POLYRHYTHM_SOUND_PALETTES: Array<{
   label: string;
 }> = [
   { id: 'study-pulse', label: 'Study Pulse' },
-  { id: 'glass-tick', label: 'Glass Tick' },
   { id: 'wood', label: 'Wood' },
   { id: 'soft-synth', label: 'Soft Synth' },
   { id: 'bright-marker', label: 'Bright Marker' },
 ];
 
 const TAU = Math.PI * 2;
-
-const STUDY_SCENE_ASSET_MAP: Partial<Record<PolyrhythmStudyPreset['id'], string>> = {
-  'bo-diddley': '/scene-captures/study-bo-diddley.png',
-  bossa: '/scene-captures/study-bossa.png',
-  'jazz-ride': '/scene-captures/study-jazz-ride.png',
-  'two-three': '/scene-captures/study-two-three.png',
-  'three-four': '/scene-captures/study-three-four.png',
-  'three-five': '/scene-captures/study-three-five.png',
-  'four-five': '/scene-captures/study-four-five.png',
-  'five-six': '/scene-captures/study-five-six.png',
-  'triple-grid': '/scene-captures/study-triple-grid.png',
-  'three-five-six': '/scene-captures/study-three-five-six.png',
-  'four-five-ten': '/scene-captures/study-four-five-ten.png',
-  'nested-three-five': '/scene-captures/study-nested-three-five.png',
-  'counter-mesh': '/scene-captures/study-counter-mesh.png',
-};
 
 export function PolyrhythmSceneThumbnail({
   preset,
@@ -101,20 +84,6 @@ export function PolyrhythmSceneThumbnail({
   preset: PolyrhythmStudyPreset;
   className?: string;
 }) {
-  const presetAsset = STUDY_SCENE_ASSET_MAP[preset.id];
-  if (presetAsset) {
-    return (
-      <div className={`${className} overflow-hidden rounded-lg border border-white/10 bg-[#14141b]/80`}>
-        <img
-          src={presetAsset}
-          alt={preset.name}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
-
   const { study } = preset;
   const centerX = 80;
   const centerY = 72;

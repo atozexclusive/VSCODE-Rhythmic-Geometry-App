@@ -4,7 +4,6 @@ const TAU = Math.PI * 2;
 
 export type PolyrhythmSoundPalette =
   | 'study-pulse'
-  | 'glass-tick'
   | 'wood'
   | 'soft-synth'
   | 'bright-marker';
@@ -145,16 +144,20 @@ function chooseDifferent<T>(items: readonly T[], current: T): T {
 function normalizePolyrhythmSoundSettings(
   settings: Partial<PolyrhythmSoundSettings> | undefined,
 ): PolyrhythmSoundSettings {
+  const rawPalette = settings?.palette as PolyrhythmSoundPalette | 'glass-tick' | undefined;
+  const normalizedPalette =
+    rawPalette === 'glass-tick'
+      ? 'bright-marker'
+      : rawPalette;
   return {
     palette:
-      settings?.palette && [
+      normalizedPalette && [
         'study-pulse',
-        'glass-tick',
         'wood',
         'soft-synth',
         'bright-marker',
-      ].includes(settings.palette)
-        ? settings.palette
+      ].includes(normalizedPalette)
+        ? normalizedPalette
         : 'study-pulse',
     pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
     rootNote: settings?.rootNote ?? 'C',
@@ -178,10 +181,10 @@ function createRandomPolyrhythmSoundSettings(
   const plusScales: ScaleName[] = [...baseScales, 'wholeTone', 'diminished'];
   const palettePool =
     intensity === 'plus'
-      ? (['study-pulse', 'glass-tick', 'wood', 'soft-synth', 'bright-marker'] as const)
+      ? (['study-pulse', 'wood', 'soft-synth', 'bright-marker'] as const)
       : intensity === 'remix'
-        ? (['study-pulse', 'glass-tick', 'wood', 'soft-synth'] as const)
-        : (['study-pulse', 'glass-tick', 'wood'] as const);
+        ? (['study-pulse', 'wood', 'soft-synth'] as const)
+        : (['study-pulse', 'wood'] as const);
   const palette =
     current && intensity === 'remix' && Math.random() < 0.6
       ? current.palette
@@ -837,7 +840,7 @@ const JAZZ_RIDE_STUDY = createSingleLayerStudy({
   color: '#72F1B8',
   bpm: 132,
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'free',
     register: 'tight',
   },
@@ -929,7 +932,7 @@ const THREE_FOUR_STUDY = createSharedCycleStudy({
   bpm: 92,
   colors: ['#72F1B8', '#7FD7FF'],
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'free',
     register: 'tight',
   },
@@ -959,7 +962,7 @@ const FOUR_FIVE_STUDY = createSharedCycleStudy({
   bpm: 94,
   colors: ['#72F1B8', '#FF88C2'],
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'free',
     register: 'wide',
   },
@@ -1026,7 +1029,7 @@ const TRIPLE_GRID_STUDY = createSharedCycleStudy({
   displayStyle: 'shared',
   colors: ['#72F1B8', '#7FD7FF', '#FFD166'],
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'free',
     register: 'tight',
   },
@@ -1043,7 +1046,7 @@ const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
   displayStyle: 'shared',
   colors: ['#72F1B8', '#7FD7FF', '#FFD166'],
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'keyed',
     rootNote: 'D',
     scaleName: 'majorPentatonic',
@@ -1081,7 +1084,7 @@ const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
   displayStyle: 'nested',
   colors: ['#72F1B8', '#7FD7FF', '#FF88C2', '#FFD166'],
   soundSettings: {
-    palette: 'glass-tick',
+    palette: 'bright-marker',
     pitchMode: 'free',
     register: 'wide',
   },

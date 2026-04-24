@@ -109,20 +109,6 @@ function triggerPalettePulse(
     return;
   }
 
-  if (palette === 'glass-tick') {
-    withVoice({
-      type: 'triangle',
-      frequency: frequency * 1.25,
-      gain: clamp(gain * 1.18, 0.012, 0.24),
-      attack: 0.004,
-      release: 0.09,
-      filterFrequency: 2400,
-      filterType: 'highpass',
-      filterQ: 0.8,
-    });
-    return;
-  }
-
   if (palette === 'wood') {
     withVoice({
       type: 'triangle',

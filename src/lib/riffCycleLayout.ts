@@ -102,13 +102,14 @@ export function getRiffCycleCanvasMetrics(
   width: number,
   height: number,
   isMobile: boolean,
+  topInset = 0,
   bottomInset = 0,
   laneWindowStartStep?: number,
   laneWindowStepCount?: number,
 ): RiffCycleCanvasMetrics {
   const showingTimeline = study.viewMode === 'unwrapped';
   const sidePadding = isMobile ? (showingTimeline ? 18 : 12) : 44;
-  const topPadding = isMobile ? (showingTimeline ? 22 : 26) : 54;
+  const topPadding = (isMobile ? (showingTimeline ? 22 : 26) : 54) + topInset;
   const bottomPadding = (isMobile ? (showingTimeline ? 16 : 32) : 120) + bottomInset;
   const timelineHeight = showingTimeline ? (isMobile ? 126 : 138) : 0;
   const verticalGap = showingTimeline ? (isMobile ? 10 : 22) : 0;

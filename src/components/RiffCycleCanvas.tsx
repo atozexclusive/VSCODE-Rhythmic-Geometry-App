@@ -24,6 +24,8 @@ import {
   canEditRiffStep,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
+  getLandingStepCount,
+  getLandingWindowLength,
   getLandingSlotAtReferenceStep,
   getPhraseProgressAtReferenceProgress,
   getReferenceStepsPerBar,
@@ -59,6 +61,8 @@ interface RiffCycleCanvasProps {
   selectedStep: number | null;
   restartToken: number;
   viewModeOverride?: RiffCycleViewMode;
+  landingReferenceOverlayMode?: 'auto' | 'always' | 'off';
+  layoutTopInset?: number;
   layoutBottomInset?: number;
   laneWindowStartStep?: number;
   laneWindowStepCount?: number;
@@ -74,6 +78,22 @@ interface RiffCycleCanvasProps {
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
   onToggleLandingAccent: (slotIndex: number) => void;
   className?: string;
+}
+
+interface LandingReferenceOverlayPoint {
+  phraseIndex: number;
+  landingSlot: number | null;
+  active: boolean;
+  accented: boolean;
+  overridden: boolean;
+  point: {
+    index: number;
+    angle: number;
+    active: boolean;
+    accented: boolean;
+    x: number;
+    y: number;
+  };
 }
 
 function drawRoundedRect(
@@ -147,6 +167,8 @@ export default function RiffCycleCanvas({
   selectedStep,
   restartToken,
   viewModeOverride,
+  landingReferenceOverlayMode = 'auto',
+  layoutTopInset = 0,
   layoutBottomInset = 0,
   laneWindowStartStep,
   laneWindowStepCount,
@@ -176,9 +198,12 @@ export default function RiffCycleCanvas({
   const barMarkerFlashUntilRef = useRef(0);
   const barMarkerFlashStepRef = useRef<number | null>(null);
   const riffAttackUntilRef = useRef<number[]>([]);
+  const laneAttackUntilRef = useRef(0);
+  const laneAttackReferenceStepRef = useRef<number | null>(null);
   const restartInitializedRef = useRef(false);
   const isMobile = useIsMobile();
   const isMobileRef = useRef(isMobile);
+  const layoutTopInsetRef = useRef(layoutTopInset);
   const layoutBottomInsetRef = useRef(layoutBottomInset);
   const laneWindowStartStepRef = useRef(laneWindowStartStep);
   const laneWindowStepCountRef = useRef(laneWindowStepCount);
@@ -206,6 +231,7 @@ export default function RiffCycleCanvas({
   studyRef.current = resolvedStudy;
   selectedStepRef.current = selectedStep;
   isMobileRef.current = isMobile;
+  layoutTopInsetRef.current = layoutTopInset;
   layoutBottomInsetRef.current = layoutBottomInset;
   laneWindowStartStepRef.current = laneWindowStartStep;
   laneWindowStepCountRef.current = laneWindowStepCount;
@@ -262,6 +288,7 @@ export default function RiffCycleCanvas({
       rect.width,
       rect.height,
       isMobileRef.current,
+      layoutTopInsetRef.current,
       layoutBottomInsetRef.current,
       laneWindowStartStepRef.current,
       laneWindowStepCountRef.current,
@@ -310,6 +337,31 @@ export default function RiffCycleCanvas({
       currentStudy,
       currentAbsoluteReferenceStep,
     );
+    const landingWindowLength = getLandingWindowLength(currentStudy);
+    const normalizedStepWithinLandingWindow =
+      ((currentAbsoluteReferenceStep % landingWindowLength) + landingWindowLength) %
+      landingWindowLength;
+    const finalBarStartStep = Math.max(0, landingWindowLength - stepsPerBar);
+    const landingReferenceOverlayVisible =
+      currentStudy.viewMode !== 'unwrapped' &&
+      currentStudy.landingEditEnabled &&
+      (landingReferenceOverlayMode === 'always' ||
+        (landingReferenceOverlayMode === 'auto' &&
+          normalizedStepWithinLandingWindow >= finalBarStartStep));
+    const landingReferenceStates: LandingReferenceOverlayPoint[] = landingReferenceOverlayVisible
+      ? Array.from({ length: getLandingStepCount(currentStudy) }, (_, slotIndex) => {
+          const referenceStep =
+            landingWindowLength - getLandingStepCount(currentStudy) + slotIndex;
+          const state = getEffectiveRiffStepStateAtReferenceStep(currentStudy, referenceStep);
+          const point = riffPoints[state.phraseIndex];
+          return point && state.active
+            ? {
+                ...state,
+                point,
+              }
+            : null;
+        }).filter((state): state is LandingReferenceOverlayPoint => state != null)
+      : [];
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -626,6 +678,42 @@ export default function RiffCycleCanvas({
       }
     });
 
+    landingReferenceStates.forEach((state) => {
+      const markerRadius = state.accented ? 5.1 : 4.1;
+      const markerX = state.point.x;
+      const markerY = state.point.y;
+      const markerColor = state.overridden ? '#7FD7FF' : 'rgba(127,215,255,0.72)';
+
+      ctx.save();
+      ctx.fillStyle = markerColor;
+      ctx.globalAlpha = state.overridden ? 0.96 : 0.78;
+      ctx.shadowBlur = (state.overridden ? 14 : 9) * glowMultiplier;
+      ctx.shadowColor = `${markerColor}${state.overridden ? '55' : '38'}`;
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, markerRadius, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.34)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, markerRadius + 2.4, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+
+      if (state.accented) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.94)';
+        ctx.strokeStyle = 'rgba(17,17,22,0.72)';
+        ctx.lineWidth = 1;
+        drawDiamondMarker(ctx, markerX, markerY, Math.max(2.2, markerRadius * 0.44));
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+
     if (selectedPoint && !isMobileRef.current) {
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.38)';
@@ -743,11 +831,13 @@ export default function RiffCycleCanvas({
         const isCurrentStep = step === currentReferenceStep;
         const isSelectedOccurrence = selectedStepRef.current === phraseIndex;
         const isLandingStep = phraseState.landingSlot != null;
-        const attackRemaining = Math.max(
-          0,
-          ((riffAttackUntilRef.current[phraseIndex] ?? 0) - now) /
-            (phraseAccent ? 320 : 220),
-        );
+        const attackRemaining =
+          laneAttackReferenceStepRef.current === step
+            ? Math.max(
+                0,
+                (laneAttackUntilRef.current - now) / (phraseAccent ? 320 : 220),
+              )
+            : 0;
 
         ctx.save();
         ctx.fillStyle = isBackbeat
@@ -800,13 +890,6 @@ export default function RiffCycleCanvas({
           ctx.moveTo(stepX + 0.5, topLaneY - 7);
           ctx.lineTo(stepX + 0.5, bottomLaneY + laneHeight + 8);
           ctx.stroke();
-          if (!compactMobileTimeline && phraseRestart) {
-            ctx.font = '8px "SF Mono", "Fira Code", monospace';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'bottom';
-            ctx.fillStyle = forcedReset ? 'rgba(255,209,102,0.88)' : `${currentStudy.riff.color}B8`;
-            ctx.fillText('RIFF 1', stepX + 4, bottomLaneY - 5);
-          }
         }
         if (phraseRestart) {
           ctx.fillStyle = forcedReset ? 'rgba(255,209,102,0.92)' : 'rgba(255,255,255,0.52)';
@@ -851,6 +934,60 @@ export default function RiffCycleCanvas({
             );
           }
         }
+        ctx.restore();
+      }
+
+      if (currentStudy.showPhraseBounds) {
+        const sortedRestartSteps = [...phraseRestartSteps].sort((a, b) => a - b);
+        const previousRestartStep =
+          [...sortedRestartSteps].reverse().find((step) => step <= visibleStartStep) ??
+          (sortedRestartSteps[sortedRestartSteps.length - 1] ?? 0) - metrics.totalDisplaySteps;
+        const visibleRestartSteps = [
+          previousRestartStep,
+          ...sortedRestartSteps.filter(
+            (step) => step > visibleStartStep && step < visibleEndStep,
+          ),
+        ];
+        const nextRestartAfter = (step: number) =>
+          sortedRestartSteps.find((candidate) => candidate > step) ??
+          (sortedRestartSteps[0] ?? metrics.totalDisplaySteps) + metrics.totalDisplaySteps;
+
+        ctx.save();
+        const bracketCapDepth = 9;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        visibleRestartSteps.forEach((restartStep) => {
+          const nextRestartStep = nextRestartAfter(restartStep);
+          const segmentStart = Math.max(visibleStartStep, restartStep);
+          const segmentEnd = Math.min(visibleEndStep, nextRestartStep);
+          if (segmentEnd - segmentStart <= 0.4) {
+            return;
+          }
+          const segmentLastStep = Math.max(segmentStart, segmentEnd - 1);
+          const bracketStartX =
+            x + (segmentStart - visibleStartStep) * stepWidth + stepWidth * 0.5;
+          const bracketEndX =
+            x + (segmentLastStep - visibleStartStep) * stepWidth + stepWidth * 0.5;
+          const bracketY = bottomLaneY - 11;
+          if (bracketEndX - bracketStartX < 18) {
+            return;
+          }
+
+          ctx.save();
+          ctx.lineWidth = 1.35;
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+          ctx.shadowBlur = 10 * glowMultiplier;
+          ctx.shadowColor = 'rgba(255,255,255,0.18)';
+          ctx.beginPath();
+          ctx.moveTo(bracketStartX, bracketY + bracketCapDepth);
+          ctx.lineTo(bracketStartX, bracketY);
+          ctx.lineTo(bracketEndX, bracketY);
+          ctx.lineTo(bracketEndX, bracketY + bracketCapDepth);
+          ctx.stroke();
+          ctx.restore();
+
+        });
         ctx.restore();
       }
 
@@ -929,7 +1066,12 @@ export default function RiffCycleCanvas({
           ctx.fill();
           ctx.restore();
         }
-        if ((markerCueEnabled || cycleStart) && !compactMobileTimeline && barIndex < visibleBarEnd) {
+        if (
+          (markerCueEnabled || cycleStart) &&
+          !compactMobileTimeline &&
+          barIndex < visibleBarEnd &&
+          drawX >= x + 72
+        ) {
           ctx.fillStyle =
             markerFlashRemaining > 0
               ? `${currentStudy.riff.color}F0`
@@ -957,19 +1099,25 @@ export default function RiffCycleCanvas({
       ctx.fillStyle = 'rgba(255,255,255,0.48)';
       ctx.font = `${compactMobileTimeline ? 9 : 10}px "SF Mono", "Fira Code", monospace`;
       ctx.textBaseline = 'top';
-      ctx.fillText(compactMobileTimeline ? 'L1' : 'REFERENCE', x + 12, y + 6);
-      ctx.fillText(compactMobileTimeline ? 'L2' : 'PHRASE', x + 12, bottomLaneY - 16);
-      if (!currentStudy.landingEditEnabled) {
-        ctx.fillStyle = `${currentStudy.riff.color}B8`;
-        ctx.fillText(compactMobileTimeline ? 'WRITING' : 'WRITING PHRASE', x + (compactMobileTimeline ? 36 : 58), bottomLaneY - 16);
-      }
-      if (currentStudy.landingEditEnabled) {
-        ctx.fillStyle = 'rgba(127,215,255,0.72)';
-        ctx.fillText(compactMobileTimeline ? 'ENDING' : 'EDITING BAR RETURN', x + (compactMobileTimeline ? 40 : 90), bottomLaneY - 16);
+      ctx.fillText(compactMobileTimeline ? 'BAR' : 'BAR GRID', x + 12, y + 6);
+      ctx.fillStyle = currentStudy.landingEditEnabled
+        ? 'rgba(127,215,255,0.72)'
+        : `${currentStudy.riff.color}B8`;
+      const lowerLaneLabel = currentStudy.landingEditEnabled
+        ? compactMobileTimeline
+          ? 'TAIL'
+          : 'ENDING TAIL'
+        : currentStudy.showPhraseBounds
+          ? ''
+          : compactMobileTimeline
+            ? 'RIFF'
+            : 'RIFF';
+      if (lowerLaneLabel) {
+        ctx.fillText(lowerLaneLabel, x + 12, bottomLaneY - 16);
       }
       ctx.fillStyle = 'rgba(255,255,255,0.34)';
       ctx.fillText(
-        compactMobileTimeline ? 'TAP HIT · HOLD ACCENT' : 'LOWER LANE · TAP HIT · HOLD ACCENT',
+        compactMobileTimeline ? 'TAP WRITE · HOLD ACCENT' : 'TAP TO WRITE · HOLD FOR ACCENT',
         x + 12,
         bottomLaneY + laneHeight + 10,
       );
@@ -1057,9 +1205,13 @@ export default function RiffCycleCanvas({
           currentAbsoluteReferenceStep,
         );
         if (riffStepState.active) {
-          riffAttackUntilRef.current[riffStepState.phraseIndex] =
+          const attackUntil =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
             (riffStepState.accented ? 320 : 220);
+          riffAttackUntilRef.current[riffStepState.phraseIndex] =
+            attackUntil;
+          laneAttackReferenceStepRef.current = currentAbsoluteReferenceStep;
+          laneAttackUntilRef.current = attackUntil;
           if (currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
             triggerRiffPulse({
               frequency: currentStudy.riff.pitchHz,
@@ -1166,6 +1318,8 @@ export default function RiffCycleCanvas({
     playbackState.previousReferenceStep = -1;
     playbackState.lastTimestamp = null;
     playbackState.wasPlaying = studyRef.current.playing;
+    laneAttackReferenceStepRef.current = null;
+    laneAttackUntilRef.current = 0;
     resetFlashUntilRef.current =
       (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 260;
     draw();
@@ -1235,6 +1389,7 @@ export default function RiffCycleCanvas({
           rect.width,
           rect.height,
           isMobileRef.current,
+          layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
           laneWindowStartStepRef.current,
           laneWindowStepCountRef.current,
@@ -1348,6 +1503,7 @@ export default function RiffCycleCanvas({
           rect.width,
           rect.height,
           isMobileRef.current,
+          layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
           laneWindowStartStepRef.current,
           laneWindowStepCountRef.current,
@@ -1420,6 +1576,7 @@ export default function RiffCycleCanvas({
           rect.width,
           rect.height,
           isMobileRef.current,
+          layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
           laneWindowStartStepRef.current,
           laneWindowStepCountRef.current,

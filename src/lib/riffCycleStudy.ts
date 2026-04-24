@@ -16,7 +16,7 @@ export type RiffCycleSoundPalette =
 export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
-export type RiffBarMarkerInterval = 'none' | 'pattern' | 1 | 2 | 4;
+export type RiffBarMarkerInterval = 'none' | 'pattern' | 1 | 2 | 4 | 8;
 export type RiffPhraseResetMode =
   | 'free'
   | 'per-bar'
@@ -81,6 +81,7 @@ export interface RiffCycleStudy {
   showPhraseRing: boolean;
   showStepLabels: boolean;
   showAlignmentMarkers: boolean;
+  showPhraseBounds: boolean;
   barMarkerInterval: RiffBarMarkerInterval;
   showDriftTrail: boolean;
   viewMode: RiffCycleViewMode;
@@ -438,12 +439,14 @@ export function createRiffCycleStudy(
     showPhraseRing: overrides.showPhraseRing ?? true,
     showStepLabels: overrides.showStepLabels ?? false,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
+    showPhraseBounds: overrides.showPhraseBounds ?? false,
     barMarkerInterval:
       overrides.barMarkerInterval === 'none' ||
       overrides.barMarkerInterval === 'pattern' ||
       overrides.barMarkerInterval === 1 ||
       overrides.barMarkerInterval === 2 ||
-      overrides.barMarkerInterval === 4
+      overrides.barMarkerInterval === 4 ||
+      overrides.barMarkerInterval === 8
         ? overrides.barMarkerInterval
         : 'pattern',
     showDriftTrail: overrides.showDriftTrail ?? true,
