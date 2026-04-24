@@ -7197,20 +7197,12 @@ function OrbitalPolymeter() {
 
   const handleSpeedChange = useCallback(
     (speed: number) => {
-      engineState.speedMultiplier = Math.max(0.1, Math.min(10, speed));
+      engineState.speedMultiplier = Math.max(1, Math.min(50, speed));
       resetEngine(engineState);
       handleClearTraces();
       rerender();
     },
     [engineState, handleClearTraces, rerender],
-  );
-
-  const handleOrbitBpmChange = useCallback(
-    (bpm: number) => {
-      const nextBpm = Math.max(DEFAULT_BASE_BPM * 0.1, Math.min(DEFAULT_BASE_BPM * 10, Math.round(bpm || DEFAULT_BASE_BPM)));
-      handleSpeedChange(nextBpm / engineState.baseBPM);
-    },
-    [engineState.baseBPM, handleSpeedChange],
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
@@ -8626,9 +8618,6 @@ function OrbitalPolymeter() {
       </div>
     </div>
   ) : null;
-  const orbitTempoBpm = Math.round(engineState.baseBPM * engineState.speedMultiplier);
-  const orbitMinBpm = Math.round(engineState.baseBPM * 0.1);
-  const orbitMaxBpm = Math.round(engineState.baseBPM * 10);
   const polyrhythmLayerCount = polyrhythmStudy.layers.length;
   const canAddPolyrhythmLayer = polyrhythmLayerCount < MAX_POLYRHYTHM_LAYERS;
   const polyrhythmStepCount = polyrhythmStudy.layers.reduce(
@@ -17998,7 +17987,6 @@ function OrbitalPolymeter() {
           <TransportBar
             playing={engineState.playing}
             speedMultiplier={engineState.speedMultiplier}
-            baseBpm={engineState.baseBPM}
             traceMode={traceMode}
             showPlanets={showPlanets}
             muted={muted}
@@ -18135,20 +18123,20 @@ function OrbitalPolymeter() {
               <div data-guide="mobile-speed" className="space-y-1">
                 <div className="flex items-center gap-3">
                   <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    Tempo
+                    Speed
                   </div>
                   <input
                     type="range"
-                    min={String(orbitMinBpm)}
-                    max={String(orbitMaxBpm)}
-                    step="1"
-                    value={orbitTempoBpm}
-                    onChange={(e) => handleOrbitBpmChange(parseInt(e.target.value, 10) || orbitTempoBpm)}
+                    min="1.0"
+                    max="50.0"
+                    step="0.1"
+                    value={engineState.speedMultiplier}
+                    onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
                     onPointerDown={(event) =>
-                      handleMobileSliderPointerDown(event, 'speed', (value) => handleOrbitBpmChange(Math.round(value)))
+                      handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
                     }
                     onPointerMove={(event) =>
-                      handleMobileSliderPointerMove(event, 'speed', (value) => handleOrbitBpmChange(Math.round(value)))
+                      handleMobileSliderPointerMove(event, 'speed', (value) => handleSpeedChange(value))
                     }
                     onPointerUp={() => clearActiveMobileSlider('speed')}
                     onPointerCancel={() => clearActiveMobileSlider('speed')}
@@ -18156,14 +18144,14 @@ function OrbitalPolymeter() {
                     data-dragging={activeMobileSliderId === 'speed'}
                     className="touch-slider min-w-0 flex-1"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label="Set orbit tempo"
+                    aria-label="Set orbit speed multiplier"
                   />
                   <div className="w-12 shrink-0 text-right">
                     <div className="text-[14px] font-light leading-none text-white">
-                      {orbitTempoBpm}
+                      {engineState.speedMultiplier.toFixed(2)}×
                     </div>
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      BPM
+                      MAX 50×
                     </div>
                   </div>
                 </div>
@@ -19391,7 +19379,6 @@ function OrbitalPolymeter() {
         <TransportBar
           playing={engineState.playing}
           speedMultiplier={engineState.speedMultiplier}
-          baseBpm={engineState.baseBPM}
           traceMode={traceMode}
           showPlanets={showPlanets}
           muted={muted}
