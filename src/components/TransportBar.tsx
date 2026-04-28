@@ -111,8 +111,14 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
-  const anchorTempoBpm = Math.max(1, Math.round(orbitSpeedMultiplierToTempoBpm(speedMultiplier, baseBpm, anchorPulseCount, tempoMode)));
   const anchorTempoMaxBpm = getOrbitTempoMaxBpm(tempoMode);
+  const anchorTempoBpm = Math.max(
+    ORBIT_TEMPO_MIN_BPM,
+    Math.min(
+      anchorTempoMaxBpm,
+      Math.round(orbitSpeedMultiplierToTempoBpm(speedMultiplier, baseBpm, anchorPulseCount, tempoMode)),
+    ),
+  );
   const anchorTempoSliderValue = Math.max(
     ORBIT_TEMPO_MIN_BPM,
     Math.min(anchorTempoMaxBpm, orbitSpeedMultiplierToTempoBpm(speedMultiplier, baseBpm, anchorPulseCount, tempoMode)),

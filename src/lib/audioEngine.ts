@@ -6,10 +6,17 @@
 
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let outputLimiter: DynamicsCompressorNode | null = null;
 let triggerCount = 0;
 let triggerWindowStart = 0;
 let currentTriggerRate = 0; // triggers per second
+let lastAudibleTriggerAt = 0;
 let muted = false;
+
+const MASTER_GAIN_CEILING = 0.62;
+const DENSE_TRIGGER_RATE = 35;
+const VERY_DENSE_TRIGGER_RATE = 85;
+const EXTREME_TRIGGER_RATE = 150;
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -79,8 +86,15 @@ function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.8;
-    masterGain.connect(audioCtx.destination);
+    masterGain.gain.value = MASTER_GAIN_CEILING;
+    outputLimiter = audioCtx.createDynamicsCompressor();
+    outputLimiter.threshold.value = -18;
+    outputLimiter.knee.value = 18;
+    outputLimiter.ratio.value = 12;
+    outputLimiter.attack.value = 0.003;
+    outputLimiter.release.value = 0.12;
+    masterGain.connect(outputLimiter);
+    outputLimiter.connect(audioCtx.destination);
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -165,14 +179,52 @@ function voiceToFrequency(
 /**
  * Track trigger rate to determine audio mode.
  */
-function updateTriggerRate(): void {
+function updateTriggerRate(): number {
   const now = performance.now();
+  if (triggerWindowStart <= 0) {
+    triggerWindowStart = now;
+  }
   triggerCount++;
-  if (now - triggerWindowStart > 500) {
-    currentTriggerRate = (triggerCount / (now - triggerWindowStart)) * 1000;
+  const elapsed = Math.max(1, now - triggerWindowStart);
+  const instantaneousRate = (triggerCount / Math.max(100, elapsed)) * 1000;
+  if (elapsed > 500) {
+    currentTriggerRate = instantaneousRate;
     triggerCount = 0;
     triggerWindowStart = now;
   }
+  return Math.max(currentTriggerRate, instantaneousRate);
+}
+
+function getTriggerRateGain(triggerRate: number): number {
+  if (triggerRate >= EXTREME_TRIGGER_RATE) {
+    return 0.08;
+  }
+  if (triggerRate >= VERY_DENSE_TRIGGER_RATE) {
+    return 0.16;
+  }
+  if (triggerRate >= DENSE_TRIGGER_RATE) {
+    return 0.34;
+  }
+  return 1;
+}
+
+function shouldDropDenseTrigger(triggerRate: number): boolean {
+  const now = performance.now();
+  const minGapMs =
+    triggerRate >= EXTREME_TRIGGER_RATE
+      ? 24
+      : triggerRate >= VERY_DENSE_TRIGGER_RATE
+        ? 14
+        : triggerRate >= DENSE_TRIGGER_RATE
+          ? 7
+          : 0;
+
+  if (minGapMs <= 0 || now - lastAudibleTriggerAt >= minGapMs) {
+    lastAudibleTriggerAt = now;
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -196,17 +248,22 @@ export function playResonanceBeep(
     const now = ctx.currentTime;
     const freq = voiceToFrequency(voice, harmony);
 
-    updateTriggerRate();
+    const triggerRate = updateTriggerRate();
+    if (shouldDropDenseTrigger(triggerRate)) {
+      return;
+    }
+    const safetyGain = getTriggerRateGain(triggerRate);
+    const safeVolume = Math.min(volume, 0.12) * safetyGain;
 
     // Very fast: sustained chord tone
-    if (speedMultiplier > 6.0) {
+    if (speedMultiplier > 6.0 || triggerRate >= VERY_DENSE_TRIGGER_RATE) {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = ctx.createGain();
-      // Volume drops with speed — becomes ambient
-      const chordVol = Math.max(0.01, volume * 0.3 / Math.sqrt(speedMultiplier / 6));
+      const speedFactor = Math.max(speedMultiplier / 6, triggerRate / VERY_DENSE_TRIGGER_RATE, 1);
+      const chordVol = Math.max(0.003, safeVolume * 0.3 / Math.sqrt(speedFactor));
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(chordVol, now + 0.01);
       // Long sustain, gentle release
@@ -221,14 +278,15 @@ export function playResonanceBeep(
     }
 
     // Fast: shorter beep, reduced volume
-    if (speedMultiplier > 3.0) {
+    if (speedMultiplier > 3.0 || triggerRate >= DENSE_TRIGGER_RATE) {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now);
 
       const gain = ctx.createGain();
-      const fastVol = volume * (3.0 / speedMultiplier);
-      const duration = Math.max(0.03, 0.08 / (speedMultiplier / 3));
+      const speedFactor = Math.max(speedMultiplier / 3, triggerRate / DENSE_TRIGGER_RATE, 1);
+      const fastVol = safeVolume / speedFactor;
+      const duration = Math.max(0.018, 0.08 / speedFactor);
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(fastVol, now + 0.003);
       gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
@@ -247,7 +305,7 @@ export function playResonanceBeep(
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(volume, now + 0.004);
+    gain.gain.linearRampToValueAtTime(safeVolume, now + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
     osc.connect(gain);
@@ -283,8 +341,10 @@ export function stopAllAudio(): void {
     audioCtx.close().catch(() => {});
     audioCtx = null;
     masterGain = null;
+    outputLimiter = null;
   }
   triggerCount = 0;
   triggerWindowStart = 0;
   currentTriggerRate = 0;
+  lastAudibleTriggerAt = 0;
 }

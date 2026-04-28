@@ -185,7 +185,8 @@ const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   glow: 'medium',
 };
 const MANUAL_STEP_BEATS = 0.25;
-const RANDOM_PLUS_MIN_TEMPO_BPM = 120;
+const RANDOM_PLUS_MIN_TEMPO_BPM = 20;
+const RANDOM_PLUS_MAX_TEMPO_BPM = 200;
 const SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM = 500;
 const DEFAULT_ORBIT_TEMPO_ANCHOR_PULSE_COUNT = Math.max(
   1,
@@ -7513,13 +7514,31 @@ function OrbitalPolymeter() {
       if (geometryMode === mode) {
         return;
       }
+      const nextTempoMode = getOrbitTempoMode(mode);
+      const nextTempoMaxBpm = getOrbitTempoMaxBpm(nextTempoMode);
+      const currentTempoBpm = orbitSpeedMultiplierToTempoBpm(
+        engineState.speedMultiplier,
+        engineState.baseBPM,
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings),
+        getOrbitTempoMode(geometryMode),
+      );
+      const nextTempoBpm = Math.max(
+        ORBIT_TEMPO_MIN_BPM,
+        Math.min(nextTempoMaxBpm, currentTempoBpm),
+      );
       setGeometryMode(mode);
+      engineState.speedMultiplier = orbitTempoBpmToSpeedMultiplier(
+        nextTempoBpm,
+        engineState.baseBPM,
+        getTempoAnchorPulseCount(engineState.orbits, mode, interferenceSettings),
+        nextTempoMode,
+      );
       resetEngine(engineState);
       handleClearTraces();
       setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, geometryMode, handleClearTraces, requireUnlockedSceneEditing, rerender],
+    [engineState, geometryMode, handleClearTraces, interferenceSettings, requireUnlockedSceneEditing, rerender],
   );
 
   const handleInterferenceSettingsChange = useCallback(
@@ -7800,7 +7819,9 @@ function OrbitalPolymeter() {
               .sort((a, b) => a - b);
     let anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, pulses, selectedCandidates);
     const randomPlusMinTempoBpm = isSweepMode ? SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM : RANDOM_PLUS_MIN_TEMPO_BPM;
-    const randomPlusMaxTempoBpm = getOrbitTempoMaxBpm(getOrbitTempoMode(geometryMode));
+    const randomPlusMaxTempoBpm = isSweepMode
+      ? getOrbitTempoMaxBpm(getOrbitTempoMode(geometryMode))
+      : RANDOM_PLUS_MAX_TEMPO_BPM;
     let speedMultiplier = isExtended
       ? orbitTempoBpmToSpeedMultiplier(
           randomInt(randomPlusMinTempoBpm, randomPlusMaxTempoBpm),
@@ -8573,8 +8594,11 @@ function OrbitalPolymeter() {
   const orbitTempoMaxBpm = getOrbitTempoMaxBpm(orbitTempoMode);
   const orbitTempoAnchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings);
   const orbitTempoDisplayBpm = Math.max(
-    1,
-    Math.round(orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, orbitTempoAnchorPulseCount, orbitTempoMode)),
+    ORBIT_TEMPO_MIN_BPM,
+    Math.min(
+      orbitTempoMaxBpm,
+      Math.round(orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, orbitTempoAnchorPulseCount, orbitTempoMode)),
+    ),
   );
   const orbitTempoSliderValue = Math.max(
     ORBIT_TEMPO_MIN_BPM,
