@@ -150,12 +150,12 @@ export function buildOrbitMidiFile(
   orbits: Orbit[],
   harmony: HarmonySettings,
   bpm: number,
+  anchorPulseCount: number,
   options: OrbitMidiExportOptions,
 ): Uint8Array {
   const totalBars = options.bars;
   const totalBeats = totalBars * 4;
   const totalTicks = totalBeats * MIDI_PPQ;
-  const noteLengthTicks = Math.round(MIDI_PPQ * 0.25);
   const events: TimedMidiEvent[] = [];
 
   events.push({
@@ -194,8 +194,10 @@ export function buildOrbitMidiFile(
 
   orbits.forEach((orbit, orbitIndex) => {
     const pulseCount = Math.max(1, orbit.pulseCount);
+    const intervalBeats = pulseCount / Math.max(1, anchorPulseCount);
     const note = getOrbitMidiNote(orbit, harmony, orbitIndex);
     const velocity = clamp(86 + ((orbitIndex % 4) * 6), 72, 112);
+    const noteLengthTicks = Math.max(24, Math.min(Math.round(intervalBeats * MIDI_PPQ * 0.8), Math.round(MIDI_PPQ * 0.6)));
 
     events.push({
       tick: 0,
@@ -203,7 +205,7 @@ export function buildOrbitMidiFile(
       bytes: textEventBytes(0x01, `Orbit ${orbitIndex + 1} · ${pulseCount} pulses`),
     });
 
-    for (let beat = 0; beat < totalBeats; beat += pulseCount) {
+    for (let beat = 0; beat < totalBeats; beat += intervalBeats) {
       const tick = Math.round(beat * MIDI_PPQ);
       events.push({
         tick,

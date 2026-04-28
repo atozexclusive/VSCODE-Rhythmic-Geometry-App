@@ -161,14 +161,29 @@ export default function OrbitSidebar({
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+  const sectionTitleStyle = {
+    color: 'rgba(244, 250, 255, 0.9)',
+    textShadow: '0 0 12px rgba(127,215,255,0.14)',
+  } as const;
+  const sectionCopyStyle = {
+    color: 'rgba(255, 255, 255, 0.48)',
+  } as const;
+  const sectionLabelStyle = {
+    color: 'rgba(237, 244, 255, 0.86)',
+    textShadow: '0 0 10px rgba(127,215,255,0.12)',
+  } as const;
+  const sectionSecondaryLabelStyle = {
+    color: 'rgba(255, 255, 255, 0.4)',
+  } as const;
   const baseCardStyle = {
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.024))',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 32px rgba(0,0,0,0.12)',
   } as const;
   const sceneCardStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
-    borderColor: 'rgba(0, 255, 170, 0.12)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.028))',
+    borderColor: 'rgba(0, 255, 170, 0.1)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const ratioCardStyle = {
     background: `linear-gradient(180deg, ${
@@ -178,13 +193,13 @@ export default function OrbitSidebar({
           ? 'rgba(136,204,255,0.12)'
           : 'rgba(255,170,0,0.12)'
     }, rgba(255,255,255,0.028))`,
-    borderColor: geometryMode === 'standard-trace' ? 'rgba(0,255,170,0.16)' : geometryMode === 'interference-trace' ? 'rgba(136,204,255,0.16)' : 'rgba(255,170,0,0.16)',
+    borderColor: geometryMode === 'standard-trace' ? 'rgba(0,255,170,0.14)' : geometryMode === 'interference-trace' ? 'rgba(136,204,255,0.14)' : 'rgba(255,170,0,0.14)',
     boxShadow:
       geometryMode === 'standard-trace'
-        ? 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(0,255,170,0.03)'
+        ? 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,255,170,0.03)'
         : geometryMode === 'interference-trace'
-          ? 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(136,204,255,0.03)'
-          : 'inset 0 1px 0 rgba(255,255,255,0.035), 0 0 0 1px rgba(255,170,0,0.03)',
+          ? 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12), 0 0 0 1px rgba(136,204,255,0.03)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,170,0,0.03)',
   } as const;
   const ratioAccentColor =
     geometryMode === 'standard-trace'
@@ -193,25 +208,29 @@ export default function OrbitSidebar({
         ? '#88CCFF'
         : '#FFAA00';
   const soundCardStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.03))',
-    borderColor: 'rgba(136, 204, 255, 0.12)',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.028))',
+    borderColor: 'rgba(136, 204, 255, 0.1)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const soundPrimaryCardStyle = {
     background: 'linear-gradient(180deg, rgba(136,204,255,0.12), rgba(136,204,255,0.04))',
-    borderColor: 'rgba(136, 204, 255, 0.22)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+    borderColor: 'rgba(136, 204, 255, 0.18)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const soundSecondaryCardStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.022))',
-    borderColor: 'rgba(120, 170, 220, 0.12)',
+    borderColor: 'rgba(120, 170, 220, 0.1)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const soundSummaryCardStyle = {
     background: 'linear-gradient(180deg, rgba(80,130,190,0.14), rgba(80,130,190,0.045))',
-    borderColor: 'rgba(136, 204, 255, 0.18)',
+    borderColor: 'rgba(136, 204, 255, 0.16)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const exportCardStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
-    borderColor: 'rgba(255, 170, 0, 0.12)',
+    borderColor: 'rgba(255, 170, 0, 0.1)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
     { key: 'account', label: 'Account', activeColor: '#FFAA00' },
@@ -251,9 +270,14 @@ export default function OrbitSidebar({
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[31.5rem]'}`}
         style={{
-          background: 'linear-gradient(135deg, rgba(20, 20, 28, 0.95), rgba(30, 30, 40, 0.95))',
+          background: `
+            radial-gradient(circle at 88% 6%, rgba(127,215,255,0.08), transparent 22%),
+            radial-gradient(circle at 12% 0%, rgba(0,255,170,0.08), transparent 26%),
+            linear-gradient(180deg, rgba(17, 18, 26, 0.98), rgba(12, 14, 22, 0.96))
+          `,
           backdropFilter: 'blur(20px)',
           borderLeft: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: isMobile ? undefined : '-24px 0 60px rgba(0,0,0,0.34)',
           transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
@@ -262,9 +286,14 @@ export default function OrbitSidebar({
       >
         {/* Header */}
         <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'p-6'}`}>
-          <h2 className="text-sm font-light tracking-widest uppercase" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-            Menu
-          </h2>
+          <div className="space-y-1">
+            <div className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              Menu
+            </div>
+            <h2 className="text-sm font-light tracking-[0.24em] uppercase" style={{ color: 'rgba(244,250,255,0.88)', textShadow: '0 0 12px rgba(127,215,255,0.14)' }}>
+              Orbit Controls
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className={`rounded-lg transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
@@ -310,16 +339,23 @@ export default function OrbitSidebar({
 
         {/* Tabs */}
         <div className={`${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
-          <div className={`${isMobile ? 'flex min-w-max gap-1' : 'flex flex-wrap gap-1.5'}`}>
+          <div
+            className={`${isMobile ? 'flex min-w-max gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.35rem] border`}
+            style={{
+              background: 'rgba(255,255,255,0.028)',
+              borderColor: 'rgba(255,255,255,0.08)',
+            }}
+          >
           {tabMeta.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-t-lg text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-3 py-2.5'}`}
+              className={`shrink-0 rounded-xl border text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-3 py-2.5'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
-                borderBottom: activeTab === tab.key ? `2px solid ${tab.activeColor}` : 'none',
-                background: activeTab === tab.key ? `${tab.activeColor}10` : 'transparent',
+                borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
+                background: activeTab === tab.key ? `${tab.activeColor}14` : 'transparent',
+                boxShadow: activeTab === tab.key ? `inset 0 0 0 1px ${tab.activeColor}18` : 'none',
               }}
             >
               {tab.label.toUpperCase()}
@@ -333,10 +369,10 @@ export default function OrbitSidebar({
           {activeTab === 'account' && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Account
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Sign in, review your plan, and manage account access from one place.
                 </p>
               </div>
@@ -348,10 +384,10 @@ export default function OrbitSidebar({
           {activeTab === 'orbits' && (
             <div className="space-y-3">
               <div>
-                <div className="text-xs font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Orbits
                 </div>
-                <p className="text-[10px] mt-2 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                <p className="text-[11px] mt-2 leading-relaxed" style={sectionCopyStyle}>
                   Shape the motion, spacing, direction, and color of each orbit.
                 </p>
               </div>
@@ -363,7 +399,7 @@ export default function OrbitSidebar({
                 orbits.map((orbit) => (
                   <div
                     key={orbit.id}
-                    className="rounded-lg border transition-all duration-200"
+                    className="rounded-[1.3rem] border transition-all duration-200"
                     style={{
                       background: 'rgba(255, 255, 255, 0.03)',
                       borderColor: expandedOrbit === orbit.id ? orbit.color + '40' : 'rgba(255, 255, 255, 0.1)',
@@ -402,12 +438,12 @@ export default function OrbitSidebar({
                     {expandedOrbit === orbit.id && (
                       <div className="px-3 pb-3 space-y-3 border-t border-white/5 pt-3">
                         <div>
-                          <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                          <div className="text-[10px] font-mono uppercase tracking-widest" style={sectionSecondaryLabelStyle}>
                             Motion
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                          <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                             Pulses
                           </label>
                           <div className="flex items-center gap-2 mt-1">
@@ -451,7 +487,7 @@ export default function OrbitSidebar({
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                          <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                             Radius: {orbit.radius}px
                           </label>
                           <input
@@ -472,7 +508,7 @@ export default function OrbitSidebar({
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                          <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                             Direction
                           </label>
                           <div className="flex gap-2 mt-2">
@@ -500,12 +536,12 @@ export default function OrbitSidebar({
                         </div>
 
                         <div>
-                          <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                          <div className="text-[10px] font-mono uppercase tracking-widest" style={sectionSecondaryLabelStyle}>
                             Appearance
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                          <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                             Color
                           </label>
                           <div className="grid grid-cols-8 gap-1.5 mt-2">
@@ -527,12 +563,12 @@ export default function OrbitSidebar({
                         {harmonySettings.tonePreset === 'scale-quantized' && harmonySettings.manualOrbitRoles && (
                           <>
                             <div>
-                              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.38)' }}>
+                              <div className="text-[10px] font-mono uppercase tracking-widest" style={sectionSecondaryLabelStyle}>
                                 Note Role
                               </div>
                             </div>
                             <div>
-                              <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                              <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                                 Scale Degree
                               </label>
                               <input
@@ -556,7 +592,7 @@ export default function OrbitSidebar({
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                              <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
                                 Register
                               </label>
                               <div className="flex gap-2 mt-2">
@@ -602,7 +638,7 @@ export default function OrbitSidebar({
               {/* Add Orbit Button */}
               <button
                 onClick={onAddOrbit}
-                className="w-full px-4 py-3 rounded-lg border border-dashed transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-2 font-mono text-xs"
+                className="w-full px-4 py-3 rounded-[1.25rem] border border-dashed transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-2 font-mono text-xs"
                 style={{
                   borderColor: 'rgba(0, 255, 170, 0.3)',
                   color: '#00FFAA',
@@ -618,10 +654,10 @@ export default function OrbitSidebar({
           {activeTab === 'scenes' && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Scenes
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Start from built-ins, keep your own saves, or preview pro-only scene packs.
                 </p>
               </div>
@@ -673,7 +709,7 @@ export default function OrbitSidebar({
                   ) : filteredBuiltInScenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="rounded-lg border p-3"
+                      className="rounded-[1.25rem] border p-3.5"
                       style={sceneCardStyle}
                     >
                       {scene.thumbnailDataUrl && (
@@ -713,7 +749,7 @@ export default function OrbitSidebar({
 
               {activeSceneTab === 'saved' && (
                 <div className="space-y-3">
-                  <div className="space-y-3 rounded-lg border p-3" style={sceneCardStyle}>
+                  <div className="space-y-3 rounded-[1.25rem] border p-3.5" style={sceneCardStyle}>
                     <div
                       className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
                       style={{
@@ -791,7 +827,7 @@ export default function OrbitSidebar({
                     filteredSavedScenes.map((scene) => (
                       <div
                         key={scene.id}
-                        className="rounded-lg border p-3"
+                        className="rounded-[1.25rem] border p-3.5"
                         style={baseCardStyle}
                       >
                         {scene.thumbnailDataUrl && (
@@ -858,7 +894,7 @@ export default function OrbitSidebar({
               {activeSceneTab === 'premium' && (
                 <div className="space-y-3">
                   <div
-                    className="rounded-lg border p-3"
+                    className="rounded-[1.25rem] border p-3.5"
                     style={{
                       background: 'linear-gradient(180deg, rgba(255,170,0,0.08), rgba(255,255,255,0.025))',
                       borderColor: 'rgba(255, 170, 0, 0.16)',
@@ -878,7 +914,7 @@ export default function OrbitSidebar({
                   ) : filteredPremiumScenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="rounded-lg border p-3"
+                      className="rounded-[1.25rem] border p-3.5"
                       style={{
                         background: 'linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.025))',
                         borderColor: 'rgba(255, 170, 0, 0.14)',
@@ -935,16 +971,16 @@ export default function OrbitSidebar({
           {activeTab === 'export' && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Export
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Export clean stills, short motion loops, or scene files.
                 </p>
               </div>
 
               <div
-                className="rounded-lg border p-3 space-y-3"
+                className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
@@ -990,7 +1026,7 @@ export default function OrbitSidebar({
               </div>
 
               <div
-                className="rounded-lg border p-3 space-y-3"
+                className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
@@ -1029,7 +1065,7 @@ export default function OrbitSidebar({
               </div>
 
               <div
-                className="rounded-lg border p-3 space-y-3"
+                className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
@@ -1072,7 +1108,7 @@ export default function OrbitSidebar({
               </div>
 
               <div
-                className="rounded-lg border p-3 space-y-3"
+                className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
                 <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
@@ -1118,7 +1154,7 @@ export default function OrbitSidebar({
               )}
 
               <div
-                className="rounded-lg border p-3 space-y-3"
+                className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   borderColor: 'rgba(255,255,255,0.08)',
@@ -1183,7 +1219,7 @@ export default function OrbitSidebar({
               </div>
 
               <div
-                className="rounded-lg border p-3"
+                className="rounded-[1.25rem] border p-3.5"
                 style={{
                   background: 'rgba(255,255,255,0.025)',
                   borderColor: 'rgba(255,90,120,0.12)',
@@ -1219,15 +1255,15 @@ export default function OrbitSidebar({
           {activeTab === 'sound' && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Sound
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Original keeps the raw sound. In Key keeps notes inside one note family.
                 </p>
               </div>
 
-              <div className="rounded-lg border p-3 space-y-3" style={soundPrimaryCardStyle}>
+              <div className="rounded-[1.25rem] border p-3.5 space-y-3" style={soundPrimaryCardStyle}>
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
                     Sound Mode
@@ -1245,7 +1281,7 @@ export default function OrbitSidebar({
                 </select>
               </div>
 
-              <div className="rounded-lg border p-3 space-y-3" style={soundSecondaryCardStyle}>
+              <div className="rounded-[1.25rem] border p-3.5 space-y-3" style={soundSecondaryCardStyle}>
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.52)' }}>
                     Key
@@ -1295,7 +1331,7 @@ export default function OrbitSidebar({
                 </div>
               </div>
 
-              <div className="rounded-lg border p-3 space-y-3" style={soundSecondaryCardStyle}>
+              <div className="rounded-[1.25rem] border p-3.5 space-y-3" style={soundSecondaryCardStyle}>
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.52)' }}>
                     Note Assignment
@@ -1340,7 +1376,7 @@ export default function OrbitSidebar({
                 </p>
               </div>
 
-              <div className="rounded-lg border p-3" style={soundSummaryCardStyle}>
+              <div className="rounded-[1.25rem] border p-3.5" style={soundSummaryCardStyle}>
                 <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255, 255, 255, 0.56)' }}>
                   Current Sound
                 </div>
@@ -1367,16 +1403,16 @@ export default function OrbitSidebar({
           {activeTab === 'geometry' && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255, 255, 255, 0.62)' }}>
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
                   Ratios
                 </div>
-                <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
+                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Shape the core orbit relationships and the geometry they produce.
                 </p>
               </div>
 
               {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
-                <div className="space-y-3 rounded-lg border p-3" style={ratioCardStyle}>
+                <div className="space-y-3 rounded-[1.25rem] border p-3.5" style={ratioCardStyle}>
                   <div>
                     <label className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                       Pair A

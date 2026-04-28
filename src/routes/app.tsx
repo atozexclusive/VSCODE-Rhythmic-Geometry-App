@@ -41,12 +41,19 @@ import {
 import {
   type Orbit,
   type EngineState,
+  type OrbitTempoMode,
+  ORBIT_TEMPO_MAX_BPM,
+  ORBIT_TEMPO_MIN_BPM,
+  getOrbitTempoMaxBpm,
+  orbitSpeedMultiplierToTempoBpm,
+  orbitTempoBpmToSpeedMultiplier,
   createEngineState,
   createOrbit,
   resetEngine,
   resonancePositionAtBeats,
   stepEngineByBeats,
   DEFAULT_BASE_BPM,
+  DEFAULT_ORBIT_TEMPO_BPM,
   DEFAULT_ORBITS,
   PRESET_RATIOS,
 } from '../lib/orbitalEngine';
@@ -178,7 +185,17 @@ const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   glow: 'medium',
 };
 const MANUAL_STEP_BEATS = 0.25;
-const DEFAULT_SCENE_SPEED = 3;
+const RANDOM_PLUS_MIN_TEMPO_BPM = 120;
+const SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM = 500;
+const DEFAULT_ORBIT_TEMPO_ANCHOR_PULSE_COUNT = Math.max(
+  1,
+  DEFAULT_ORBITS.reduce((anchor, orbit) => (!anchor || orbit.radius > anchor.radius ? orbit : anchor), DEFAULT_ORBITS[0])?.pulseCount ?? 1,
+);
+const DEFAULT_SCENE_SPEED = orbitTempoBpmToSpeedMultiplier(
+  DEFAULT_ORBIT_TEMPO_BPM,
+  DEFAULT_BASE_BPM,
+  DEFAULT_ORBIT_TEMPO_ANCHOR_PULSE_COUNT,
+);
 const PATTERN_MUTATION_COOLDOWN_MS = 140;
 const INTERFERENCE_PREVIEW_WEIGHTS = [-1, 1, 1, -1] as const;
 const DEFAULT_POLYRHYTHM_PRESET_ID = 'three-five';
@@ -2356,7 +2373,7 @@ const DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
     harmonyDegree,
     harmonyRegister,
   })),
-  speedMultiplier: 1,
+  speedMultiplier: DEFAULT_SCENE_SPEED,
   traceMode: true,
   harmonySettings: { ...DEFAULT_HARMONY_SETTINGS },
   geometryMode: 'standard-trace',
@@ -2979,6 +2996,45 @@ function computeRandomSpeed(
   if (avgPulse >= 6) speed += 0.2;
   if (avgPulse <= 3.5) speed -= 0.1;
   return clamp(speed, 0.95, mode === 'sweep' ? 3.6 : 3.1);
+}
+
+function getOuterRingPulseCount(orbits: Orbit[], pulsesOverride?: number[]): number {
+  let anchorIndex = 0;
+  for (let index = 1; index < orbits.length; index += 1) {
+    if ((orbits[index]?.radius ?? 0) > (orbits[anchorIndex]?.radius ?? 0)) {
+      anchorIndex = index;
+    }
+  }
+  return Math.max(1, pulsesOverride?.[anchorIndex] ?? orbits[anchorIndex]?.pulseCount ?? 1);
+}
+
+function getOrbitTempoMode(mode: GeometryMode): OrbitTempoMode {
+  return mode === 'sweep' ? 'sweep' : 'standard';
+}
+
+function getTempoAnchorPulseCount(
+  orbits: Orbit[],
+  mode: GeometryMode,
+  settings: InterferenceSettings,
+  pulsesOverride?: number[],
+  selectedIndices?: number[],
+): number {
+  if (mode === 'standard-trace') {
+    return getOuterRingPulseCount(orbits, pulsesOverride);
+  }
+
+  const selectedOuterIndex = selectedIndices?.[1];
+  if (selectedOuterIndex != null) {
+    return Math.max(1, pulsesOverride?.[selectedOuterIndex] ?? orbits[selectedOuterIndex]?.pulseCount ?? 1);
+  }
+
+  const normalized = normalizeInterferenceSettings(orbits, settings);
+  const outerIndex = orbits.findIndex((orbit) => orbit.id === normalized.sourceOrbitBId);
+  if (outerIndex >= 0) {
+    return Math.max(1, pulsesOverride?.[outerIndex] ?? orbits[outerIndex]?.pulseCount ?? 1);
+  }
+
+  return getOuterRingPulseCount(orbits, pulsesOverride);
 }
 
 function buildHarmonyAssignments(
@@ -4103,13 +4159,14 @@ function downloadOrbitMidiFile(
   orbits: Orbit[],
   harmonySettings: HarmonySettings,
   bpm: number,
+  anchorPulseCount: number,
   options: { bars: 4 | 8 | 16 },
 ): void {
   if (typeof window === 'undefined') {
     return;
   }
 
-  const bytes = buildOrbitMidiFile(orbits, harmonySettings, bpm, options);
+  const bytes = buildOrbitMidiFile(orbits, harmonySettings, bpm, anchorPulseCount, options);
   const blob = new Blob([bytes], { type: 'audio/midi' });
   const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -4303,6 +4360,7 @@ function OrbitalPolymeter() {
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
     state.orbits = DEFAULT_ORBITS.map((def) => createOrbit(def));
+    state.speedMultiplier = DEFAULT_SCENE_SPEED;
     state.playing = true;
     return state;
   });
@@ -7196,13 +7254,18 @@ function OrbitalPolymeter() {
   ]);
 
   const handleSpeedChange = useCallback(
-    (speed: number) => {
-      engineState.speedMultiplier = Math.max(1, Math.min(50, speed));
+    (tempoBpm: number) => {
+      engineState.speedMultiplier = orbitTempoBpmToSpeedMultiplier(
+        tempoBpm,
+        engineState.baseBPM,
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings),
+        getOrbitTempoMode(geometryMode),
+      );
       resetEngine(engineState);
       handleClearTraces();
       rerender();
     },
-    [engineState, handleClearTraces, rerender],
+    [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender],
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
@@ -7712,7 +7775,40 @@ function OrbitalPolymeter() {
     let colors = isFreeBaseRandom
       ? engineState.orbits.map((orbit) => orbit.color)
       : buildRandomColors(engineState.orbits.length, options);
-    let speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
+    const selectedCandidates =
+      geometryMode === 'standard-trace'
+        ? []
+          : engineState.orbits.length <= 2
+            ? [0, Math.max(1, engineState.orbits.length - 1)]
+          : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index))
+              .slice(
+                0,
+                isSweepMode
+                  ? hasSweepQuad
+                    ? 4
+                    : hasSweepTriad
+                      ? 3
+                      : 2
+                  : isPatternMode
+                    ? hasInterferenceQuad
+                      ? 4
+                      : hasInterferenceTriad
+                        ? 3
+                        : 2
+                    : 2,
+              )
+              .sort((a, b) => a - b);
+    let anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, pulses, selectedCandidates);
+    const randomPlusMinTempoBpm = isSweepMode ? SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM : RANDOM_PLUS_MIN_TEMPO_BPM;
+    const randomPlusMaxTempoBpm = getOrbitTempoMaxBpm(getOrbitTempoMode(geometryMode));
+    let speedMultiplier = isExtended
+      ? orbitTempoBpmToSpeedMultiplier(
+          randomInt(randomPlusMinTempoBpm, randomPlusMaxTempoBpm),
+          engineState.baseBPM,
+          anchorPulseCount,
+          getOrbitTempoMode(geometryMode),
+        )
+      : computeRandomSpeed(geometryMode, pulses, options);
     let candidate: RandomHistoryEntry = {
       pulses,
       directions,
@@ -7741,7 +7837,15 @@ function OrbitalPolymeter() {
       colors = isFreeBaseRandom
         ? engineState.orbits.map((orbit) => orbit.color)
         : buildRandomColors(engineState.orbits.length, options);
-      speedMultiplier = computeRandomSpeed(geometryMode, pulses, options);
+      anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, pulses, selectedCandidates);
+      speedMultiplier = isExtended
+        ? orbitTempoBpmToSpeedMultiplier(
+            randomInt(randomPlusMinTempoBpm, randomPlusMaxTempoBpm),
+            engineState.baseBPM,
+            anchorPulseCount,
+            getOrbitTempoMode(geometryMode),
+          )
+        : computeRandomSpeed(geometryMode, pulses, options);
       candidate = {
         pulses,
         directions,
@@ -7760,30 +7864,6 @@ function OrbitalPolymeter() {
     const useManualOrbitRoles = useKeyedHarmony && (isExtended ? Math.random() > 0.7 : Math.random() > 0.45);
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
     const harmonyAssignments = buildHarmonyAssignments(engineState.orbits.length, scaleLength, options);
-    const selectedCandidates =
-      geometryMode === 'standard-trace'
-        ? []
-          : engineState.orbits.length <= 2
-            ? [0, Math.max(1, engineState.orbits.length - 1)]
-          : shuffleArray(Array.from({ length: engineState.orbits.length }, (_, index) => index))
-              .slice(
-                0,
-                isSweepMode
-                  ? hasSweepQuad
-                    ? 4
-                    : hasSweepTriad
-                      ? 3
-                      : 2
-                  : isPatternMode
-                    ? hasInterferenceQuad
-                      ? 4
-                      : hasInterferenceTriad
-                        ? 3
-                        : 2
-                    : 2,
-              )
-              .sort((a, b) => a - b);
-
     engineState.orbits.forEach((orbit, index) => {
       orbit.pulseCount = pulses[index];
       orbit.direction = directions[index];
@@ -8254,11 +8334,19 @@ function OrbitalPolymeter() {
         return;
       }
 
+      const anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings);
+      const tempoMode = getOrbitTempoMode(geometryMode);
+      const displayBpm = Math.max(
+        ORBIT_TEMPO_MIN_BPM,
+        Math.round(orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, anchorPulseCount, tempoMode)),
+      );
+
       downloadOrbitMidiFile(
         'orbital',
         engineState.orbits,
         harmonySettings,
-        Math.max(20, engineState.baseBPM * engineState.speedMultiplier),
+        displayBpm,
+        anchorPulseCount,
         options,
       );
 
@@ -8480,6 +8568,21 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Watch two or more layers create a combined path.'
         : 'Sample the motion into a cleaner sweeping shape.';
+  const orbitTempoAnchorLabel = 'Outer Ring';
+  const orbitTempoMode = getOrbitTempoMode(geometryMode);
+  const orbitTempoMaxBpm = getOrbitTempoMaxBpm(orbitTempoMode);
+  const orbitTempoAnchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings);
+  const orbitTempoDisplayBpm = Math.max(
+    1,
+    Math.round(orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, orbitTempoAnchorPulseCount, orbitTempoMode)),
+  );
+  const orbitTempoSliderValue = Math.max(
+    ORBIT_TEMPO_MIN_BPM,
+    Math.min(
+      orbitTempoMaxBpm,
+      orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, orbitTempoAnchorPulseCount, orbitTempoMode),
+    ),
+  );
   const allClockwise = engineState.orbits.every((orbit) => orbit.direction === 1);
   const presentationSoundLabel = muted
     ? 'Muted'
@@ -17987,6 +18090,10 @@ function OrbitalPolymeter() {
           <TransportBar
             playing={engineState.playing}
             speedMultiplier={engineState.speedMultiplier}
+            baseBpm={engineState.baseBPM}
+            anchorLabel={orbitTempoAnchorLabel}
+            anchorPulseCount={orbitTempoAnchorPulseCount}
+            tempoMode={orbitTempoMode}
             traceMode={traceMode}
             showPlanets={showPlanets}
             muted={muted}
@@ -18123,14 +18230,14 @@ function OrbitalPolymeter() {
               <div data-guide="mobile-speed" className="space-y-1">
                 <div className="flex items-center gap-3">
                   <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                    Speed
+                    Tempo
                   </div>
                   <input
                     type="range"
-                    min="1.0"
-                    max="50.0"
-                    step="0.1"
-                    value={engineState.speedMultiplier}
+                    min={String(ORBIT_TEMPO_MIN_BPM)}
+                    max={String(orbitTempoMaxBpm)}
+                    step="1"
+                    value={orbitTempoSliderValue}
                     onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
                     onPointerDown={(event) =>
                       handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
@@ -18144,14 +18251,14 @@ function OrbitalPolymeter() {
                     data-dragging={activeMobileSliderId === 'speed'}
                     className="touch-slider min-w-0 flex-1"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label="Set orbit speed multiplier"
+                    aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
                   />
                   <div className="w-12 shrink-0 text-right">
                     <div className="text-[14px] font-light leading-none text-white">
-                      {engineState.speedMultiplier.toFixed(2)}×
+                      {orbitTempoDisplayBpm}
                     </div>
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      MAX 50×
+                      {orbitTempoAnchorLabel}
                     </div>
                   </div>
                 </div>
@@ -19379,6 +19486,10 @@ function OrbitalPolymeter() {
         <TransportBar
           playing={engineState.playing}
           speedMultiplier={engineState.speedMultiplier}
+          baseBpm={engineState.baseBPM}
+          anchorLabel={orbitTempoAnchorLabel}
+          anchorPulseCount={orbitTempoAnchorPulseCount}
+          tempoMode={orbitTempoMode}
           traceMode={traceMode}
           showPlanets={showPlanets}
           muted={muted}

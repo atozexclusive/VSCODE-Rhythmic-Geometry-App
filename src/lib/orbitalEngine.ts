@@ -21,15 +21,61 @@ export interface Orbit {
 export interface EngineState {
   orbits: Orbit[];
   playing: boolean;
-  speedMultiplier: number;  // 1.0 – 50.0
+  speedMultiplier: number;  // derived from anchor BPM / base BPM
   elapsedBeats: number;     // master beat counter (double-precision)
   lastTimestamp: number;     // last RAF timestamp in ms
-  baseBPM: number;          // reference tempo
+  baseBPM: number;          // anchor-orbit tempo when speedMultiplier is 1.0
 }
 
 // Two-pi constant (double precision)
 const TAU: number = 2.0 * Math.PI;
 export const DEFAULT_BASE_BPM = 120.0;
+export const DEFAULT_ORBIT_TEMPO_BPM = 20;
+export const ORBIT_TEMPO_MIN_BPM = 10;
+export const ORBIT_TEMPO_MAX_BPM = 1000;
+export const SWEEP_ORBIT_TEMPO_MAX_BPM = 3000;
+export type OrbitTempoMode = 'standard' | 'sweep';
+const SWEEP_TEMPO_TURNS_PER_COMPLETION = 10;
+const SWEEP_TEMPO_COMPLETION_BEATS = 48;
+
+export function getOrbitTempoMaxBpm(tempoMode: OrbitTempoMode = 'standard'): number {
+  return tempoMode === 'sweep' ? SWEEP_ORBIT_TEMPO_MAX_BPM : ORBIT_TEMPO_MAX_BPM;
+}
+
+export function clampOrbitTempoBpm(
+  tempoBpm: number,
+  tempoMode: OrbitTempoMode = 'standard',
+): number {
+  return Math.max(ORBIT_TEMPO_MIN_BPM, Math.min(getOrbitTempoMaxBpm(tempoMode), tempoBpm));
+}
+
+export function orbitTempoBpmToSpeedMultiplier(
+  tempoBpm: number,
+  baseBpm: number = DEFAULT_BASE_BPM,
+  anchorPulseCount: number = 1,
+  tempoMode: OrbitTempoMode = 'standard',
+): number {
+  const pulseCount = Math.max(1, anchorPulseCount);
+  const anchorRotationsPerMasterBeat =
+    tempoMode === 'sweep'
+      ? (pulseCount * SWEEP_TEMPO_TURNS_PER_COMPLETION) / SWEEP_TEMPO_COMPLETION_BEATS
+      : 1 / pulseCount;
+  return clampOrbitTempoBpm(tempoBpm, tempoMode) / (Math.max(1, baseBpm) * anchorRotationsPerMasterBeat);
+}
+
+export function orbitSpeedMultiplierToTempoBpm(
+  speedMultiplier: number,
+  baseBpm: number = DEFAULT_BASE_BPM,
+  anchorPulseCount: number = 1,
+  tempoMode: OrbitTempoMode = 'standard',
+): number {
+  const pulseCount = Math.max(1, anchorPulseCount);
+  const anchorRotationsPerMasterBeat =
+    tempoMode === 'sweep'
+      ? (pulseCount * SWEEP_TEMPO_TURNS_PER_COMPLETION) / SWEEP_TEMPO_COMPLETION_BEATS
+      : 1 / pulseCount;
+  return Math.max(1, baseBpm) * speedMultiplier * anchorRotationsPerMasterBeat;
+}
 
 /**
  * Create a fresh engine state.
@@ -38,7 +84,7 @@ export function createEngineState(): EngineState {
   return {
     orbits: [],
     playing: false,
-    speedMultiplier: 1.0,
+    speedMultiplier: orbitTempoBpmToSpeedMultiplier(DEFAULT_ORBIT_TEMPO_BPM),
     elapsedBeats: 0.0,
     lastTimestamp: -1.0,
     baseBPM: DEFAULT_BASE_BPM,

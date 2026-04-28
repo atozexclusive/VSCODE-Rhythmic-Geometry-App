@@ -1,12 +1,13 @@
 // ============================================================
 // Orbital Polymeter — Transport Control Bar
-// Play/Pause, Speed Multiplier, Trace Toggle, Reset, Sidebar Menu
+// Play/Pause, Tempo, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
 import { useCallback, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
+import { ORBIT_TEMPO_MIN_BPM, getOrbitTempoMaxBpm, orbitSpeedMultiplierToTempoBpm, type OrbitTempoMode } from '../lib/orbitalEngine';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import InfoTip from './InfoTip';
@@ -14,6 +15,10 @@ import InfoTip from './InfoTip';
 interface TransportBarProps {
   playing: boolean;
   speedMultiplier: number;
+  baseBpm: number;
+  anchorLabel: string;
+  anchorPulseCount: number;
+  tempoMode: OrbitTempoMode;
   traceMode: boolean;
   showPlanets: boolean;
   muted: boolean;
@@ -61,6 +66,10 @@ interface TransportBarProps {
 export default function TransportBar({
   playing,
   speedMultiplier,
+  baseBpm,
+  anchorLabel,
+  anchorPulseCount,
+  tempoMode,
   traceMode,
   showPlanets,
   muted,
@@ -102,17 +111,41 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
+  const anchorTempoBpm = Math.max(1, Math.round(orbitSpeedMultiplierToTempoBpm(speedMultiplier, baseBpm, anchorPulseCount, tempoMode)));
+  const anchorTempoMaxBpm = getOrbitTempoMaxBpm(tempoMode);
+  const anchorTempoSliderValue = Math.max(
+    ORBIT_TEMPO_MIN_BPM,
+    Math.min(anchorTempoMaxBpm, orbitSpeedMultiplierToTempoBpm(speedMultiplier, baseBpm, anchorPulseCount, tempoMode)),
+  );
   const iconButtonStyle = "px-3 py-2 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95 flex flex-col items-center gap-1 min-w-[64px]";
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
   const desktopUtilityButtonStyle = "px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:bg-white/6 active:scale-95";
+  const desktopDockPanelStyle = {
+    background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
+    border: '1px solid rgba(255,255,255,0.08)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.16)',
+    backdropFilter: 'blur(14px)',
+  } as const;
+  const desktopTopPanelStyle = {
+    background: `
+      radial-gradient(circle at 82% -14%, rgba(127,215,255,0.08), transparent 36%),
+      radial-gradient(circle at 10% 0%, rgba(255,255,255,0.05), transparent 28%),
+      linear-gradient(180deg, rgba(17,17,22,0.9), rgba(17,17,22,0.76))
+    `,
+    borderColor: 'rgba(255,255,255,0.08)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 32px rgba(0,0,0,0.12)',
+    backdropFilter: 'blur(12px)',
+  } as const;
+  const desktopDockButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 active:scale-[0.98]";
+  const desktopDockSquareButtonStyle = "h-10 w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-200 active:scale-[0.98]";
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Connects all active orbits into a shared string-art field.'
       : geometryMode === 'interference-trace'
         ? 'Traces one live path from the relationship between the selected pair.'
-      : 'Plots a finite sampled figure from the selected pair.';
+        : 'Plots a finite sampled figure from the selected pair.';
   const minimalModeLabel =
     geometryMode === 'standard-trace'
       ? 'Standard'
@@ -439,13 +472,14 @@ export default function TransportBar({
               className="px-3 py-2 flex flex-col items-center gap-2 rounded-xl border"
               style={{
                 marginLeft: 8,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                background: 'rgba(17, 17, 22, 0.22)',
-                backdropFilter: 'blur(8px)',
+                ...desktopTopPanelStyle,
                 transform: 'translateY(-4px)',
               }}
             >
-              <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              <div
+                className="text-[10px] font-mono uppercase tracking-[0.2em]"
+                style={{ color: 'rgba(244,250,255,0.82)', textShadow: '0 0 10px rgba(127,215,255,0.14)' }}
+              >
                 Active Geometry
               </div>
               <div
@@ -521,13 +555,13 @@ export default function TransportBar({
                               ? 'Shape the active interference triad from the main bar.'
                               : geometryMode === 'interference-trace'
                                 ? 'Add one more orbit to unlock the next interference mode.'
-                          : geometryMode === 'sweep' && quickOrbitControls.length > 3
-                            ? 'Shape the active sweep quartet from the main bar.'
-                            : geometryMode === 'sweep' && quickOrbitControls.length > 2
-                              ? 'Shape the active sweep triad from the main bar.'
-                            : geometryMode === 'sweep'
-                              ? 'Add one more orbit to unlock the next sweep mode.'
-                            : 'Shape the active driver pair from the main bar.'}
+                            : geometryMode === 'sweep' && quickOrbitControls.length > 3
+                              ? 'Shape the active sweep quartet from the main bar.'
+                              : geometryMode === 'sweep' && quickOrbitControls.length > 2
+                                ? 'Shape the active sweep triad from the main bar.'
+                                : geometryMode === 'sweep'
+                                  ? 'Add one more orbit to unlock the next sweep mode.'
+                                  : 'Shape the active driver pair from the main bar.'}
                       </span>
                     </div>
                     <span
@@ -540,109 +574,109 @@ export default function TransportBar({
                   {desktopOrbitPanelOpen ? (
                     <div className="mt-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
                       <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
-                      {quickOrbitControls.map((orbit) => (
-                        <div
-                          key={orbit.id}
-                          className="rounded-lg border px-2 py-2"
-                          style={{
-                            borderColor: 'rgba(255, 255, 255, 0.08)',
-                            background: 'rgba(255, 255, 255, 0.02)',
-                          }}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => onOpenOrbitEditor(orbit.id)}
-                                className="text-[10px] font-mono uppercase tracking-wider"
-                                style={{ color: orbit.color }}
-                                title={`Edit ${orbit.label} color`}
-                              >
-                                {orbit.label}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onOpenOrbitEditor(orbit.id)}
-                                className="flex h-6 w-6 items-center justify-center rounded-md"
-                                style={{
-                                  color: orbit.color,
-                                  background: 'rgba(255, 255, 255, 0.06)',
-                                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                                }}
-                                title={`Open ${orbit.label} color picker`}
-                                aria-label={`Open ${orbit.label} color picker`}
-                              >
-                                <Palette size={12} />
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
-                                className="h-6 w-6 rounded-md text-[11px] font-mono"
-                                style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                                title={`Lower ${orbit.label} pulse count`}
-                              >
-                                −
-                              </button>
-                              <input
-                                type="number"
-                                min="1"
-                                max="1000"
-                                value={orbit.pulseCount}
-                                onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                                onFocus={(e) => e.currentTarget.select()}
-                                className="w-12 rounded-md border text-center text-[10px] font-mono focus:outline-none"
-                                style={{
-                                  color: 'rgba(255, 255, 255, 0.82)',
-                                  background: 'rgba(255, 255, 255, 0.04)',
-                                  borderColor: 'rgba(255, 255, 255, 0.08)',
-                                }}
-                              />
-                              <button
-                                onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
-                                className="h-6 w-6 rounded-md text-[11px] font-mono"
-                                style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                                title={`Raise ${orbit.label} pulse count`}
-                              >
-                                +
-                              </button>
-                              {geometryMode === 'standard-trace' ? (
+                        {quickOrbitControls.map((orbit) => (
+                          <div
+                            key={orbit.id}
+                            className="rounded-lg border px-2 py-2"
+                            style={{
+                              borderColor: 'rgba(255, 255, 255, 0.08)',
+                              background: 'rgba(255, 255, 255, 0.02)',
+                            }}
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <button
-                                  onClick={() => onDeleteOrbit(orbit.id)}
-                                  disabled={!canDeleteDesktopOrbit}
-                                  className="h-6 w-6 rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
-                                  style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                  title={canDeleteDesktopOrbit ? `Delete ${orbit.label}` : 'Keep at least one orbit'}
+                                  type="button"
+                                  onClick={() => onOpenOrbitEditor(orbit.id)}
+                                  className="text-[10px] font-mono uppercase tracking-wider"
+                                  style={{ color: orbit.color }}
+                                  title={`Edit ${orbit.label} color`}
                                 >
-                                  ×
+                                  {orbit.label}
                                 </button>
-                              ) : (geometryMode === 'sweep' &&
-                                  (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
-                                (geometryMode === 'interference-trace' &&
-                                  (orbit.label === 'Interference C' || orbit.label === 'Interference D')) ? (
                                 <button
-                                  onClick={() => onDeleteOrbit(orbit.id)}
+                                  type="button"
+                                  onClick={() => onOpenOrbitEditor(orbit.id)}
+                                  className="flex h-6 w-6 items-center justify-center rounded-md"
+                                  style={{
+                                    color: orbit.color,
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                  }}
+                                  title={`Open ${orbit.label} color picker`}
+                                  aria-label={`Open ${orbit.label} color picker`}
+                                >
+                                  <Palette size={12} />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
                                   className="h-6 w-6 rounded-md text-[11px] font-mono"
-                                  style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                  title={`Delete ${orbit.label} orbit`}
+                                  style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                                  title={`Lower ${orbit.label} pulse count`}
                                 >
-                                  ×
+                                  −
                                 </button>
-                              ) : null}
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="1000"
+                                  value={orbit.pulseCount}
+                                  onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="w-12 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                                  style={{
+                                    color: 'rgba(255, 255, 255, 0.82)',
+                                    background: 'rgba(255, 255, 255, 0.04)',
+                                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                                  }}
+                                />
+                                <button
+                                  onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
+                                  className="h-6 w-6 rounded-md text-[11px] font-mono"
+                                  style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
+                                  title={`Raise ${orbit.label} pulse count`}
+                                >
+                                  +
+                                </button>
+                                {geometryMode === 'standard-trace' ? (
+                                  <button
+                                    onClick={() => onDeleteOrbit(orbit.id)}
+                                    disabled={!canDeleteDesktopOrbit}
+                                    className="h-6 w-6 rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
+                                    style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
+                                    title={canDeleteDesktopOrbit ? `Delete ${orbit.label}` : 'Keep at least one orbit'}
+                                  >
+                                    ×
+                                  </button>
+                                ) : (geometryMode === 'sweep' &&
+                                    (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
+                                  (geometryMode === 'interference-trace' &&
+                                    (orbit.label === 'Interference C' || orbit.label === 'Interference D')) ? (
+                                  <button
+                                    onClick={() => onDeleteOrbit(orbit.id)}
+                                    className="h-6 w-6 rounded-md text-[11px] font-mono"
+                                    style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
+                                    title={`Delete ${orbit.label} orbit`}
+                                  >
+                                    ×
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max={geometryMode === 'standard-trace' ? 32 : 100}
+                              value={orbit.pulseCount}
+                              onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                              className="w-full cursor-pointer"
+                              style={{ accentColor: orbit.color }}
+                              title={`${orbit.label} pulse slider`}
+                            />
                           </div>
-                          <input
-                            type="range"
-                            min="1"
-                            max={geometryMode === 'standard-trace' ? 32 : 100}
-                            value={orbit.pulseCount}
-                            onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                            className="w-full cursor-pointer"
-                            style={{ accentColor: orbit.color }}
-                            title={`${orbit.label} pulse slider`}
-                          />
-                        </div>
-                      ))}
+                        ))}
                       </div>
                       {geometryMode === 'standard-trace' || geometryMode === 'sweep' || geometryMode === 'interference-trace' ? (
                         <div className="mt-2 flex justify-end border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
@@ -668,9 +702,9 @@ export default function TransportBar({
                                       ? 'Add a fourth interference orbit'
                                       : 'Add a third interference orbit'
                                     : 'Interference quartet is already active'
-                                : canAddDesktopOrbit
-                                  ? 'Add another orbit'
-                                  : 'Maximum of 6 orbits'
+                                  : canAddDesktopOrbit
+                                    ? 'Add another orbit'
+                                    : 'Maximum of 6 orbits'
                             }
                           >
                             {geometryMode === 'sweep'
@@ -692,9 +726,7 @@ export default function TransportBar({
               className="px-3 py-2 flex flex-col items-center justify-center gap-2 rounded-xl border"
               style={{
                 marginRight: 8,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                background: 'rgba(17, 17, 22, 0.22)',
-                backdropFilter: 'blur(8px)',
+                ...desktopTopPanelStyle,
                 transform: 'translateY(-4px)',
               }}
             >
@@ -874,19 +906,19 @@ export default function TransportBar({
                 <div className="flex items-center gap-2">
                   <Zap size={14} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
                   <span className="text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    Speed {speedMultiplier.toFixed(2)}×
+                    Tempo
                   </span>
                 </div>
                 <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  50.0× max
+                  {anchorTempoBpm} BPM · {anchorLabel}
                 </span>
               </div>
               <input
                 type="range"
-                min="1.0"
-                max="50.0"
-                step="0.1"
-                value={speedMultiplier}
+                min={String(ORBIT_TEMPO_MIN_BPM)}
+                max={String(anchorTempoMaxBpm)}
+                step="1"
+                value={anchorTempoSliderValue}
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
                 onPointerDown={(event) =>
                   handleTouchSliderPointerDown(event, 'mobile-speed', (value) => onSpeedChange(value))
@@ -904,7 +936,7 @@ export default function TransportBar({
                   WebkitAppearance: 'none',
                   ['--slider-accent' as string]: '#00FFAA',
                 }}
-                title="Speed multiplier (1.0x to 50.0x)"
+                title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
               />
             </div>
 
@@ -982,11 +1014,15 @@ export default function TransportBar({
         }}
       >
         {/* Left: Playback + Step + Clear + Reset */}
-        <div data-guide="desktop-playback" className="flex items-center gap-3">
+        <div
+          data-guide="desktop-playback"
+          className="flex items-center gap-2 rounded-[1.45rem] px-2.5 py-2"
+          style={desktopDockPanelStyle}
+        >
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className={iconButtonStyle}
+            className={desktopDockButtonStyle}
             style={{
               background: playing
                 ? 'rgba(255, 51, 102, 0.2)'
@@ -997,14 +1033,14 @@ export default function TransportBar({
             title={playing ? 'Pause motion and freeze the current state' : 'Start playback and let the system run continuously'}
           >
             {playing ? <Pause size={20} /> : <Play size={20} />}
-            <span className="text-[10px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
               {playing ? 'Pause' : 'Play'}
             </span>
           </button>
 
           <button
             onClick={onStepForward}
-            className={iconButtonStyle}
+            className={desktopDockButtonStyle}
             style={{
               background: 'rgba(51, 136, 255, 0.16)',
               border: '1px solid rgba(51, 136, 255, 0.32)',
@@ -1013,7 +1049,7 @@ export default function TransportBar({
             title="Advance the geometry by one small step while paused"
           >
             <SkipForward size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
               Step
             </span>
           </button>
@@ -1053,7 +1089,7 @@ export default function TransportBar({
 
           <button
             onClick={onRandomPattern}
-            className={iconButtonStyle}
+            className={desktopDockButtonStyle}
             style={{
               background: 'rgba(51, 136, 255, 0.16)',
               border: '1px solid rgba(51, 136, 255, 0.32)',
@@ -1062,14 +1098,14 @@ export default function TransportBar({
             title="Generate a curated random pattern with fresh ratios, color, motion, and sound"
           >
             <Shuffle size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
               Random
             </span>
           </button>
 
           <button
             onClick={onRemixPattern}
-            className={iconButtonStyle}
+            className={desktopDockButtonStyle}
             style={{
               background: 'rgba(0, 255, 170, 0.14)',
               border: '1px solid rgba(0, 255, 170, 0.28)',
@@ -1078,14 +1114,14 @@ export default function TransportBar({
             title="Refresh the current setup with new color, direction, sound, and speed"
           >
             <Zap size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
               Remix
             </span>
           </button>
 
           <button
             onClick={onRandomPatternPlus}
-            className={iconButtonStyle}
+            className={desktopDockButtonStyle}
             style={{
               background: 'rgba(255, 170, 0, 0.14)',
               border: '1px solid rgba(255, 170, 0, 0.28)',
@@ -1094,47 +1130,53 @@ export default function TransportBar({
             title="Generate an extended curated random pattern with values up to 100"
           >
             <Shuffle size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-wider">
+            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
               Random+
             </span>
           </button>
+
         </div>
 
-        {/* Center: Speed Multiplier */}
-        <div data-guide="desktop-speed" className="flex items-center gap-4 flex-1 mx-8">
-          <div className="flex items-center gap-2">
-            <Zap size={16} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
-            <span
-              className="text-xs font-mono font-light"
-              style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-            >
-              {speedMultiplier.toFixed(2)}×
-            </span>
+        {/* Center: Tempo */}
+        <div
+          data-guide="desktop-speed"
+          className="mx-6 flex min-w-[340px] max-w-[460px] flex-1 items-center gap-4 rounded-[1.45rem] px-4 py-3"
+          style={desktopDockPanelStyle}
+        >
+          <div className="shrink-0">
+            <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(244,250,255,0.82)', textShadow: '0 0 10px rgba(127,215,255,0.14)' }}>
+              Tempo
+            </div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+              {anchorLabel}
+            </div>
           </div>
           <input
             type="range"
-            min="1.0"
-            max="50.0"
-            step="0.1"
-            value={speedMultiplier}
+            min={String(ORBIT_TEMPO_MIN_BPM)}
+            max={String(anchorTempoMaxBpm)}
+            step="1"
+            value={anchorTempoSliderValue}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
             className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
             style={{
               background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
               WebkitAppearance: 'none',
             }}
-            title="Speed multiplier (1.0x to 50.0x)"
+            title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
           />
-          <span
-            className="text-xs font-mono font-light"
-            style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-          >
-            50.0×
-          </span>
+          <div className="min-w-[68px] text-right">
+            <div className="text-[16px] font-mono" style={{ color: 'rgba(255,255,255,0.9)' }}>
+              {anchorTempoBpm}
+            </div>
+            <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.36)' }}>
+              BPM
+            </div>
+          </div>
         </div>
 
         {/* Right: Trace Toggle + Menu */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-[1.45rem] px-2.5 py-2" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}
@@ -1169,7 +1211,6 @@ export default function TransportBar({
             </span>
           </button>
 
-          {/* Trace Toggle */}
           <button
             data-guide="desktop-trace"
             onClick={onToggleTrace}
@@ -1224,11 +1265,12 @@ export default function TransportBar({
           <button
             data-guide="desktop-menu"
             onClick={onOpenSidebar}
-            className="p-3 rounded-lg transition-all duration-200 hover:bg-white/6 active:scale-95"
+            className={desktopDockSquareButtonStyle}
             style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: 'rgba(255, 255, 255, 0.58)',
+              background: 'rgba(127, 215, 255, 0.12)',
+              border: '1px solid rgba(127, 215, 255, 0.24)',
+              color: '#7FD7FF',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 18px rgba(255,255,255,0.06)',
             }}
             title="Open menu"
           >
