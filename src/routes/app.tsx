@@ -539,7 +539,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
   {
     target: 'desktop-direction',
     title: 'Direction',
-    text: 'Reverse, All CW, and Alternate quickly change how the orbits move and how the geometry grows.',
+    text: 'Reverse, Clockwise, and Alternate quickly change how the orbits move and how the geometry grows.',
   },
   {
     target: 'desktop-trace',
@@ -8522,31 +8522,13 @@ function OrbitalPolymeter() {
             }
             return {
               id: orbit.id,
-              label:
-                geometryMode === 'sweep'
-                  ? index === 0
-                    ? 'Sweep A'
-                    : index === 1
-                      ? 'Sweep B'
-                      : index === 2
-                        ? 'Sweep C'
-                        : 'Sweep D'
-                  : geometryMode === 'interference-trace'
-                    ? index === 0
-                      ? 'Interference A'
-                      : index === 1
-                        ? 'Interference B'
-                        : index === 2
-                          ? 'Interference C'
-                          : 'Interference D'
-                  : index === 0
-                    ? 'Pair A'
-                    : 'Pair B',
+              label: `Orbit ${engineState.orbits.findIndex((entry) => entry.id === orbit.id) + 1}`,
               pulseCount: orbit.pulseCount,
               color: orbit.color,
+              canDelete: index >= 2,
             };
           })
-          .filter((orbit): orbit is { id: string; label: string; pulseCount: number; color: string } => Boolean(orbit))
+          .filter((orbit): orbit is { id: string; label: string; pulseCount: number; color: string; canDelete: boolean } => Boolean(orbit))
   );
   const desktopQuickOrbitControls =
     geometryMode === 'standard-trace'
@@ -8555,12 +8537,14 @@ function OrbitalPolymeter() {
           label: `Orbit ${index + 1}`,
           pulseCount: orbit.pulseCount,
           color: orbit.color,
+          canDelete: true,
         }))
-      : activePairControls.map(({ id, label, pulseCount, color }) => ({
+      : activePairControls.map(({ id, label, pulseCount, color, canDelete }) => ({
           id,
           label,
           pulseCount,
           color,
+          canDelete,
         }));
   const mobileQuickOrbits =
     geometryMode === 'standard-trace'
@@ -8570,6 +8554,7 @@ function OrbitalPolymeter() {
           pulseCount: orbit.pulseCount,
           direction: orbit.direction,
           color: orbit.color,
+          canDelete: engineState.orbits.length > 1,
         }))
       : activePairControls.map((orbit) => {
           const match = engineState.orbits.find((entry) => entry.id === orbit.id);
@@ -9117,28 +9102,7 @@ function OrbitalPolymeter() {
         })()}
       </>
     ) : null;
-  const desktopBeginnerHint = !presentationMode && !isMobile ? (
-    <div className="fixed z-20 top-4 right-5 max-w-[17rem] pointer-events-none">
-      <div
-        className="rounded-[22px] border px-4 py-3"
-        style={{
-          background: 'rgba(17,17,22,0.82)',
-          borderColor: `${currentModeAccent}24`,
-          boxShadow: `0 10px 34px rgba(0,0,0,0.18), inset 0 1px 0 ${currentModeAccent}10`,
-        }}
-      >
-        <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: currentModeAccent }}>
-          {currentModeCopy.label}
-        </div>
-        <div className="mt-1 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>
-          {currentModeCopy.summary}
-        </div>
-        <div className="mt-2 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.46)' }}>
-          {currentModeCopy.firstSteps}
-        </div>
-      </div>
-    </div>
-  ) : null;
+  const desktopBeginnerHint = null;
   const mobileBeginnerIntroCard = MOBILE_GUIDE_INTRO_CARD_ENABLED && isMobile && !presentationMode ? (
     <div
       className="rounded-[24px] border px-4 py-3"
@@ -13027,7 +12991,12 @@ function OrbitalPolymeter() {
                     aria-label="Set study tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div className="text-[18px] font-light leading-none text-white">{polyrhythmStudy.bpm}</div>
+                    <div
+                      className="text-[18px] font-light leading-none text-white"
+                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                    >
+                      {polyrhythmStudy.bpm}
+                    </div>
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       BPM
                     </div>
@@ -17944,7 +17913,10 @@ function OrbitalPolymeter() {
                     aria-label="Set riff cycle tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div className="text-[16px] font-light leading-none text-white">
+                    <div
+                      className="text-[16px] font-light leading-none text-white"
+                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                    >
                       {riffCycleStudy.reference.bpm}
                     </div>
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
@@ -18441,9 +18413,9 @@ function OrbitalPolymeter() {
                         style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
                         title={
                           geometryMode === 'sweep'
-                            ? 'Add sweep layer'
+                            ? 'Add orbit'
                             : geometryMode === 'interference-trace'
-                              ? 'Add interference layer'
+                              ? 'Add orbit'
                               : 'Add layer'
                         }
                       >
@@ -18453,10 +18425,7 @@ function OrbitalPolymeter() {
                   </div>
 
                   {mobileQuickOrbits.map((orbit) => {
-                    const layerLabel =
-                      geometryMode === 'standard-trace'
-                        ? orbit.label.replace('Orbit', 'Layer')
-                        : orbit.label.replace('Pair', 'Layer');
+                    const layerLabel = orbit.label.replace('Orbit', 'Layer');
 
                     return (
                       <div
@@ -18524,9 +18493,7 @@ function OrbitalPolymeter() {
                                 <Trash2 size={14} />
                               </button>
                             )}
-                            {(((geometryMode === 'sweep' && (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
-                              (geometryMode === 'interference-trace' &&
-                                (orbit.label === 'Interference C' || orbit.label === 'Interference D')))) && (
+                            {orbit.canDelete && geometryMode !== 'standard-trace' && (
                               <button
                                 onClick={() => handleDeleteOrbit(orbit.id)}
                                 className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
@@ -19380,10 +19347,10 @@ function OrbitalPolymeter() {
               >
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  Driving Pair
+                    Driving Orbits
                   </div>
                   <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Change the two orbits that drive the current derived shape.
+                    Change the orbits that drive the current derived shape.
                   </p>
                 </div>
                 {activePairControls.map((orbit) => (
@@ -19435,7 +19402,7 @@ function OrbitalPolymeter() {
                     Reverse
                   </button>
                   <button onClick={handleAllClockwise} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}>
-                    All CW
+                    Clockwise
                   </button>
                   <button onClick={handleAlternateDirections} className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]" style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.08)', border: '1px solid rgba(51,136,255,0.2)' }}>
                     Alternate

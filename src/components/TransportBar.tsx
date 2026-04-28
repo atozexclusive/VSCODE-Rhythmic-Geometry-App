@@ -34,6 +34,7 @@ interface TransportBarProps {
     label: string;
     pulseCount: number;
     color: string;
+    canDelete?: boolean;
   }>;
   onAdjustQuickOrbit: (orbitId: string, delta: number) => void;
   onSetQuickOrbit: (orbitId: string, pulseCount: number) => void;
@@ -110,6 +111,10 @@ export default function TransportBar({
 }: TransportBarProps) {
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
+  const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(false);
+  const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(true);
+  const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
+  const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
   const anchorTempoMaxBpm = getOrbitTempoMaxBpm(tempoMode);
   const anchorTempoBpm = Math.max(
@@ -129,29 +134,46 @@ export default function TransportBar({
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
   const desktopUtilityButtonStyle = "px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:bg-white/6 active:scale-95";
   const desktopDockPanelStyle = {
-    background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
+    background: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+    backdropFilter: 'none',
+  } as const;
+  const desktopTempoPanelStyle = {
+    background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(255,255,255,0.08)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.16)',
-    backdropFilter: 'blur(14px)',
+  } as const;
+  const desktopGlowLabelStyle = {
+    color: '#88CCFF',
+    textShadow: '0 0 14px rgba(136,204,255,0.22)',
+  } as const;
+  const desktopGeometryGlowLabelStyle = {
+    color: '#7DFFD1',
+    textShadow: '0 0 14px rgba(0,255,170,0.28)',
   } as const;
   const desktopTopPanelStyle = {
     background: `
-      radial-gradient(circle at 82% -14%, rgba(127,215,255,0.08), transparent 36%),
-      radial-gradient(circle at 10% 0%, rgba(255,255,255,0.05), transparent 28%),
-      linear-gradient(180deg, rgba(17,17,22,0.9), rgba(17,17,22,0.76))
+      radial-gradient(circle at 82% -14%, rgba(127,215,255,0.14), transparent 38%),
+      radial-gradient(circle at 8% 0%, rgba(136,204,255,0.08), transparent 32%),
+      linear-gradient(180deg, rgba(17,17,22,0.92), rgba(17,17,22,0.82))
     `,
-    borderColor: 'rgba(255,255,255,0.08)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 32px rgba(0,0,0,0.12)',
-    backdropFilter: 'blur(12px)',
+    borderColor: 'rgba(127,215,255,0.12)',
+    boxShadow: '0 20px 54px rgba(0,0,0,0.26), 0 0 24px rgba(127,215,255,0.055), inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(16px)',
   } as const;
+  const desktopSideSectionStyle = {
+    background: 'rgba(127,215,255,0.035)',
+    border: '1px solid rgba(127,215,255,0.095)',
+  } as const;
+  const desktopSideSubmenuButtonStyle = "flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition-all duration-200 hover:bg-white/5";
   const desktopDockButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 active:scale-[0.98]";
   const desktopDockSquareButtonStyle = "h-10 w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-200 active:scale-[0.98]";
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Connects all active orbits into a shared string-art field.'
       : geometryMode === 'interference-trace'
-        ? 'Traces one live path from the relationship between the selected pair.'
-        : 'Plots a finite sampled figure from the selected pair.';
+        ? 'Traces one live path from the relationship between the selected orbits.'
+        : 'Plots a finite sampled figure from the selected orbits.';
   const minimalModeLabel =
     geometryMode === 'standard-trace'
       ? 'Standard'
@@ -470,30 +492,36 @@ export default function TransportBar({
         paddingBottom: isMobile ? '0px' : '0px',
       }}
     >
-      <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-6 pt-3'}`}>
+      <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-3 lg:px-6 pt-3'}`}>
         {!isMobile ? (
-          <div className="flex items-center justify-between gap-8 mb-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
             <div
               data-guide="desktop-geometry"
-              className="px-3 py-2 flex flex-col items-center gap-2 rounded-xl border"
+              className="min-w-[280px] max-w-[420px] flex-[1_1_360px] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
-                marginLeft: 8,
                 ...desktopTopPanelStyle,
                 transform: 'translateY(-4px)',
               }}
             >
-              <div
-                className="text-[10px] font-mono uppercase tracking-[0.2em]"
-                style={{ color: 'rgba(244,250,255,0.82)', textShadow: '0 0 10px rgba(127,215,255,0.14)' }}
-              >
-                Active Geometry
+              <div className="relative flex items-start justify-center gap-3">
+                <div className="min-w-0 flex-1 text-center">
+                  <div
+                    className="text-[10px] font-mono uppercase tracking-[0.2em]"
+                    style={desktopGeometryGlowLabelStyle}
+                  >
+                    Geometry Mode
+                  </div>
+                  <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Select how the rhythm field is interpreted.
+                  </div>
+                </div>
+                <div className="absolute right-0 top-0">
+                  <InfoTip text="Choose how Orbit turns the same rhythm layers into shape: Standard connects all layers, Interference derives a moving relationship point, and Sweep draws fixed-radius sweep figures." />
+                </div>
               </div>
               <div
-                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
-                style={{
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                }}
+                className="flex flex-wrap items-center justify-center gap-2 rounded-xl px-2 py-2"
+                style={desktopSideSectionStyle}
               >
                 <button
                   onClick={() => onGeometryModeChange('standard-trace')}
@@ -532,54 +560,63 @@ export default function TransportBar({
                   Sweep
                 </button>
               </div>
-              <p className="max-w-[380px] text-center text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
                 {modeDescription}
               </p>
               {quickOrbitControls.length > 0 && (
                 <div
-                  className="w-full rounded-lg border px-2 py-2"
-                  style={{
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                  }}
+                  className="w-full rounded-2xl px-2.5 py-2.5"
+                  style={desktopSideSectionStyle}
                 >
-                  <button
-                    onClick={() => setDesktopOrbitPanelOpen((open) => !open)}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left transition-all duration-200 hover:bg-white/5"
-                    title={geometryMode === 'standard-trace' ? 'Open orbit controls' : 'Open pair controls'}
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.46)' }}>
-                        {geometryMode === 'standard-trace' ? 'Orbits' : 'Pair'}
-                      </span>
-                      <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
-                        {geometryMode === 'standard-trace'
-                          ? 'Adjust pulse counts without opening the menu.'
-                          : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
-                            ? 'Shape the active interference quartet from the main bar.'
-                            : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
-                              ? 'Shape the active interference triad from the main bar.'
-                              : geometryMode === 'interference-trace'
-                                ? 'Add one more orbit to unlock the next interference mode.'
-                            : geometryMode === 'sweep' && quickOrbitControls.length > 3
-                              ? 'Shape the active sweep quartet from the main bar.'
-                              : geometryMode === 'sweep' && quickOrbitControls.length > 2
-                                ? 'Shape the active sweep triad from the main bar.'
-                                : geometryMode === 'sweep'
-                                  ? 'Add one more orbit to unlock the next sweep mode.'
-                                  : 'Shape the active driver pair from the main bar.'}
-                      </span>
-                    </div>
-                    <span
-                      className="flex h-7 w-7 items-center justify-center rounded-md"
-                      style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setDesktopOrbitPanelOpen((open) => !open)}
+                      className="flex min-w-0 flex-1 items-center justify-between rounded-lg px-2 py-1.5 text-left transition-all duration-200 hover:bg-white/5"
+                      title="Open orbit controls"
                     >
-                      {desktopOrbitPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    </span>
-                  </button>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="text-[10px] font-mono uppercase tracking-wider" style={desktopGlowLabelStyle}>
+                          Orbits
+                        </span>
+                        <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
+                          {geometryMode === 'standard-trace'
+                            ? 'Adjust pulse counts without opening the menu.'
+                            : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
+                              ? 'Shape the active orbit quartet from the main bar.'
+                              : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
+                                ? 'Shape the active orbit triad from the main bar.'
+                                : geometryMode === 'interference-trace'
+                                  ? 'Add one more orbit to unlock the next orbit mode.'
+                              : geometryMode === 'sweep' && quickOrbitControls.length > 3
+                                ? 'Shape the active orbit quartet from the main bar.'
+                                : geometryMode === 'sweep' && quickOrbitControls.length > 2
+                                  ? 'Shape the active orbit triad from the main bar.'
+                                  : geometryMode === 'sweep'
+                                    ? 'Add one more orbit to unlock the next orbit mode.'
+                                    : 'Shape the active driver orbits from the main bar.'}
+                        </span>
+                      </div>
+                      <span
+                        className="flex h-7 w-7 items-center justify-center rounded-md"
+                        style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
+                      >
+                        {desktopOrbitPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </span>
+                    </button>
+                    <InfoTip
+                      text={
+                        geometryMode === 'standard-trace'
+                          ? 'Open orbit controls to adjust each layer pulse count, color, and active orbit list.'
+                          : 'Open orbit controls to adjust the layers driving the current derived shape.'
+                      }
+                    />
+                  </div>
                   {desktopOrbitPanelOpen ? (
                     <div className="mt-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                      <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                      <div
+                        className="space-y-2 overflow-y-auto pr-1"
+                        style={{ maxHeight: 'min(320px, calc(100vh - 18rem))' }}
+                      >
                         {quickOrbitControls.map((orbit) => (
                           <div
                             key={orbit.id}
@@ -646,25 +683,13 @@ export default function TransportBar({
                                 >
                                   +
                                 </button>
-                                {geometryMode === 'standard-trace' ? (
+                                {orbit.canDelete ?? geometryMode === 'standard-trace' ? (
                                   <button
                                     onClick={() => onDeleteOrbit(orbit.id)}
-                                    disabled={!canDeleteDesktopOrbit}
+                                    disabled={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit}
                                     className="h-6 w-6 rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
                                     style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                    title={canDeleteDesktopOrbit ? `Delete ${orbit.label}` : 'Keep at least one orbit'}
-                                  >
-                                    ×
-                                  </button>
-                                ) : (geometryMode === 'sweep' &&
-                                    (orbit.label === 'Sweep C' || orbit.label === 'Sweep D')) ||
-                                  (geometryMode === 'interference-trace' &&
-                                    (orbit.label === 'Interference C' || orbit.label === 'Interference D')) ? (
-                                  <button
-                                    onClick={() => onDeleteOrbit(orbit.id)}
-                                    className="h-6 w-6 rounded-md text-[11px] font-mono"
-                                    style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                    title={`Delete ${orbit.label} orbit`}
+                                    title={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit ? 'Keep at least one orbit' : `Delete ${orbit.label}`}
                                   >
                                     ×
                                   </button>
@@ -677,8 +702,10 @@ export default function TransportBar({
                               max={geometryMode === 'standard-trace' ? 32 : 100}
                               value={orbit.pulseCount}
                               onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                              className="w-full cursor-pointer"
-                              style={{ accentColor: orbit.color }}
+                              className="touch-slider w-full cursor-pointer"
+                              style={{
+                                ['--slider-accent' as string]: orbit.color,
+                              }}
                               title={`${orbit.label} pulse slider`}
                             />
                           </div>
@@ -701,22 +728,22 @@ export default function TransportBar({
                                   ? quickOrbitControls.length > 2
                                     ? 'Add a fourth sweep orbit'
                                     : 'Add a third sweep orbit'
-                                  : 'Sweep quartet is already active'
+                                  : 'Orbit quartet is already active'
                                 : geometryMode === 'interference-trace'
                                   ? canAddDesktopOrbit
                                     ? quickOrbitControls.length > 2
-                                      ? 'Add a fourth interference orbit'
-                                      : 'Add a third interference orbit'
-                                    : 'Interference quartet is already active'
+                                      ? 'Add a fourth orbit'
+                                      : 'Add a third orbit'
+                                    : 'Orbit quartet is already active'
                                   : canAddDesktopOrbit
                                     ? 'Add another orbit'
                                     : 'Maximum of 6 orbits'
                             }
                           >
                             {geometryMode === 'sweep'
-                              ? 'Add Sweep Orbit'
+                              ? 'Add Orbit'
                               : geometryMode === 'interference-trace'
-                                ? 'Add Interference Orbit'
+                                ? 'Add Orbit'
                                 : 'Add Orbit'}
                           </button>
                         </div>
@@ -729,101 +756,254 @@ export default function TransportBar({
 
             <div
               data-guide="desktop-direction"
-              className="px-3 py-2 flex flex-col items-center justify-center gap-2 rounded-xl border"
+              className="w-[min(340px,calc(100vw-1.5rem))] shrink-0 px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
-                marginRight: 8,
                 ...desktopTopPanelStyle,
                 transform: 'translateY(-4px)',
               }}
             >
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  onClick={onReverseDirections}
-                  className={directionButtonStyle}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: 'rgba(255, 255, 255, 0.78)',
-                  }}
-                  title="Flip every orbit to the opposite direction"
+              <div className="relative flex min-h-[32px] items-center justify-end gap-1.5 px-0.5">
+                <div
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
+                  style={desktopGlowLabelStyle}
                 >
-                  Reverse
-                </button>
-                <button
-                  onClick={onAllClockwise}
-                  className={directionButtonStyle}
-                  style={{
-                    background: 'rgba(0, 255, 170, 0.08)',
-                    border: '1px solid rgba(0, 255, 170, 0.2)',
-                    color: '#00FFAA',
-                  }}
-                  title="Set every orbit to clockwise"
-                >
-                  All CW
-                </button>
-                <button
-                  onClick={onAlternateDirections}
-                  className={directionButtonStyle}
-                  style={{
-                    background: 'rgba(51, 136, 255, 0.08)',
-                    border: '1px solid rgba(51, 136, 255, 0.2)',
-                    color: '#88CCFF',
-                  }}
-                  title="Restore alternating clockwise and counterclockwise directions"
-                >
-                  Alternate
-                </button>
-              </div>
-              <div
-                data-guide="desktop-sound"
-                className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
-                style={{
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                }}
-              >
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
-                    className={compactButtonStyle}
-                    style={{
-                      background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                      color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                    }}
-                    title="Switch between the raw sound and the in-key note-family mode"
-                  >
-                    {tonePreset === 'original' ? 'Original' : 'In Key'}
-                  </button>
-                  <InfoTip text="Switch between the original tone palette and keyed harmony." />
+                  Utility
                 </div>
-                {tonePreset === 'scale-quantized' && (
-                  <>
-                    <select
-                      value={rootNote}
-                      onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
-                      className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
-                      style={{ color: 'rgba(255,255,255,0.82)' }}
-                      title="Global key center"
-                    >
-                      {NOTE_NAMES.map((note) => (
-                        <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={scaleName}
-                      onChange={(e) => onScaleChange(e.target.value as ScaleName)}
-                      className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
-                      style={{ color: 'rgba(255,255,255,0.82)' }}
-                      title="Global note family"
-                    >
-                      {Object.entries(SCALE_PRESETS).map(([name]) => (
-                        <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <InfoTip text="Open quick utility controls for orbit direction behavior and the current sound mode." />
+                  <button
+                    type="button"
+                    onClick={() => setDesktopSettingsPanelOpen((open) => !open)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200 active:scale-[0.96]"
+                    style={{
+                      background: desktopSettingsPanelOpen ? 'rgba(136, 204, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                      borderColor: desktopSettingsPanelOpen ? 'rgba(136, 204, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
+                      color: desktopSettingsPanelOpen ? '#88CCFF' : 'rgba(255, 255, 255, 0.58)',
+                      boxShadow: desktopSettingsPanelOpen
+                        ? '0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 0 1px rgba(136,204,255,0.14), 0 0 18px rgba(255,255,255,0.08)'
+                        : 'none',
+                    }}
+                    title={desktopSettingsPanelOpen ? 'Close utility controls' : 'Open utility controls'}
+                  >
+                    {desktopSettingsPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
               </div>
+
+              {desktopSettingsPanelOpen ? (
+                <div className="space-y-2.5 border-t pt-2.5" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <div
+                    className="rounded-2xl px-2 py-2"
+                    style={desktopSideSectionStyle}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setDesktopUtilityDirectionOpen((open) => !open)}
+                        className={desktopSideSubmenuButtonStyle}
+                        title="Open direction controls"
+                      >
+                        <div className="flex min-w-0 flex-col">
+                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
+                            Direction
+                          </span>
+                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                            Rotation behavior.
+                          </span>
+                        </div>
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
+                        >
+                          {desktopUtilityDirectionOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </span>
+                      </button>
+                      <InfoTip text="Choose how every orbit rotates: flip all directions, make every orbit clockwise, or restore alternating directions." />
+                    </div>
+                    {desktopUtilityDirectionOpen ? (
+                      <div className="mt-2 grid grid-cols-3 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                        <button
+                          onClick={onReverseDirections}
+                          className={directionButtonStyle}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            color: 'rgba(255, 255, 255, 0.78)',
+                          }}
+                          title="Flip every orbit to the opposite direction"
+                        >
+                          Reverse
+                        </button>
+                        <button
+                          onClick={onAllClockwise}
+                          className={directionButtonStyle}
+                          style={{
+                            background: 'rgba(0, 255, 170, 0.08)',
+                            border: '1px solid rgba(0, 255, 170, 0.2)',
+                            color: '#00FFAA',
+                          }}
+                          title="Set every orbit to clockwise"
+                        >
+                          Clockwise
+                        </button>
+                        <button
+                          onClick={onAlternateDirections}
+                          className={directionButtonStyle}
+                          style={{
+                            background: 'rgba(51, 136, 255, 0.08)',
+                            border: '1px solid rgba(51, 136, 255, 0.2)',
+                            color: '#88CCFF',
+                          }}
+                          title="Restore alternating clockwise and counterclockwise directions"
+                        >
+                          Alternate
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div
+                    className="rounded-2xl px-2 py-2"
+                    style={desktopSideSectionStyle}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setDesktopUtilityCanvasOpen((open) => !open)}
+                        className={desktopSideSubmenuButtonStyle}
+                        title="Open canvas controls"
+                      >
+                        <div className="flex min-w-0 flex-col">
+                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
+                            Canvas
+                          </span>
+                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                            Trace and marker visibility.
+                          </span>
+                        </div>
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
+                        >
+                          {desktopUtilityCanvasOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </span>
+                      </button>
+                      <InfoTip text="Canvas controls change what is visible on the drawing surface without changing the rhythm." />
+                    </div>
+                    {desktopUtilityCanvasOpen ? (
+                      <div className="mt-2 grid grid-cols-3 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                        <button
+                          onClick={onToggleTrace}
+                          className={directionButtonStyle}
+                          style={{
+                            background: traceMode ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                            border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                            color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                          }}
+                          title="Toggle motion history drawing"
+                        >
+                          {traceMode ? 'Trace On' : 'Trace Off'}
+                        </button>
+                        <button
+                          onClick={onTogglePlanets}
+                          className={directionButtonStyle}
+                          style={{
+                            background: showPlanets ? 'rgba(136, 204, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                            border: `1px solid ${showPlanets ? 'rgba(136, 204, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                            color: showPlanets ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
+                          }}
+                          title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
+                        >
+                          {showPlanets ? 'Markers On' : 'Markers Off'}
+                        </button>
+                        <button
+                          onClick={onClearTraces}
+                          className={directionButtonStyle}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            color: 'rgba(255, 255, 255, 0.78)',
+                          }}
+                          title="Clear accumulated trace history"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div
+                    data-guide="desktop-sound"
+                    className="rounded-2xl px-2 py-2"
+                    style={desktopSideSectionStyle}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setDesktopUtilityAudioOpen((open) => !open)}
+                        className={desktopSideSubmenuButtonStyle}
+                        title="Open audio controls"
+                      >
+                        <div className="flex min-w-0 flex-col">
+                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
+                            Audio
+                          </span>
+                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                            Tone mode and key.
+                          </span>
+                        </div>
+                        <span
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
+                        >
+                          {desktopUtilityAudioOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </span>
+                      </button>
+                      <InfoTip text="Switch between the original tone palette and keyed harmony. In Key uses the selected root and note family." />
+                    </div>
+                    {desktopUtilityAudioOpen ? (
+                      <div className="mt-2 flex items-center gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                        <button
+                          onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
+                          className={compactButtonStyle}
+                          style={{
+                            background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                            border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
+                            color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
+                          }}
+                          title="Switch between the raw sound and the in-key note-family mode"
+                        >
+                          {tonePreset === 'original' ? 'Original' : 'In Key'}
+                        </button>
+                        {tonePreset === 'scale-quantized' && (
+                          <>
+                            <select
+                              value={rootNote}
+                              onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
+                              className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
+                              style={{ color: 'rgba(255,255,255,0.82)' }}
+                              title="Global key center"
+                            >
+                              {NOTE_NAMES.map((note) => (
+                                <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={scaleName}
+                              onChange={(e) => onScaleChange(e.target.value as ScaleName)}
+                              className="min-w-0 flex-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
+                              style={{ color: 'rgba(255,255,255,0.82)' }}
+                              title="Global note family"
+                            >
+                              {Object.entries(SCALE_PRESETS).map(([name]) => (
+                                <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -1012,17 +1192,17 @@ export default function TransportBar({
         </div>
       ) : (
       <div
-        className="flex items-center justify-between px-6 py-3 pointer-events-auto"
+        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-wrap items-center justify-center xl:justify-between gap-2 xl:gap-3 rounded-[1.45rem] border px-3 py-2.5 pointer-events-auto"
         style={{
-          background: 'linear-gradient(to top, rgba(17, 17, 22, 0.95), rgba(17, 17, 22, 0.7))',
-          backdropFilter: 'blur(12px)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
+          borderColor: 'rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(16px)',
         }}
       >
         {/* Left: Playback + Step + Clear + Reset */}
         <div
           data-guide="desktop-playback"
-          className="flex items-center gap-2 rounded-[1.45rem] px-2.5 py-2"
+          className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem] px-1.5 lg:px-2.5 py-1.5 lg:py-2"
           style={desktopDockPanelStyle}
         >
           {/* Play/Pause */}
@@ -1146,8 +1326,8 @@ export default function TransportBar({
         {/* Center: Tempo */}
         <div
           data-guide="desktop-speed"
-          className="mx-6 flex min-w-[340px] max-w-[460px] flex-1 items-center gap-4 rounded-[1.45rem] px-4 py-3"
-          style={desktopDockPanelStyle}
+          className="mx-0 xl:mx-3 flex min-w-[280px] max-w-[460px] flex-[1_1_320px] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
+          style={desktopTempoPanelStyle}
         >
           <div className="shrink-0">
             <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(244,250,255,0.82)', textShadow: '0 0 10px rgba(127,215,255,0.14)' }}>
@@ -1164,15 +1344,20 @@ export default function TransportBar({
             step="1"
             value={anchorTempoSliderValue}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-            className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
+            className="touch-slider min-w-0 flex-1 cursor-pointer"
             style={{
-              background: 'linear-gradient(to right, rgba(0, 255, 170, 0.3), rgba(255, 51, 102, 0.3))',
-              WebkitAppearance: 'none',
+              ['--slider-accent' as string]: '#ffffff',
             }}
             title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
           />
           <div className="min-w-[68px] text-right">
-            <div className="text-[16px] font-mono" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            <div
+              className="text-[16px] font-mono"
+              style={{
+                color: '#ffffff',
+                textShadow: '0 0 12px rgba(255,255,255,0.38)',
+              }}
+            >
               {anchorTempoBpm}
             </div>
             <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.36)' }}>
@@ -1182,7 +1367,7 @@ export default function TransportBar({
         </div>
 
         {/* Right: Trace Toggle + Menu */}
-        <div className="flex items-center gap-2 rounded-[1.45rem] px-2.5 py-2" style={desktopDockPanelStyle}>
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem] px-1.5 lg:px-2.5 py-1.5 lg:py-2" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}

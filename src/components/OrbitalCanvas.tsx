@@ -120,7 +120,7 @@ interface OrbitalCanvasProps {
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, showPlanets = true, showHudStats = true, onToggleHudStats, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
+  ({ engineState, traceMode, showPlanets = true, showHudStats = true, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
     const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
@@ -652,21 +652,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         return bestMatch?.orbitId ?? null;
       };
 
-      const isHudToggleHit = (canvasX: number, canvasY: number) => {
-        const dpr = window.devicePixelRatio || 1;
-        const w = canvas.width / dpr;
-        const h = canvas.height / dpr;
-        if (presentationModeRef.current) {
-          return false;
-        }
-
-        if (hudVisibleRef.current) {
-          return canvasX >= 8 && canvasX <= Math.min(160, w * 0.45) && canvasY >= h - 76 && canvasY <= h - 2;
-        }
-
-        return canvasX >= 8 && canvasX <= 54 && canvasY >= h - 28 && canvasY <= h - 6;
-      };
-
       const handleMouseDown = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
@@ -700,11 +685,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const my = e.clientY - rect.top;
           const moved = Math.hypot(mx - mouseDownRef.current.x, my - mouseDownRef.current.y);
           if (moved <= 6 && !pressHandledRef.current) {
-            if (isHudToggleHit(mouseDownRef.current.x, mouseDownRef.current.y)) {
-              onToggleHudStats?.();
-              mouseDownRef.current = null;
-              return;
-            }
             openOrbitMenu(mouseDownRef.current.x, mouseDownRef.current.y);
           }
         }
@@ -751,9 +731,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
-        if (touchStartRef.current && !pressHandledRef.current && isHudToggleHit(touchStartRef.current.x, touchStartRef.current.y)) {
-          onToggleHudStats?.();
-        }
         touchStartRef.current = null;
         pressHandledRef.current = false;
       };
@@ -786,7 +763,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         canvas.removeEventListener('touchend', handleTouchEnd);
         canvas.removeEventListener('touchcancel', handleTouchEnd);
       };
-    }, [onOrbitLongPress, onToggleHudStats]);
+    }, [onOrbitLongPress]);
 
     // ---- Main render loop ----
     useEffect(() => {
@@ -800,11 +777,15 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       traceCanvasRef.current = traceCanvas;
 
       const resize = () => {
+        // CSS owns the visible size. Keeping stale inline pixel sizes here can
+        // leave the canvas stuck at the old viewport after a desktop resize.
+        canvas.style.width = '';
+        canvas.style.height = '';
         const bounds = canvas.getBoundingClientRect();
         const w = Math.max(1, Math.round(bounds.width || window.innerWidth));
         const h = Math.max(1, Math.round(bounds.height || window.innerHeight));
-        const nextCanvasWidth = w * dpr;
-        const nextCanvasHeight = h * dpr;
+        const nextCanvasWidth = Math.round(w * dpr);
+        const nextCanvasHeight = Math.round(h * dpr);
 
         if (
           canvas.width === nextCanvasWidth &&
@@ -817,8 +798,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         canvas.width = nextCanvasWidth;
         canvas.height = nextCanvasHeight;
-        canvas.style.width = `${w}px`;
-        canvas.style.height = `${h}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         traceCanvas.width = nextCanvasWidth;
@@ -830,12 +809,23 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       resize();
       const resizeObserver = new ResizeObserver(resize);
       resizeObserver.observe(canvas);
+      if (canvas.parentElement) {
+        resizeObserver.observe(canvas.parentElement);
+      }
       window.addEventListener('resize', resize);
+      window.visualViewport?.addEventListener('resize', resize);
 
       const BLOOM_DURATION = 500;
 
       const renderFrame = (timestamp: number) => {
         try {
+          const bounds = canvas.getBoundingClientRect();
+          const displayWidth = Math.max(1, Math.round(bounds.width || window.innerWidth));
+          const displayHeight = Math.max(1, Math.round(bounds.height || window.innerHeight));
+          if (canvas.width !== Math.round(displayWidth * dpr) || canvas.height !== Math.round(displayHeight * dpr)) {
+            resize();
+          }
+
           const now = timestamp;
           const state = engineRef.current;
           if (state.elapsedBeats < previousElapsedBeatsRef.current) {
@@ -1677,38 +1667,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        // ---- HUD ----
-        if (!isMobileRef.current && hudVisibleRef.current && !presentationModeRef.current) {
-          ctx.save();
-          ctx.globalAlpha = 0.25;
-          ctx.fillStyle = '#ffffff';
-          ctx.font = '10px "SF Mono", "Fira Code", monospace';
-          ctx.textAlign = 'left';
-          const bpm = (state.baseBPM * state.speedMultiplier).toFixed(1);
-          ctx.fillText(`BPM ${bpm}`, 16, h - 60);
-          ctx.fillText(`ORBITS ${state.orbits.length}`, 16, h - 46);
-          ctx.fillText(`BEATS ${state.elapsedBeats.toFixed(2)}`, 16, h - 32);
-          const modeLabel = isSweepMode
-            ? 'MODE SWEEP'
-            : isInterferenceMode
-              ? 'MODE INTERFERENCE'
-              : 'MODE STANDARD';
-          ctx.fillText(modeLabel, 16, h - 18);
-          if (traceModeRef.current) {
-            ctx.fillStyle = '#00FFAA';
-            ctx.fillText(`TRACE \u25cf  ${traceSegmentCountRef.current}`, 16, h - 4);
-          }
-          ctx.restore();
-        } else if (!isMobileRef.current && !presentationModeRef.current) {
-          ctx.save();
-          ctx.globalAlpha = 0.22;
-          ctx.fillStyle = '#ffffff';
-          ctx.font = '10px "SF Mono", "Fira Code", monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText('STATS', 16, h - 10);
-          ctx.restore();
-        }
-
           previousElapsedBeatsRef.current = state.elapsedBeats;
         } catch (error) {
           console.error('OrbitalCanvas render failed', error);
@@ -1726,6 +1684,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         cancelAnimationFrame(rafRef.current);
         resizeObserver.disconnect();
         window.removeEventListener('resize', resize);
+        window.visualViewport?.removeEventListener('resize', resize);
         traceCanvasRef.current = null;
       };
     }, []);

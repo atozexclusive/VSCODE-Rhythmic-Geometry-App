@@ -10,7 +10,7 @@ let outputLimiter: DynamicsCompressorNode | null = null;
 let triggerCount = 0;
 let triggerWindowStart = 0;
 let currentTriggerRate = 0; // triggers per second
-let lastAudibleTriggerAt = 0;
+const lastAudibleTriggerByVoice = new Map<number, number>();
 let muted = false;
 
 const MASTER_GAIN_CEILING = 0.62;
@@ -208,7 +208,7 @@ function getTriggerRateGain(triggerRate: number): number {
   return 1;
 }
 
-function shouldDropDenseTrigger(triggerRate: number): boolean {
+function shouldDropDenseTrigger(triggerRate: number, voiceKey: number): boolean {
   const now = performance.now();
   const minGapMs =
     triggerRate >= EXTREME_TRIGGER_RATE
@@ -219,8 +219,9 @@ function shouldDropDenseTrigger(triggerRate: number): boolean {
           ? 7
           : 0;
 
+  const lastAudibleTriggerAt = lastAudibleTriggerByVoice.get(voiceKey) ?? 0;
   if (minGapMs <= 0 || now - lastAudibleTriggerAt >= minGapMs) {
-    lastAudibleTriggerAt = now;
+    lastAudibleTriggerByVoice.set(voiceKey, now);
     return false;
   }
 
@@ -249,7 +250,7 @@ export function playResonanceBeep(
     const freq = voiceToFrequency(voice, harmony);
 
     const triggerRate = updateTriggerRate();
-    if (shouldDropDenseTrigger(triggerRate)) {
+    if (shouldDropDenseTrigger(triggerRate, voice.orbitIndex)) {
       return;
     }
     const safetyGain = getTriggerRateGain(triggerRate);
@@ -346,5 +347,5 @@ export function stopAllAudio(): void {
   triggerCount = 0;
   triggerWindowStart = 0;
   currentTriggerRate = 0;
-  lastAudibleTriggerAt = 0;
+  lastAudibleTriggerByVoice.clear();
 }
