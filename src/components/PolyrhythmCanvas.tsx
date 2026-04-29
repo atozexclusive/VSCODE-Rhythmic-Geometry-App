@@ -22,6 +22,7 @@ import {
 } from '../lib/polyrhythmStudy';
 
 const TAU = Math.PI * 2;
+const HIT_PULSE_DURATION_MS = 360;
 
 function getPolyrhythmLabelStride(beatCount: number): number {
   if (beatCount <= 20) {
@@ -46,6 +47,12 @@ interface PolyrhythmPlaybackState {
   lastTimestamp: number | null;
   previousPlaybackSteps: Map<string, number>;
   wasPlaying: boolean;
+}
+
+interface PolyrhythmHitPulse {
+  layerId: string;
+  stepIndex: number;
+  startedAt: number;
 }
 
 interface PolyrhythmCanvasProps {
@@ -109,6 +116,8 @@ export default function PolyrhythmCanvas({
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
+  const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
+  const animationTimestampRef = useRef(0);
 
   studyRef.current = study;
   isMobileRef.current = isMobile;
@@ -183,6 +192,7 @@ export default function PolyrhythmCanvas({
       isMobileRef.current,
     );
     const playbackState = playbackStateHandleRef.current.current;
+    const animationTimestamp = animationTimestampRef.current;
     const cursorAngle = -Math.PI / 2 + playbackState.progress * TAU;
     const currentSelectedLayerId = selectedLayerIdRef.current;
     const currentSelectedStep = selectedStepRef.current;
@@ -260,6 +270,11 @@ export default function PolyrhythmCanvas({
         );
         const activePoints = points.filter((point) => point.active);
         const playbackStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
+        const smoothLayerAngle = -Math.PI / 2 + playbackState.progress * TAU;
+        const smoothLayerX =
+          metrics.centerX + Math.cos(smoothLayerAngle) * layer.radius * metrics.scale;
+        const smoothLayerY =
+          metrics.centerY + Math.sin(smoothLayerAngle) * layer.radius * metrics.scale;
         const isSelectedLayer = layer.id === currentSelectedLayerId;
         const isHoveredLayer = !isSelectedLayer && layer.id === currentHoveredLayerId;
         const isReferenceLayer =
@@ -374,6 +389,14 @@ export default function PolyrhythmCanvas({
           const isSelectedStep =
             currentSelectedStep?.layerId === layer.id &&
             currentSelectedStep.stepIndex === point.index;
+          const pulse = hitPulsesRef.current.find(
+            (hitPulse) => hitPulse.layerId === layer.id && hitPulse.stepIndex === point.index,
+          );
+          const pulseProgress =
+            pulse && animationTimestamp > 0
+              ? Math.min(1, Math.max(0, (animationTimestamp - pulse.startedAt) / HIT_PULSE_DURATION_MS))
+              : 1;
+          const pulseStrength = pulse ? 1 - pulseProgress : 0;
           const denseLayer = layer.beatCount > 24;
           const pointRadius = isReferenceLayer
             ? 2.6
@@ -402,6 +425,30 @@ export default function PolyrhythmCanvas({
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius + 4, 0, TAU);
             ctx.stroke();
+            ctx.restore();
+          }
+
+          if (point.active && pulseStrength > 0 && !isReferenceLayer) {
+            const easedPulse = pulseStrength * pulseStrength;
+            ctx.save();
+            ctx.globalAlpha = (0.18 * easedPulse) * lineAlpha;
+            ctx.strokeStyle = layer.color;
+            ctx.lineWidth = 0.9 + 0.9 * easedPulse;
+            ctx.shadowBlur = (8 + 6 * easedPulse) * glowMultiplier;
+            ctx.shadowColor = layer.color;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, pointRadius + 3 + (1 - easedPulse) * 8, 0, TAU);
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.save();
+            ctx.globalAlpha = 0.055 * easedPulse;
+            ctx.fillStyle = layer.color;
+            ctx.shadowBlur = 8 * glowMultiplier;
+            ctx.shadowColor = layer.color;
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, pointRadius + 5 + (1 - easedPulse) * 4, 0, TAU);
+            ctx.fill();
             ctx.restore();
           }
 
@@ -497,6 +544,27 @@ export default function PolyrhythmCanvas({
           }
         });
 
+        if (currentStudy.playing && !isReferenceLayer) {
+          const cursorRadius =
+            (soloLayerDisplayRef.current ? 3.8 : sharedDisplay ? 2.8 : 3.2) *
+            glowMultiplier;
+          ctx.save();
+          ctx.globalAlpha = isSelectedLayer ? 0.62 : sharedDisplay ? 0.34 : 0.44;
+          ctx.strokeStyle = layer.color;
+          ctx.lineWidth = 0.9;
+          ctx.shadowBlur = (isSelectedLayer ? 8 : 5) * glowMultiplier;
+          ctx.shadowColor = layer.color;
+          ctx.beginPath();
+          ctx.arc(smoothLayerX, smoothLayerY, cursorRadius + 2.5, 0, TAU);
+          ctx.stroke();
+          ctx.globalAlpha = isSelectedLayer ? 0.78 : 0.58;
+          ctx.fillStyle = layer.color;
+          ctx.beginPath();
+          ctx.arc(smoothLayerX, smoothLayerY, cursorRadius, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        }
+
         const activeIndices = getActiveStepIndices(layer);
         if (
           currentStudy.showStepLabels &&
@@ -525,6 +593,10 @@ export default function PolyrhythmCanvas({
     const render = (timestamp: number) => {
       const currentStudy = studyRef.current;
       const playbackState = playbackStateHandleRef.current.current;
+      animationTimestampRef.current = timestamp;
+      hitPulsesRef.current = hitPulsesRef.current.filter(
+        (pulse) => timestamp - pulse.startedAt < HIT_PULSE_DURATION_MS,
+      );
 
       if (playbackDriverRef.current && currentStudy.playing) {
         if (playbackState.lastTimestamp == null) {
@@ -544,13 +616,18 @@ export default function PolyrhythmCanvas({
           const currentStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
           const previousStepIndex = playbackState.previousPlaybackSteps.get(layer.id);
           playbackState.previousPlaybackSteps.set(layer.id, currentStepIndex);
+          const activeStepHit =
+            previousStepIndex !== currentStepIndex && layer.activeSteps[currentStepIndex];
 
-          if (
-            previousStepIndex !== currentStepIndex &&
-            currentStudy.soundEnabled &&
-            layer.soundEnabled &&
-            layer.activeSteps[currentStepIndex]
-          ) {
+          if (activeStepHit) {
+            hitPulsesRef.current.push({
+              layerId: layer.id,
+              stepIndex: currentStepIndex,
+              startedAt: timestamp,
+            });
+          }
+
+          if (activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
             triggerPolyrhythmPulse({
               frequency: layer.pitchHz,
               gain: layer.gain,
@@ -562,6 +639,7 @@ export default function PolyrhythmCanvas({
         });
       } else if (playbackDriverRef.current) {
         playbackState.lastTimestamp = timestamp;
+        hitPulsesRef.current = [];
         currentStudy.layers.forEach((layer) => {
           playbackState.previousPlaybackSteps.set(
             layer.id,
@@ -588,6 +666,7 @@ export default function PolyrhythmCanvas({
 
   useEffect(() => {
     playbackStateHandleRef.current.current.previousPlaybackSteps.clear();
+    hitPulsesRef.current = [];
     draw();
   }, [draw, study]);
 
@@ -597,6 +676,7 @@ export default function PolyrhythmCanvas({
     playbackState.previousPlaybackSteps.clear();
     playbackState.lastTimestamp = null;
     playbackState.wasPlaying = studyRef.current.playing;
+    hitPulsesRef.current = [];
     draw();
   }, [draw, restartToken]);
 
