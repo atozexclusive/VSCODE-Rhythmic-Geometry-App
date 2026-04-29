@@ -62,6 +62,7 @@ interface PolyrhythmCanvasProps {
   displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
   onSelectLayer: (layerId: string) => void;
+  onOpenLayerMenu?: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
   onToggleStep: (layerId: string, stepIndex: number) => void;
   onClearSelection: () => void;
@@ -82,6 +83,7 @@ export default function PolyrhythmCanvas({
   displaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
   presentationMode = false,
   onSelectLayer,
+  onOpenLayerMenu,
   onSelectStep,
   onToggleStep,
   onClearSelection,
@@ -701,6 +703,7 @@ export default function PolyrhythmCanvas({
 
       if (hit.stepIndex == null) {
         onSelectStep(null);
+        onOpenLayerMenu?.(hit.layerId);
         return;
       }
 
@@ -718,7 +721,7 @@ export default function PolyrhythmCanvas({
         stepIndex: hit.stepIndex,
       });
     },
-    [onClearSelection, onSelectLayer, onSelectStep, onToggleStep],
+    [onClearSelection, onOpenLayerMenu, onSelectLayer, onSelectStep, onToggleStep],
   );
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {

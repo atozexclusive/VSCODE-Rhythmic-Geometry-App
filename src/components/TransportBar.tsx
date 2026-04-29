@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useCallback, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Eraser, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { ORBIT_TEMPO_MIN_BPM, getOrbitTempoMaxBpm, orbitSpeedMultiplierToTempoBpm, type OrbitTempoMode } from '../lib/orbitalEngine';
@@ -51,6 +51,7 @@ interface TransportBarProps {
   onTogglePlanets: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
+  onToggleTutorial: () => void;
   onTogglePresentation: () => void;
   onRandomPattern: () => void;
   onRemixPattern: () => void;
@@ -97,6 +98,7 @@ export default function TransportBar({
   onTogglePlanets,
   onToggleMute,
   onToggleHelp,
+  onToggleTutorial,
   onTogglePresentation,
   onRandomPattern,
   onRemixPattern,
@@ -112,7 +114,7 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
   const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(false);
-  const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(true);
+  const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(false);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export default function TransportBar({
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
-  const desktopUtilityButtonStyle = "px-3 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:bg-white/6 active:scale-95";
+  const desktopUtilityButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98]";
   const desktopDockPanelStyle = {
     background: 'transparent',
     border: 'none',
@@ -151,6 +153,21 @@ export default function TransportBar({
     color: '#7DFFD1',
     textShadow: '0 0 14px rgba(0,255,170,0.28)',
   } as const;
+  const desktopGeometryPanelStyle = {
+    background: `
+      radial-gradient(circle at 82% -12%, rgba(125,255,209,0.16), transparent 42%),
+      radial-gradient(circle at 10% 0%, rgba(255,255,255,0.08), transparent 38%),
+      linear-gradient(145deg, rgba(18,20,28,0.94), rgba(9,11,18,0.86))
+    `,
+    borderColor: 'rgba(125,255,209,0.16)',
+    boxShadow: `
+      0 24px 68px rgba(0,0,0,0.38),
+      0 0 34px rgba(125,255,209,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      inset 0 -1px 0 rgba(255,255,255,0.03)
+    `,
+    backdropFilter: 'blur(20px)',
+  } as const;
   const desktopTopPanelStyle = {
     background: `
       radial-gradient(circle at 82% -14%, rgba(127,215,255,0.14), transparent 38%),
@@ -166,7 +183,7 @@ export default function TransportBar({
     border: '1px solid rgba(127,215,255,0.095)',
   } as const;
   const desktopSideSubmenuButtonStyle = "flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition-all duration-200 hover:bg-white/5";
-  const desktopDockButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 active:scale-[0.98]";
+  const desktopDockButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98]";
   const desktopDockSquareButtonStyle = "h-10 w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-200 active:scale-[0.98]";
   const modeDescription =
     geometryMode === 'standard-trace'
@@ -499,7 +516,7 @@ export default function TransportBar({
               data-guide="desktop-geometry"
               className="min-w-[280px] max-w-[420px] flex-[1_1_360px] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
-                ...desktopTopPanelStyle,
+                ...desktopGeometryPanelStyle,
                 transform: 'translateY(-4px)',
               }}
             >
@@ -626,7 +643,7 @@ export default function TransportBar({
                               background: 'rgba(255, 255, 255, 0.02)',
                             }}
                           >
-                            <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
@@ -652,10 +669,10 @@ export default function TransportBar({
                                   <Palette size={12} />
                                 </button>
                               </div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex min-w-[14.5rem] items-center justify-center gap-2.5">
                                 <button
                                   onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
-                                  className="h-6 w-6 rounded-md text-[11px] font-mono"
+                                  className="h-8 w-10 rounded-md text-[12px] font-mono"
                                   style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
                                   title={`Lower ${orbit.label} pulse count`}
                                 >
@@ -668,7 +685,7 @@ export default function TransportBar({
                                   value={orbit.pulseCount}
                                   onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
                                   onFocus={(e) => e.currentTarget.select()}
-                                  className="w-12 rounded-md border text-center text-[10px] font-mono focus:outline-none"
+                                  className="h-8 w-32 rounded-md border text-center text-[11px] font-mono focus:outline-none"
                                   style={{
                                     color: 'rgba(255, 255, 255, 0.82)',
                                     background: 'rgba(255, 255, 255, 0.04)',
@@ -677,21 +694,23 @@ export default function TransportBar({
                                 />
                                 <button
                                   onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
-                                  className="h-6 w-6 rounded-md text-[11px] font-mono"
+                                  className="h-8 w-10 rounded-md text-[12px] font-mono"
                                   style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
                                   title={`Raise ${orbit.label} pulse count`}
                                 >
                                   +
                                 </button>
+                              </div>
+                              <div className="flex justify-end pr-1">
                                 {orbit.canDelete ?? geometryMode === 'standard-trace' ? (
                                   <button
                                     onClick={() => onDeleteOrbit(orbit.id)}
                                     disabled={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit}
-                                    className="h-6 w-6 rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
+                                    className="flex h-8 w-10 items-center justify-center rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
                                     style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
                                     title={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit ? 'Keep at least one orbit' : `Delete ${orbit.label}`}
                                   >
-                                    ×
+                                    <Trash2 size={14} />
                                   </button>
                                 ) : null}
                               </div>
@@ -789,6 +808,39 @@ export default function TransportBar({
                   </button>
                 </div>
               </div>
+
+              {!desktopSettingsPanelOpen ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={onAllClockwise}
+                    className={desktopUtilityButtonStyle}
+                    style={{
+                      background: allClockwise ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${allClockwise ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.1)'}`,
+                      color: allClockwise ? '#72F1B8' : 'rgba(255,255,255,0.72)',
+                      boxShadow: allClockwise ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
+                    }}
+                    title="Set every orbit to clockwise"
+                  >
+                    Clockwise
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onAlternateDirections}
+                    className={desktopUtilityButtonStyle}
+                    style={{
+                      background: !allClockwise ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${!allClockwise ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.1)'}`,
+                      color: !allClockwise ? '#7FD7FF' : 'rgba(255,255,255,0.72)',
+                      boxShadow: !allClockwise ? '0 0 0 1px rgba(127,215,255,0.16) inset' : 'none',
+                    }}
+                    title="Restore alternating clockwise and counterclockwise directions"
+                  >
+                    Alternate
+                  </button>
+                </div>
+              ) : null}
 
               {desktopSettingsPanelOpen ? (
                 <div className="space-y-2.5 border-t pt-2.5" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
@@ -890,9 +942,22 @@ export default function TransportBar({
                       <InfoTip text="Canvas controls change what is visible on the drawing surface without changing the rhythm." />
                     </div>
                     {desktopUtilityCanvasOpen ? (
-                      <div className="mt-2 grid grid-cols-3 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                      <div className="mt-2 grid grid-cols-4 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                        <button
+                          onClick={onStepForward}
+                          className={directionButtonStyle}
+                          style={{
+                            background: 'rgba(51, 136, 255, 0.12)',
+                            border: '1px solid rgba(51, 136, 255, 0.26)',
+                            color: '#88CCFF',
+                          }}
+                          title="Advance the geometry by one small step while paused"
+                        >
+                          Step
+                        </button>
                         <button
                           onClick={onToggleTrace}
+                          data-guide="desktop-trace"
                           className={directionButtonStyle}
                           style={{
                             background: traceMode ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
@@ -905,6 +970,7 @@ export default function TransportBar({
                         </button>
                         <button
                           onClick={onTogglePlanets}
+                          data-guide="desktop-markers"
                           className={directionButtonStyle}
                           style={{
                             background: showPlanets ? 'rgba(136, 204, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
@@ -1095,7 +1161,13 @@ export default function TransportBar({
                     Tempo
                   </span>
                 </div>
-                <span className="text-[10px] font-mono" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                <span
+                  className="text-[10px] font-mono"
+                  style={{
+                    color: '#ffffff',
+                    textShadow: '0 0 12px rgba(255,255,255,0.38)',
+                  }}
+                >
                   {anchorTempoBpm} BPM · {anchorLabel}
                 </span>
               </div>
@@ -1192,17 +1264,17 @@ export default function TransportBar({
         </div>
       ) : (
       <div
-        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-wrap items-center justify-center xl:justify-between gap-2 xl:gap-3 rounded-[1.45rem] border px-3 py-2.5 pointer-events-auto"
+        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-wrap items-center justify-center xl:justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
         style={{
           background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
           borderColor: 'rgba(255,255,255,0.08)',
           backdropFilter: 'blur(16px)',
         }}
       >
-        {/* Left: Playback + Step + Clear + Reset */}
+        {/* Left: Playback + Reset + Generators */}
         <div
           data-guide="desktop-playback"
-          className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem] px-1.5 lg:px-2.5 py-1.5 lg:py-2"
+          className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem]"
           style={desktopDockPanelStyle}
         >
           {/* Play/Pause */}
@@ -1211,48 +1283,17 @@ export default function TransportBar({
             className={desktopDockButtonStyle}
             style={{
               background: playing
-                ? 'rgba(255, 51, 102, 0.2)'
-                : 'rgba(0, 255, 170, 0.2)',
-              border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.4)' : 'rgba(0, 255, 170, 0.4)'}`,
-              color: playing ? '#FF3366' : '#00FFAA',
+                ? 'rgba(255,51,102,0.18)'
+                : 'rgba(114,241,184,0.16)',
+              border: `1px solid ${playing ? 'rgba(255,51,102,0.3)' : 'rgba(114,241,184,0.28)'}`,
+              color: playing ? '#FF3366' : '#72F1B8',
+              boxShadow: `0 0 0 1px ${playing ? 'rgba(255,51,102,0.16)' : 'rgba(114,241,184,0.16)'} inset`,
             }}
             title={playing ? 'Pause motion and freeze the current state' : 'Start playback and let the system run continuously'}
           >
-            {playing ? <Pause size={20} /> : <Play size={20} />}
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
+            {playing ? <Pause size={15} /> : <Play size={15} />}
+            <span>
               {playing ? 'Pause' : 'Play'}
-            </span>
-          </button>
-
-          <button
-            onClick={onStepForward}
-            className={desktopDockButtonStyle}
-            style={{
-              background: 'rgba(51, 136, 255, 0.16)',
-              border: '1px solid rgba(51, 136, 255, 0.32)',
-              color: '#3388FF',
-            }}
-            title="Advance the geometry by one small step while paused"
-          >
-            <SkipForward size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
-              Step
-            </span>
-          </button>
-
-          <button
-            onClick={onClearTraces}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: 'rgba(255, 255, 255, 0.035)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: 'rgba(255, 255, 255, 0.52)',
-            }}
-            title="Clear trace history only. Keep the current orbits, speed, and motion state."
-          >
-            <span className="flex items-center gap-2">
-              <Eraser size={15} />
-              <span>Clear</span>
             </span>
           </button>
 
@@ -1261,15 +1302,16 @@ export default function TransportBar({
             onClick={onReset}
             className={desktopUtilityButtonStyle}
             style={{
-              background: 'rgba(255, 170, 0, 0.08)',
-              border: '1px solid rgba(255, 170, 0, 0.14)',
-              color: 'rgba(255, 196, 96, 0.78)',
+              background: 'rgba(255,170,0,0.12)',
+              border: '1px solid rgba(255,170,0,0.22)',
+              color: '#FFAA00',
+              boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
             }}
-            title="Reset motion back to the beginning and clear all traces"
+            title="Restart motion back to the beginning and clear all traces"
           >
             <span className="flex items-center gap-2">
               <RotateCcw size={15} />
-              <span>Reset</span>
+              <span>Restart</span>
             </span>
           </button>
 
@@ -1277,14 +1319,15 @@ export default function TransportBar({
             onClick={onRandomPattern}
             className={desktopDockButtonStyle}
             style={{
-              background: 'rgba(51, 136, 255, 0.16)',
-              border: '1px solid rgba(51, 136, 255, 0.32)',
-              color: '#88CCFF',
+              background: 'rgba(127,215,255,0.14)',
+              border: '1px solid rgba(127,215,255,0.24)',
+              color: '#7FD7FF',
+              boxShadow: '0 0 0 1px rgba(127,215,255,0.16) inset',
             }}
             title="Generate a curated random pattern with fresh ratios, color, motion, and sound"
           >
-            <Shuffle size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
+            <Shuffle size={15} />
+            <span>
               Random
             </span>
           </button>
@@ -1293,14 +1336,15 @@ export default function TransportBar({
             onClick={onRemixPattern}
             className={desktopDockButtonStyle}
             style={{
-              background: 'rgba(0, 255, 170, 0.14)',
-              border: '1px solid rgba(0, 255, 170, 0.28)',
-              color: '#00FFAA',
+              background: 'rgba(182,160,255,0.14)',
+              border: '1px solid rgba(182,160,255,0.3)',
+              color: '#B6A0FF',
+              boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
             }}
             title="Refresh the current setup with new color, direction, sound, and speed"
           >
-            <Zap size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
+            <Zap size={15} />
+            <span>
               Remix
             </span>
           </button>
@@ -1309,14 +1353,15 @@ export default function TransportBar({
             onClick={onRandomPatternPlus}
             className={desktopDockButtonStyle}
             style={{
-              background: 'rgba(255, 170, 0, 0.14)',
-              border: '1px solid rgba(255, 170, 0, 0.28)',
+              background: 'rgba(255,170,0,0.12)',
+              border: '1px solid rgba(255,170,0,0.22)',
               color: '#FFAA00',
+              boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
             }}
             title="Generate an extended curated random pattern with values up to 100"
           >
-            <Shuffle size={20} />
-            <span className="text-[10px] font-mono uppercase tracking-[0.14em]">
+            <Shuffle size={15} />
+            <span>
               Random+
             </span>
           </button>
@@ -1326,7 +1371,7 @@ export default function TransportBar({
         {/* Center: Tempo */}
         <div
           data-guide="desktop-speed"
-          className="mx-0 xl:mx-3 flex min-w-[280px] max-w-[460px] flex-[1_1_320px] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
+          className="mx-0 xl:mx-3 flex min-w-[420px] max-w-[860px] flex-[1_1_680px] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
           style={desktopTempoPanelStyle}
         >
           <div className="shrink-0">
@@ -1350,88 +1395,55 @@ export default function TransportBar({
             }}
             title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
           />
-          <div className="min-w-[68px] text-right">
+          <div className="w-[52px] shrink-0 text-right">
             <div
-              className="text-[16px] font-mono"
+              className="text-[18px] font-light leading-none text-white"
               style={{
-                color: '#ffffff',
                 textShadow: '0 0 12px rgba(255,255,255,0.38)',
               }}
             >
               {anchorTempoBpm}
             </div>
-            <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.36)' }}>
+            <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
               BPM
             </div>
           </div>
         </div>
 
-        {/* Right: Trace Toggle + Menu */}
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem] px-1.5 lg:px-2.5 py-1.5 lg:py-2" style={desktopDockPanelStyle}>
+        {/* Right: Audio + Present + Help + Menu */}
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}
             className={desktopUtilityButtonStyle}
             style={{
-              background: muted ? 'rgba(255, 51, 102, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.22)' : 'rgba(255, 255, 255, 0.08)'}`,
-              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.58)',
+              background: muted ? 'rgba(255,255,255,0.04)' : 'rgba(127,215,255,0.14)',
+              border: `1px solid ${muted ? 'rgba(255,255,255,0.1)' : 'rgba(127,215,255,0.24)'}`,
+              color: muted ? 'rgba(255,255,255,0.72)' : '#7FD7FF',
+              boxShadow: muted ? 'none' : '0 0 0 1px rgba(127,215,255,0.16) inset',
             }}
             title={muted ? 'Unmute audio' : 'Mute audio'}
           >
             <span className="flex items-center gap-2">
-              {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-              <span>{muted ? 'Muted' : 'Audio'}</span>
+              {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+              <span>{muted ? 'Unmute' : 'Mute'}</span>
             </span>
           </button>
-
-          <button
-            data-guide="desktop-markers"
-            onClick={onTogglePlanets}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: showPlanets ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
-              border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.14)'}`,
-              color: 'rgba(255, 255, 255, 0.62)',
-            }}
-            title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
-          >
-            <span className="flex items-center gap-2">
-              <Zap size={16} />
-              <span>{showPlanets ? 'Markers' : 'Markers Off'}</span>
-            </span>
-          </button>
-
-          <button
-            data-guide="desktop-trace"
-            onClick={onToggleTrace}
-            className="px-4 py-2 rounded-lg text-xs font-mono font-light transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{
-              background: traceMode
-                ? 'rgba(0, 255, 170, 0.2)'
-                : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.5)',
-            }}
-            title="Toggle trace mode (sweep geometry)"
-          >
-            {traceMode ? '● Trace' : '○ Trace'}
-          </button>
-          {!isMobile && <InfoTip text="Trace keeps drawing motion history so the structure can accumulate over time." />}
 
           <button
             data-guide="desktop-present"
             onClick={onTogglePresentation}
             className={desktopUtilityButtonStyle}
             style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: 'rgba(255, 255, 255, 0.58)',
+              background: presentationMode ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${presentationMode ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.1)'}`,
+              color: presentationMode ? '#72F1B8' : 'rgba(255,255,255,0.72)',
+              boxShadow: presentationMode ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
             }}
             title="Enter presentation mode"
           >
             <span className="flex items-center gap-2">
-              <Maximize2 size={16} />
+              <Maximize2 size={15} />
               <span>Present</span>
             </span>
           </button>
@@ -1440,16 +1452,29 @@ export default function TransportBar({
             onClick={onToggleHelp}
             className={desktopUtilityButtonStyle}
             style={{
-              background: showHelp ? 'rgba(0, 255, 170, 0.1)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.22)' : 'rgba(255, 255, 255, 0.08)'}`,
-              color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.58)',
+              background: showHelp ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${showHelp ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.1)'}`,
+              color: showHelp ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.72)',
             }}
             title="Show quick help"
           >
             <span className="flex items-center gap-2">
-              <CircleHelp size={16} />
+              <CircleHelp size={15} />
               <span>Help</span>
             </span>
+          </button>
+
+          <button
+            onClick={onToggleTutorial}
+            className={desktopUtilityButtonStyle}
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.72)',
+            }}
+            title="Open guided tutorial"
+          >
+            <span>Tutorial</span>
           </button>
 
           {/* Menu */}
@@ -1458,14 +1483,13 @@ export default function TransportBar({
             onClick={onOpenSidebar}
             className={desktopDockSquareButtonStyle}
             style={{
-              background: 'rgba(127, 215, 255, 0.12)',
-              border: '1px solid rgba(127, 215, 255, 0.24)',
-              color: '#7FD7FF',
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 18px rgba(255,255,255,0.06)',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.72)',
             }}
             title="Open menu"
           >
-            <Menu size={20} />
+            <Menu size={17} />
           </button>
         </div>
       </div>
