@@ -94,6 +94,7 @@ import {
   invertLayerSteps,
   remixPolyrhythmStudy,
   rotateLayer,
+  toggleLayerStepAccent,
   toggleLayerStep,
   updateLayerBeatCount,
   type PolyrhythmLayer,
@@ -158,7 +159,6 @@ import {
   CANVAS_ATMOSPHERE_OPTIONS,
   CANVAS_DISPLAY_THEME_OPTIONS,
   CANVAS_GLOW_OPTIONS,
-  DEFAULT_CANVAS_DISPLAY_SETTINGS,
   DEFAULT_RIFF_DISPLAY_SETTINGS,
   getCanvasDisplayTheme,
   normalizeCanvasDisplaySettings,
@@ -171,11 +171,7 @@ import {
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
 const STUDY_SCENES_STORAGE_KEY = 'rhythmic-geometry-polyrhythm-study-scenes';
 const RIFF_SCENES_STORAGE_KEY = 'rhythmic-geometry-riff-cycle-study-scenes';
-const APP_SURFACE_STORAGE_KEY = 'rhythmic-geometry-app-surface';
-const TOP_STATUS_VISIBLE_STORAGE_KEY = 'orbital-polymeter-top-status-visible';
-const CANVAS_HUD_VISIBLE_STORAGE_KEY = 'orbital-polymeter-canvas-hud-visible';
 const BEGINNER_GUIDE_SEEN_STORAGE_KEY = 'orbital-polymeter-beginner-guides';
-const CANVAS_DISPLAY_STORAGE_KEY = 'rhythmic-geometry-canvas-display';
 const CANVAS_DISPLAY_STORAGE_VERSION = 5;
 const MOBILE_GUIDES_AVAILABLE = true;
 const MOBILE_GUIDES_AUTO_OPEN = false;
@@ -184,11 +180,24 @@ const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   theme: 'deep-space',
   atmosphere: 'stars',
   glow: 'medium',
+  squareGrid: true,
+  centerAxes: true,
+};
+const DEFAULT_ORBIT_DISPLAY_SETTINGS: CanvasDisplaySettings = {
+  theme: 'classic',
+  atmosphere: 'none',
+  glow: 'medium',
+  squareGrid: true,
+  centerAxes: true,
 };
 const MANUAL_STEP_BEATS = 0.25;
 const RANDOM_PLUS_MIN_TEMPO_BPM = 20;
 const RANDOM_PLUS_MAX_TEMPO_BPM = 200;
 const SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM = 500;
+const FREE_STUDY_LAYER_LIMIT = 2;
+const FREE_STUDY_STEP_LIMIT = 12;
+const FREE_RIFF_STEP_LIMIT = 12;
+const FREE_RIFF_DEFAULT_STEP_COUNT = 17;
 const DEFAULT_ORBIT_TEMPO_ANCHOR_PULSE_COUNT = Math.max(
   1,
   DEFAULT_ORBITS.reduce((anchor, orbit) => (!anchor || orbit.radius > anchor.radius ? orbit : anchor), DEFAULT_ORBITS[0])?.pulseCount ?? 1,
@@ -1472,34 +1481,29 @@ function parseAppSurfaceParam(raw: string | null | undefined): AppSurface | null
 }
 
 function loadAppSurface(preferredSurface?: string | null): AppSurface {
-  if (typeof window === 'undefined') {
-    return 'orbital';
-  }
-
   const normalizedPreferredSurface = parseAppSurfaceParam(preferredSurface);
   if (normalizedPreferredSurface) {
     return normalizedPreferredSurface;
   }
 
-  try {
-    const raw = window.localStorage.getItem(APP_SURFACE_STORAGE_KEY);
-    const normalizedStoredSurface = parseAppSurfaceParam(raw);
-    if (normalizedStoredSurface) {
-      return normalizedStoredSurface;
-    }
-  } catch {
-    return 'orbital';
-  }
-
   return 'orbital';
 }
 
-function persistAppSurface(surface: AppSurface): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
+function canUseFreeRiffStepCount(stepCount: number): boolean {
+  const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+  return normalizedStepCount <= FREE_RIFF_STEP_LIMIT || normalizedStepCount === FREE_RIFF_DEFAULT_STEP_COUNT;
+}
 
-  window.localStorage.setItem(APP_SURFACE_STORAGE_KEY, surface);
+function clampPolyrhythmStudyToFreeRandomLimits(study: PolyrhythmStudy): PolyrhythmStudy {
+  return {
+    ...study,
+    layers: study.layers.slice(0, FREE_STUDY_LAYER_LIMIT).map((layer) =>
+      layer.beatCount > FREE_STUDY_STEP_LIMIT
+        ? updateLayerBeatCount(layer, FREE_STUDY_STEP_LIMIT)
+        : layer,
+    ),
+    showStepLabels: study.showStepLabels && study.layers.length <= FREE_STUDY_LAYER_LIMIT,
+  };
 }
 
 const FRIENDLY_SCALE_LABELS: Record<ScaleName, string> = {
@@ -1575,46 +1579,18 @@ function persistBeginnerGuideSeen(state: BeginnerGuideSeenState) {
 
 interface StudyModeCanvasDisplayState {
   version: number;
+  orbit: CanvasDisplaySettings;
   polyrhythm: CanvasDisplaySettings;
   riff: CanvasDisplaySettings;
 }
 
 function loadCanvasDisplayState(): StudyModeCanvasDisplayState {
-  const fallback: StudyModeCanvasDisplayState = {
+  return {
     version: CANVAS_DISPLAY_STORAGE_VERSION,
+    orbit: DEFAULT_ORBIT_DISPLAY_SETTINGS,
     polyrhythm: DEFAULT_STUDY_DISPLAY_SETTINGS,
     riff: DEFAULT_RIFF_DISPLAY_SETTINGS,
   };
-
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(CANVAS_DISPLAY_STORAGE_KEY);
-    if (!raw) {
-      return fallback;
-    }
-    const parsed = JSON.parse(raw) as Partial<StudyModeCanvasDisplayState> | null;
-    if (parsed?.version !== CANVAS_DISPLAY_STORAGE_VERSION) {
-      return fallback;
-    }
-    return {
-      version: CANVAS_DISPLAY_STORAGE_VERSION,
-      polyrhythm: normalizeCanvasDisplaySettings(parsed.polyrhythm, fallback.polyrhythm),
-      riff: normalizeCanvasDisplaySettings(parsed.riff, fallback.riff),
-    };
-  } catch {
-    return fallback;
-  }
-}
-
-function persistCanvasDisplayState(state: StudyModeCanvasDisplayState): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(CANVAS_DISPLAY_STORAGE_KEY, JSON.stringify(state));
 }
 
 function getGuideLabel(surface: AppSurface, context: GuideContext): string {
@@ -1713,6 +1689,155 @@ function getRiffOffsetSteps(riff: Pick<RiffPhrase, 'stepCount' | 'rotationOffset
   return Math.round((normalizedOffset / 360) * riff.stepCount) % Math.max(1, riff.stepCount);
 }
 
+function getFreeRiffResolutionBars(study: RiffCycleStudy): number {
+  const phraseSteps = Math.max(1, Math.round(study.riff.stepCount || 1));
+  const stepsPerBar = Math.max(1, getReferenceStepsPerBar(study.reference));
+  return phraseSteps / gcd(phraseSteps, stepsPerBar);
+}
+
+function getFreeRiffResolutionCopy(study: RiffCycleStudy): string {
+  const bars = getFreeRiffResolutionBars(study);
+  const phraseSteps = Math.max(1, Math.round(study.riff.stepCount || 1));
+  const totalSteps = bars * Math.max(1, getReferenceStepsPerBar(study.reference));
+  return `Free resolves after ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'} (${totalSteps.toLocaleString()} reference steps), when the ${phraseSteps}-step riff meets the bar line again.`;
+}
+
+function getRiffPatternBarMarkerCopy(study: RiffCycleStudy): string {
+  const steps = Math.max(1, Math.round(study.riff.stepCount || 1));
+  if (study.riff.resetMode === 'free') {
+    return `Pattern cues on the riff cycle: every ${steps.toLocaleString()} step${steps === 1 ? '' : 's'}.`;
+  }
+  return `Pattern cues every ${steps.toLocaleString()} riff step${steps === 1 ? '' : 's'}, restarting at the return cycle.`;
+}
+
+function LimitedColorPickerButton({
+  colors,
+  value,
+  onChange,
+  label,
+  iconSize = 13,
+  className = 'h-8 w-8',
+}: {
+  colors: readonly string[];
+  value: string;
+  onChange: (color: string) => void;
+  label: string;
+  iconSize?: number;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      const popoverWidth = 160;
+      setPosition({
+        left: Math.min(Math.max(8, rect.right - popoverWidth), window.innerWidth - popoverWidth - 8),
+        top: Math.min(rect.bottom + 8, window.innerHeight - 270),
+      });
+    };
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (buttonRef.current?.contains(target) || popoverRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('touchstart', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('touchstart', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex cursor-pointer items-center justify-center rounded-lg border transition active:scale-[0.97] ${className}`}
+        style={{
+          background: `${value}12`,
+          borderColor: `${value}32`,
+          color: value,
+          boxShadow: open ? `0 0 18px ${value}18` : `0 0 14px ${value}10`,
+        }}
+        aria-label={label}
+        title={label}
+      >
+        <Palette size={iconSize} />
+      </button>
+      {open && position
+        ? createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-[120] grid w-40 grid-cols-4 gap-1.5 rounded-xl border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+          style={{
+            left: position.left,
+            top: position.top,
+            background: 'rgba(17,17,22,0.94)',
+            borderColor: 'rgba(255,255,255,0.12)',
+          }}
+        >
+          {colors.map((color) => {
+            const active = color.toLowerCase() === value.toLowerCase();
+
+            return (
+              <button
+                key={color}
+                type="button"
+                onClick={() => {
+                  onChange(color);
+                  setOpen(false);
+                }}
+                className="h-7 rounded-lg border transition active:scale-[0.96]"
+                style={{
+                  backgroundColor: color,
+                  borderColor: active ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.16)',
+                  boxShadow: active ? `0 0 16px ${color}aa` : `0 0 8px ${color}44`,
+                  transform: active ? 'scale(1.04)' : 'scale(1)',
+                }}
+                aria-label={`${label}: ${color}`}
+                title={color}
+              />
+            );
+          })}
+        </div>,
+        document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 function MobilePresentActionButton({
   label,
   icon,
@@ -1752,13 +1877,25 @@ function PolyrhythmRollEditor({
   layer,
   selectedStepIndex,
   onPressStep,
+  onLongPressStep,
 }: {
   layer: PolyrhythmLayer;
   selectedStepIndex: number | null;
   onPressStep: (stepIndex: number) => void;
+  onLongPressStep?: (stepIndex: number) => void;
 }) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressStepRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
   const groupSize = getStepStripGroupSize(layer.beatCount);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimeoutRef.current != null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedStepIndex == null) {
@@ -1771,11 +1908,14 @@ function PolyrhythmRollEditor({
     });
   }, [layer.id, layer.beatCount, selectedStepIndex]);
 
+  useEffect(() => clearLongPress, [clearLongPress]);
+
   return (
     <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
       <div className="flex gap-2 px-1">
         {Array.from({ length: layer.beatCount }, (_, index) => {
           const active = Boolean(layer.activeSteps[index]);
+          const accented = Boolean(layer.accents?.[index]);
           const selected = selectedStepIndex === index;
           const marker = index % groupSize === 0;
           return (
@@ -1785,7 +1925,36 @@ function PolyrhythmRollEditor({
                 buttonRefs.current[index] = node;
               }}
               type="button"
-              onClick={() => onPressStep(index)}
+              onPointerDown={(event) => {
+                if (!onLongPressStep) {
+                  return;
+                }
+                if (event.shiftKey) {
+                  longPressFiredRef.current = true;
+                  longPressStepRef.current = index;
+                  onLongPressStep(index);
+                  return;
+                }
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+                clearLongPress();
+                longPressFiredRef.current = false;
+                longPressStepRef.current = index;
+                longPressTimeoutRef.current = window.setTimeout(() => {
+                  longPressFiredRef.current = true;
+                  onLongPressStep(index);
+                }, 420);
+              }}
+              onPointerUp={clearLongPress}
+              onPointerCancel={clearLongPress}
+              onPointerLeave={clearLongPress}
+              onClick={() => {
+                if (longPressFiredRef.current && longPressStepRef.current === index) {
+                  longPressFiredRef.current = false;
+                  longPressStepRef.current = null;
+                  return;
+                }
+                onPressStep(index);
+              }}
               className="relative min-w-[52px] rounded-2xl border px-2.5 py-2 text-center transition-transform active:scale-[0.97]"
               style={{
                 background: selected
@@ -1802,7 +1971,7 @@ function PolyrhythmRollEditor({
                       : 'rgba(255,255,255,0.08)',
                 boxShadow: selected ? `0 0 0 1px ${layer.color}2f inset` : 'none',
               }}
-              aria-label={`Toggle layer step ${index + 1}`}
+              aria-label={`Toggle layer step ${index + 1}. Hold or shift-click to accent.`}
             >
               <div
                 className="text-[9px] font-mono uppercase tracking-[0.14em]"
@@ -1810,7 +1979,7 @@ function PolyrhythmRollEditor({
               >
                 {index + 1}
               </div>
-              <div className="mt-2 flex justify-center">
+              <div className="mt-2 flex items-center justify-center gap-1">
                 <span
                   className="h-3 w-3 rounded-full border"
                   style={{
@@ -1819,9 +1988,21 @@ function PolyrhythmRollEditor({
                     boxShadow: active ? `0 0 0 1px ${layer.color}25` : 'none',
                   }}
                 />
+                {accented ? (
+                  <span
+                    className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full border px-1 text-[8px] font-mono uppercase tracking-[0.08em]"
+                    style={{
+                      borderColor: 'rgba(255,209,102,0.44)',
+                      background: 'rgba(255,209,102,0.16)',
+                      color: '#FFD166',
+                    }}
+                  >
+                    A
+                  </span>
+                ) : null}
               </div>
               <div className="mt-2 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                {active ? 'On' : 'Off'}
+                {accented ? 'Accent' : active ? 'On' : 'Off'}
               </div>
             </button>
           );
@@ -4443,7 +4624,7 @@ function OrbitalPolymeter() {
   const [polyrhythmLayerMenuAnchor, setPolyrhythmLayerMenuAnchor] =
     useState<null | 'canvas'>(null);
   const [polyrhythmRestartToken, setPolyrhythmRestartToken] = useState(0);
-  const [, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
+  const [polyrhythmQuickPanel, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
   const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'overlay' | 'canvas'>(null);
   const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
     useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
@@ -4495,6 +4676,96 @@ function OrbitalPolymeter() {
   const isSignedIn = Boolean(authEnabled && user);
   const hasProAccess = isProPlan(effectivePlan);
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
+  function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
+    const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
+      'save-scenes': {
+        feature: 'save-scenes',
+        title: 'Scene Saving Needs Pro',
+        body: 'Pro turns Rhythmic Geometry into a lasting personal sketchbook with saved scenes across Orbit, Study, and Riff.',
+      },
+      export: {
+        feature: 'export',
+        title: 'Export Belongs To Pro',
+        body: 'Pro unlocks stills, loops, MIDI, and scene exports so what you make can leave the canvas.',
+      },
+      'random-plus': {
+        feature: 'random-plus',
+        title: 'Random+ Goes Further',
+        body: 'Random+ opens a wider field of ratios, color movement, and motion than base Random.',
+      },
+      remix: {
+        feature: 'remix',
+        title: 'Remix Needs Pro',
+        body: 'Remix reshapes the current study while keeping its core identity intact.',
+      },
+      'scene-editing': {
+        feature: 'scene-editing',
+        title: 'Editing Opens Up In Pro',
+        body: 'Free is for exploring finished scenes. Pro unlocks shaping, tuning, and making them your own.',
+      },
+      'high-ratios': {
+        feature: 'high-ratios',
+        title: 'Deeper Ratios Need Pro',
+        body: 'Free editing goes to 10. Pro opens the longer cycles and stranger balance points beyond it.',
+      },
+      'extra-orbits': {
+        feature: 'extra-orbits',
+        title: 'More Bodies, More Structure',
+        body: 'Free keeps the system tight. Pro opens deeper multi-body studies across every mode.',
+      },
+      'color-editing': {
+        feature: 'color-editing',
+        title: 'Color Shaping Needs Pro',
+        body: 'Pro unlocks direct color control so the image feels authored, not just discovered.',
+      },
+      'sound-editing': {
+        feature: 'sound-editing',
+        title: 'Sound Control Needs Pro',
+        body: 'Free lets you hear the system. Pro lets you tune it with key, scale, tone, and role control.',
+      },
+      'canvas-options': {
+        feature: 'canvas-options',
+        title: 'Canvas Styling Needs Pro',
+        body: 'Pro unlocks background colors, atmospheres, glow settings, and deeper canvas presentation controls.',
+      },
+      'study-layers': {
+        feature: 'study-layers',
+        title: 'More Study Layers Need Pro',
+        body: `Free Study supports ${FREE_STUDY_LAYER_LIMIT} rhythm layers. Pro unlocks larger shared systems and denser stacks.`,
+      },
+      'study-extended-steps': {
+        feature: 'study-extended-steps',
+        title: 'Longer Study Layers Need Pro',
+        body: `Free Study can edit layers up to ${FREE_STUDY_STEP_LIMIT} steps. Pro unlocks longer cycles and higher-resolution studies.`,
+      },
+      'riff-extended-patterns': {
+        feature: 'riff-extended-patterns',
+        title: 'Longer Riffs Need Pro',
+        body: `Free can edit compact riffs up to ${FREE_RIFF_STEP_LIMIT} steps and the default ${FREE_RIFF_DEFAULT_STEP_COUNT}-step pattern. Pro unlocks the wider pattern lengths.`,
+      },
+      'pro-scenes': {
+        feature: 'pro-scenes',
+        title: 'This Study Is Included With Pro',
+        body: 'Pro scenes are part of the full instrument and open only with Pro access.',
+      },
+    };
+    setProPrompt(featureCopy[feature]);
+  }
+  const requireUnlockedRiffStepCount = useCallback(
+    (stepCount: number) => {
+      const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+      if (
+        canUseProFeature(effectivePlan, 'riff-extended-patterns') ||
+        canUseFreeRiffStepCount(normalizedStepCount)
+      ) {
+        return false;
+      }
+
+      showProPrompt('riff-extended-patterns');
+      return true;
+    },
+    [effectivePlan],
+  );
   const riffMobileLaneHidden = riffMobileLaneBarsPerPage === 'none';
   const riffMobileEndingFocusActive =
     !riffMobileLaneHidden &&
@@ -4555,6 +4826,8 @@ function OrbitalPolymeter() {
       : riffMobileVisibleBarCount * riffMobileStepsPerBar;
   const riffMobilePresentBottomInset = riffMobileLaneHidden ? 112 : 248;
   const riffDesktopStepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
+  const riffFreeResolutionCopy = getFreeRiffResolutionCopy(riffCycleStudy);
+  const riffPatternBarMarkerCopy = getRiffPatternBarMarkerCopy(riffCycleStudy);
   const riffEndingPreviewStudy = riffCycleStudy.landingEditEnabled
     ? riffCycleStudy
     : { ...riffCycleStudy, landingEditEnabled: true };
@@ -4768,6 +5041,10 @@ function OrbitalPolymeter() {
     if (!preset) {
       return;
     }
+    if (preset.group === 'advanced' && !canUseProFeature(effectivePlan, 'pro-scenes')) {
+      showProPrompt('pro-scenes');
+      return;
+    }
 
     const nextStudy = {
       ...cloneStudy(preset.study),
@@ -4781,7 +5058,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [polyrhythmStudy.playing]);
+  }, [effectivePlan, polyrhythmStudy.playing]);
 
   const handleResetPolyrhythmStudy = useCallback(() => {
     const preset =
@@ -4849,6 +5126,10 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleUpdatePolyrhythmDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
+    if (!canUseProFeature(effectivePlan, 'canvas-options')) {
+      showProPrompt('canvas-options');
+      return;
+    }
     setCanvasDisplayState((current) => ({
       ...current,
       polyrhythm: normalizeCanvasDisplaySettings(
@@ -4859,7 +5140,24 @@ function OrbitalPolymeter() {
         DEFAULT_STUDY_DISPLAY_SETTINGS,
       ),
     }));
-  }, []);
+  }, [effectivePlan]);
+
+  const handleUpdateOrbitDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
+    if (!canUseProFeature(effectivePlan, 'canvas-options')) {
+      showProPrompt('canvas-options');
+      return;
+    }
+    setCanvasDisplayState((current) => ({
+      ...current,
+      orbit: normalizeCanvasDisplaySettings(
+        {
+          ...current.orbit,
+          ...updates,
+        },
+        DEFAULT_ORBIT_DISPLAY_SETTINGS,
+      ),
+    }));
+  }, [effectivePlan]);
 
   const handleTogglePolyrhythmSound = useCallback(() => {
     resumePolyrhythmAudio();
@@ -4871,6 +5169,10 @@ function OrbitalPolymeter() {
 
   const handleUpdatePolyrhythmSoundSettings = useCallback(
     (updates: Partial<PolyrhythmSoundSettings>) => {
+      if (!canUseProFeature(effectivePlan, 'sound-editing')) {
+        showProPrompt('sound-editing');
+        return;
+      }
       resumePolyrhythmAudio();
       setPolyrhythmStudy((current) => ({
         ...current,
@@ -4880,11 +5182,15 @@ function OrbitalPolymeter() {
         },
       }));
     },
-    [],
+    [effectivePlan],
   );
 
   const handleSetPolyrhythmSoundFocus = useCallback(
     (focus: 'layer' | 'stack' | 'mute') => {
+      if (focus !== 'mute' && !canUseProFeature(effectivePlan, 'sound-editing')) {
+        showProPrompt('sound-editing');
+        return;
+      }
       resumePolyrhythmAudio();
       setPolyrhythmStudy((current) => ({
         ...current,
@@ -4900,12 +5206,19 @@ function OrbitalPolymeter() {
         })),
       }));
     },
-    [selectedPolyrhythmLayerId],
+    [effectivePlan, selectedPolyrhythmLayerId],
   );
 
   const handleAddPolyrhythmLayer = useCallback(() => {
     let nextLayerId: string | null = null;
     let hitLayerLimit = false;
+    if (
+      !canUseProFeature(effectivePlan, 'study-layers') &&
+      polyrhythmStudy.layers.length >= FREE_STUDY_LAYER_LIMIT
+    ) {
+      showProPrompt('study-layers');
+      return;
+    }
     setPolyrhythmStudy((current) => {
       if (current.layers.length >= MAX_POLYRHYTHM_LAYERS) {
         hitLayerLimit = true;
@@ -4913,7 +5226,10 @@ function OrbitalPolymeter() {
       }
       const lastLayer = current.layers[current.layers.length - 1];
       const nextLayerIndex = current.layers.length;
-      const nextBeatCount = Math.min(64, Math.max(6, (lastLayer?.beatCount ?? 8) + 2));
+      const editableStepLimit = canUseProFeature(effectivePlan, 'study-extended-steps')
+        ? 64
+        : FREE_STUDY_STEP_LIMIT;
+      const nextBeatCount = Math.min(editableStepLimit, Math.max(6, (lastLayer?.beatCount ?? 8) + 2));
       const nextRadius = Math.max(78, (lastLayer?.radius ?? 230) - 34);
       const nextColor =
         POLYRHYTHM_LAYER_COLORS[nextLayerIndex % POLYRHYTHM_LAYER_COLORS.length];
@@ -4942,7 +5258,7 @@ function OrbitalPolymeter() {
       setSelectedPolyrhythmLayerId(nextLayerId);
       setSelectedPolyrhythmStep(null);
     }
-  }, []);
+  }, [effectivePlan, polyrhythmStudy.layers.length]);
 
   const handleRemovePolyrhythmLayer = useCallback((layerId: string) => {
     setPolyrhythmStudy((current) => {
@@ -4960,6 +5276,22 @@ function OrbitalPolymeter() {
 
   const handleUpdatePolyrhythmLayer = useCallback(
     (layerId: string, updates: Partial<PolyrhythmLayer>) => {
+      if (
+        typeof updates.color === 'string' &&
+        !canUseProFeature(effectivePlan, 'color-editing')
+      ) {
+        showProPrompt('color-editing');
+        return;
+      }
+      if (
+        (typeof updates.pitchHz === 'number' ||
+          typeof updates.gain === 'number' ||
+          typeof updates.soundEnabled === 'boolean') &&
+        !canUseProFeature(effectivePlan, 'sound-editing')
+      ) {
+        showProPrompt('sound-editing');
+        return;
+      }
       setPolyrhythmStudy((current) => ({
         ...current,
         layers: current.layers.map((layer) => {
@@ -4990,29 +5322,32 @@ function OrbitalPolymeter() {
         }),
       }));
     },
-    [],
+    [effectivePlan],
   );
 
-  const handleCyclePolyrhythmLayerColor = useCallback(
-    (layerId: string, currentColor: string) => {
-      const currentIndex = POLYRHYTHM_LAYER_COLORS.findIndex(
-        (color) => color.toLowerCase() === currentColor.toLowerCase(),
-      );
-      const nextColor =
-        POLYRHYTHM_LAYER_COLORS[(currentIndex < 0 ? 0 : currentIndex + 1) % POLYRHYTHM_LAYER_COLORS.length];
+  const handleSetPolyrhythmLayerColor = useCallback(
+    (layerId: string, color: string) => {
       setSelectedPolyrhythmLayerId(layerId);
       setSelectedPolyrhythmStep(null);
-      handleUpdatePolyrhythmLayer(layerId, { color: nextColor });
+      handleUpdatePolyrhythmLayer(layerId, { color });
     },
     [handleUpdatePolyrhythmLayer],
   );
 
   const handleSetPolyrhythmLayerBeatCount = useCallback(
     (layerId: string, beatCount: number) => {
+      const nextBeatCount = Math.max(3, Math.min(64, Math.round(beatCount || 0)));
+      if (
+        !canUseProFeature(effectivePlan, 'study-extended-steps') &&
+        nextBeatCount > FREE_STUDY_STEP_LIMIT
+      ) {
+        showProPrompt('study-extended-steps');
+        return;
+      }
       setPolyrhythmStudy((current) => ({
         ...current,
         layers: current.layers.map((layer) =>
-          layer.id === layerId ? updateLayerBeatCount(layer, beatCount) : layer,
+          layer.id === layerId ? updateLayerBeatCount(layer, nextBeatCount) : layer,
         ),
       }));
       setSelectedPolyrhythmStep((current) => {
@@ -5022,7 +5357,7 @@ function OrbitalPolymeter() {
         return null;
       });
     },
-    [],
+    [effectivePlan],
   );
 
   const handleTogglePolyrhythmLayerStep = useCallback(
@@ -5031,6 +5366,18 @@ function OrbitalPolymeter() {
         ...current,
         layers: current.layers.map((layer) =>
           layer.id === layerId ? toggleLayerStep(layer, stepIndex) : layer,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const handleTogglePolyrhythmLayerAccent = useCallback(
+    (layerId: string, stepIndex: number) => {
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        layers: current.layers.map((layer) =>
+          layer.id === layerId ? toggleLayerStepAccent(layer, stepIndex) : layer,
         ),
       }));
     },
@@ -5118,6 +5465,7 @@ function OrbitalPolymeter() {
           ? {
               ...layer,
               activeSteps: Array.from({ length: layer.beatCount }, () => false),
+              accents: Array.from({ length: layer.beatCount }, () => false),
             }
           : layer,
       ),
@@ -5126,8 +5474,12 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleRandomPolyrhythmStudy = useCallback(() => {
+    const generatedStudy = createRandomPolyrhythmStudy();
     const nextStudy = {
-      ...createRandomPolyrhythmStudy(),
+      ...(canUseProFeature(effectivePlan, 'study-layers') &&
+      canUseProFeature(effectivePlan, 'study-extended-steps')
+        ? generatedStudy
+        : clampPolyrhythmStudyToFreeRandomLimits(generatedStudy)),
       playing: polyrhythmStudy.playing,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
@@ -5138,9 +5490,13 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
+  }, [effectivePlan, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
 
   const handleRemixPolyrhythmStudy = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'remix')) {
+      showProPrompt('remix');
+      return;
+    }
     setPolyrhythmStudy((current) => {
       const remixed = {
         ...remixPolyrhythmStudy(current),
@@ -5158,9 +5514,13 @@ function OrbitalPolymeter() {
       return remixed;
     });
     setPolyrhythmRestartToken((value) => value + 1);
-  }, []);
+  }, [effectivePlan]);
 
   const handleRandomPlusPolyrhythmStudy = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'random-plus')) {
+      showProPrompt('random-plus');
+      return;
+    }
     const nextStudy = {
       ...createRandomPlusPolyrhythmStudy(),
       playing: polyrhythmStudy.playing,
@@ -5173,11 +5533,18 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
+  }, [effectivePlan, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
 
   const handleLoadRiffCyclePreset = useCallback((presetId: string) => {
     const preset = RIFF_CYCLE_PRESETS.find((entry) => entry.id === presetId);
     if (!preset) {
+      return;
+    }
+    if (
+      !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
+      !canUseFreeRiffStepCount(preset.study.riff.stepCount)
+    ) {
+      showProPrompt('riff-extended-patterns');
       return;
     }
     setRiffCycleStudy({
@@ -5190,7 +5557,7 @@ function OrbitalPolymeter() {
     setSelectedRiffCycleStep(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [riffCycleStudy.playing]);
+  }, [effectivePlan, riffCycleStudy.playing]);
 
   const handleResetRiffCycleStudy = useCallback(() => {
     setRiffMobileLanePage(0);
@@ -5234,6 +5601,10 @@ function OrbitalPolymeter() {
 
   const handleUpdateRiffSoundSettings = useCallback(
     (updates: Partial<RiffCycleSoundSettings>) => {
+      if (!canUseProFeature(effectivePlan, 'sound-editing')) {
+        showProPrompt('sound-editing');
+        return;
+      }
       resumeRiffCycleAudio();
       setRiffCycleStudy((current) => ({
         ...current,
@@ -5243,10 +5614,14 @@ function OrbitalPolymeter() {
         },
       }));
     },
-    [],
+    [effectivePlan],
   );
 
   const handleUpdateRiffDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
+    if (!canUseProFeature(effectivePlan, 'canvas-options')) {
+      showProPrompt('canvas-options');
+      return;
+    }
     setCanvasDisplayState((current) => ({
       ...current,
       riff: normalizeCanvasDisplaySettings(
@@ -5257,7 +5632,7 @@ function OrbitalPolymeter() {
         DEFAULT_RIFF_DISPLAY_SETTINGS,
       ),
     }));
-  }, []);
+  }, [effectivePlan]);
 
   const handleUpdateRiffReference = useCallback((updates: Partial<ReferenceMeter>) => {
     setRiffCycleStudy((current) => {
@@ -5309,6 +5684,22 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleUpdateRiffPhrase = useCallback((updates: Partial<RiffPhrase>) => {
+    if (
+      typeof updates.color === 'string' &&
+      !canUseProFeature(effectivePlan, 'color-editing')
+    ) {
+      showProPrompt('color-editing');
+      return;
+    }
+    if (
+      (typeof updates.pitchHz === 'number' ||
+        typeof updates.gain === 'number' ||
+        typeof updates.soundEnabled === 'boolean') &&
+      !canUseProFeature(effectivePlan, 'sound-editing')
+    ) {
+      showProPrompt('sound-editing');
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       riff: {
@@ -5332,25 +5723,26 @@ function OrbitalPolymeter() {
             : Math.max(1, Math.min(16, Math.round(updates.resetBars))),
       },
     }));
-  }, []);
+  }, [effectivePlan]);
 
-  const handleCycleRiffPhraseColor = useCallback(() => {
-    const currentIndex = RIFF_CYCLE_COLORS.findIndex(
-      (color) => color.toLowerCase() === riffCycleStudy.riff.color.toLowerCase(),
-    );
-    handleUpdateRiffPhrase({
-      color: RIFF_CYCLE_COLORS[(currentIndex < 0 ? 0 : currentIndex + 1) % RIFF_CYCLE_COLORS.length],
-    });
-  }, [handleUpdateRiffPhrase, riffCycleStudy.riff.color]);
+  const handleSetRiffPhraseColor = useCallback(
+    (color: string) => {
+      handleUpdateRiffPhrase({ color });
+    },
+    [handleUpdateRiffPhrase],
+  );
 
   const handleSetRiffPhraseStepCount = useCallback((stepCount: number) => {
+    if (requireUnlockedRiffStepCount(stepCount)) {
+      return;
+    }
     setRiffCycleStudy((current) => updateRiffStepCount(current, stepCount));
     setSelectedRiffCycleStep((current) =>
       current != null && current >= Math.max(3, Math.min(64, Math.round(stepCount || 0)))
         ? null
         : current,
     );
-  }, []);
+  }, [requireUnlockedRiffStepCount]);
 
   const handleToggleRiffCycleStep = useCallback((stepIndex: number) => {
     setRiffCycleStudy((current) =>
@@ -5485,6 +5877,10 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleSetRiffSoundFocus = useCallback((focus: 'bar' | 'riff' | 'full') => {
+    if (!canUseProFeature(effectivePlan, 'sound-editing')) {
+      showProPrompt('sound-editing');
+      return;
+    }
     resumeRiffCycleAudio();
     setRiffCycleStudy((current) => ({
       ...current,
@@ -5496,18 +5892,26 @@ function OrbitalPolymeter() {
         soundEnabled: focus !== 'bar',
       },
     }));
-  }, []);
+  }, [effectivePlan]);
 
   const handleHardRefreshApp = useCallback(() => {
     if (typeof window !== 'undefined') {
-      persistAppSurface(appSurface);
       window.location.reload();
     }
-  }, [appSurface]);
+  }, []);
 
   const handleRandomRiffCycleStudy = useCallback(() => {
+    let nextStudy = createRandomRiffCycleStudy();
+    if (!canUseProFeature(effectivePlan, 'riff-extended-patterns')) {
+      for (let attempt = 0; attempt < 12 && !canUseFreeRiffStepCount(nextStudy.riff.stepCount); attempt += 1) {
+        nextStudy = createRandomRiffCycleStudy();
+      }
+      if (!canUseFreeRiffStepCount(nextStudy.riff.stepCount)) {
+        nextStudy = updateRiffStepCount(nextStudy, randomItem([8, 10, 12, FREE_RIFF_DEFAULT_STEP_COUNT]));
+      }
+    }
     setRiffCycleStudy({
-      ...createRandomRiffCycleStudy(),
+      ...nextStudy,
       playing: riffCycleStudy.playing,
       showStepLabels: riffCycleStudy.showStepLabels,
       showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
@@ -5518,9 +5922,13 @@ function OrbitalPolymeter() {
     setSelectedRiffCycleStep(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
 
   const handleRemixRiffCycleStudy = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'remix')) {
+      showProPrompt('remix');
+      return;
+    }
     setRiffCycleStudy((current) => {
       const remixed = {
         ...remixRiffCycleStudy(current),
@@ -5537,9 +5945,13 @@ function OrbitalPolymeter() {
       return remixed;
     });
     setRiffCycleRestartToken((value) => value + 1);
-  }, []);
+  }, [effectivePlan]);
 
   const handleRandomPlusRiffCycleStudy = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'random-plus')) {
+      showProPrompt('random-plus');
+      return;
+    }
     setRiffCycleStudy({
       ...createRandomPlusRiffCycleStudy(),
       playing: riffCycleStudy.playing,
@@ -5552,7 +5964,7 @@ function OrbitalPolymeter() {
     setSelectedRiffCycleStep(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
 
   const handleToggleFlowPlayback = useCallback(() => {
     resumeFlowAudio();
@@ -5726,6 +6138,10 @@ function OrbitalPolymeter() {
     : undefined;
   const handleExportRiffCyclePng = useCallback(
     (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        showProPrompt('export');
+        return;
+      }
       const canvasEl = canvasRef.current;
       if (canvasEl && (canvasEl as any).__exportPng) {
         void (canvasEl as any).__exportPng(options);
@@ -5734,21 +6150,33 @@ function OrbitalPolymeter() {
         toast.error('Could not export Riff Cycle image.');
       }
     },
-    [],
+    [effectivePlan],
   );
   const handleExportRiffCycleScene = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'export')) {
+      showProPrompt('export');
+      return;
+    }
     downloadRiffCycleSceneFile(riffCycleStudy.name || 'Riff Cycle Scene', riffCycleStudy);
     toast.success('Riff Cycle scene exported.');
-  }, [riffCycleStudy]);
+  }, [effectivePlan, riffCycleStudy]);
   const handleExportRiffCycleMidi = useCallback(
     (mode: RiffMidiExportMode) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        showProPrompt('export');
+        return;
+      }
       downloadRiffCycleMidiFile(riffCycleStudy.name || 'Riff Cycle', riffCycleStudy, mode);
       toast.success(`Riff ${mode === 'cycle' ? 'full cycle' : 'pattern'} MIDI exported.`);
     },
-    [riffCycleStudy],
+    [effectivePlan, riffCycleStudy],
   );
   const handleExportPolyrhythmPng = useCallback(
     (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        showProPrompt('export');
+        return;
+      }
       const canvasEl = canvasRef.current;
       if (canvasEl && (canvasEl as any).__exportPng) {
         void (canvasEl as any).__exportPng(options);
@@ -5757,14 +6185,22 @@ function OrbitalPolymeter() {
         toast.error('Could not export Study image.');
       }
     },
-    [],
+    [effectivePlan],
   );
   const handleExportPolyrhythmScene = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'export')) {
+      showProPrompt('export');
+      return;
+    }
     downloadPolyrhythmStudyFile(polyrhythmStudy.name || 'Polyrhythm Study', polyrhythmStudy);
     toast.success('Study scene exported.');
-  }, [polyrhythmStudy]);
+  }, [effectivePlan, polyrhythmStudy]);
   const handleExportPolyrhythmMidi = useCallback(
     (mode: PolyrhythmMidiExportMode) => {
+      if (!canUseProFeature(effectivePlan, 'export')) {
+        showProPrompt('export');
+        return;
+      }
       downloadPolyrhythmMidiFile(
         polyrhythmStudy.name || 'Polyrhythm Study',
         polyrhythmStudy,
@@ -5779,9 +6215,13 @@ function OrbitalPolymeter() {
             : 'Study selected-layer MIDI exported.',
       );
     },
-    [polyrhythmStudy, selectedPolyrhythmLayerId],
+    [effectivePlan, polyrhythmStudy, selectedPolyrhythmLayerId],
   );
   const handleSavePolyrhythmScene = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'save-scenes')) {
+      showProPrompt('save-scenes');
+      return;
+    }
     const now = new Date().toISOString();
     const existingScene =
       activePolyrhythmSavedSceneId != null
@@ -5810,7 +6250,7 @@ function OrbitalPolymeter() {
     setActivePolyrhythmPresetId(null);
     setPolyrhythmMobileSceneTab('saved');
     toast.success('Study saved to Saved.');
-  }, [activePolyrhythmPresetId, activePolyrhythmSavedSceneId, polyrhythmStudy, savedPolyrhythmScenes]);
+  }, [activePolyrhythmPresetId, activePolyrhythmSavedSceneId, effectivePlan, polyrhythmStudy, savedPolyrhythmScenes]);
   const handleLoadSavedPolyrhythmScene = useCallback(
     (sceneId: string) => {
       const scene = savedPolyrhythmScenes.find((entry) => entry.id === sceneId);
@@ -5832,6 +6272,10 @@ function OrbitalPolymeter() {
     [polyrhythmStudy.playing, savedPolyrhythmScenes],
   );
   const handleSaveRiffCycleScene = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'save-scenes')) {
+      showProPrompt('save-scenes');
+      return;
+    }
     const now = new Date().toISOString();
     const existingScene =
       activeRiffCycleSavedSceneId != null
@@ -5860,11 +6304,18 @@ function OrbitalPolymeter() {
     setActiveRiffCyclePresetId(null);
     setRiffMobileSceneTab('saved');
     toast.success('Riff scene saved to Saved.');
-  }, [activeRiffCyclePresetId, activeRiffCycleSavedSceneId, riffCycleStudy, savedRiffCycleScenes]);
+  }, [activeRiffCyclePresetId, activeRiffCycleSavedSceneId, effectivePlan, riffCycleStudy, savedRiffCycleScenes]);
   const handleLoadSavedRiffCycleScene = useCallback(
     (sceneId: string) => {
       const scene = savedRiffCycleScenes.find((entry) => entry.id === sceneId);
       if (!scene) {
+        return;
+      }
+      if (
+        !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
+        !canUseFreeRiffStepCount(scene.study.riff.stepCount)
+      ) {
+        showProPrompt('riff-extended-patterns');
         return;
       }
       const nextStudy = {
@@ -5879,7 +6330,7 @@ function OrbitalPolymeter() {
       setRiffMobileLanePage(0);
       setRiffCycleRestartToken((value) => value + 1);
     },
-    [riffCycleStudy.playing, savedRiffCycleScenes],
+    [effectivePlan, riffCycleStudy.playing, savedRiffCycleScenes],
   );
   const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
@@ -6014,59 +6465,7 @@ function OrbitalPolymeter() {
     };
   })();
   const openProPrompt = useCallback((feature: import('../lib/entitlements').ProFeature) => {
-    const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
-      'save-scenes': {
-        feature: 'save-scenes',
-        title: 'Save More With Pro',
-        body: `Free keeps up to ${FREE_SCENE_SAVE_LIMIT} saved scenes. Pro turns Rhythmic Geometry into a lasting personal sketchbook.`,
-      },
-      export: {
-        feature: 'export',
-        title: 'Export Belongs To Pro',
-        body: 'Pro unlocks stills, loops, and scene exports so what you make can leave the canvas.',
-      },
-      'random-plus': {
-        feature: 'random-plus',
-        title: 'Random+ Goes Further',
-        body: 'Random+ opens a wider field of ratios, color movement, and motion than base Random.',
-      },
-      remix: {
-        feature: 'remix',
-        title: 'Remix Needs Pro',
-        body: 'Remix reshapes the current study while keeping its core identity intact.',
-      },
-      'scene-editing': {
-        feature: 'scene-editing',
-        title: 'Editing Opens Up In Pro',
-        body: 'Free is for exploring finished scenes. Pro unlocks shaping, tuning, and making them your own.',
-      },
-      'high-ratios': {
-        feature: 'high-ratios',
-        title: 'Deeper Ratios Need Pro',
-        body: 'Free editing goes to 10. Pro opens the longer cycles and stranger balance points beyond it.',
-      },
-      'extra-orbits': {
-        feature: 'extra-orbits',
-        title: 'More Bodies, More Structure',
-        body: 'Free keeps the system tight. Pro opens deeper multi-body studies across every mode.',
-      },
-      'color-editing': {
-        feature: 'color-editing',
-        title: 'Color Shaping Needs Pro',
-        body: 'Pro unlocks direct color control so the image feels authored, not just discovered.',
-      },
-      'sound-editing': {
-        feature: 'sound-editing',
-        title: 'Sound Control Needs Pro',
-        body: 'Free lets you hear the system. Pro lets you tune it with key, scale, tone, and role control.',
-      },
-      'pro-scenes': {
-        feature: 'pro-scenes',
-        title: 'This Study Is Included With Pro',
-        body: 'Pro scenes are part of the full instrument and open only with Pro access.',
-      },
-    };
-    setProPrompt(featureCopy[feature]);
+    showProPrompt(feature);
   }, []);
 
   const requireProFeature = useCallback(
@@ -6152,27 +6551,6 @@ function OrbitalPolymeter() {
     if (typeof window === 'undefined') {
       return;
     }
-    const storedTopStatusVisible = window.localStorage.getItem(TOP_STATUS_VISIBLE_STORAGE_KEY);
-    const storedCanvasHudVisible = window.localStorage.getItem(CANVAS_HUD_VISIBLE_STORAGE_KEY);
-    if (storedTopStatusVisible != null) {
-      setTopStatusVisible(storedTopStatusVisible !== '0');
-    }
-    if (storedCanvasHudVisible != null) {
-      setCanvasHudVisible(storedCanvasHudVisible !== '0');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(TOP_STATUS_VISIBLE_STORAGE_KEY, topStatusVisible ? '1' : '0');
-  }, [topStatusVisible]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
 
     const url = new URL(window.location.href);
     const checkoutState = url.searchParams.get('checkout');
@@ -6223,17 +6601,6 @@ function OrbitalPolymeter() {
   }, [hasProAccess, proPrompt]);
 
   useEffect(() => {
-    persistAppSurface(appSurface);
-  }, [appSurface]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(CANVAS_HUD_VISIBLE_STORAGE_KEY, canvasHudVisible ? '1' : '0');
-  }, [canvasHudVisible]);
-
-  useEffect(() => {
     persistSavedScenes(localSavedScenes);
   }, [localSavedScenes]);
 
@@ -6244,10 +6611,6 @@ function OrbitalPolymeter() {
   useEffect(() => {
     persistSavedRiffCycleScenes(savedRiffCycleScenes);
   }, [savedRiffCycleScenes]);
-
-  useEffect(() => {
-    persistCanvasDisplayState(canvasDisplayState);
-  }, [canvasDisplayState]);
 
   const refreshAccountPersistence = useCallback(async () => {
     if (!user?.id) {
@@ -8791,6 +9154,16 @@ function OrbitalPolymeter() {
   const selectedPolyrhythmOffsetSteps = selectedPolyrhythmLayer
     ? getPolyrhythmLayerOffsetSteps(selectedPolyrhythmLayer)
     : 0;
+  const selectedPolyrhythmStepActive =
+    selectedPolyrhythmLayer &&
+    selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
+      ? Boolean(selectedPolyrhythmLayer.activeSteps[selectedPolyrhythmStep.stepIndex])
+      : null;
+  const selectedPolyrhythmStepAccented =
+    selectedPolyrhythmLayer &&
+    selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id
+      ? Boolean(selectedPolyrhythmLayer.accents?.[selectedPolyrhythmStep.stepIndex])
+      : null;
   const polyrhythmSharedCycleSteps = lcmForPulseCounts(
     polyrhythmStudy.layers.map((layer) => layer.beatCount),
   );
@@ -8884,7 +9257,11 @@ function OrbitalPolymeter() {
   } as const;
   const utilityButtonClass = 'text-[9px] tracking-[0.12em]';
   const utilityGroupCardClass =
-    'rounded-xl border border-white/8 bg-white/[0.03] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+    'rounded-xl border border-white/8 bg-white/[0.03] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+  const utilityAccordionButtonClass =
+    'relative flex w-full items-center justify-center px-12 py-2.5 text-center';
+  const utilityAccordionBodyClass =
+    'space-y-2 border-t border-white/8 px-2.5 pb-2.5 pt-2';
   const utilitySceneRowClass = 'w-full rounded-xl border px-2.5 py-2 text-left';
   const utilitySceneThumbClass = 'h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-white/8 bg-black/20';
   const guideAccent =
@@ -10135,9 +10512,10 @@ function OrbitalPolymeter() {
                 presentationMode={presentationMode}
                 onSelectLayer={handleSelectPolyrhythmLayer}
                 onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
-                onSelectStep={handleSelectPolyrhythmStep}
-                onToggleStep={handleTogglePolyrhythmLayerStep}
-                onClearSelection={handleClearPolyrhythmSelection}
+	                onSelectStep={handleSelectPolyrhythmStep}
+	                onToggleStep={handleTogglePolyrhythmLayerStep}
+	                onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
+	                onClearSelection={handleClearPolyrhythmSelection}
                 className="absolute inset-0 h-full w-full"
               />
               <div className="absolute right-3 top-3 z-20 w-[min(21rem,calc(100%-1.5rem))]">
@@ -10394,21 +10772,12 @@ function OrbitalPolymeter() {
                                 >
                                   Layer {index + 1}
                                 </StudyShellButton>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                                  style={{
-                                    background: `${layer.color}12`,
-                                    borderColor: `${layer.color}32`,
-                                    color: layer.color,
-                                    boxShadow: active ? `0 0 14px ${layer.color}12` : 'none',
-                                  }}
-                                  aria-label={`Cycle Layer ${index + 1} color`}
-                                  title={`Cycle Layer ${index + 1} color`}
-                                >
-                                  <Palette size={13} />
-                                </button>
+                                <LimitedColorPickerButton
+                                  colors={POLYRHYTHM_LAYER_COLORS.slice(0, 12)}
+                                  value={layer.color}
+                                  onChange={(color) => handleSetPolyrhythmLayerColor(layer.id, color)}
+                                  label={`Pick Layer ${index + 1} color`}
+                                />
                                 </div>
                               );
                             })}
@@ -10535,8 +10904,60 @@ function OrbitalPolymeter() {
                                     });
                                     handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, stepIndex);
                                   }}
+                                  onLongPressStep={(stepIndex) => {
+                                    handleSelectPolyrhythmStep({
+                                      layerId: selectedPolyrhythmLayer.id,
+                                      stepIndex,
+                                    });
+                                    handleTogglePolyrhythmLayerAccent(selectedPolyrhythmLayer.id, stepIndex);
+                                  }}
 	                                />
 	                              </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="amber"
+                                    highlighted={Boolean(selectedPolyrhythmStepAccented)}
+                                    disabled={
+                                      !selectedPolyrhythmStep ||
+                                      selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                                    }
+                                    onClick={() => {
+                                      if (
+                                        selectedPolyrhythmStep &&
+                                        selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                                      ) {
+                                        handleTogglePolyrhythmLayerAccent(
+                                          selectedPolyrhythmLayer.id,
+                                          selectedPolyrhythmStep.stepIndex,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Accent
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    highlighted={Boolean(selectedPolyrhythmStepActive)}
+                                    disabled={
+                                      !selectedPolyrhythmStep ||
+                                      selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                                    }
+                                    onClick={() => {
+                                      if (
+                                        selectedPolyrhythmStep &&
+                                        selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                                      ) {
+                                        handleTogglePolyrhythmLayerStep(
+                                          selectedPolyrhythmLayer.id,
+                                          selectedPolyrhythmStep.stepIndex,
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    {selectedPolyrhythmStepActive ? 'Turn Off' : 'Turn On'}
+                                  </StudyShellButton>
+                                </div>
 	                              <StudyShellButton
 	                                size="compact"
 	                                tone="green"
@@ -10567,14 +10988,14 @@ function OrbitalPolymeter() {
 	                                  onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
 	                                  icon={<ChevronLeft size={14} />}
 	                                >
-	                                  1 Step
+	                                  Step
 	                                </StudyShellButton>
 	                                <StudyShellButton
 	                                  size="compact"
 	                                  onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
 	                                  icon={<ChevronRight size={14} />}
 	                                >
-	                                  1 Step
+	                                  Step
 	                                </StudyShellButton>
 	                              </div>
 	                            </div>
@@ -11212,21 +11633,12 @@ function OrbitalPolymeter() {
                         >
                           Layer {index + 1}
                         </StudyShellButton>
-                        <button
-                          type="button"
-                          onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                          style={{
-                            background: `${layer.color}12`,
-                            borderColor: `${layer.color}32`,
-                            color: layer.color,
-                            boxShadow: active ? `0 0 14px ${layer.color}12` : 'none',
-                          }}
-                          aria-label={`Cycle Layer ${index + 1} color`}
-                          title={`Cycle Layer ${index + 1} color`}
-                        >
-                          <Palette size={13} />
-                        </button>
+                        <LimitedColorPickerButton
+                          colors={POLYRHYTHM_LAYER_COLORS.slice(0, 12)}
+                          value={layer.color}
+                          onChange={(color) => handleSetPolyrhythmLayerColor(layer.id, color)}
+                          label={`Pick Layer ${index + 1} color`}
+                        />
                         </div>
                       );
                     })}
@@ -11271,9 +11683,10 @@ function OrbitalPolymeter() {
                     presentationMode
                     onSelectLayer={handleSelectPolyrhythmLayer}
                     onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
-                    onSelectStep={handleSelectPolyrhythmStep}
-                    onToggleStep={handleTogglePolyrhythmLayerStep}
-                    onClearSelection={handleClearPolyrhythmSelection}
+	                    onSelectStep={handleSelectPolyrhythmStep}
+	                    onToggleStep={handleTogglePolyrhythmLayerStep}
+	                    onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
+	                    onClearSelection={handleClearPolyrhythmSelection}
                     className="absolute inset-0 h-full w-full"
                   />
                   <div className="absolute right-3 top-3 z-20 w-[min(21rem,calc(100%-1.5rem))]">
@@ -11321,7 +11734,62 @@ function OrbitalPolymeter() {
                           handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, stepIndex);
                           recordTutorialEvent('study-editor-toggle-step');
                         }}
+                        onLongPressStep={(stepIndex) => {
+                          handleSelectPolyrhythmStep({
+                            layerId: selectedPolyrhythmLayer.id,
+                            stepIndex,
+                          });
+                          handleTogglePolyrhythmLayerAccent(selectedPolyrhythmLayer.id, stepIndex);
+                          recordTutorialEvent('study-editor-toggle-step');
+                        }}
                       />
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="amber"
+                          highlighted={Boolean(selectedPolyrhythmStepAccented)}
+                          disabled={
+                            !selectedPolyrhythmStep ||
+                            selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                          }
+                          onClick={() => {
+                            if (
+                              selectedPolyrhythmStep &&
+                              selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                            ) {
+                              handleTogglePolyrhythmLayerAccent(
+                                selectedPolyrhythmLayer.id,
+                                selectedPolyrhythmStep.stepIndex,
+                              );
+                              recordTutorialEvent('study-editor-toggle-step');
+                            }
+                          }}
+                        >
+                          Accent Node
+                        </StudyShellButton>
+                        <StudyShellButton
+                          size="compact"
+                          highlighted={Boolean(selectedPolyrhythmStepActive)}
+                          disabled={
+                            !selectedPolyrhythmStep ||
+                            selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                          }
+                          onClick={() => {
+                            if (
+                              selectedPolyrhythmStep &&
+                              selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                            ) {
+                              handleTogglePolyrhythmLayerStep(
+                                selectedPolyrhythmLayer.id,
+                                selectedPolyrhythmStep.stepIndex,
+                              );
+                              recordTutorialEvent('study-editor-toggle-step');
+                            }
+                          }}
+                        >
+                          {selectedPolyrhythmStepActive ? 'Turn Off' : 'Turn On'}
+                        </StudyShellButton>
+                      </div>
                     </div>
                   ) : null}
 
@@ -11467,7 +11935,7 @@ function OrbitalPolymeter() {
                               }}
 	                            icon={<ChevronLeft size={14} />}
 	                          >
-	                            1 Step
+	                            Step
 	                          </StudyShellButton>
 	                          <StudyShellButton
 	                            size="compact"
@@ -11477,7 +11945,7 @@ function OrbitalPolymeter() {
                               }}
 	                            icon={<ChevronRight size={14} />}
 	                          >
-	                            1 Step
+	                            Step
 	                          </StudyShellButton>
 	                        </div>
 	                      </div>
@@ -11600,9 +12068,10 @@ function OrbitalPolymeter() {
             presentationMode={presentationMode}
             onSelectLayer={handleSelectPolyrhythmLayer}
             onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
-            onSelectStep={handleSelectPolyrhythmStep}
-            onToggleStep={handleTogglePolyrhythmLayerStep}
-            onClearSelection={handleClearPolyrhythmSelection}
+	            onSelectStep={handleSelectPolyrhythmStep}
+	            onToggleStep={handleTogglePolyrhythmLayerStep}
+	            onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
+	            onClearSelection={handleClearPolyrhythmSelection}
           />
           {!isMobile ? (
             <div className="absolute right-6 top-24 z-20 w-[21rem]">
@@ -11692,7 +12161,7 @@ function OrbitalPolymeter() {
           >
             <StudyShellPremiumPanel
               accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-              className="max-h-full space-y-2 overflow-y-auto overscroll-contain pr-1 pb-4 [scrollbar-width:none]"
+              className="max-h-full space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
               style={{ maxHeight: '100%' }}
             >
               <div className="relative flex items-center justify-end gap-2 px-0.5">
@@ -11759,7 +12228,11 @@ function OrbitalPolymeter() {
                     return (
                       <div
                         key={layer.id}
-                        className="rounded-[1rem] border px-2.5 py-1"
+                        onClick={() => {
+                          handleSelectPolyrhythmLayer(layer.id);
+                          setSelectedPolyrhythmStep(null);
+                        }}
+                        className="cursor-pointer rounded-[1rem] border px-2.5 py-1"
                         style={{
                           background: active ? `${layer.color}12` : 'rgba(255,255,255,0.03)',
                           borderColor: active ? `${layer.color}38` : 'rgba(255,255,255,0.08)',
@@ -11767,15 +12240,16 @@ function OrbitalPolymeter() {
                         }}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleSelectPolyrhythmLayer(layer.id);
-                              setSelectedPolyrhythmStep(null);
-                            }}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleSelectPolyrhythmLayer(layer.id);
+                                setSelectedPolyrhythmStep(null);
+                              }}
+                              className="min-w-0 text-left"
+                            >
+                              <div className="flex items-center gap-2">
                               <span
                                 className="h-2.5 w-2.5 rounded-full"
                                 style={{ background: layer.color, boxShadow: `0 0 12px ${layer.color}88` }}
@@ -11786,23 +12260,17 @@ function OrbitalPolymeter() {
                               >
                                 Layer {index + 1}
                               </span>
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border transition active:scale-[0.96]"
-                            style={{
-                              background: `${layer.color}12`,
-                              borderColor: `${layer.color}32`,
-                              color: layer.color,
-                              boxShadow: active ? `0 0 14px ${layer.color}12` : 'none',
-                            }}
-                            aria-label={`Cycle Layer ${index + 1} color`}
-                            title={`Cycle Layer ${index + 1} color`}
-                          >
-                            <Palette size={12} />
-                          </button>
+                              </div>
+                            </button>
+                            <LimitedColorPickerButton
+                              colors={POLYRHYTHM_LAYER_COLORS.slice(0, 12)}
+                              value={layer.color}
+                              onChange={(color) => handleSetPolyrhythmLayerColor(layer.id, color)}
+                              label={`Pick Layer ${index + 1} color`}
+                              iconSize={12}
+                              className="h-7 w-7"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={(event) => {
@@ -11917,14 +12385,14 @@ function OrbitalPolymeter() {
                           onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
                           className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/62 transition active:scale-[0.97]"
                         >
-                          -1
+                          &lt; Step
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
                           className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/62 transition active:scale-[0.97]"
                         >
-                          +1
+                          &gt; Step
                         </button>
                       </div>
                     </div>
@@ -12051,7 +12519,7 @@ function OrbitalPolymeter() {
           >
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="max-h-full flex flex-col gap-2.5 overflow-y-auto overscroll-contain pr-1 pb-4 [scrollbar-width:none]"
+              className="max-h-full flex flex-col gap-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
               style={{ maxHeight: '100%' }}
             >
               <div className="relative flex items-center justify-end gap-1.5 px-0.5">
@@ -12090,7 +12558,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'scenes' ? null : 'scenes'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -12106,7 +12574,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {polyrhythmUtilityPanel === 'scenes' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                       {([
                         { key: 'standard', label: 'Standard', color: '#88CCFF' },
@@ -12281,7 +12749,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -12297,7 +12765,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {polyrhythmUtilityPanel === 'audio' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
                       <InlineInfoLabel
                         infoId="study_playback_output"
@@ -12377,7 +12845,6 @@ function OrbitalPolymeter() {
                           {polyrhythmStudy.layers.map((layer, index) => {
                             const active = layer.id === selectedPolyrhythmLayer?.id;
                             return (
-                              <div key={layer.id} className="flex shrink-0 items-center gap-1">
                               <StudyShellButton
                                 key={layer.id}
                                 size="compact"
@@ -12400,31 +12867,12 @@ function OrbitalPolymeter() {
                               >
                                 Layer {index + 1}
                               </StudyShellButton>
-                              <button
-                                type="button"
-                                onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                                style={{
-                                  background: `${layer.color}12`,
-                                  borderColor: `${layer.color}32`,
-                                  color: layer.color,
-                                  boxShadow: active ? `0 0 14px ${layer.color}12` : 'none',
-                                }}
-                                aria-label={`Cycle Layer ${index + 1} color`}
-                                title={`Cycle Layer ${index + 1} color`}
-                              >
-                                <Palette size={13} />
-                              </button>
-                              </div>
                             );
                           })}
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-[10px] leading-relaxed text-white/40">
-                      Solo follows the selected layer. Full Stack restores the whole study without changing the target.
-                    </div>
                   </div>
                 ) : null}
               </div>
@@ -12451,7 +12899,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -12467,7 +12915,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {polyrhythmUtilityPanel === 'sound' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <InlineInfoLabel
                       infoId="study_sound_mode"
                       label="Sound Mode"
@@ -12481,9 +12929,6 @@ function OrbitalPolymeter() {
                       <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'keyed'} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'keyed' })}>
                         In Key
                       </StudyShellButton>
-                    </div>
-                    <div className="text-[10px] leading-relaxed text-white/42">
-                      Original keeps the raw study voice. In Key keeps the notes inside one note family.
                     </div>
                     <select
                       value={polyrhythmStudy.soundSettings.palette}
@@ -12561,7 +13006,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'overlay' ? null : 'overlay'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -12577,7 +13022,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {polyrhythmUtilityPanel === 'overlay' ? (
-                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className={utilityGroupCardClass}>
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <InlineInfoLabel
@@ -12603,9 +13048,6 @@ function OrbitalPolymeter() {
                       >
                         Step Numbers
                       </StudyShellButton>
-                      </div>
-                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
-                        Step Numbers makes the cycle easier to count. Ghost Steps keeps the unused positions visible.
                       </div>
                     </div>
                   </div>
@@ -12633,7 +13075,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -12649,7 +13091,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {polyrhythmUtilityPanel === 'canvas' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <CanvasDisplayControls
                       settings={canvasDisplayState.polyrhythm}
                       onChange={handleUpdatePolyrhythmDisplay}
@@ -12711,7 +13153,6 @@ function OrbitalPolymeter() {
                     {polyrhythmStudy.layers.map((layer, index) => {
                       const active = layer.id === selectedPolyrhythmLayer?.id;
                       return (
-                        <div key={layer.id} className="flex shrink-0 items-center gap-1">
                         <button
                           key={layer.id}
                           type="button"
@@ -12729,22 +13170,6 @@ function OrbitalPolymeter() {
                         >
                           Layer {index + 1}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition active:scale-[0.97]"
-                          style={{
-                            background: `${layer.color}12`,
-                            borderColor: `${layer.color}32`,
-                            color: layer.color,
-                            boxShadow: active ? `0 0 18px ${layer.color}12` : 'none',
-                          }}
-                          aria-label={`Cycle Layer ${index + 1} color`}
-                          title={`Cycle Layer ${index + 1} color`}
-                        >
-                          <Palette size={14} />
-                        </button>
-                        </div>
                       );
                     })}
                     <button
@@ -12881,9 +13306,10 @@ function OrbitalPolymeter() {
                   presentationMode
                   onSelectLayer={handleSelectPolyrhythmLayer}
                   onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
-                  onSelectStep={handleSelectPolyrhythmStep}
-                  onToggleStep={handleTogglePolyrhythmLayerStep}
-                  onClearSelection={handleClearPolyrhythmSelection}
+	                  onSelectStep={handleSelectPolyrhythmStep}
+	                  onToggleStep={handleTogglePolyrhythmLayerStep}
+	                  onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
+	                  onClearSelection={handleClearPolyrhythmSelection}
                   className="absolute inset-0 h-full w-full"
                 />
                 <div className="absolute right-4 top-4 z-20 w-[21rem]">
@@ -13053,7 +13479,7 @@ function OrbitalPolymeter() {
 	                            className="flex-1"
 	                            onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
 	                          >
-	                            -1
+	                            &lt; Step
 	                          </StudyShellButton>
 	                          <StudyShellButton
 	                            size="compact"
@@ -13061,7 +13487,7 @@ function OrbitalPolymeter() {
 	                            className="flex-1"
 	                            onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
 	                          >
-	                            +1
+	                            &gt; Step
 	                          </StudyShellButton>
 	                        </div>
 
@@ -13098,14 +13524,66 @@ function OrbitalPolymeter() {
 	                          ? selectedPolyrhythmStep.stepIndex
 	                          : null
 	                      }
-	                      onPressStep={(stepIndex) => {
+                      onPressStep={(stepIndex) => {
                         handleSelectPolyrhythmStep({
                           layerId: selectedPolyrhythmLayer.id,
 	                          stepIndex,
                         });
                         handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, stepIndex);
                       }}
+                      onLongPressStep={(stepIndex) => {
+                        handleSelectPolyrhythmStep({
+                          layerId: selectedPolyrhythmLayer.id,
+                          stepIndex,
+                        });
+                        handleTogglePolyrhythmLayerAccent(selectedPolyrhythmLayer.id, stepIndex);
+                      }}
                     />
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <StudyShellButton
+                        size="compact"
+                        tone="amber"
+                        highlighted={Boolean(selectedPolyrhythmStepAccented)}
+                        disabled={
+                          !selectedPolyrhythmStep ||
+                          selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                        }
+                        onClick={() => {
+                          if (
+                            selectedPolyrhythmStep &&
+                            selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                          ) {
+                            handleTogglePolyrhythmLayerAccent(
+                              selectedPolyrhythmLayer.id,
+                              selectedPolyrhythmStep.stepIndex,
+                            );
+                          }
+                        }}
+                      >
+                        Accent Node
+                      </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        highlighted={Boolean(selectedPolyrhythmStepActive)}
+                        disabled={
+                          !selectedPolyrhythmStep ||
+                          selectedPolyrhythmStep.layerId !== selectedPolyrhythmLayer.id
+                        }
+                        onClick={() => {
+                          if (
+                            selectedPolyrhythmStep &&
+                            selectedPolyrhythmStep.layerId === selectedPolyrhythmLayer.id
+                          ) {
+                            handleTogglePolyrhythmLayerStep(
+                              selectedPolyrhythmLayer.id,
+                              selectedPolyrhythmStep.stepIndex,
+                            );
+                          }
+                        }}
+                      >
+                        {selectedPolyrhythmStepActive ? 'Turn Off' : 'Turn On'}
+                      </StudyShellButton>
+                    </div>
                     </div>
                   </>
                 ) : (
@@ -13197,20 +13675,14 @@ function OrbitalPolymeter() {
                             >
                               {index + 1}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleCyclePolyrhythmLayerColor(layer.id, layer.color)}
-                              className="flex h-5 w-5 items-center justify-center rounded-md border transition active:scale-[0.97]"
-                              style={{
-                                background: `${layer.color}12`,
-                                borderColor: `${layer.color}28`,
-                                color: layer.color,
-                              }}
-                              aria-label={`Cycle Layer ${index + 1} color`}
-                              title={`Cycle Layer ${index + 1} color`}
-                            >
-                              <Palette size={10} />
-                            </button>
+                            <LimitedColorPickerButton
+                              colors={POLYRHYTHM_LAYER_COLORS.slice(0, 12)}
+                              value={layer.color}
+                              onChange={(color) => handleSetPolyrhythmLayerColor(layer.id, color)}
+                              label={`Pick Layer ${index + 1} color`}
+                              iconSize={10}
+                              className="h-5 w-5 rounded-md"
+                            />
                           </div>
                         );
                       })}
@@ -13985,21 +14457,12 @@ function OrbitalPolymeter() {
                               label="Steps"
                               labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
                             />
-                            <button
-                              type="button"
-                              onClick={handleCycleRiffPhraseColor}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                              style={{
-                                background: `${riffCycleStudy.riff.color}12`,
-                                borderColor: `${riffCycleStudy.riff.color}32`,
-                                color: riffCycleStudy.riff.color,
-                                boxShadow: `0 0 14px ${riffCycleStudy.riff.color}10`,
-                              }}
-                              aria-label="Cycle riff pattern color"
-                              title="Cycle riff pattern color"
-                            >
-                              <Palette size={13} />
-                            </button>
+                            <LimitedColorPickerButton
+                              colors={RIFF_CYCLE_COLORS}
+                              value={riffCycleStudy.riff.color}
+                              onChange={handleSetRiffPhraseColor}
+                              label="Pick riff pattern color"
+                            />
                           </div>
                           <div className="flex items-center gap-2">
                             <StudyShellButton
@@ -14171,6 +14634,11 @@ function OrbitalPolymeter() {
                               </StudyShellButton>
                             ))}
 	                          </div>
+                            {riffCycleStudy.riff.resetMode === 'free' ? (
+                              <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                                {riffFreeResolutionCopy}
+                              </div>
+                            ) : null}
 	                        </div>
 
 	                        <div className="space-y-1.5">
@@ -14202,6 +14670,11 @@ function OrbitalPolymeter() {
 	                              </StudyShellButton>
 	                            ))}
 	                          </div>
+                            {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                              <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                                {riffPatternBarMarkerCopy}
+                              </div>
+                            ) : null}
 	                        </div>
 
                         <div className="grid grid-cols-2 gap-2">
@@ -15571,7 +16044,7 @@ function OrbitalPolymeter() {
           className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[18.25rem]'}`}
           style={!isMobile ? { bottom: riffDesktopPanelBottom, maxHeight: riffDesktopQuickMaxHeight } : undefined}
         >
-          <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : 'max-h-full'} space-y-2.5 overflow-y-auto overscroll-contain pr-1 pb-4 [scrollbar-width:none]`}>
+          <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : 'max-h-full'} space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}>
             <div className="relative flex items-center justify-end gap-3 px-0.5">
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]" style={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}>
                 Quick Edit
@@ -15682,9 +16155,9 @@ function OrbitalPolymeter() {
                     Bar Frame
                   </div>
                 </div>
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2 pt-1">
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
                       background: 'rgba(255,255,255,0.028)',
                       borderColor: 'rgba(255,255,255,0.08)',
@@ -15764,7 +16237,7 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
                       background: 'rgba(127,215,255,0.045)',
                       borderColor: 'rgba(127,215,255,0.14)',
@@ -15788,7 +16261,6 @@ function OrbitalPolymeter() {
                               handleUpdateRiffReference({
                                 denominator: value as ReferenceMeter['denominator'],
                               });
-                              setRiffQuickPanel(null);
                             }}
                           >
                             /{value}
@@ -15846,7 +16318,6 @@ function OrbitalPolymeter() {
                           handleUpdateRiffReference({
                             showBackbeat: false,
                           });
-                          setRiffQuickPanel(null);
                         }}
                       >
                         Off
@@ -15868,7 +16339,6 @@ function OrbitalPolymeter() {
                               showBackbeat: true,
                               backbeatBeat: beat,
                             });
-                            setRiffQuickPanel(null);
                           }}
                         >
                           {beat}
@@ -15895,9 +16365,9 @@ function OrbitalPolymeter() {
                     Pattern
                   </div>
                 </div>
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2 pt-1">
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
                       background: `${riffCycleStudy.riff.color}08`,
                       borderColor: `${riffCycleStudy.riff.color}18`,
@@ -15912,21 +16382,12 @@ function OrbitalPolymeter() {
                         labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
                         labelStyle={desktopMenuSubheaderStyle}
                       />
-                        <button
-                          type="button"
-                          onClick={handleCycleRiffPhraseColor}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                          style={{
-                            background: `${riffCycleStudy.riff.color}12`,
-                            borderColor: `${riffCycleStudy.riff.color}32`,
-                            color: riffCycleStudy.riff.color,
-                            boxShadow: `0 0 14px ${riffCycleStudy.riff.color}10`,
-                          }}
-                          aria-label="Cycle riff pattern color"
-                          title="Cycle riff pattern color"
-                        >
-                          <Palette size={13} />
-                        </button>
+                        <LimitedColorPickerButton
+                          colors={RIFF_CYCLE_COLORS}
+                          value={riffCycleStudy.riff.color}
+                          onChange={handleSetRiffPhraseColor}
+                          label="Pick riff pattern color"
+                        />
                       </div>
                       <div className="flex items-center gap-2">
                         <StudyShellButton
@@ -15987,11 +16448,11 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
-                      background: 'rgba(255,184,107,0.04)',
-                      borderColor: 'rgba(255,184,107,0.14)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,184,107,0.04)',
+                      background: 'rgba(127,215,255,0.045)',
+                      borderColor: 'rgba(127,215,255,0.14)',
+                      boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
                     }}
                   >
                     <div className="space-y-1">
@@ -16073,9 +16534,9 @@ function OrbitalPolymeter() {
                     Ending
                   </div>
                 </div>
-                <div className="space-y-3 pt-1">
+                <div className="space-y-2 pt-1">
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
                       background: 'rgba(255,184,107,0.04)',
                       borderColor: 'rgba(255,184,107,0.14)',
@@ -16101,7 +16562,7 @@ function OrbitalPolymeter() {
                           <StudyShellButton
                             key={option.value}
                             size="compact"
-                            tone="amber"
+                            tone="blue"
                             highlighted={riffCycleStudy.riff.resetMode === option.value}
                             onClick={() => {
                               handleUpdateRiffPhrase({
@@ -16115,10 +16576,15 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         ))}
                       </div>
+                      {riffCycleStudy.riff.resetMode === 'free' ? (
+                        <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                          {riffFreeResolutionCopy}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div
-                    className="space-y-3 rounded-xl border px-3 py-3"
+                    className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
                       background: 'rgba(127,215,255,0.045)',
                       borderColor: 'rgba(127,215,255,0.14)',
@@ -16152,6 +16618,11 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         ))}
                       </div>
+                      {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                        <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                          {riffPatternBarMarkerCopy}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 	                <StudyShellButton
@@ -16226,7 +16697,7 @@ function OrbitalPolymeter() {
           >
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="max-h-full flex flex-col gap-3 overflow-y-auto overscroll-contain pr-1 pb-4 [scrollbar-width:none]"
+              className="max-h-full flex flex-col gap-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
               style={{ maxHeight: '100%' }}
             >
               <div className="relative flex items-center justify-end gap-1.5 px-0.5">
@@ -16265,7 +16736,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'roll' ? null : 'roll'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16300,7 +16771,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'roll' ? (
-                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className={utilityGroupCardClass}>
                       <InlineInfoLabel
                         infoId="riff_lane_visibility"
@@ -16388,9 +16859,6 @@ function OrbitalPolymeter() {
                           Riff Bounds
                         </StudyShellButton>
                       </div>
-                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
-                        Brackets the visible riff span on the lane so the riff start and end are easier to read.
-                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -16417,7 +16885,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16452,7 +16920,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'audio' ? (
-                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className={utilityGroupCardClass}>
                       <InlineInfoLabel
                         infoId="riff_playback_output"
@@ -16501,9 +16969,6 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         ))}
                       </div>
-                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
-                        Frame isolates the pulse guide. Riff isolates the written phrase. Both restores the full groove.
-                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -16531,7 +16996,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16566,9 +17031,9 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'sound' ? (
-                  <div className="border-t border-white/8 px-3 pb-3 pt-2 space-y-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div
-                      className="space-y-3 rounded-xl border px-3 py-3"
+                      className="space-y-2 rounded-xl border px-2.5 py-2"
                       style={{
                         background: 'rgba(255,255,255,0.028)',
                         borderColor: 'rgba(255,255,255,0.08)',
@@ -16601,7 +17066,7 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
                     <div
-                      className="space-y-3 rounded-xl border px-3 py-3"
+                      className="space-y-2 rounded-xl border px-2.5 py-2"
                       style={{
                         background: 'rgba(114,241,184,0.038)',
                         borderColor: 'rgba(114,241,184,0.14)',
@@ -16641,13 +17106,10 @@ function OrbitalPolymeter() {
                             In Key
                           </StudyShellButton>
                         </div>
-                        <div className="text-[10px] leading-relaxed text-white/40">
-                          Original keeps the raw riff voice. In Key keeps the notes inside one note family.
-                        </div>
                       </div>
                     </div>
                     <div
-                      className="space-y-3 rounded-xl border px-3 py-3"
+                      className="space-y-2 rounded-xl border px-2.5 py-2"
                       style={{
                         background: 'rgba(136,204,255,0.045)',
                         borderColor: 'rgba(136,204,255,0.14)',
@@ -16749,7 +17211,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'overlay' ? null : 'overlay'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16784,7 +17246,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'overlay' ? (
-	                  <div className="space-y-3 border-t border-white/8 px-3 pb-3 pt-2">
+	                  <div className={utilityAccordionBodyClass}>
 	                    <div className={utilityGroupCardClass}>
 	                      <div className="mb-2 flex items-center justify-between gap-2">
                           <InlineInfoLabel
@@ -16817,9 +17279,6 @@ function OrbitalPolymeter() {
 	                          Start Lines
 	                        </StudyShellButton>
 	                      </div>
-                        <div className="mt-2 text-[10px] leading-relaxed text-white/48">
-                          Numbers labels the repeating step index. Start Lines marks each riff restart.
-                        </div>
 	                    </div>
 	                    <div className={utilityGroupCardClass}>
 	                      <div className="mb-2 flex items-center justify-between gap-2">
@@ -16853,9 +17312,6 @@ function OrbitalPolymeter() {
 	                          Filled Hits
 	                        </StudyShellButton>
 	                      </div>
-	                      <div className="mt-2 text-[10px] leading-relaxed text-white/48">
-	                        These change how the groove reads on screen, not the notes themselves.
-	                      </div>
 	                    </div>
 	                  </div>
                 ) : null}
@@ -16881,7 +17337,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16916,7 +17372,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'canvas' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
@@ -16947,7 +17403,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffUtilityPanel((current) => (current === 'scenes' ? null : 'scenes'))}
-                  className="relative flex w-full items-center justify-center px-12 py-3 text-center"
+                  className={utilityAccordionButtonClass}
                 >
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
@@ -16982,7 +17438,7 @@ function OrbitalPolymeter() {
                   </div>
                 </button>
                 {riffUtilityPanel === 'scenes' ? (
-                  <div className="space-y-2 border-t border-white/8 px-3 pb-3 pt-2">
+                  <div className={utilityAccordionBodyClass}>
                     <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                       {([
                         { key: 'standard', label: 'Standard', color: '#88CCFF' },
@@ -17402,6 +17858,11 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       ))}
                     </div>
+                    {riffCycleStudy.riff.resetMode === 'free' ? (
+                      <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                        {riffFreeResolutionCopy}
+                      </div>
+                    ) : null}
                   </StudyShellPanel>
                   <StudyShellPanel className="space-y-2">
                     <InlineInfoLabel
@@ -17430,6 +17891,11 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       ))}
                     </div>
+                    {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                      <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
+                        {riffPatternBarMarkerCopy}
+                      </div>
+                    ) : null}
                   </StudyShellPanel>
                   <StudyShellPanel className="space-y-2">
                     <InlineInfoLabel
@@ -17721,21 +18187,12 @@ function OrbitalPolymeter() {
                               labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                               labelStyle={desktopMenuSubheaderStyle}
                             />
-                            <button
-                              type="button"
-                              onClick={handleCycleRiffPhraseColor}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border transition active:scale-[0.97]"
-                              style={{
-                                background: `${riffCycleStudy.riff.color}12`,
-                                borderColor: `${riffCycleStudy.riff.color}32`,
-                                color: riffCycleStudy.riff.color,
-                                boxShadow: `0 0 14px ${riffCycleStudy.riff.color}10`,
-                              }}
-                              aria-label="Cycle riff pattern color"
-                              title="Cycle riff pattern color"
-                            >
-                              <Palette size={13} />
-                            </button>
+                            <LimitedColorPickerButton
+                              colors={RIFF_CYCLE_COLORS}
+                              value={riffCycleStudy.riff.color}
+                              onChange={handleSetRiffPhraseColor}
+                              label="Pick riff pattern color"
+                            />
                           </div>
                           <input
                             type="number"
@@ -18427,6 +18884,7 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
+          displaySettings={canvasDisplayState.orbit}
           presentationMode={presentationMode}
           className="absolute inset-0 w-full h-full"
           />
@@ -18448,6 +18906,7 @@ function OrbitalPolymeter() {
             tonePreset={harmonySettings.tonePreset}
             rootNote={harmonySettings.rootNote}
             scaleName={harmonySettings.scaleName}
+            canvasDisplaySettings={canvasDisplayState.orbit}
             quickOrbitControls={desktopQuickOrbitControls}
             onAdjustQuickOrbit={handleAdjustQuickOrbit}
             onSetQuickOrbit={handleSetQuickOrbit}
@@ -18472,6 +18931,7 @@ function OrbitalPolymeter() {
             onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
             onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
             onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+            onCanvasDisplayChange={handleUpdateOrbitDisplay}
             onAddOrbit={handleAddOrbit}
             onDeleteOrbit={handleDeleteOrbit}
             onReset={handleReset}
@@ -18500,6 +18960,7 @@ function OrbitalPolymeter() {
               harmonySettings={harmonySettings}
               geometryMode={geometryMode}
               interferenceSettings={interferenceSettings}
+              displaySettings={canvasDisplayState.orbit}
               presentationMode={presentationMode}
               onOrbitLongPress={handleOrbitLongPress}
               className="absolute inset-0 w-full h-full"
@@ -19502,6 +19963,7 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
+          displaySettings={canvasDisplayState.orbit}
           presentationMode
           className="absolute inset-0 h-full w-full"
         />
@@ -19528,6 +19990,7 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
           interferenceSettings={interferenceSettings}
+          displaySettings={canvasDisplayState.orbit}
           presentationMode={presentationMode}
           onOrbitLongPress={presentationMode ? undefined : handleOrbitLongPress}
           className={isMobile ? 'absolute inset-0 w-full h-full' : undefined}
@@ -19843,6 +20306,7 @@ function OrbitalPolymeter() {
           tonePreset={harmonySettings.tonePreset}
           rootNote={harmonySettings.rootNote}
           scaleName={harmonySettings.scaleName}
+          canvasDisplaySettings={canvasDisplayState.orbit}
           quickOrbitControls={desktopQuickOrbitControls}
           onAdjustQuickOrbit={handleAdjustQuickOrbit}
           onSetQuickOrbit={handleSetQuickOrbit}
@@ -19867,6 +20331,7 @@ function OrbitalPolymeter() {
           onSoundModeChange={(tonePreset) => handleHarmonyChange({ tonePreset })}
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
+          onCanvasDisplayChange={handleUpdateOrbitDisplay}
           onAddOrbit={handleAddOrbit}
           onDeleteOrbit={handleDeleteOrbit}
           onReset={handleReset}

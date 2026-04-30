@@ -4,6 +4,8 @@ import {
   getReferenceStepsPerBeat,
   getRiffPhrasePoints,
   getRiffStepIndexAtReferenceStep,
+  getResetBarCount,
+  getResetStepCount,
   type RiffCycleStudy,
 } from './riffCycleStudy';
 
@@ -121,8 +123,15 @@ export function getRiffCycleCanvasMetrics(
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
   const maxVisibleStart = Math.max(0, totalDisplaySteps - visibleStepCount);
+  const resetBarCount = getResetBarCount(study.riff);
+  const absoluteTimeline =
+    showingTimeline &&
+    (getResetStepCount(study) == null ||
+      (resetBarCount != null && resetBarCount > study.reference.barCountForDisplay));
   const visibleStartStep = showingTimeline
-    ? Math.max(0, Math.min(maxVisibleStart, Math.floor(laneWindowStartStep ?? 0)))
+    ? absoluteTimeline
+      ? Math.max(0, Math.floor(laneWindowStartStep ?? 0))
+      : Math.max(0, Math.min(maxVisibleStart, Math.floor(laneWindowStartStep ?? 0)))
     : 0;
 
   let circleCenterY: number;

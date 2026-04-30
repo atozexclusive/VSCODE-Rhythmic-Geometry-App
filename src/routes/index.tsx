@@ -87,6 +87,7 @@ function OrbitalPolymeterLanding() {
     modes: false,
     showcase: false,
     tools: false,
+    philosophy: false,
     pro: false,
     cta: false,
   });
@@ -100,6 +101,7 @@ function OrbitalPolymeterLanding() {
     modes: null,
     showcase: null,
     tools: null,
+    philosophy: null,
     pro: null,
     cta: null,
   });
@@ -407,6 +409,7 @@ function OrbitalPolymeterLanding() {
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
             <a href="#showcase" className="transition-colors hover:text-white">Showcase</a>
+            <Link to="/how-it-works" className="transition-colors hover:text-white">What Is It?</Link>
             <a href="#tools" className="transition-colors hover:text-white">Tools</a>
             <a href="#pro" className="transition-colors hover:text-white">Pro</a>
           </nav>
@@ -448,12 +451,12 @@ function OrbitalPolymeterLanding() {
             <div className="flex max-w-2xl flex-col items-center sm:block">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
                 <Sparkles size={14} className="text-[#00ffaa]" />
-                Three instruments for rhythmic form
+                Watch Rhythm Create Form
               </div>
               <h1 className="mx-auto mt-8 w-fit text-center font-serif text-[2.35rem] font-light tracking-[-0.05em] leading-[0.9] text-white sm:mx-0 sm:mt-14 sm:max-w-2xl sm:w-auto sm:text-left sm:text-[4.65rem] sm:leading-[0.92] lg:text-[5.45rem]">
                 <span className="inline-flex flex-col items-center sm:hidden">
                   <span className="block whitespace-nowrap">Watch Rhythm</span>
-                  <span className="mt-[-0.08em] block whitespace-nowrap">Create Structure</span>
+                  <span className="mt-[-0.08em] block whitespace-nowrap">Create Form</span>
                 </span>
                 <span className="hidden sm:inline">
                   Watch
@@ -462,29 +465,34 @@ function OrbitalPolymeterLanding() {
                   <br />
                   Create
                   <br />
-                  Structure
+                  Form
                 </span>
               </h1>
               <p className="mt-6 max-w-lg text-center text-base leading-7 text-white/64 sm:mt-12 sm:max-w-xl sm:text-left sm:text-lg sm:leading-8">
-                Set constraints. Write Patterns. Create Form
+                A moving visual instrument for exploring rhythm as structure.
+                <br />
+                <br />
+                Set simple ratios. Watch them unfold into motion, pattern, and form.
               </p>
               <p className="mt-8 hidden max-w-xl text-center text-sm leading-8 text-white/44 sm:block sm:text-left sm:text-base">
-                Orbits, Polyrhythm Study, and Riff Cycle are three perspectives of the same rhythmic system.
+                What you hear as rhythm... reveals itself as geometry over time.
               </p>
               <div className="mt-14 hidden flex-wrap items-center gap-4 sm:flex">
+                {SITE_MODE_CARDS.map((mode) => (
                 <Link
-                  to="/launch"
+                  key={mode.id}
+                  to={getModeLaunchHref(mode.id)}
                   className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
+                  style={{
+                    borderColor: `${mode.accent}30`,
+                    background: `${mode.accent}12`,
+                    color: mode.accent,
+                  }}
                 >
-                  Choose A Mode
+                  {mode.launchLabel}
                   <ArrowRight size={15} />
                 </Link>
-                <a
-                  href="#modes"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.14em] text-white/74 transition hover:border-white/20 hover:text-white"
-                >
-                  See How They Differ
-                </a>
+                ))}
               </div>
               <div className="mt-12 hidden gap-3 sm:grid sm:grid-cols-3">
                 {SITE_MODE_CARDS.map((mode) => {
@@ -548,7 +556,7 @@ function OrbitalPolymeterLanding() {
                     <div className="absolute inset-[0.7rem] overflow-hidden rounded-[0.95rem] bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)] sm:inset-[1.35rem] sm:rounded-[1.4rem]">
                       <img
                         src={activeMode.image}
-                        alt={`${activeMode.name} preview`}
+                        alt={activeMode.alt}
                         className="h-full w-full object-contain object-center p-3 sm:p-5"
                         style={{ objectPosition: '50% 50%' }}
                       />
@@ -626,10 +634,16 @@ function OrbitalPolymeterLanding() {
                   Three Clear Entries
                 </div>
                 <h2 className="mt-4 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
-                  One rhythmic world, three different modes.
+                  The Instrument
                 </h2>
                 <p className="mt-5 max-w-2xl text-sm leading-8 text-white/48 sm:text-base">
-                  Scroll through the three surfaces and experiment. Orbits gives polymeter shape. Polyrhythm Study makes shared rhythmic patterns legible. Riff Cycle turns the idea into a phrase you can actually shape and play.
+                  Not a visualization. A system.
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-8 text-white/48 sm:text-base">
+                  Rhythmic Geometry is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-8 text-white/42 sm:text-base">
+                  Set constraints. Watch structure appear.
                 </p>
               </div>
 
@@ -670,11 +684,12 @@ function OrbitalPolymeterLanding() {
                           </div>
                         </div>
                         <div className="mt-5 font-serif text-[2.65rem] font-light tracking-[-0.05em] leading-[0.95] text-white">{mode.name}</div>
-                        <p className="mt-4 text-lg leading-8 text-white/72">{mode.summary}</p>
+                        <p className="mt-4 text-lg leading-8 text-white/72">{mode.eyebrow}</p>
+                        <p className="mt-5 text-sm leading-8 text-white/58">{mode.description}</p>
                         <div className="mt-6 border-t border-white/10 pt-6">
                           <div className="rounded-[1.3rem] border border-white/8 bg-[#090a10]/72 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Best for</div>
-                            <div className="mt-2 text-sm leading-7 text-white/66">{mode.bestFor}</div>
+                            <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/34">Form</div>
+                            <div className="mt-2 text-sm leading-7 text-white/66">{mode.summary}</div>
                           </div>
                         </div>
 
@@ -709,7 +724,7 @@ function OrbitalPolymeterLanding() {
                           <div className="overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#090a10] shadow-[0_24px_60px_rgba(0,0,0,0.3)]">
                             <img
                               src={mode.image}
-                              alt={`${mode.name} preview`}
+                              alt={mode.alt}
                               className="h-72 w-full object-contain object-center p-5"
                               style={{ objectPosition: '50% 50%' }}
                             />
@@ -737,7 +752,7 @@ function OrbitalPolymeterLanding() {
                       <div className="absolute inset-[1.1rem] overflow-hidden rounded-[1.35rem] bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.06),rgba(9,10,16,0.22)_52%,rgba(9,10,16,0.92)_100%)]">
                         <img
                           src={activeMode.image}
-                          alt={`${activeMode.name} preview`}
+                          alt={activeMode.alt}
                           className="h-full w-full object-contain p-5"
                           style={{ objectPosition: activeMode.imagePosition ?? '50% 50%' }}
                         />
@@ -777,7 +792,10 @@ function OrbitalPolymeterLanding() {
                 Save, edit, capture, and present.
               </h2>
               <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
-                Once a scene is worth keeping, these are the tools that move it from exploration into something you can return to, refine, record, and show cleanly.
+                Rhythmic Geometry is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
+              </p>
+              <p className="mt-5 text-sm leading-8 text-white/42 sm:text-base">
+                Set constraints. Watch structure appear.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -846,6 +864,36 @@ function OrbitalPolymeterLanding() {
                 </a>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="border-y border-white/10 px-5 py-18 sm:px-8 sm:py-24">
+          <div
+            ref={(element) => {
+              revealSectionRefs.current.philosophy = element;
+            }}
+            data-reveal-id="philosophy"
+            className={`mx-auto max-w-5xl text-center transition-all duration-700 ease-out ${getRevealClass('philosophy')}`}
+          >
+            <div className="mx-auto inline-flex w-fit items-center rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.2em] text-white/54">
+              Why it works
+            </div>
+            <h2 className="mx-auto mt-6 max-w-3xl font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[1.02]">
+              Rhythm is ratio. Ratio creates motion. Motion forms geometry.
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl text-sm leading-8 text-white/56 sm:text-base">
+              What you hear... is structure unfolding in time.
+            </p>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-8 text-white/42 sm:text-base">
+              Music, math, motion, and form - different expressions of the same relationship.
+            </p>
+            <Link
+              to="/how-it-works"
+              className="mx-auto mt-9 inline-flex w-fit items-center gap-2 rounded-full border border-[#88ccff]/25 bg-[#88ccff]/10 px-5 py-3 text-[12px] font-mono uppercase tracking-[0.16em] text-[#88ccff] shadow-[0_0_28px_rgba(136,204,255,0.08)] transition hover:bg-[#88ccff]/16 hover:text-white"
+            >
+              Read More
+              <ArrowRight size={15} />
+            </Link>
           </div>
         </section>
 

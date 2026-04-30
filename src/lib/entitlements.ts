@@ -11,9 +11,13 @@ export type ProFeature =
   | 'extra-orbits'
   | 'color-editing'
   | 'sound-editing'
+  | 'canvas-options'
+  | 'study-layers'
+  | 'study-extended-steps'
+  | 'riff-extended-patterns'
   | 'pro-scenes';
 
-export const FREE_SCENE_SAVE_LIMIT = 3;
+export const FREE_SCENE_SAVE_LIMIT = 0;
 export const FREE_RATIO_LIMIT = 10;
 
 export function isProPlan(plan: AccountPlan): boolean {

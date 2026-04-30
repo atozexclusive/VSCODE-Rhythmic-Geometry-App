@@ -72,6 +72,7 @@ interface PolyrhythmCanvasProps {
   onOpenLayerMenu?: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
   onToggleStep: (layerId: string, stepIndex: number) => void;
+  onToggleStepAccent?: (layerId: string, stepIndex: number) => void;
   onClearSelection: () => void;
   className?: string;
 }
@@ -93,6 +94,7 @@ export default function PolyrhythmCanvas({
   onOpenLayerMenu,
   onSelectStep,
   onToggleStep,
+  onToggleStepAccent,
   onClearSelection,
   className,
 }: PolyrhythmCanvasProps) {
@@ -118,6 +120,14 @@ export default function PolyrhythmCanvas({
   const playbackDriverRef = useRef(playbackDriver);
   const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
   const animationTimestampRef = useRef(0);
+  const pointerStepHitRef = useRef<{
+    layerId: string;
+    stepIndex: number;
+    sameStep: boolean;
+    shiftAccent: boolean;
+  } | null>(null);
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
 
   studyRef.current = study;
   isMobileRef.current = isMobile;
@@ -130,6 +140,13 @@ export default function PolyrhythmCanvas({
   presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimeoutRef.current != null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -386,6 +403,7 @@ export default function PolyrhythmCanvas({
           const isPlaybackStep = point.index === playbackStepIndex;
           const isActivePlaybackStep =
             point.active && isPlaybackStep && currentStudy.playing;
+          const accented = point.accented;
           const isSelectedStep =
             currentSelectedStep?.layerId === layer.id &&
             currentSelectedStep.stepIndex === point.index;
@@ -402,12 +420,12 @@ export default function PolyrhythmCanvas({
             ? 2.6
             : point.active
             ? isSelectedStep
-              ? soloLayerDisplayRef.current ? 9.2 : 8.2
+              ? soloLayerDisplayRef.current ? (accented ? 10.1 : 9.2) : (accented ? 9 : 8.2)
               : isActivePlaybackStep
-                ? soloLayerDisplayRef.current ? 6.8 : 6
+                ? soloLayerDisplayRef.current ? (accented ? 7.6 : 6.8) : (accented ? 6.8 : 6)
                 : isHoveredLayer
-                  ? soloLayerDisplayRef.current ? 6.1 : 5.4
-                : soloLayerDisplayRef.current ? 5.2 : 4.5
+                  ? soloLayerDisplayRef.current ? (accented ? 6.8 : 6.1) : (accented ? 6.1 : 5.4)
+                : soloLayerDisplayRef.current ? (accented ? 5.9 : 5.2) : (accented ? 5.1 : 4.5)
             : isSelectedStep
               ? soloLayerDisplayRef.current ? 6.8 : 6
               : isHoveredLayer
@@ -473,6 +491,20 @@ export default function PolyrhythmCanvas({
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius, 0, TAU);
             ctx.fill();
+            if (accented && !isReferenceLayer) {
+              ctx.strokeStyle = 'rgba(255,209,102,0.92)';
+              ctx.lineWidth = isSelectedStep ? 2 : 1.45;
+              ctx.shadowBlur = (isSelectedStep ? 18 : 11) * glowMultiplier;
+              ctx.shadowColor = 'rgba(255,209,102,0.7)';
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, pointRadius + 2.1, 0, TAU);
+              ctx.stroke();
+              ctx.fillStyle = 'rgba(255,209,102,0.96)';
+              ctx.shadowBlur = 8 * glowMultiplier;
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, Math.max(1.5, pointRadius * 0.28), 0, TAU);
+              ctx.fill();
+            }
           } else {
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
@@ -634,6 +666,7 @@ export default function PolyrhythmCanvas({
               sound: currentStudy.soundSettings,
               layerIndex,
               beatCount: layer.beatCount,
+              accented: Boolean(layer.accents?.[currentStepIndex]),
             });
           }
         });
@@ -775,13 +808,18 @@ export default function PolyrhythmCanvas({
       );
 
       if (!hit) {
+        clearLongPress();
+        pointerStepHitRef.current = null;
         onClearSelection();
         return;
       }
 
+      event.currentTarget.setPointerCapture?.(event.pointerId);
       onSelectLayer(hit.layerId);
 
       if (hit.stepIndex == null) {
+        clearLongPress();
+        pointerStepHitRef.current = null;
         onSelectStep(null);
         onOpenLayerMenu?.(hit.layerId);
         return;
@@ -791,18 +829,70 @@ export default function PolyrhythmCanvas({
         selectedStepRef.current?.layerId === hit.layerId &&
         selectedStepRef.current.stepIndex === hit.stepIndex;
 
-      if (isSameStep) {
-        onToggleStep(hit.layerId, hit.stepIndex);
-        return;
-      }
-
       onSelectStep({
         layerId: hit.layerId,
         stepIndex: hit.stepIndex,
       });
+
+      if (event.shiftKey && onToggleStepAccent) {
+        clearLongPress();
+        pointerStepHitRef.current = {
+          layerId: hit.layerId,
+          stepIndex: hit.stepIndex,
+          sameStep: isSameStep,
+          shiftAccent: true,
+        };
+        onToggleStepAccent(hit.layerId, hit.stepIndex);
+        return;
+      }
+
+      clearLongPress();
+      longPressFiredRef.current = false;
+      pointerStepHitRef.current = {
+        layerId: hit.layerId,
+        stepIndex: hit.stepIndex,
+        sameStep: isSameStep,
+        shiftAccent: false,
+      };
+      if (onToggleStepAccent) {
+        longPressTimeoutRef.current = window.setTimeout(() => {
+          const pendingHit = pointerStepHitRef.current;
+          if (!pendingHit) {
+            return;
+          }
+          longPressFiredRef.current = true;
+          onToggleStepAccent(pendingHit.layerId, pendingHit.stepIndex);
+        }, 390);
+      }
     },
-    [onClearSelection, onOpenLayerMenu, onSelectLayer, onSelectStep, onToggleStep],
+    [clearLongPress, onClearSelection, onOpenLayerMenu, onSelectLayer, onSelectStep, onToggleStepAccent],
   );
+
+  const handlePointerUp = useCallback(() => {
+    const pendingHit = pointerStepHitRef.current;
+    clearLongPress();
+    pointerStepHitRef.current = null;
+
+    if (!pendingHit || pendingHit.shiftAccent) {
+      longPressFiredRef.current = false;
+      return;
+    }
+
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+
+    if (pendingHit.sameStep) {
+      onToggleStep(pendingHit.layerId, pendingHit.stepIndex);
+    }
+  }, [clearLongPress, onToggleStep]);
+
+  const handlePointerCancel = useCallback(() => {
+    clearLongPress();
+    pointerStepHitRef.current = null;
+    longPressFiredRef.current = false;
+  }, [clearLongPress]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -833,12 +923,15 @@ export default function PolyrhythmCanvas({
   }, []);
 
   const handlePointerLeave = useCallback(() => {
+    clearLongPress();
+    pointerStepHitRef.current = null;
+    longPressFiredRef.current = false;
     hoveredLayerIdRef.current = null;
     const canvas = canvasRef.current;
     if (canvas) {
       canvas.style.cursor = 'default';
     }
-  }, []);
+  }, [clearLongPress]);
 
   return (
     <canvas
@@ -849,6 +942,8 @@ export default function PolyrhythmCanvas({
         }
       }}
       onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       className={className ?? 'absolute inset-0 h-full w-full'}

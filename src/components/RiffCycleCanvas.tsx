@@ -30,6 +30,8 @@ import {
   getPhraseProgressAtReferenceProgress,
   getReferenceStepsPerBar,
   getReferenceStepsPerBeat,
+  getResetBarCount,
+  getResetStepCount,
   getRiffStepIndexAtReferenceStep,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
@@ -135,31 +137,116 @@ function drawDiamondMarker(
   ctx.closePath();
 }
 
-function getBarMarkerIntervalStepCount(study: RiffCycleStudy): number | null {
+function getBarMarkerIntervalBarCount(study: RiffCycleStudy): number | null {
   const markerInterval = study.barMarkerInterval ?? 'pattern';
   if (markerInterval === 'none') {
     return null;
   }
   if (markerInterval === 'pattern') {
-    return Math.max(1, study.reference.barCountForDisplay);
+    return null;
   }
   return markerInterval;
 }
 
 function isBarMarkerCueStep(study: RiffCycleStudy, referenceStep: number): boolean {
+  if ((study.barMarkerInterval ?? 'pattern') === 'pattern') {
+    const riffStepCount = Math.max(1, Math.round(study.riff.stepCount || 1));
+    const resetStepCount = getResetStepCount(study);
+    const stepWithinReturn =
+      resetStepCount == null
+        ? referenceStep
+        : ((referenceStep % resetStepCount) + resetStepCount) % resetStepCount;
+    return stepWithinReturn % riffStepCount === 0;
+  }
+
   const stepsPerBar = getReferenceStepsPerBar(study.reference);
   if (stepsPerBar <= 0 || referenceStep % stepsPerBar !== 0) {
     return false;
   }
-  const interval = getBarMarkerIntervalStepCount(study);
+  const interval = getBarMarkerIntervalBarCount(study);
   if (interval == null) {
     return false;
   }
-  const barCountForDisplay = Math.max(1, study.reference.barCountForDisplay);
   const barIndex = Math.floor(referenceStep / stepsPerBar);
-  const normalizedBarIndex =
-    ((barIndex % barCountForDisplay) + barCountForDisplay) % barCountForDisplay;
-  return normalizedBarIndex % interval === 0;
+  return barIndex % interval === 0;
+}
+
+function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+  return x || 1;
+}
+
+function getFreeResolutionBarCount(study: RiffCycleStudy): number {
+  const phraseSteps = Math.max(1, Math.round(study.riff.stepCount || 1));
+  const stepsPerBar = Math.max(1, getReferenceStepsPerBar(study.reference));
+  return Math.max(1, phraseSteps / gcd(phraseSteps, stepsPerBar));
+}
+
+function getFreeResolutionStepCount(study: RiffCycleStudy): number {
+  return getFreeResolutionBarCount(study) * Math.max(1, getReferenceStepsPerBar(study.reference));
+}
+
+function isFreeResolutionAtReferenceStep(study: RiffCycleStudy, referenceStep: number): boolean {
+  if (getResetStepCount(study) != null || referenceStep <= 0) {
+    return false;
+  }
+  return referenceStep % getFreeResolutionStepCount(study) === 0;
+}
+
+function getVisibleBarNumber(study: RiffCycleStudy, barIndex: number): number {
+  const resetBarCount = getResetBarCount(study.riff);
+  if (resetBarCount == null) {
+    const barCount = getFreeResolutionBarCount(study);
+    const normalizedBarIndex = ((barIndex % barCount) + barCount) % barCount;
+    return normalizedBarIndex + 1;
+  }
+  if (resetBarCount <= 0) {
+    return barIndex + 1;
+  }
+  const normalizedBarIndex = ((barIndex % resetBarCount) + resetBarCount) % resetBarCount;
+  return normalizedBarIndex + 1;
+}
+
+function isVisibleBarCycleStart(study: RiffCycleStudy, barIndex: number): boolean {
+  const resetBarCount = getResetBarCount(study.riff);
+  const barCount =
+    resetBarCount == null
+      ? getFreeResolutionBarCount(study)
+      : Math.max(1, resetBarCount);
+  return ((barIndex % barCount) + barCount) % barCount === 0;
+}
+
+function shouldUseAbsoluteLaneWindow(study: RiffCycleStudy): boolean {
+  if (study.viewMode !== 'unwrapped') {
+    return false;
+  }
+  const resetBarCount = getResetBarCount(study.riff);
+  return resetBarCount == null || resetBarCount > Math.max(1, study.reference.barCountForDisplay);
+}
+
+function getEffectiveLaneWindowStartStep(
+  study: RiffCycleStudy,
+  currentAbsoluteReferenceStep: number,
+  laneWindowStartStep?: number,
+  laneWindowStepCount?: number,
+): number | undefined {
+  if (!shouldUseAbsoluteLaneWindow(study)) {
+    return laneWindowStartStep;
+  }
+
+  const displayStepCount = getDisplayStepCount(study);
+  const visibleStepCount = Math.max(
+    1,
+    Math.min(displayStepCount, Math.floor(laneWindowStepCount ?? displayStepCount)),
+  );
+
+  return Math.floor(Math.max(0, currentAbsoluteReferenceStep) / visibleStepCount) * visibleStepCount;
 }
 
 export default function RiffCycleCanvas({
@@ -283,6 +370,17 @@ export default function RiffCycleCanvas({
       seed: 47,
     });
 
+    const totalDisplaySteps = getDisplayStepCount(currentStudy);
+    const playbackState = playbackStateHandleRef.current.current;
+    const referenceProgress = playbackState.referenceProgress;
+    const currentAbsoluteReferenceStep = Math.floor(referenceProgress);
+    const resetStepCount = getResetStepCount(currentStudy);
+    const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
+      currentStudy,
+      currentAbsoluteReferenceStep,
+      laneWindowStartStepRef.current,
+      laneWindowStepCountRef.current,
+    );
     const metrics = getRiffCycleCanvasMetrics(
       currentStudy,
       rect.width,
@@ -290,17 +388,15 @@ export default function RiffCycleCanvas({
       isMobileRef.current,
       layoutTopInsetRef.current,
       layoutBottomInsetRef.current,
-      laneWindowStartStepRef.current,
+      effectiveLaneWindowStartStep,
       laneWindowStepCountRef.current,
     );
-    const totalDisplaySteps = getDisplayStepCount(currentStudy);
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
     const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
-    const playbackState = playbackStateHandleRef.current.current;
-    const referenceProgress = playbackState.referenceProgress;
-    const currentAbsoluteReferenceStep = Math.floor(referenceProgress);
     const currentReferenceStep =
       ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
+    const currentLaneReferenceStep =
+      shouldUseAbsoluteLaneWindow(currentStudy) ? currentAbsoluteReferenceStep : currentReferenceStep;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const beatProgress = stepWithinBar / stepsPerBeat;
     const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
@@ -791,9 +887,9 @@ export default function RiffCycleCanvas({
       const visibleBarStart = Math.floor(visibleStartStep / metrics.stepsPerBar);
       const visibleBarEnd = Math.ceil(visibleEndStep / metrics.stepsPerBar);
       const playheadVisible =
-        currentReferenceStep >= visibleStartStep && currentReferenceStep < visibleEndStep;
+        currentLaneReferenceStep >= visibleStartStep && currentLaneReferenceStep < visibleEndStep;
       const playheadX = playheadVisible
-        ? x + (currentReferenceStep - visibleStartStep + (referenceProgress % 1)) * stepWidth
+        ? x + (currentLaneReferenceStep - visibleStartStep + (referenceProgress % 1)) * stepWidth
         : null;
 
       ctx.save();
@@ -819,25 +915,41 @@ export default function RiffCycleCanvas({
 
       for (let step = visibleStartStep; step < visibleEndStep; step += 1) {
         const stepX = x + (step - visibleStartStep) * stepWidth;
+        const phraseReferenceStep = step;
         const isDownbeat = step % metrics.stepsPerBar === 0;
         const isBeat = isReferenceBeatStart(currentStudy, step);
         const isBackbeat = isBackbeatStep(currentStudy, step);
-        const phraseState = getEffectiveRiffStepStateAtReferenceStep(currentStudy, step);
+        const phraseState = getEffectiveRiffStepStateAtReferenceStep(
+          currentStudy,
+          phraseReferenceStep,
+        );
         const phraseIndex = phraseState.phraseIndex;
         const phraseActive = phraseState.active;
         const phraseAccent = phraseState.accented;
-        const phraseRestart = isPhraseRestartAtReferenceStep(currentStudy, step);
-        const forcedReset = isForcedResetAtReferenceStep(currentStudy, step);
-        const isCurrentStep = step === currentReferenceStep;
+        const phraseRestart = isPhraseRestartAtReferenceStep(currentStudy, phraseReferenceStep);
+        const forcedReset = isForcedResetAtReferenceStep(currentStudy, phraseReferenceStep);
+        const freeResolution = isFreeResolutionAtReferenceStep(currentStudy, phraseReferenceStep);
+        const isCurrentStep = step === currentLaneReferenceStep;
         const isSelectedOccurrence = selectedStepRef.current === phraseIndex;
         const isLandingStep = phraseState.landingSlot != null;
         const attackRemaining =
-          laneAttackReferenceStepRef.current === step
+          laneAttackReferenceStepRef.current === phraseReferenceStep
             ? Math.max(
                 0,
                 (laneAttackUntilRef.current - now) / (phraseAccent ? 320 : 220),
               )
             : 0;
+        const markerStepWithinDisplay =
+          ((phraseReferenceStep % metrics.totalDisplaySteps) + metrics.totalDisplaySteps) %
+          metrics.totalDisplaySteps;
+        const markerFlashRemaining =
+          barMarkerFlashStepRef.current === markerStepWithinDisplay
+            ? Math.max(0, (barMarkerFlashUntilRef.current - now) / BAR_MARKER_FLASH_DURATION)
+            : 0;
+        const markerFlashStrength =
+          markerFlashRemaining <= 0
+            ? 0
+            : markerFlashRemaining * markerFlashRemaining * (3 - 2 * markerFlashRemaining);
 
         ctx.save();
         ctx.fillStyle = isBackbeat
@@ -883,16 +995,53 @@ export default function RiffCycleCanvas({
             laneHeight - 1.2,
           );
         }
-        if (currentStudy.showAlignmentMarkers && (phraseRestart || forcedReset)) {
-          ctx.strokeStyle = forcedReset ? 'rgba(255,209,102,0.94)' : `${currentStudy.riff.color}A8`;
-          ctx.lineWidth = forcedReset ? 2.1 : 1.45;
+        if (currentStudy.showAlignmentMarkers && (phraseRestart || forcedReset || freeResolution)) {
+          ctx.strokeStyle = forcedReset || freeResolution
+            ? 'rgba(255,209,102,0.94)'
+            : `${currentStudy.riff.color}A8`;
+          ctx.lineWidth = forcedReset || freeResolution ? 2.1 : 1.45;
           ctx.beginPath();
           ctx.moveTo(stepX + 0.5, topLaneY - 7);
           ctx.lineTo(stepX + 0.5, bottomLaneY + laneHeight + 8);
           ctx.stroke();
         }
+        if (markerFlashRemaining > 0) {
+          const markerX = stepX + stepWidth * 0.5;
+          const pulseWidth =
+            Math.max(10, stepWidth * (compactMobileTimeline ? 0.7 : 0.55)) +
+            markerFlashStrength * Math.max(5, stepWidth * 0.28);
+          ctx.save();
+          ctx.globalCompositeOperation = 'screen';
+          ctx.globalAlpha = 0.14 + markerFlashStrength * 0.32;
+          ctx.fillStyle = `${currentStudy.riff.color}24`;
+          ctx.fillRect(markerX - pulseWidth, y + 8, pulseWidth * 2, height - 16);
+          ctx.restore();
+
+          ctx.save();
+          ctx.globalAlpha = 0.46 + markerFlashStrength * 0.36;
+          ctx.shadowBlur = (16 + markerFlashStrength * 28) * glowMultiplier;
+          ctx.shadowColor = `${currentStudy.riff.color}EE`;
+          ctx.strokeStyle = `${currentStudy.riff.color}FF`;
+          ctx.lineWidth = 1.8 + markerFlashStrength * 1.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(markerX, topLaneY - 7);
+          ctx.lineTo(markerX, bottomLaneY + laneHeight + 8);
+          ctx.stroke();
+          drawDiamondMarker(
+            ctx,
+            markerX,
+            bottomLaneY + laneHeight + 6,
+            Math.max(3.5, stepWidth * 0.2) + markerFlashStrength * 1.2,
+          );
+          ctx.fillStyle = `${currentStudy.riff.color}F0`;
+          ctx.fill();
+          ctx.restore();
+        }
         if (phraseRestart) {
-          ctx.fillStyle = forcedReset ? 'rgba(255,209,102,0.92)' : 'rgba(255,255,255,0.52)';
+          ctx.fillStyle = forcedReset || freeResolution
+            ? 'rgba(255,209,102,0.92)'
+            : 'rgba(255,255,255,0.52)';
           drawTriangleMarker(
             ctx,
             stepX + stepWidth / 2,
@@ -938,10 +1087,29 @@ export default function RiffCycleCanvas({
       }
 
       if (currentStudy.showPhraseBounds) {
-        const sortedRestartSteps = [...phraseRestartSteps].sort((a, b) => a - b);
+        const sortedRestartSteps =
+          resetStepCount == null
+            ? (() => {
+                const riffStepCount = Math.max(1, currentStudy.riff.stepCount);
+                const absoluteVisibleStart = visibleStartStep;
+                const absoluteVisibleEnd = visibleEndStep;
+                const firstRestart =
+                  Math.floor(absoluteVisibleStart / riffStepCount) * riffStepCount;
+                const steps: number[] = [];
+                for (
+                  let restartStep = firstRestart;
+                  restartStep < absoluteVisibleEnd + riffStepCount;
+                  restartStep += riffStepCount
+                ) {
+                  steps.push(restartStep);
+                }
+                return steps;
+              })()
+            : [...phraseRestartSteps].sort((a, b) => a - b);
         const previousRestartStep =
           [...sortedRestartSteps].reverse().find((step) => step <= visibleStartStep) ??
-          (sortedRestartSteps[sortedRestartSteps.length - 1] ?? 0) - metrics.totalDisplaySteps;
+          (sortedRestartSteps[sortedRestartSteps.length - 1] ?? 0) -
+            (resetStepCount == null ? currentStudy.riff.stepCount : metrics.totalDisplaySteps);
         const visibleRestartSteps = [
           previousRestartStep,
           ...sortedRestartSteps.filter(
@@ -950,7 +1118,9 @@ export default function RiffCycleCanvas({
         ];
         const nextRestartAfter = (step: number) =>
           sortedRestartSteps.find((candidate) => candidate > step) ??
-          (sortedRestartSteps[0] ?? metrics.totalDisplaySteps) + metrics.totalDisplaySteps;
+          (sortedRestartSteps[0] ??
+            (resetStepCount == null ? currentStudy.riff.stepCount : metrics.totalDisplaySteps)) +
+            (resetStepCount == null ? currentStudy.riff.stepCount : metrics.totalDisplaySteps);
 
         ctx.save();
         const bracketCapDepth = 9;
@@ -997,16 +1167,14 @@ export default function RiffCycleCanvas({
         if (markerX < x - 0.5 || markerX > x + width + 0.5) {
           continue;
         }
-        const barCountForDisplay = Math.max(1, currentStudy.reference.barCountForDisplay);
         const markerStepWithinDisplay =
           ((boundaryStep % metrics.totalDisplaySteps) + metrics.totalDisplaySteps) %
           metrics.totalDisplaySteps;
-        const normalizedBarIndex =
-          ((barIndex % barCountForDisplay) + barCountForDisplay) % barCountForDisplay;
-        const cycleStart = normalizedBarIndex === 0;
+        const visibleBarNumber = getVisibleBarNumber(currentStudy, barIndex);
+        const cycleStart = isVisibleBarCycleStart(currentStudy, barIndex);
         const markerCueEnabled =
           currentStudy.showAlignmentMarkers &&
-          isBarMarkerCueStep(currentStudy, markerStepWithinDisplay);
+          isBarMarkerCueStep(currentStudy, boundaryStep);
         const markerFlashRemaining =
           barMarkerFlashStepRef.current === markerStepWithinDisplay
             ? Math.max(0, (barMarkerFlashUntilRef.current - now) / BAR_MARKER_FLASH_DURATION)
@@ -1079,7 +1247,7 @@ export default function RiffCycleCanvas({
           ctx.font = '8px "SF Mono", "Fira Code", monospace';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
-          ctx.fillText(cycleStart ? 'BAR 1' : `BAR ${normalizedBarIndex + 1}`, drawX + 5, topLaneY - 14);
+          ctx.fillText(`BAR ${visibleBarNumber}`, drawX + 5, topLaneY - 14);
         }
         ctx.restore();
       }
@@ -1123,9 +1291,10 @@ export default function RiffCycleCanvas({
       );
       for (let barIndex = visibleBarStart; barIndex < visibleBarEnd; barIndex += 1) {
         const barStartStep = Math.max(visibleStartStep, barIndex * metrics.stepsPerBar);
+        const visibleBarNumber = getVisibleBarNumber(currentStudy, barIndex);
         ctx.fillStyle = 'rgba(255,255,255,0.32)';
         ctx.fillText(
-          compactMobileTimeline ? String(barIndex + 1) : `BAR ${barIndex + 1}`,
+          compactMobileTimeline ? String(visibleBarNumber) : `BAR ${visibleBarNumber}`,
           x + (barStartStep - visibleStartStep) * stepWidth + 10,
           y + height - 16,
         );
@@ -1223,7 +1392,10 @@ export default function RiffCycleCanvas({
           }
         }
 
-        if (isForcedResetAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)) {
+        if (
+          isForcedResetAtReferenceStep(currentStudy, currentAbsoluteReferenceStep) ||
+          isFreeResolutionAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)
+        ) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
           if (currentStudy.soundEnabled) {
@@ -1382,6 +1554,12 @@ export default function RiffCycleCanvas({
       }
 
       const rect = canvas.getBoundingClientRect();
+      const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
+        studyRef.current,
+        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        laneWindowStartStepRef.current,
+        laneWindowStepCountRef.current,
+      );
       const hit = findRiffCycleHit(
         studyRef.current,
         getRiffCycleCanvasMetrics(
@@ -1391,7 +1569,7 @@ export default function RiffCycleCanvas({
           isMobileRef.current,
           layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
-          laneWindowStartStepRef.current,
+          effectiveLaneWindowStartStep,
           laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,
@@ -1496,6 +1674,12 @@ export default function RiffCycleCanvas({
       }
 
       const rect = canvas.getBoundingClientRect();
+      const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
+        studyRef.current,
+        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        laneWindowStartStepRef.current,
+        laneWindowStepCountRef.current,
+      );
       const hit = findRiffCycleHit(
         studyRef.current,
         getRiffCycleCanvasMetrics(
@@ -1505,7 +1689,7 @@ export default function RiffCycleCanvas({
           isMobileRef.current,
           layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
-          laneWindowStartStepRef.current,
+          effectiveLaneWindowStartStep,
           laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,
@@ -1569,6 +1753,12 @@ export default function RiffCycleCanvas({
       }
 
       const rect = canvas.getBoundingClientRect();
+      const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
+        studyRef.current,
+        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        laneWindowStartStepRef.current,
+        laneWindowStepCountRef.current,
+      );
       const hit = findRiffCycleHit(
         studyRef.current,
         getRiffCycleCanvasMetrics(
@@ -1578,7 +1768,7 @@ export default function RiffCycleCanvas({
           isMobileRef.current,
           layoutTopInsetRef.current,
           layoutBottomInsetRef.current,
-          laneWindowStartStepRef.current,
+          effectiveLaneWindowStartStep,
           laneWindowStepCountRef.current,
         ),
         event.clientX - rect.left,

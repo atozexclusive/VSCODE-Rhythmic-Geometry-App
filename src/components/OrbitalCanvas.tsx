@@ -18,6 +18,12 @@ import {
   type GeometryMode,
   type InterferenceSettings,
 } from '../lib/geometry';
+import {
+  DEFAULT_CANVAS_DISPLAY_SETTINGS,
+  drawCanvasDisplayBackground,
+  getCanvasGlowMultiplier,
+  type CanvasDisplaySettings,
+} from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
 
 const TAU = 2.0 * Math.PI;
@@ -114,13 +120,26 @@ interface OrbitalCanvasProps {
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
   interferenceSettings: InterferenceSettings;
+  displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
   onOrbitLongPress?: (orbitId: string, x: number, y: number) => void;
   className?: string;
 }
 
 const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
-  ({ engineState, traceMode, showPlanets = true, showHudStats = true, harmonySettings, geometryMode, interferenceSettings, presentationMode = false, onOrbitLongPress, className }, ref) => {
+  ({
+    engineState,
+    traceMode,
+    showPlanets = true,
+    showHudStats = true,
+    harmonySettings,
+    geometryMode,
+    interferenceSettings,
+    displaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
+    presentationMode = false,
+    onOrbitLongPress,
+    className,
+  }, ref) => {
     const isMobile = useIsMobile();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
@@ -133,6 +152,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
+    const displaySettingsRef = useRef(displaySettings);
     const presentationModeRef = useRef(presentationMode);
     const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
@@ -159,6 +179,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
     interferenceSettingsRef.current = interferenceSettings;
+    displaySettingsRef.current = displaySettings;
     presentationModeRef.current = presentationMode;
     isMobileRef.current = isMobile;
 
@@ -1092,55 +1113,75 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           }
         }
 
+        const currentDisplaySettings = displaySettingsRef.current;
+        const useOriginalOrbitBackground =
+          currentDisplaySettings.theme === 'classic' && currentDisplaySettings.atmosphere === 'none';
+        const orbitGlowMultiplier = getCanvasGlowMultiplier(currentDisplaySettings, presentationModeRef.current);
+        const showSquareGrid = currentDisplaySettings.squareGrid !== false;
+        const showCenterAxes = currentDisplaySettings.centerAxes !== false;
+
         // ---- Clear ----
-        ctx.fillStyle = '#0a0a0f';
-        ctx.fillRect(0, 0, w, h);
+        if (useOriginalOrbitBackground) {
+          ctx.fillStyle = '#0a0a0f';
+          ctx.fillRect(0, 0, w, h);
+        } else {
+          drawCanvasDisplayBackground(ctx, w, h, currentDisplaySettings, {
+            presentationMode: presentationModeRef.current,
+            seed: 43,
+          });
+        }
 
         // ---- Subtle grid ----
-        ctx.save();
-        ctx.globalAlpha = 0.03;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.5;
-        const gridSize = 60;
-        for (let x = 0; x < w; x += gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, h);
-          ctx.stroke();
+        if (showSquareGrid) {
+          ctx.save();
+          ctx.globalAlpha = useOriginalOrbitBackground ? 0.03 : 0.025;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 0.5;
+          const gridSize = 60;
+          for (let x = 0; x < w; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+          }
+          for (let y = 0; y < h; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+          }
+          ctx.restore();
         }
-        for (let y = 0; y < h; y += gridSize) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(w, y);
-          ctx.stroke();
-        }
-        ctx.restore();
 
         // ---- Crosshair ----
-        ctx.save();
-        ctx.globalAlpha = 0.08;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(renderCx, 0);
-        ctx.lineTo(renderCx, h);
-        ctx.moveTo(0, renderCy);
-        ctx.lineTo(w, renderCy);
-        ctx.stroke();
-        ctx.restore();
+        if (showCenterAxes) {
+          ctx.save();
+          ctx.globalAlpha = 0.08;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(renderCx, 0);
+          ctx.lineTo(renderCx, h);
+          ctx.moveTo(0, renderCy);
+          ctx.lineTo(w, renderCy);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         // ---- 12 o'clock indicator ----
-        ctx.save();
-        ctx.globalAlpha = 0.1;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 8]);
-        ctx.beginPath();
-        ctx.moveTo(renderCx, renderCy);
-        ctx.lineTo(renderCx, 0);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
+        if (showCenterAxes) {
+          ctx.save();
+          ctx.globalAlpha = 0.1;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 8]);
+          ctx.beginPath();
+          ctx.moveTo(renderCx, renderCy);
+          ctx.lineTo(renderCx, 0);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
 
         // ---- Trace lines (the sweep geometry Mark loves) ----
         if (traceModeRef.current && state.orbits.length >= 2) {
@@ -1492,13 +1533,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           if (isHoveredOrbit) {
             ctx.save();
-            const hoverGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 18);
+            const hoverGlowRadius = 18 * orbitGlowMultiplier;
+            const hoverGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, hoverGlowRadius);
             hoverGlow.addColorStop(0, orbit.color + 'CC');
             hoverGlow.addColorStop(0.4, orbit.color + '44');
             hoverGlow.addColorStop(1, orbit.color + '00');
             ctx.fillStyle = hoverGlow;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 18, 0, TAU);
+            ctx.arc(pos.x, pos.y, hoverGlowRadius, 0, TAU);
             ctx.fill();
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, 5, 0, TAU);
@@ -1511,13 +1553,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           if (showPlanetsRef.current) {
             // Soft glow around resonance point
             ctx.save();
-            const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 12);
+            const planetGlowRadius = 12 * orbitGlowMultiplier;
+            const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, planetGlowRadius);
             grad.addColorStop(0, orbit.color + 'AA');
             grad.addColorStop(0.5, orbit.color + '33');
             grad.addColorStop(1, orbit.color + '00');
             ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 12, 0, TAU);
+            ctx.arc(pos.x, pos.y, planetGlowRadius, 0, TAU);
             ctx.fill();
             ctx.restore();
 
@@ -1604,14 +1647,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             0,
             currentInterferencePoint.x,
             currentInterferencePoint.y,
-            16,
+            16 * orbitGlowMultiplier,
           );
           grad.addColorStop(0, `${derivedPairColor}AA`);
           grad.addColorStop(0.5, `${derivedPairColor}33`);
           grad.addColorStop(1, `${derivedPairColor}00`);
           ctx.fillStyle = grad;
           ctx.beginPath();
-          ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 16, 0, TAU);
+          ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 16 * orbitGlowMultiplier, 0, TAU);
           ctx.fill();
           ctx.restore();
 

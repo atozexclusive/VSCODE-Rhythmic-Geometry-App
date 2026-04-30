@@ -146,6 +146,25 @@ function triggerPalettePulse(
   });
 }
 
+function triggerAccentLayer(
+  palette: PolyrhythmSoundSettings['palette'],
+  frequency: number,
+  gain: number,
+): void {
+  const brightPalette = palette === 'bright-marker';
+  const woodPalette = palette === 'wood';
+  withVoice({
+    type: woodPalette ? 'triangle' : brightPalette ? 'square' : 'triangle',
+    frequency: clamp(frequency * (woodPalette ? 1.72 : 2.35), 190, 3200),
+    gain: clamp(gain * (brightPalette ? 0.36 : 0.46), 0.01, 0.085),
+    attack: 0.002,
+    release: woodPalette ? 0.095 : 0.082,
+    filterFrequency: brightPalette ? 4200 : 3100,
+    filterType: brightPalette ? 'highpass' : 'bandpass',
+    filterQ: brightPalette ? 1.05 : 1.55,
+  });
+}
+
 export function resumePolyrhythmAudio(): void {
   const context = getAudioContext();
   if (context && context.state === 'suspended') {
@@ -159,6 +178,7 @@ export function triggerPolyrhythmPulse(options: {
   sound: PolyrhythmSoundSettings;
   layerIndex: number;
   beatCount: number;
+  accented?: boolean;
 }): void {
   const frequency = mapLayerPitch(
     options.frequency,
@@ -166,6 +186,9 @@ export function triggerPolyrhythmPulse(options: {
     options.layerIndex,
     options.beatCount,
   );
-  const peakGain = Math.max(0.01, Math.min(0.28, options.gain));
+  const peakGain = Math.max(0.01, Math.min(0.28, options.gain * (options.accented ? 1.34 : 1)));
   triggerPalettePulse(options.sound.palette, frequency, peakGain);
+  if (options.accented) {
+    triggerAccentLayer(options.sound.palette, frequency, peakGain);
+  }
 }

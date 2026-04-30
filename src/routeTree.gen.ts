@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LaunchRouteImport } from './routes/launch'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 
 const LaunchRoute = LaunchRouteImport.update({
   id: '/launch',
   path: '/launch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/launch'
+  fullPaths: '/' | '/app' | '/how-it-works' | '/launch'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/launch'
-  id: '__root__' | '/' | '/app' | '/launch'
+  to: '/' | '/app' | '/how-it-works' | '/launch'
+  id: '__root__' | '/' | '/app' | '/how-it-works' | '/launch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   LaunchRoute: typeof LaunchRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/launch'
       fullPath: '/launch'
       preLoaderRoute: typeof LaunchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
+  HowItWorksRoute: HowItWorksRoute,
   LaunchRoute: LaunchRoute,
 }
 export const routeTree = rootRouteImport

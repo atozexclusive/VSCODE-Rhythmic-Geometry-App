@@ -23,6 +23,8 @@ export interface CanvasDisplaySettings {
   theme: CanvasDisplayThemeId;
   atmosphere: CanvasAtmosphereId;
   glow: CanvasGlowLevel;
+  squareGrid?: boolean;
+  centerAxes?: boolean;
 }
 
 interface CanvasDisplayTheme {
@@ -51,6 +53,8 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   theme: 'classic',
   atmosphere: 'none',
   glow: 'medium',
+  squareGrid: true,
+  centerAxes: true,
 };
 
 export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS;
@@ -267,6 +271,8 @@ export function normalizeCanvasDisplaySettings(
     theme: value?.theme ? clampDisplayTheme(value.theme) : fallback.theme,
     atmosphere: value?.atmosphere ? clampAtmosphere(value.atmosphere) : fallback.atmosphere,
     glow: value?.glow ? clampGlow(value.glow) : fallback.glow,
+    squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
+    centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
   };
 }
 

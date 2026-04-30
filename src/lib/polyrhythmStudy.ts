@@ -25,6 +25,7 @@ export interface PolyrhythmLayer {
   id: string;
   beatCount: number;
   activeSteps: boolean[];
+  accents: boolean[];
   radius: number;
   rotationOffset: number; // degrees
   color: string;
@@ -58,6 +59,7 @@ export interface PolyrhythmStudyPreset {
 export interface PolyrhythmStepPoint {
   index: number;
   active: boolean;
+  accented: boolean;
   angle: number;
   x: number;
   y: number;
@@ -289,6 +291,14 @@ function normalizeActiveSteps(activeSteps: boolean[], beatCount: number): boolea
   return Array.from({ length: normalizedBeatCount }, (_, index) => Boolean(activeSteps[index]));
 }
 
+function normalizeAccents(accents: boolean[] | undefined, activeSteps: boolean[], beatCount: number): boolean[] {
+  const normalizedBeatCount = normalizeBeatCount(beatCount);
+  return Array.from(
+    { length: normalizedBeatCount },
+    (_, index) => Boolean(accents?.[index]) && Boolean(activeSteps[index]),
+  );
+}
+
 function remapActiveSteps(activeSteps: boolean[], nextBeatCount: number): boolean[] {
   const currentBeatCount = Math.max(1, activeSteps.length);
   const currentActive = activeSteps.reduce((count, step) => count + (step ? 1 : 0), 0);
@@ -312,18 +322,21 @@ function remapActiveSteps(activeSteps: boolean[], nextBeatCount: number): boolea
 
 export function createPolyrhythmLayer(
   beatCount: number,
-  overrides: Partial<Omit<PolyrhythmLayer, 'id' | 'beatCount' | 'activeSteps'>> & {
+  overrides: Partial<Omit<PolyrhythmLayer, 'id' | 'beatCount' | 'activeSteps' | 'accents'>> & {
     activeSteps?: boolean[];
+    accents?: boolean[];
   } = {},
 ): PolyrhythmLayer {
   const normalizedBeatCount = normalizeBeatCount(beatCount);
+  const activeSteps = normalizeActiveSteps(
+    overrides.activeSteps ?? createEvenPulseMask(normalizedBeatCount, Math.max(2, Math.round(normalizedBeatCount / 3))),
+    normalizedBeatCount,
+  );
   return {
     id: generateStudyId(),
     beatCount: normalizedBeatCount,
-    activeSteps: normalizeActiveSteps(
-      overrides.activeSteps ?? createEvenPulseMask(normalizedBeatCount, Math.max(2, Math.round(normalizedBeatCount / 3))),
-      normalizedBeatCount,
-    ),
+    activeSteps,
+    accents: normalizeAccents(overrides.accents, activeSteps, normalizedBeatCount),
     radius: overrides.radius ?? 220,
     rotationOffset: normalizeRotationOffset(overrides.rotationOffset ?? 0),
     color: overrides.color ?? POLYRHYTHM_LAYER_COLORS[0],
@@ -342,10 +355,30 @@ export function countActiveSteps(layer: PolyrhythmLayer): number {
 }
 
 export function toggleLayerStep(layer: PolyrhythmLayer, index: number): PolyrhythmLayer {
+  const nextActiveSteps = layer.activeSteps.map((step, stepIndex) =>
+    stepIndex === index ? !step : step,
+  );
   return {
     ...layer,
-    activeSteps: layer.activeSteps.map((step, stepIndex) =>
-      stepIndex === index ? !step : step,
+    activeSteps: nextActiveSteps,
+    accents: Array.from({ length: layer.beatCount }, (_, stepIndex) =>
+      Boolean(nextActiveSteps[stepIndex]) && Boolean(layer.accents?.[stepIndex]),
+    ),
+  };
+}
+
+export function toggleLayerStepAccent(layer: PolyrhythmLayer, index: number): PolyrhythmLayer {
+  const nextActiveSteps = Array.from(
+    { length: layer.beatCount },
+    (_, stepIndex) => Boolean(layer.activeSteps[stepIndex]) || stepIndex === index,
+  );
+  return {
+    ...layer,
+    activeSteps: nextActiveSteps,
+    accents: Array.from({ length: layer.beatCount }, (_, stepIndex) =>
+      stepIndex === index
+        ? !Boolean(layer.accents?.[stepIndex])
+        : Boolean(nextActiveSteps[stepIndex]) && Boolean(layer.accents?.[stepIndex]),
     ),
   };
 }
@@ -359,6 +392,9 @@ export function updateLayerBeatCount(
     ...layer,
     beatCount: normalizedBeatCount,
     activeSteps: remapActiveSteps(layer.activeSteps, normalizedBeatCount),
+    accents: remapActiveSteps(layer.accents ?? [], normalizedBeatCount).map((accented, index) =>
+      accented && remapActiveSteps(layer.activeSteps, normalizedBeatCount)[index],
+    ),
   };
 }
 
@@ -367,6 +403,7 @@ export function rotateLayer(
   stepOffset: number,
 ): PolyrhythmLayer {
   const nextActiveSteps = Array.from({ length: layer.beatCount }, () => false);
+  const nextAccents = Array.from({ length: layer.beatCount }, () => false);
 
   layer.activeSteps.forEach((active, index) => {
     if (!active) {
@@ -374,18 +411,22 @@ export function rotateLayer(
     }
     const nextIndex = (index + stepOffset + layer.beatCount) % layer.beatCount;
     nextActiveSteps[nextIndex] = true;
+    nextAccents[nextIndex] = Boolean(layer.accents?.[index]);
   });
 
   return {
     ...layer,
     activeSteps: nextActiveSteps,
+    accents: nextAccents,
   };
 }
 
 export function invertLayerSteps(layer: PolyrhythmLayer): PolyrhythmLayer {
+  const activeSteps = Array.from({ length: layer.beatCount }, (_, index) => !Boolean(layer.activeSteps[index]));
   return {
     ...layer,
-    activeSteps: Array.from({ length: layer.beatCount }, (_, index) => !Boolean(layer.activeSteps[index])),
+    activeSteps,
+    accents: Array.from({ length: layer.beatCount }, () => false),
   };
 }
 
@@ -403,6 +444,7 @@ export function getLayerStepPoints(
     return {
       index,
       active: layer.activeSteps[index] ?? false,
+      accented: Boolean(layer.accents?.[index]) && Boolean(layer.activeSteps[index]),
       angle,
       x: centerX + Math.cos(angle) * layer.radius * scale,
       y: centerY + Math.sin(angle) * layer.radius * scale,
@@ -428,6 +470,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       ...layer,
       id: generateStudyId(),
       activeSteps: [...layer.activeSteps],
+      accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
     })),
   };
 }

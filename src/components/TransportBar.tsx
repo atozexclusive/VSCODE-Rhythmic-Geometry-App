@@ -3,13 +3,22 @@
 // Play/Pause, Tempo, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { useCallback, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2 } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { ORBIT_TEMPO_MIN_BPM, getOrbitTempoMaxBpm, orbitSpeedMultiplierToTempoBpm, type OrbitTempoMode } from '../lib/orbitalEngine';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
+import {
+  CANVAS_ATMOSPHERE_OPTIONS,
+  CANVAS_DISPLAY_THEME_OPTIONS,
+  CANVAS_GLOW_OPTIONS,
+  type CanvasAtmosphereId,
+  type CanvasDisplaySettings,
+  type CanvasDisplayThemeId,
+  type CanvasGlowLevel,
+} from '../lib/canvasDisplayThemes';
 import InfoTip from './InfoTip';
 
 interface TransportBarProps {
@@ -29,6 +38,7 @@ interface TransportBarProps {
   tonePreset: TonePreset;
   rootNote: RootNote;
   scaleName: ScaleName;
+  canvasDisplaySettings: CanvasDisplaySettings;
   quickOrbitControls: Array<{
     id: string;
     label: string;
@@ -59,6 +69,7 @@ interface TransportBarProps {
   onSoundModeChange: (tonePreset: TonePreset) => void;
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
+  onCanvasDisplayChange: (settings: Partial<CanvasDisplaySettings>) => void;
   onAddOrbit: () => void;
   onDeleteOrbit: (orbitId: string) => void;
   onReset: () => void;
@@ -82,6 +93,7 @@ export default function TransportBar({
   tonePreset,
   rootNote,
   scaleName,
+  canvasDisplaySettings,
   quickOrbitControls,
   onAdjustQuickOrbit,
   onSetQuickOrbit,
@@ -106,6 +118,7 @@ export default function TransportBar({
   onSoundModeChange,
   onRootNoteChange,
   onScaleChange,
+  onCanvasDisplayChange,
   onAddOrbit,
   onDeleteOrbit,
   onReset,
@@ -114,7 +127,9 @@ export default function TransportBar({
   const isMobile = useIsMobile();
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
   const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(false);
+  const [desktopUtilityPlaybackOpen, setDesktopUtilityPlaybackOpen] = useState(false);
   const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(false);
+  const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(false);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
@@ -258,6 +273,93 @@ export default function TransportBar({
       (geometryMode === 'interference-trace' && quickOrbitControls.length < 4)) &&
     quickOrbitControls.length < 6;
   const canDeleteDesktopOrbit = geometryMode === 'standard-trace' && quickOrbitControls.length > 1;
+  const standardUtilityButtonClass =
+    'h-9 rounded-xl border px-2.5 text-[9px] font-mono font-semibold uppercase tracking-[0.12em] transition-all duration-200 active:scale-[0.98]';
+  const standardUtilityGroupClass =
+    'rounded-xl border border-white/8 bg-white/[0.03] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+  const getStandardUtilityPillStyle = (
+    selected: boolean,
+    color: string,
+    selectedBackground = `${color}18`,
+  ): CSSProperties => ({
+    background: selected ? selectedBackground : 'rgba(255,255,255,0.045)',
+    borderColor: selected ? `${color}48` : 'rgba(255,255,255,0.1)',
+    color: selected ? color : 'rgba(255,255,255,0.62)',
+    boxShadow: selected ? `0 0 0 1px ${color}18 inset, 0 0 16px ${color}12` : 'none',
+  });
+  const getStandardUtilitySectionStyle = (active: boolean, color: string): CSSProperties => ({
+    background: active
+      ? `linear-gradient(180deg, ${color}1c, rgba(255,255,255,0.03))`
+      : 'rgba(255,255,255,0.03)',
+    borderColor: active ? `${color}2e` : 'rgba(255,255,255,0.08)',
+    boxShadow: active ? `0 0 0 1px ${color}14 inset, 0 12px 28px rgba(0,0,0,0.22)` : 'none',
+  });
+  const renderStandardUtilitySection = ({
+    label,
+    descriptor,
+    active,
+    color,
+    info,
+    title,
+    onToggle,
+    children,
+  }: {
+    label: string;
+    descriptor: string;
+    active: boolean;
+    color: string;
+    info: string;
+    title: string;
+    onToggle: () => void;
+    children: ReactNode;
+  }) => (
+    <div className="rounded-2xl border" style={getStandardUtilitySectionStyle(active, color)}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="relative flex w-full items-center justify-center px-12 py-2.5 text-center"
+        title={title}
+      >
+        <div className="flex min-w-0 flex-col items-center">
+          <div
+            className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
+            style={{
+              color: active ? color : 'rgba(255,255,255,0.72)',
+              textShadow: active ? `0 0 12px ${color}38` : 'none',
+            }}
+          >
+            {label}
+          </div>
+        </div>
+        <div
+          className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
+          style={{
+            background: active ? `${color}1f` : 'rgba(255,255,255,0.04)',
+            borderColor: active ? `${color}38` : 'rgba(255,255,255,0.08)',
+            color: active ? color : 'rgba(255,255,255,0.56)',
+          }}
+        >
+          {active ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      </button>
+      {active ? (
+        <div className="space-y-2 border-t border-white/8 px-2.5 pb-2.5 pt-2">
+          <div className="flex items-start justify-between gap-3 px-0.5">
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em]" style={{ color }}>
+                {label}
+              </div>
+              <div className="mt-0.5 text-[10px] leading-snug text-white/42">
+                {descriptor}
+              </div>
+            </div>
+            <InfoTip text={info} />
+          </div>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
 
   if (presentationMode) {
     return (
@@ -511,10 +613,10 @@ export default function TransportBar({
     >
       <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-3 lg:px-6 pt-3'}`}>
         {!isMobile ? (
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+          <div className="pointer-events-none mb-2">
             <div
               data-guide="desktop-geometry"
-              className="min-w-[280px] max-w-[420px] flex-[1_1_360px] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
+              className="pointer-events-auto fixed left-6 bottom-[6.75rem] z-30 w-[min(420px,calc(100vw-1.5rem))] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
                 ...desktopGeometryPanelStyle,
                 transform: 'translateY(-4px)',
@@ -775,7 +877,7 @@ export default function TransportBar({
 
             <div
               data-guide="desktop-direction"
-              className="w-[min(340px,calc(100vw-1.5rem))] shrink-0 px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
+              className="pointer-events-auto fixed right-6 bottom-[6.75rem] z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
                 ...desktopTopPanelStyle,
                 transform: 'translateY(-4px)',
@@ -843,231 +945,317 @@ export default function TransportBar({
               ) : null}
 
               {desktopSettingsPanelOpen ? (
-                <div className="space-y-2.5 border-t pt-2.5" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                  <div
-                    className="rounded-2xl px-2 py-2"
-                    style={desktopSideSectionStyle}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setDesktopUtilityDirectionOpen((open) => !open)}
-                        className={desktopSideSubmenuButtonStyle}
-                        title="Open direction controls"
-                      >
-                        <div className="flex min-w-0 flex-col">
-                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
-                            Direction
-                          </span>
-                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                            Rotation behavior.
-                          </span>
+                <div className="space-y-2 border-t border-white/8 pt-2">
+                  {renderStandardUtilitySection({
+                    label: 'Playback',
+                    descriptor: 'Manual step and trace reset controls.',
+                    active: desktopUtilityPlaybackOpen,
+                    color: '#72F1B8',
+                    title: 'Open playback utilities',
+                    info: 'Playback utilities advance the field manually or clear accumulated trace history without changing the pattern.',
+                    onToggle: () => setDesktopUtilityPlaybackOpen((open) => !open),
+                    children: (
+                      <div className={standardUtilityGroupClass}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={onStepForward}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(true, '#88CCFF', 'rgba(136,204,255,0.14)')}
+                            title="Advance the geometry by one small step while paused"
+                          >
+                            Step
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onClearTraces}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(false, '#FFFFFF')}
+                            title="Clear accumulated trace history"
+                          >
+                            Clear
+                          </button>
                         </div>
-                        <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
-                        >
-                          {desktopUtilityDirectionOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </span>
-                      </button>
-                      <InfoTip text="Choose how every orbit rotates: flip all directions, make every orbit clockwise, or restore alternating directions." />
-                    </div>
-                    {desktopUtilityDirectionOpen ? (
-                      <div className="mt-2 grid grid-cols-3 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <button
-                          onClick={onReverseDirections}
-                          className={directionButtonStyle}
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.12)',
-                            color: 'rgba(255, 255, 255, 0.78)',
-                          }}
-                          title="Flip every orbit to the opposite direction"
-                        >
-                          Reverse
-                        </button>
-                        <button
-                          onClick={onAllClockwise}
-                          className={directionButtonStyle}
-                          style={{
-                            background: 'rgba(0, 255, 170, 0.08)',
-                            border: '1px solid rgba(0, 255, 170, 0.2)',
-                            color: '#00FFAA',
-                          }}
-                          title="Set every orbit to clockwise"
-                        >
-                          Clockwise
-                        </button>
-                        <button
-                          onClick={onAlternateDirections}
-                          className={directionButtonStyle}
-                          style={{
-                            background: 'rgba(51, 136, 255, 0.08)',
-                            border: '1px solid rgba(51, 136, 255, 0.2)',
-                            color: '#88CCFF',
-                          }}
-                          title="Restore alternating clockwise and counterclockwise directions"
-                        >
-                          Alternate
-                        </button>
                       </div>
-                    ) : null}
-                  </div>
-                  <div
-                    className="rounded-2xl px-2 py-2"
-                    style={desktopSideSectionStyle}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setDesktopUtilityCanvasOpen((open) => !open)}
-                        className={desktopSideSubmenuButtonStyle}
-                        title="Open canvas controls"
-                      >
-                        <div className="flex min-w-0 flex-col">
-                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
-                            Canvas
-                          </span>
-                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                            Trace and marker visibility.
-                          </span>
+                    ),
+                  })}
+
+                  {renderStandardUtilitySection({
+                    label: 'Motion',
+                    descriptor: 'Set how orbit directions move together.',
+                    active: desktopUtilityDirectionOpen,
+                    color: '#7FD7FF',
+                    title: 'Open motion controls',
+                    info: 'Motion controls choose how every orbit rotates: flip all directions, make every orbit clockwise, or restore alternating directions.',
+                    onToggle: () => setDesktopUtilityDirectionOpen((open) => !open),
+                    children: (
+                      <div className={standardUtilityGroupClass}>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={onReverseDirections}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(false, '#FFFFFF')}
+                            title="Flip every orbit to the opposite direction"
+                          >
+                            Reverse
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onAllClockwise}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(allClockwise, '#72F1B8', 'rgba(114,241,184,0.16)')}
+                            title="Set every orbit to clockwise"
+                          >
+                            Clockwise
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onAlternateDirections}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(!allClockwise, '#7FD7FF', 'rgba(127,215,255,0.14)')}
+                            title="Restore alternating clockwise and counterclockwise directions"
+                          >
+                            Alternate
+                          </button>
                         </div>
-                        <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
-                        >
-                          {desktopUtilityCanvasOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </span>
-                      </button>
-                      <InfoTip text="Canvas controls change what is visible on the drawing surface without changing the rhythm." />
-                    </div>
-                    {desktopUtilityCanvasOpen ? (
-                      <div className="mt-2 grid grid-cols-4 gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <button
-                          onClick={onStepForward}
-                          className={directionButtonStyle}
-                          style={{
-                            background: 'rgba(51, 136, 255, 0.12)',
-                            border: '1px solid rgba(51, 136, 255, 0.26)',
-                            color: '#88CCFF',
-                          }}
-                          title="Advance the geometry by one small step while paused"
-                        >
-                          Step
-                        </button>
-                        <button
-                          onClick={onToggleTrace}
-                          data-guide="desktop-trace"
-                          className={directionButtonStyle}
-                          style={{
-                            background: traceMode ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                            border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                            color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                          }}
-                          title="Toggle motion history drawing"
-                        >
-                          {traceMode ? 'Trace On' : 'Trace Off'}
-                        </button>
-                        <button
-                          onClick={onTogglePlanets}
-                          data-guide="desktop-markers"
-                          className={directionButtonStyle}
-                          style={{
-                            background: showPlanets ? 'rgba(136, 204, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                            border: `1px solid ${showPlanets ? 'rgba(136, 204, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                            color: showPlanets ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
-                          }}
-                          title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
-                        >
-                          {showPlanets ? 'Markers On' : 'Markers Off'}
-                        </button>
-                        <button
-                          onClick={onClearTraces}
-                          className={directionButtonStyle}
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.12)',
-                            color: 'rgba(255, 255, 255, 0.78)',
-                          }}
-                          title="Clear accumulated trace history"
-                        >
-                          Clear
-                        </button>
                       </div>
-                    ) : null}
-                  </div>
-                  <div
-                    data-guide="desktop-sound"
-                    className="rounded-2xl px-2 py-2"
-                    style={desktopSideSectionStyle}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setDesktopUtilityAudioOpen((open) => !open)}
-                        className={desktopSideSubmenuButtonStyle}
-                        title="Open audio controls"
-                      >
-                        <div className="flex min-w-0 flex-col">
-                          <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.68)' }}>
-                            Audio
-                          </span>
-                          <span className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                            Tone mode and key.
-                          </span>
+                    ),
+                  })}
+
+                  {renderStandardUtilitySection({
+                    label: 'Overlays',
+                    descriptor: 'Show or hide drawing guides on the field.',
+                    active: desktopUtilityOverlayOpen,
+                    color: '#FFB86B',
+                    title: 'Open overlay controls',
+                    info: 'Overlays change visible trace and marker guides without changing rhythm or sound.',
+                    onToggle: () => setDesktopUtilityOverlayOpen((open) => !open),
+                    children: (
+                      <div className={standardUtilityGroupClass}>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={onToggleTrace}
+                            data-guide="desktop-trace"
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(traceMode, '#72F1B8', 'rgba(114,241,184,0.16)')}
+                            title="Toggle motion history drawing"
+                          >
+                            {traceMode ? 'Trace On' : 'Trace Off'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onTogglePlanets}
+                            data-guide="desktop-markers"
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(showPlanets, '#88CCFF', 'rgba(136,204,255,0.14)')}
+                            title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
+                          >
+                            {showPlanets ? 'Markers On' : 'Markers Off'}
+                          </button>
                         </div>
-                        <span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                          style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
-                        >
-                          {desktopUtilityAudioOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </span>
-                      </button>
-                      <InfoTip text="Switch between the original tone palette and keyed harmony. In Key uses the selected root and note family." />
-                    </div>
-                    {desktopUtilityAudioOpen ? (
-                      <div className="mt-2 flex items-center gap-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <button
-                          onClick={() => onSoundModeChange(tonePreset === 'original' ? 'scale-quantized' : 'original')}
-                          className={compactButtonStyle}
-                          style={{
-                            background: tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                            border: `1px solid ${tonePreset === 'scale-quantized' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                            color: tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                          }}
-                          title="Switch between the raw sound and the in-key note-family mode"
-                        >
-                          {tonePreset === 'original' ? 'Original' : 'In Key'}
-                        </button>
-                        {tonePreset === 'scale-quantized' && (
-                          <>
-                            <select
-                              value={rootNote}
-                              onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
-                              className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
-                              style={{ color: 'rgba(255,255,255,0.82)' }}
-                              title="Global key center"
+                      </div>
+                    ),
+                  })}
+
+                  {renderStandardUtilitySection({
+                    label: 'Canvas',
+                    descriptor: 'Adjust background, atmosphere, glow, and grid.',
+                    active: desktopUtilityCanvasOpen,
+                    color: '#88CCFF',
+                    title: 'Open canvas controls',
+                    info: 'Canvas controls change the background, atmosphere, and glow without changing the rhythm.',
+                    onToggle: () => setDesktopUtilityCanvasOpen((open) => !open),
+                    children: (
+                      <>
+                        <div className={standardUtilityGroupClass}>
+                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
+                            Background
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {CANVAS_DISPLAY_THEME_OPTIONS.map((option) => {
+                              const selected = canvasDisplaySettings.theme === option.id;
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() => onCanvasDisplayChange({ theme: option.id as CanvasDisplayThemeId })}
+                                  className={standardUtilityButtonClass}
+                                  style={getStandardUtilityPillStyle(selected, '#88CCFF', 'rgba(136,204,255,0.16)')}
+                                  title={option.label}
+                                >
+                                  {option.shortLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className={standardUtilityGroupClass}>
+                            <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
+                              Effects
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {CANVAS_ATMOSPHERE_OPTIONS.map((option) => {
+                                const selected = canvasDisplaySettings.atmosphere === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => onCanvasDisplayChange({ atmosphere: option.id as CanvasAtmosphereId })}
+                                    className={`${standardUtilityButtonClass} px-1.5 text-[8px]`}
+                                    style={getStandardUtilityPillStyle(selected, '#72F1B8', 'rgba(114,241,184,0.14)')}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className={standardUtilityGroupClass}>
+                            <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
+                              Glow
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {CANVAS_GLOW_OPTIONS.map((option) => {
+                                const selected = canvasDisplaySettings.glow === option.id;
+                                return (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => onCanvasDisplayChange({ glow: option.id as CanvasGlowLevel })}
+                                    className={`${standardUtilityButtonClass} px-1 text-[8px]`}
+                                    style={getStandardUtilityPillStyle(selected, '#FFFFFF', 'rgba(255,255,255,0.12)')}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={standardUtilityGroupClass}>
+                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
+                            Grid
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onCanvasDisplayChange({ squareGrid: true })}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
+                              title="Show the square background grid"
                             >
-                              {NOTE_NAMES.map((note) => (
-                                <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={scaleName}
-                              onChange={(e) => onScaleChange(e.target.value as ScaleName)}
-                              className="min-w-0 flex-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono focus:outline-none"
-                              style={{ color: 'rgba(255,255,255,0.82)' }}
-                              title="Global note family"
+                              Grid On
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onCanvasDisplayChange({ squareGrid: false })}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid === false, '#FFFFFF', 'rgba(255,255,255,0.12)')}
+                              title="Hide the square background grid"
                             >
-                              {Object.entries(SCALE_PRESETS).map(([name]) => (
-                                <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
-                              ))}
-                            </select>
-                          </>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
+                              Grid Off
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onCanvasDisplayChange({ centerAxes: true })}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(canvasDisplaySettings.centerAxes !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
+                              title="Show the center X and Y axis lines"
+                            >
+                              Axes On
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onCanvasDisplayChange({ centerAxes: false })}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(canvasDisplaySettings.centerAxes === false, '#FFFFFF', 'rgba(255,255,255,0.12)')}
+                              title="Hide the center X and Y axis lines"
+                            >
+                              Axes Off
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ),
+                  })}
+
+                  {renderStandardUtilitySection({
+                    label: 'Sound',
+                    descriptor: 'Choose original tones or keyed harmony.',
+                    active: desktopUtilityAudioOpen,
+                    color: '#88CCFF',
+                    title: 'Open sound controls',
+                    info: 'Sound switches between the original tone palette and keyed harmony. In Key uses the selected root and note family.',
+                    onToggle: () => setDesktopUtilityAudioOpen((open) => !open),
+                    children: (
+                      <>
+                        <div className={standardUtilityGroupClass}>
+                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
+                            Sound Mode
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onSoundModeChange('original')}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(tonePreset === 'original', '#FFFFFF', 'rgba(255,255,255,0.12)')}
+                              title="Use the original raw tone palette"
+                            >
+                              Original
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onSoundModeChange('scale-quantized')}
+                              className={standardUtilityButtonClass}
+                              style={getStandardUtilityPillStyle(tonePreset === 'scale-quantized', '#72F1B8', 'rgba(114,241,184,0.16)')}
+                              title="Keep orbit notes inside the selected key and note family"
+                            >
+                              In Key
+                            </button>
+                          </div>
+                        </div>
+                        {tonePreset === 'scale-quantized' ? (
+                          <div className={standardUtilityGroupClass}>
+                            <div className="grid grid-cols-[74px,1fr] gap-2">
+                              <div>
+                                <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                  Key
+                                </div>
+                                <select
+                                  value={rootNote}
+                                  onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
+                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-2 py-2 text-[10px] font-mono text-white outline-none"
+                                  title="Global key center"
+                                >
+                                  {NOTE_NAMES.map((note) => (
+                                    <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                  Note Family
+                                </div>
+                                <select
+                                  value={scaleName}
+                                  onChange={(e) => onScaleChange(e.target.value as ScaleName)}
+                                  className="w-full min-w-0 rounded-xl border border-white/8 bg-white/[0.04] px-2 py-2 text-[10px] font-mono text-white outline-none"
+                                  title="Global note family"
+                                >
+                                  {Object.entries(SCALE_PRESETS).map(([name]) => (
+                                    <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    ),
+                  })}
                 </div>
               ) : null}
             </div>

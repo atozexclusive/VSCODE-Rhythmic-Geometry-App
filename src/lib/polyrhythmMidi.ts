@@ -113,7 +113,11 @@ function getLayerEvents(
 
     const stepFraction = (((stepIndex / layer.beatCount) + offsetFraction) % 1 + 1) % 1;
     const tick = Math.round(stepFraction * totalTicksPerCycle);
-    const velocity = clamp(Math.round(layer.gain * 1000), 48, 110);
+    const velocity = clamp(
+      Math.round(layer.gain * 1000 * (layer.accents?.[stepIndex] ? 1.32 : 1)),
+      48,
+      124,
+    );
     const channel = clamp(layerIndex, 0, 15);
 
     events.push({

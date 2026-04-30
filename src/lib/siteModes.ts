@@ -11,6 +11,7 @@ export interface SiteModeCard {
   firstMove: string;
   accent: string;
   image: string;
+  alt: string;
   imagePosition?: string;
   launchLabel: string;
 }
@@ -18,60 +19,60 @@ export interface SiteModeCard {
 export const SITE_MODE_CARDS: SiteModeCard[] = [
   {
     id: 'orbital',
-    name: 'Orbits',
-    eyebrow: 'Moving Visual Instrument',
-    summary: 'Set the constraints and watch the structure appear.',
+    name: 'Orbit',
+    eyebrow: 'See rhythm as motion.',
+    summary: 'Every ratio becomes a path. Every cycle leaves a shape.',
     description:
-      'Orbits is the original surface. Pulse, spacing, and direction turn into moving form and clear visual rhythm.',
+      'Two cycles rotating in time. As they repeat, their relationship traces a pattern - a geometric memory of the rhythm itself.',
     details: [
-      'Best first stop if you are new',
-      'Strongest for motion, scenes, and presentation',
-      'The quickest way to feel the system',
+      'Every ratio becomes a path.',
+      'Every cycle leaves a shape.',
     ],
-    bestFor: 'Motion, discovery, and first impression',
-    firstMove: 'Load a scene, press Play, then try Random.',
+    bestFor: 'Seeing rhythm as motion.',
+    firstMove: 'Set a simple ratio and press Play.',
     accent: '#00FFAA',
     image: '/scene-captures/website_standard_replacement.png',
+    alt: 'Rotating cycles forming evolving geometric patterns from rhythmic ratios',
     imagePosition: '50% 50%',
-    launchLabel: 'Enter Orbits',
+    launchLabel: 'Enter Orbit',
   },
   {
     id: 'polyrhythm-study',
-    name: 'Polyrhythm Study',
-    eyebrow: 'Shared-Loop Rhythm Study',
-    summary: 'Hear where rhythms meet on one loop.',
+    name: 'Study',
+    eyebrow: 'See how rhythms align.',
+    summary: 'Where do the pulses agree? Where do they drift apart?',
     description:
-      'Polyrhythm Study makes rhythm relationships visible. Start with one ring or a clean 3:5, then hear how the layers line up.',
+      'Break rhythm into shared structure. Visualize how cycles meet, divide, and resolve - revealing the hidden framework behind polyrhythm.',
     details: [
-      'Best for learning and comparison',
-      'Starts simple and stays readable',
-      'Focused ring editing when you want close control',
+      'Where do the pulses agree?',
+      'Where do they drift apart?',
     ],
-    bestFor: 'Polyrhythms, overlap, and rhythm clarity',
-    firstMove: 'Start with 3:5, press Play, then edit one ring.',
+    bestFor: 'Seeing how rhythms align.',
+    firstMove: 'Start with two layers and watch where they meet.',
     accent: '#7FD7FF',
     image: '/scene-captures/website_study_mode.png',
+    alt: 'Grid-based visualization showing alignment points and shared cycles in polyrhythms',
     imagePosition: '50% 46%',
-    launchLabel: 'Open Polyrhythm Study',
+    launchLabel: 'Open Study',
   },
   {
     id: 'riff-cycle-study',
-    name: 'Riff Cycle',
-    eyebrow: 'Groove Writing Surface',
-    summary: 'Write a phrase inside a bar frame.',
+    name: 'Riff',
+    eyebrow: 'Build rhythm as structure.',
+    summary: 'Not just what you play - but how it cycles.',
     description:
-      'Riff Cycle keeps the bar, phrase, and ending distinct so the groove stays clear while you write and reshape it.',
+      'Write and explore patterns through time. Shape grooves, displace accents, and feel how structure evolves when rhythm becomes a system instead of a loop.',
     details: [
-      'Built for groove writing without losing visual clarity',
-      'Learn the techniques bands like Meshuggah use to create endless polymetric rhythms.',
-      'Focused pattern editing for close work',
+      'Not just what you play -',
+      'but how it cycles.',
     ],
-    bestFor: 'Groove writing and visualization',
-    firstMove: 'Load a scene, press Play, then change one step in the riff.',
+    bestFor: 'Building rhythm as structure.',
+    firstMove: 'Write a pattern, then let it cycle through time.',
     accent: '#FFD166',
     image: '/scene-captures/website_riff_mode.png',
+    alt: 'Interactive rhythm sequencer visualizing complex patterns and polymetric structures',
     imagePosition: '50% 42%',
-    launchLabel: 'Open Riff Cycle',
+    launchLabel: 'Start Riff',
   },
 ];
 
