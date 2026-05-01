@@ -1528,7 +1528,7 @@ export default function TransportBar({
         </div>
       ) : (
       <div
-        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-wrap items-center justify-center xl:justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
+        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-nowrap items-center justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
         style={{
           background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
           borderColor: 'rgba(255,255,255,0.08)',
@@ -1538,7 +1538,7 @@ export default function TransportBar({
         {/* Left: Playback + Reset + Generators */}
         <div
           data-guide="desktop-playback"
-          className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem]"
+          className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]"
           style={desktopDockPanelStyle}
         >
           {/* Play/Pause */}
@@ -1635,7 +1635,7 @@ export default function TransportBar({
         {/* Center: Tempo */}
         <div
           data-guide="desktop-speed"
-          className="mx-0 xl:mx-3 flex min-w-[420px] max-w-[860px] flex-[1_1_680px] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
+          className="mx-0 xl:mx-3 flex min-w-[320px] max-w-[860px] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
           style={desktopTempoPanelStyle}
         >
           <div className="shrink-0">
@@ -1675,7 +1675,7 @@ export default function TransportBar({
         </div>
 
         {/* Right: Audio + Present + Help + Menu */}
-        <div className="flex max-w-full flex-wrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
+        <div className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}
