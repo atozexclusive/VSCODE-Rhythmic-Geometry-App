@@ -4855,7 +4855,7 @@ function OrbitalPolymeter() {
     riffDesktopLaneView === 'pattern'
       ? `${riffCycleStudy.riff.stepCount} Step Pattern`
       : `${riffDesktopLaneView} Bar${riffDesktopLaneView === 1 ? '' : 's'}`;
-  const riffDesktopPanelBottom = riffCycleStudy.viewMode === 'unwrapped' ? '20.75rem' : '9.5rem';
+  const riffDesktopPanelBottom = riffCycleStudy.viewMode === 'unwrapped' ? '22.75rem' : '9.5rem';
   const studyDesktopPanelBottom = '10.75rem';
   const riffDesktopEditorTrayMinVisibleHeight = 140;
   const studyDesktopQuickMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
@@ -16690,7 +16690,7 @@ function OrbitalPolymeter() {
           ) : (
           <div
             className="fixed right-6 top-20 z-20 w-[min(340px,calc(100vw-1.5rem))]"
-            style={{ maxHeight: riffDesktopUtilityMaxHeight }}
+            style={{ bottom: riffDesktopPanelBottom, maxHeight: riffDesktopUtilityMaxHeight }}
           >
             <StudyShellPremiumPanel
               accent="#88CCFF"
