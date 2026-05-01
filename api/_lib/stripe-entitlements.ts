@@ -27,13 +27,23 @@ export async function applyPaidCheckoutSession(session: Stripe.Checkout.Session)
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
     stripe_price_id: priceId,
-    stripe_payment_intent_id: paymentIntentId,
   };
 
   const { error } = await supabaseAdmin.from('users').update(updatePayload).eq('id', userId);
 
   if (error) {
     throw error;
+  }
+
+  if (paymentIntentId) {
+    const { error: paymentIntentError } = await supabaseAdmin
+      .from('users')
+      .update({ stripe_payment_intent_id: paymentIntentId })
+      .eq('id', userId);
+
+    if (paymentIntentError) {
+      console.warn('[stripe-entitlements] could not store payment intent id', paymentIntentError);
+    }
   }
 }
 
