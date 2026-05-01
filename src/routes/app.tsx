@@ -4861,7 +4861,6 @@ function OrbitalPolymeter() {
   const studyDesktopQuickMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
   const studyDesktopQuickLayersMaxHeight = `calc(${studyDesktopQuickMaxHeight} - 12.5rem)`;
   const studyDesktopUtilityMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
-  const riffDesktopQuickMaxHeight = `calc(100vh - 5rem - ${riffDesktopPanelBottom})`;
   const riffDesktopUtilityMaxHeight = `calc(100vh - 5rem - ${riffDesktopPanelBottom})`;
   const handleMobileSliderPointerDown = useCallback(
     (
@@ -16044,7 +16043,6 @@ function OrbitalPolymeter() {
           <StudyShellPremiumPanel
             accent={riffCycleStudy.riff.color}
             className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : ''} space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
-            style={!isMobile ? { maxHeight: riffDesktopQuickMaxHeight } : undefined}
           >
             <div className="relative flex items-center justify-end gap-3 px-0.5">
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]" style={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}>

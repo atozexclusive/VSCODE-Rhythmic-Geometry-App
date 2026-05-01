@@ -4,6 +4,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
+import { cn } from '../lib/utils';
 
 type ShellTone = 'neutral' | 'green' | 'blue' | 'amber' | 'pink' | 'red';
 type ShellButtonSize = 'default' | 'compact' | 'square';
@@ -110,7 +111,7 @@ export function StudyShellPremiumPanel({
 }) {
   return (
     <div
-      className="relative overflow-hidden rounded-[1.65rem] border px-3.5 py-3.5"
+      className={cn('relative overflow-hidden rounded-[1.65rem] border px-3.5 py-3.5', className)}
       style={{
         background: `
           radial-gradient(circle at 82% -12%, ${colorAlpha(accent, '2a', 'rgba(114,241,184,0.16)')}, transparent 42%),
