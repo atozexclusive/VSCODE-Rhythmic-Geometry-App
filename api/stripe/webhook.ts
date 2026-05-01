@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 import { getRequestHeader, getRequestText } from '../_lib/env.js';
-import { applyPaidCheckoutSession } from '../_lib/stripe-entitlements.js';
+import { applyPaidCheckoutSession, revokePaidCheckoutByPaymentIntent } from '../_lib/stripe-entitlements.js';
 import { getStripe, getStripeWebhookSecret } from '../_lib/stripe.js';
 
 export const config = {
@@ -32,6 +32,16 @@ export default async function handler(request: Request, response: ApiResponse) {
       case 'checkout.session.completed':
         await applyPaidCheckoutSession(event.data.object as Stripe.Checkout.Session);
         break;
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId =
+          typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? null;
+
+        if (paymentIntentId && charge.amount_refunded >= charge.amount) {
+          await revokePaidCheckoutByPaymentIntent(paymentIntentId);
+        }
+        break;
+      }
       default:
         break;
     }

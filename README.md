@@ -156,11 +156,13 @@ Create a Stripe webhook endpoint pointed at:
 Listen for:
 
 - `checkout.session.completed`
+- `charge.refunded`
 
 What the billing flow now does:
 
 - `Upgrade To Pro` creates a Stripe Checkout one-time payment session
 - `checkout.session.completed` updates `public.users.plan`
+- full `charge.refunded` events revoke paid Pro access
 - paid accounts are marked:
   - `plan = 'pro'`
   - `access_source = 'paid'`
