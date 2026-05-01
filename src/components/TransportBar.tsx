@@ -132,6 +132,43 @@ export default function TransportBar({
   const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(false);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
+  const closeDesktopUtilitySections = useCallback(() => {
+    setDesktopUtilityPlaybackOpen(false);
+    setDesktopUtilityDirectionOpen(false);
+    setDesktopUtilityOverlayOpen(false);
+    setDesktopUtilityCanvasOpen(false);
+    setDesktopUtilityAudioOpen(false);
+  }, []);
+  const toggleDesktopUtilitySection = useCallback(
+    (section: 'playback' | 'direction' | 'overlay' | 'canvas' | 'audio') => {
+      const isOpen =
+        (section === 'playback' && desktopUtilityPlaybackOpen) ||
+        (section === 'direction' && desktopUtilityDirectionOpen) ||
+        (section === 'overlay' && desktopUtilityOverlayOpen) ||
+        (section === 'canvas' && desktopUtilityCanvasOpen) ||
+        (section === 'audio' && desktopUtilityAudioOpen);
+
+      closeDesktopUtilitySections();
+
+      if (isOpen) {
+        return;
+      }
+
+      if (section === 'playback') setDesktopUtilityPlaybackOpen(true);
+      if (section === 'direction') setDesktopUtilityDirectionOpen(true);
+      if (section === 'overlay') setDesktopUtilityOverlayOpen(true);
+      if (section === 'canvas') setDesktopUtilityCanvasOpen(true);
+      if (section === 'audio') setDesktopUtilityAudioOpen(true);
+    },
+    [
+      closeDesktopUtilitySections,
+      desktopUtilityAudioOpen,
+      desktopUtilityCanvasOpen,
+      desktopUtilityDirectionOpen,
+      desktopUtilityOverlayOpen,
+      desktopUtilityPlaybackOpen,
+    ],
+  );
   const [activeTouchSlider, setActiveTouchSlider] = useState<string | null>(null);
   const anchorTempoMaxBpm = getOrbitTempoMaxBpm(tempoMode);
   const anchorTempoBpm = Math.max(
@@ -206,22 +243,6 @@ export default function TransportBar({
       : geometryMode === 'interference-trace'
         ? 'Traces one live path from the relationship between the selected orbits.'
         : 'Plots a finite sampled figure from the selected orbits.';
-  const minimalModeLabel =
-    geometryMode === 'standard-trace'
-      ? 'Standard'
-      : geometryMode === 'interference-trace'
-        ? 'Interference'
-        : 'Sweep';
-  const cyclePresentationMode = () => {
-    onGeometryModeChange(
-      geometryMode === 'standard-trace'
-        ? 'interference-trace'
-        : geometryMode === 'interference-trace'
-          ? 'sweep'
-          : 'standard-trace',
-    );
-  };
-
   const handleTouchSliderPointerDown = useCallback(
     (
       event: ReactPointerEvent<HTMLInputElement>,
@@ -260,13 +281,6 @@ export default function TransportBar({
   const clearTouchSlider = useCallback((sliderId: string) => {
     setActiveTouchSlider((current) => (current === sliderId ? null : current));
   }, []);
-  const togglePresentationDirections = () => {
-    if (allClockwise) {
-      onAlternateDirections();
-      return;
-    }
-    onAllClockwise();
-  };
   const canAddDesktopOrbit =
     (geometryMode === 'standard-trace' ||
       (geometryMode === 'sweep' && quickOrbitControls.length < 4) ||
@@ -364,15 +378,15 @@ export default function TransportBar({
   if (presentationMode) {
     return (
       <div
-        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'left-1/2 bottom-5 -translate-x-1/2'}`}
+        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-5 right-5' : 'left-6 right-6 bottom-6'}`}
         style={
           isMobile
-            ? { bottom: 'max(12px, calc(env(safe-area-inset-bottom) + 8px))' }
+            ? { bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 12px))' }
             : undefined
         }
       >
         <div
-          className={`rounded-2xl border ${isMobile ? 'px-3 py-3' : 'px-4 py-3'} ${isMobile ? 'flex flex-wrap items-center justify-center gap-2' : 'flex items-center gap-2'}`}
+          className={`rounded-2xl border ${isMobile ? 'space-y-2.5 px-3 py-3' : 'grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3 px-4 py-3'}`}
           style={{
             background: 'rgba(17, 17, 22, 0.74)',
             backdropFilter: 'blur(16px)',
@@ -382,18 +396,10 @@ export default function TransportBar({
         >
           {isMobile ? (
             <>
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
-                <button
-                  onClick={cyclePresentationMode}
-                  className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200 active:scale-95"
-                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                  title="Change geometry mode"
-                >
-                  {minimalModeLabel}
-                </button>
+              <div className="grid grid-cols-5 gap-1.5">
                 <button
                   onClick={onTogglePlay}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{
                     background: playing ? 'rgba(255, 51, 102, 0.18)' : 'rgba(0, 255, 170, 0.18)',
                     border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.35)' : 'rgba(0, 255, 170, 0.35)'}`,
@@ -401,68 +407,116 @@ export default function TransportBar({
                   }}
                   title={playing ? 'Pause' : 'Play'}
                 >
-                  {playing ? <Pause size={18} /> : <Play size={18} />}
+                  {playing ? <Pause size={15} /> : <Play size={15} />}
+                  <span>{playing ? 'Pause' : 'Play'}</span>
                 </button>
                 <button
                   onClick={onReset}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
                   title="Reset"
                 >
-                  <RotateCcw size={18} />
+                  <RotateCcw size={15} />
+                  <span>Reset</span>
                 </button>
                 <button
                   onClick={onRandomPattern}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
                   title="Random pattern"
                 >
-                  <Shuffle size={18} />
+                  <Shuffle size={15} />
+                  <span>Random</span>
                 </button>
                 <button
                   onClick={onRemixPattern}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
                   title="Refresh the current setup with new color, direction, sound, and speed"
                 >
-                  <Zap size={18} />
+                  <Zap size={15} />
+                  <span>Remix</span>
                 </button>
                 <button
                   onClick={onRandomPatternPlus}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
                   title="Extended random pattern"
                 >
-                  <Shuffle size={18} />
+                  <Shuffle size={15} />
+                  <span>Random+</span>
                 </button>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
+                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                  >
+                    Tempo
+                  </div>
+                  <input
+                    type="range"
+                    min={String(ORBIT_TEMPO_MIN_BPM)}
+                    max={String(anchorTempoMaxBpm)}
+                    step="1"
+                    value={anchorTempoSliderValue}
+                    onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
+                    onPointerDown={(event) =>
+                      handleTouchSliderPointerDown(event, 'present-tempo', (value) => onSpeedChange(value))
+                    }
+                    onPointerMove={(event) =>
+                      handleTouchSliderPointerMove(event, 'present-tempo', (value) => onSpeedChange(value))
+                    }
+                    onPointerUp={() => clearTouchSlider('present-tempo')}
+                    onPointerCancel={() => clearTouchSlider('present-tempo')}
+                    onBlur={() => clearTouchSlider('present-tempo')}
+                    data-dragging={activeTouchSlider === 'present-tempo'}
+                    className="touch-slider min-w-0 flex-1"
+                    style={{ ['--slider-accent' as string]: '#ffffff' }}
+                    aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
+                  />
+                  <div className="w-12 shrink-0 text-right">
+                    <div
+                      className="text-[14px] font-light leading-none text-white"
+                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                    >
+                      {anchorTempoBpm}
+                    </div>
+                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                      {anchorLabel}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
                 <button
-                  onClick={togglePresentationDirections}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  onClick={onToggleTrace}
+                  className="flex h-11 items-center justify-center rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{
-                    background: allClockwise ? 'rgba(51, 136, 255, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${allClockwise ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-                    color: allClockwise ? '#88CCFF' : 'rgba(255, 255, 255, 0.74)',
+                    background: traceMode ? 'rgba(0, 255, 170, 0.14)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
+                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
                   }}
-                  title={allClockwise ? 'Switch to alternating directions' : 'Set all directions clockwise'}
+                  title={traceMode ? 'Hide trace' : 'Show trace'}
                 >
-                  <span className="relative flex h-5 w-5 items-center justify-center">
-                    <RotateCcw
-                      size={13}
-                      className="absolute"
-                      style={{ transform: allClockwise ? 'translateX(-4px) scaleX(-1)' : 'translateX(-4px)' }}
-                    />
-                    <RotateCcw
-                      size={13}
-                      className="absolute"
-                      style={allClockwise ? { transform: 'translateX(4px) scaleX(-1)' } : { transform: 'translateX(4px) scaleX(-1)' }}
-                    />
-                  </span>
+                  Trace
+                </button>
+                <button
+                  onClick={onTogglePlanets}
+                  className="flex h-11 items-center justify-center rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
+                  style={{
+                    background: showPlanets ? 'rgba(136, 204, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `1px solid ${showPlanets ? 'rgba(136, 204, 255, 0.26)' : 'rgba(255, 255, 255, 0.1)'}`,
+                    color: showPlanets ? '#88CCFF' : 'rgba(255,255,255,0.72)',
+                  }}
+                  title={showPlanets ? 'Hide markers' : 'Show markers'}
+                >
+                  Markers
                 </button>
                 <button
                   onClick={onToggleMute}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{
                     background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
                     border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
@@ -470,31 +524,25 @@ export default function TransportBar({
                   }}
                   title={muted ? 'Unmute audio' : 'Mute audio'}
                 >
-                  {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                  <span>{muted ? 'Unmute' : 'Mute'}</span>
                 </button>
                 <button
                   onClick={onTogglePresentation}
-                  className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
                   title="Exit presentation mode"
                 >
-                  <Minimize2 size={18} />
+                  <Minimize2 size={15} />
+                  <span>Exit</span>
                 </button>
               </div>
             </>
           ) : (
-            <>
-              <button
-                onClick={cyclePresentationMode}
-                className="px-2 py-1 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200 active:scale-95"
-                style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                title="Change geometry mode"
-              >
-                {minimalModeLabel}
-              </button>
+            <div className="flex items-center gap-2">
               <button
                 onClick={onTogglePlay}
-                className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+                className={desktopDockButtonStyle}
                 style={{
                   background: playing ? 'rgba(255, 51, 102, 0.18)' : 'rgba(0, 255, 170, 0.18)',
                   border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.35)' : 'rgba(0, 255, 170, 0.35)'}`,
@@ -502,78 +550,98 @@ export default function TransportBar({
                 }}
                 title={playing ? 'Pause' : 'Play'}
               >
-                {playing ? <Pause size={18} /> : <Play size={18} />}
+                {playing ? <Pause size={15} /> : <Play size={15} />}
+                <span>{playing ? 'Pause' : 'Play'}</span>
               </button>
-          {!isMobile && (
-            <button
-              onClick={onStepForward}
-              className="h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
-              style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
-              title="Step"
-            >
-              <SkipForward size={18} />
-            </button>
-          )}
           <button
             onClick={onReset}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
             title="Reset"
           >
-            <RotateCcw size={18} />
+            <RotateCcw size={15} />
+            <span>Reset</span>
           </button>
           <button
             onClick={onRandomPattern}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
             title="Random pattern"
           >
-            <Shuffle size={18} />
+            <Shuffle size={15} />
+            <span>Random</span>
           </button>
           <button
             onClick={onRemixPattern}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
             title="Refresh the current setup with new color, direction, sound, and speed"
           >
-            <Zap size={18} />
+            <Zap size={15} />
+            <span>Remix</span>
           </button>
           <button
             onClick={onRandomPatternPlus}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
             title="Extended random pattern"
           >
-            <Shuffle size={18} />
+            <Shuffle size={15} />
+            <span>Random+</span>
           </button>
-          <div className={isMobile ? 'w-2 shrink-0' : 'w-3 shrink-0'} />
-          <div className="ml-auto flex items-center gap-2">
+            </div>
+          )}
+          {!isMobile ? (
+            <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
+              <div className="flex items-center gap-4">
+                <div
+                  className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
+                  style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                >
+                  Tempo
+                </div>
+                <input
+                  type="range"
+                  min={String(ORBIT_TEMPO_MIN_BPM)}
+                  max={String(anchorTempoMaxBpm)}
+                  step="1"
+                  value={anchorTempoSliderValue}
+                  onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
+                  className="touch-slider min-w-0 flex-1"
+                  style={{ ['--slider-accent' as string]: '#ffffff' }}
+                  aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
+                />
+                <div className="w-[52px] shrink-0 text-right">
+                  <div
+                    className="text-[18px] font-light leading-none text-white"
+                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+                  >
+                    {anchorTempoBpm}
+                  </div>
+                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                    {anchorLabel}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {!isMobile ? (
+          <div className="flex items-center justify-end gap-2">
           <button
-            onClick={togglePresentationDirections}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            onClick={onToggleTrace}
+            className={desktopDockButtonStyle}
             style={{
-              background: allClockwise ? 'rgba(51, 136, 255, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${allClockwise ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: allClockwise ? '#88CCFF' : 'rgba(255, 255, 255, 0.74)',
+              background: traceMode ? 'rgba(0, 255, 170, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+              border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
+              color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
             }}
-            title={allClockwise ? 'Switch to alternating directions' : 'Set all directions clockwise'}
+            title={traceMode ? 'Hide trace' : 'Show trace'}
           >
-            <span className="relative flex h-5 w-5 items-center justify-center">
-              <RotateCcw
-                size={13}
-                className="absolute"
-                style={{ transform: allClockwise ? 'translateX(-4px) scaleX(-1)' : 'translateX(-4px)' }}
-              />
-              <RotateCcw
-                size={13}
-                className="absolute"
-                style={{ transform: allClockwise ? 'translateX(4px) scaleX(-1)' : 'translateX(4px) scaleX(-1)' }}
-              />
-            </span>
+            <span>Trace</span>
           </button>
           <button
             onClick={onToggleMute}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{
               background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
               border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
@@ -581,19 +649,20 @@ export default function TransportBar({
             }}
             title={muted ? 'Unmute audio' : 'Mute audio'}
           >
-            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            <span>{muted ? 'Unmute' : 'Mute'}</span>
           </button>
           <button
             onClick={onTogglePresentation}
-            className={`${isMobile ? 'h-11 w-11' : 'h-10 w-10'} rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95`}
+            className={desktopDockButtonStyle}
             style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
             title="Exit presentation mode"
           >
-            <Minimize2 size={18} />
+            <Minimize2 size={15} />
+            <span>Exit</span>
           </button>
           </div>
-          </>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -877,10 +946,12 @@ export default function TransportBar({
 
             <div
               data-guide="desktop-direction"
-              className="pointer-events-auto fixed right-6 bottom-[6.75rem] z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
+              className={`pointer-events-auto fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 overflow-y-auto px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border [scrollbar-width:none] ${
+                desktopSettingsPanelOpen ? 'top-20' : 'bottom-[6.75rem]'
+              }`}
               style={{
                 ...desktopTopPanelStyle,
-                transform: 'translateY(-4px)',
+                maxHeight: desktopSettingsPanelOpen ? 'calc(100vh - 7rem)' : undefined,
               }}
             >
               <div className="relative flex min-h-[32px] items-center justify-end gap-1.5 px-0.5">
@@ -910,6 +981,11 @@ export default function TransportBar({
                   </button>
                 </div>
               </div>
+              {!desktopSettingsPanelOpen ? (
+                <div className="px-3 text-center text-[10px] leading-snug text-white/42">
+                  Make performance changes without touching the orbit counts. The quick buttons flip the motion feel between unified rotation and alternating counter-motion.
+                </div>
+              ) : null}
 
               {!desktopSettingsPanelOpen ? (
                 <div className="grid grid-cols-2 gap-2">
@@ -948,12 +1024,12 @@ export default function TransportBar({
                 <div className="space-y-2 border-t border-white/8 pt-2">
                   {renderStandardUtilitySection({
                     label: 'Playback',
-                    descriptor: 'Manual step and trace reset controls.',
+                    descriptor: 'Nudge time forward or wipe the drawing while keeping the current ratio locked.',
                     active: desktopUtilityPlaybackOpen,
                     color: '#72F1B8',
                     title: 'Open playback utilities',
-                    info: 'Playback utilities advance the field manually or clear accumulated trace history without changing the pattern.',
-                    onToggle: () => setDesktopUtilityPlaybackOpen((open) => !open),
+                    info: 'Use Step to inspect a paused pattern one movement at a time. Clear removes the accumulated trace but keeps the orbits, tempo, and sound unchanged.',
+                    onToggle: () => toggleDesktopUtilitySection('playback'),
                     children: (
                       <div className={standardUtilityGroupClass}>
                         <div className="grid grid-cols-2 gap-2">
@@ -982,12 +1058,12 @@ export default function TransportBar({
 
                   {renderStandardUtilitySection({
                     label: 'Motion',
-                    descriptor: 'Set how orbit directions move together.',
+                    descriptor: 'Change the symmetry of the path without changing any pulse counts.',
                     active: desktopUtilityDirectionOpen,
                     color: '#7FD7FF',
                     title: 'Open motion controls',
-                    info: 'Motion controls choose how every orbit rotates: flip all directions, make every orbit clockwise, or restore alternating directions.',
-                    onToggle: () => setDesktopUtilityDirectionOpen((open) => !open),
+                    info: 'Direction changes can turn the same ratio into a completely different visual feel. Use it when the numbers are right but the motion needs another angle.',
+                    onToggle: () => toggleDesktopUtilitySection('direction'),
                     children: (
                       <div className={standardUtilityGroupClass}>
                         <div className="grid grid-cols-3 gap-2">
@@ -1025,12 +1101,12 @@ export default function TransportBar({
 
                   {renderStandardUtilitySection({
                     label: 'Overlays',
-                    descriptor: 'Show or hide drawing guides on the field.',
+                    descriptor: 'Choose how much of the construction process stays visible on the canvas.',
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
                     title: 'Open overlay controls',
-                    info: 'Overlays change visible trace and marker guides without changing rhythm or sound.',
-                    onToggle: () => setDesktopUtilityOverlayOpen((open) => !open),
+                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Turn them down when you want the final form to read cleaner.',
+                    onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
                         <div className="grid grid-cols-2 gap-2">
@@ -1061,12 +1137,12 @@ export default function TransportBar({
 
                   {renderStandardUtilitySection({
                     label: 'Canvas',
-                    descriptor: 'Adjust background, atmosphere, glow, and grid.',
+                    descriptor: 'Tune the stage so dense ratios stay readable instead of washing out.',
                     active: desktopUtilityCanvasOpen,
                     color: '#88CCFF',
                     title: 'Open canvas controls',
-                    info: 'Canvas controls change the background, atmosphere, and glow without changing the rhythm.',
-                    onToggle: () => setDesktopUtilityCanvasOpen((open) => !open),
+                    info: 'Canvas settings only affect the visual environment: contrast, atmosphere, glow, grid, and axes. They do not change timing or sound.',
+                    onToggle: () => toggleDesktopUtilitySection('canvas'),
                     children: (
                       <>
                         <div className={standardUtilityGroupClass}>
@@ -1184,12 +1260,12 @@ export default function TransportBar({
 
                   {renderStandardUtilitySection({
                     label: 'Sound',
-                    descriptor: 'Choose original tones or keyed harmony.',
+                    descriptor: 'Decide whether the motion sounds raw or resolves into a musical key.',
                     active: desktopUtilityAudioOpen,
                     color: '#88CCFF',
                     title: 'Open sound controls',
-                    info: 'Sound switches between the original tone palette and keyed harmony. In Key uses the selected root and note family.',
-                    onToggle: () => setDesktopUtilityAudioOpen((open) => !open),
+                    info: 'Original keeps the orbit tones direct. In Key maps them into the selected root and note family so complex motion feels more harmonic.',
+                    onToggle: () => toggleDesktopUtilitySection('audio'),
                     children: (
                       <>
                         <div className={standardUtilityGroupClass}>
@@ -1628,11 +1704,11 @@ export default function TransportBar({
               color: presentationMode ? '#72F1B8' : 'rgba(255,255,255,0.72)',
               boxShadow: presentationMode ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
             }}
-            title="Enter presentation mode"
+            title={presentationMode ? 'Exit presentation mode' : 'Enter presentation mode'}
           >
             <span className="flex items-center gap-2">
-              <Maximize2 size={15} />
-              <span>Present</span>
+              {presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              <span>{presentationMode ? 'Exit' : 'Present'}</span>
             </span>
           </button>
 

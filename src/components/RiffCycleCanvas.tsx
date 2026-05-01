@@ -236,7 +236,7 @@ function getEffectiveLaneWindowStartStep(
   laneWindowStartStep?: number,
   laneWindowStepCount?: number,
 ): number | undefined {
-  if (!shouldUseAbsoluteLaneWindow(study)) {
+  if (laneWindowStartStep != null) {
     return laneWindowStartStep;
   }
 
@@ -245,6 +245,17 @@ function getEffectiveLaneWindowStartStep(
     1,
     Math.min(displayStepCount, Math.floor(laneWindowStepCount ?? displayStepCount)),
   );
+
+  if (!shouldUseAbsoluteLaneWindow(study)) {
+    if (visibleStepCount >= displayStepCount) {
+      return undefined;
+    }
+    const maxStart = Math.max(0, displayStepCount - visibleStepCount);
+    return Math.min(
+      maxStart,
+      Math.floor(Math.max(0, currentAbsoluteReferenceStep) / visibleStepCount) * visibleStepCount,
+    );
+  }
 
   return Math.floor(Math.max(0, currentAbsoluteReferenceStep) / visibleStepCount) * visibleStepCount;
 }
