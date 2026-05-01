@@ -16040,9 +16040,12 @@ function OrbitalPolymeter() {
         <div
           data-guide={isMobile ? 'riff-mobile-quick' : 'riff-desktop-quick'}
           className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[20rem]'}`}
-          style={!isMobile ? { maxHeight: riffDesktopQuickMaxHeight } : undefined}
         >
-          <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : 'max-h-full'} space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}>
+          <StudyShellPremiumPanel
+            accent={riffCycleStudy.riff.color}
+            className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : ''} space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
+            style={!isMobile ? { maxHeight: riffDesktopQuickMaxHeight } : undefined}
+          >
             <div className="relative flex items-center justify-end gap-3 px-0.5">
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]" style={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}>
                 Quick Edit
