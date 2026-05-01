@@ -96,3 +96,23 @@ export async function revokePaidCheckoutByPaymentIntent(paymentIntentId: string)
     throw error;
   }
 }
+
+export async function revokePaidCheckoutByCustomer(customerId: string) {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const { error } = await supabaseAdmin
+    .from('users')
+    .update({
+      plan: 'free',
+      comped: false,
+      access_source: 'none',
+      stripe_subscription_id: null,
+      stripe_price_id: null,
+      stripe_payment_intent_id: null,
+    })
+    .eq('access_source', 'paid')
+    .eq('stripe_customer_id', customerId);
+
+  if (error) {
+    throw error;
+  }
+}
