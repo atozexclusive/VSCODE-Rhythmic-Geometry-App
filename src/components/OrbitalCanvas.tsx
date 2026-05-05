@@ -8,6 +8,10 @@ import { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
 import {
   type Orbit,
   type EngineState,
+  type OrbitCountMode,
+  DEFAULT_ORBIT_COUNT_MODE,
+  computeOrbitRotations,
+  getOrbitCyclePulseCount,
   tick,
   resonancePosition,
   resonancePositionAtBeats,
@@ -119,6 +123,7 @@ interface OrbitalCanvasProps {
   onToggleHudStats?: () => void;
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
+  standardTimingMode?: OrbitCountMode;
   interferenceSettings: InterferenceSettings;
   displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
@@ -134,6 +139,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     showHudStats = true,
     harmonySettings,
     geometryMode,
+    standardTimingMode = DEFAULT_ORBIT_COUNT_MODE,
     interferenceSettings,
     displaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
     presentationMode = false,
@@ -151,6 +157,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const showPlanetsRef = useRef(showPlanets);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
+    const standardTimingModeRef = useRef<OrbitCountMode>(standardTimingMode);
     const interferenceSettingsRef = useRef(interferenceSettings);
     const displaySettingsRef = useRef(displaySettings);
     const presentationModeRef = useRef(presentationMode);
@@ -178,6 +185,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
+    standardTimingModeRef.current = standardTimingMode;
     interferenceSettingsRef.current = interferenceSettings;
     displaySettingsRef.current = displaySettings;
     presentationModeRef.current = presentationMode;
@@ -202,11 +210,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           return 1;
         }
 
+        const countMode =
+          geometryModeRef.current === 'standard-trace'
+            ? standardTimingModeRef.current
+            : DEFAULT_ORBIT_COUNT_MODE;
+        const cyclePulseCount = getOrbitCyclePulseCount(orbits);
         let maxArcDistance = 0;
         let maxPhaseDelta = 0;
 
         for (const orbit of orbits) {
-          const phaseDelta = Math.abs((deltaBeats / orbit.pulseCount) * TAU);
+          const phaseDelta = Math.abs(
+            computeOrbitRotations(deltaBeats, orbit.pulseCount, countMode, cyclePulseCount) * TAU,
+          );
           maxPhaseDelta = Math.max(maxPhaseDelta, phaseDelta);
           maxArcDistance = Math.max(maxArcDistance, orbit.radius * phaseDelta);
         }
@@ -883,6 +898,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const normalizedInterferenceSettings = normalizeInterferenceSettings(state.orbits, interferenceSettingsRef.current);
           const isInterferenceMode = geometryModeRef.current === 'interference-trace';
           const isSweepMode = geometryModeRef.current === 'sweep';
+          const activeCountMode =
+            geometryModeRef.current === 'standard-trace'
+              ? standardTimingModeRef.current
+              : DEFAULT_ORBIT_COUNT_MODE;
+          const activeCyclePulseCount = getOrbitCyclePulseCount(state.orbits);
           const selectedInterferenceOrbitIds = new Set(
             isInterferenceMode || isSweepMode
               ? [
@@ -951,7 +971,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const sweepScale = sweepLayout.scale;
 
         // Physics tick — returns triggers for every 12 o'clock crossing
-        const triggers = tick(state, timestamp, cx, cy);
+        const triggers = tick(state, timestamp, cx, cy, activeCountMode);
 
         // Process triggers — every single one gets audio + bloom
         for (const trig of triggers) {
@@ -1310,7 +1330,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   const sampleBeats = previousElapsedBeats + deltaBeats * t;
                   const sampledOrbitPoints = activeInterferenceOrbits.map((orbit) =>
                     scalePointFromCenter(
-                      resonancePositionAtBeats(orbit, sampleBeats, cx, cy),
+                      resonancePositionAtBeats(
+                        orbit,
+                        sampleBeats,
+                        cx,
+                        cy,
+                        activeCountMode,
+                        activeCyclePulseCount,
+                      ),
                       cx,
                       cy,
                       orbitScale,
@@ -1349,7 +1376,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   const sampleBeats = previousElapsedBeats + deltaBeats * t;
                   const samplePoints = state.orbits.map((orbit) => {
                     const pos = scalePointFromCenter(
-                      resonancePositionAtBeats(orbit, sampleBeats, cx, cy),
+                      resonancePositionAtBeats(
+                        orbit,
+                        sampleBeats,
+                        cx,
+                        cy,
+                        activeCountMode,
+                        activeCyclePulseCount,
+                      ),
                       cx,
                       cy,
                       orbitScale,

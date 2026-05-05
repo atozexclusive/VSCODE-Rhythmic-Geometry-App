@@ -5,8 +5,13 @@
 
 import { X, Plus, Trash2, ChevronDown, RotateCcw } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { Orbit } from '../lib/orbitalEngine';
-import { PRESET_RATIOS } from '../lib/orbitalEngine';
+import {
+  DEFAULT_ORBIT_COUNT_MODE,
+  ENABLE_STANDARD_TURNS_PER_CYCLE,
+  PRESET_RATIOS,
+  type Orbit,
+  type OrbitCountMode,
+} from '../lib/orbitalEngine';
 import InfoTip from './InfoTip';
 import AccountPanel from './AccountPanel';
 import {
@@ -28,6 +33,7 @@ interface OrbitSidebarProps {
   currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
+  standardTimingMode?: OrbitCountMode;
   interferenceSettings: InterferenceSettings;
   builtInScenes: Array<{
     id: string;
@@ -72,6 +78,7 @@ interface OrbitSidebarProps {
   onAllClockwise: () => void;
   onAlternateDirections: () => void;
   onGeometryModeChange: (mode: GeometryMode) => void;
+  onStandardTimingModeChange: (mode: OrbitCountMode) => void;
   onInterferenceSettingsChange: (updates: Partial<InterferenceSettings>) => void;
   onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
   onSaveScene: () => void;
@@ -108,6 +115,7 @@ export default function OrbitSidebar({
   currentSurface,
   harmonySettings,
   geometryMode,
+  standardTimingMode = DEFAULT_ORBIT_COUNT_MODE,
   interferenceSettings,
   builtInScenes,
   premiumScenes,
@@ -126,6 +134,7 @@ export default function OrbitSidebar({
   onAllClockwise,
   onAlternateDirections,
   onGeometryModeChange,
+  onStandardTimingModeChange,
   onInterferenceSettingsChange,
   onHarmonyChange,
   onSaveScene,
@@ -161,6 +170,12 @@ export default function OrbitSidebar({
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+  const usesCycleCount =
+    ENABLE_STANDARD_TURNS_PER_CYCLE &&
+    geometryMode === 'standard-trace' &&
+    standardTimingMode === 'turns-per-cycle';
+  const orbitCountLabel = usesCycleCount ? 'Turns / Cycle' : 'Beats / Turn';
+  const orbitCountSummaryLabel = usesCycleCount ? 'turns/cycle' : 'beats/turn';
   const sectionTitleStyle = {
     color: 'rgba(244, 250, 255, 0.9)',
     textShadow: '0 0 12px rgba(127,215,255,0.14)',
@@ -420,7 +435,7 @@ export default function OrbitSidebar({
                             Orbit {orbits.findIndex((entry) => entry.id === orbit.id) + 1}
                           </div>
                           <div className="text-[10px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
-                            {orbit.pulseCount} pulses · {orbit.direction === 1 ? 'CW' : 'CCW'} · {orbit.radius}px
+                            {orbit.pulseCount} {orbitCountSummaryLabel} · {orbit.direction === 1 ? 'CW' : 'CCW'} · {orbit.radius}px
                           </div>
                         </div>
                       </div>
@@ -444,7 +459,7 @@ export default function OrbitSidebar({
                         </div>
                         <div>
                           <label className="text-[10px] font-mono uppercase tracking-widest" style={sectionLabelStyle}>
-                            Pulses
+                            {orbitCountLabel}
                           </label>
                           <div className="flex items-center gap-2 mt-1">
                             <button
@@ -1410,6 +1425,50 @@ export default function OrbitSidebar({
                   Choose how Orbit draws the core layer relationships.
                 </p>
               </div>
+
+              {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && (
+                <div className="space-y-3 rounded-[1.25rem] border p-3.5" style={ratioCardStyle}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: '#00FFAA' }}>
+                        Number Meaning
+                      </div>
+                      <p className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                        Choose what the orbit numbers mean in Standard mode.
+                      </p>
+                    </div>
+                    <InfoTip text="Beats / Turn is the original behavior. Turns / Cycle means the number is rotations inside one shared loop, so 3 against 7 means 3 turns against 7 turns." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ['beats-per-turn', 'Beats / Turn'],
+                      ['turns-per-cycle', 'Turns / Cycle'],
+                    ] as const).map(([mode, label]) => {
+                      const selected = standardTimingMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => onStandardTimingModeChange(mode)}
+                          className="rounded-lg border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 hover:bg-white/5"
+                          style={{
+                            background: selected ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                            borderColor: selected ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)',
+                            color: selected ? '#00FFAA' : 'rgba(255, 255, 255, 0.66)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
+                    {usesCycleCount
+                      ? 'Example: 3 and 7 means one layer rotates 3 times while the other rotates 7 times before the cycle restarts.'
+                      : 'Example: 7 means that layer takes 7 beats to make one full turn.'}
+                  </p>
+                </div>
+              )}
 
               {(geometryMode === 'interference-trace' || geometryMode === 'sweep') && (
                 <div className="space-y-3 rounded-[1.25rem] border p-3.5" style={ratioCardStyle}>

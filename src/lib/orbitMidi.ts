@@ -3,12 +3,18 @@ import {
   SCALE_PRESETS,
   type HarmonySettings,
 } from './audioEngine';
-import type { Orbit } from './orbitalEngine';
+import {
+  DEFAULT_ORBIT_COUNT_MODE,
+  ENABLE_STANDARD_TURNS_PER_CYCLE,
+  type Orbit,
+  type OrbitCountMode,
+} from './orbitalEngine';
 
 const MIDI_PPQ = 480;
 
 export interface OrbitMidiExportOptions {
   bars: 4 | 8 | 16;
+  countMode?: OrbitCountMode;
 }
 
 interface TimedMidiEvent {
@@ -156,6 +162,7 @@ export function buildOrbitMidiFile(
   const totalBars = options.bars;
   const totalBeats = totalBars * 4;
   const totalTicks = totalBeats * MIDI_PPQ;
+  const countMode = options.countMode ?? DEFAULT_ORBIT_COUNT_MODE;
   const events: TimedMidiEvent[] = [];
 
   events.push({
@@ -194,15 +201,20 @@ export function buildOrbitMidiFile(
 
   orbits.forEach((orbit, orbitIndex) => {
     const pulseCount = Math.max(1, orbit.pulseCount);
-    const intervalBeats = pulseCount / Math.max(1, anchorPulseCount);
+    const useCycleCount = ENABLE_STANDARD_TURNS_PER_CYCLE && countMode === 'turns-per-cycle';
+    const intervalBeats =
+      useCycleCount
+        ? Math.max(1, anchorPulseCount) / pulseCount
+        : pulseCount / Math.max(1, anchorPulseCount);
     const note = getOrbitMidiNote(orbit, harmony, orbitIndex);
     const velocity = clamp(86 + ((orbitIndex % 4) * 6), 72, 112);
     const noteLengthTicks = Math.max(24, Math.min(Math.round(intervalBeats * MIDI_PPQ * 0.8), Math.round(MIDI_PPQ * 0.6)));
+    const countLabel = useCycleCount ? 'turns/cycle' : 'beats/turn';
 
     events.push({
       tick: 0,
       order: 0,
-      bytes: textEventBytes(0x01, `Orbit ${orbitIndex + 1} · ${pulseCount} pulses`),
+      bytes: textEventBytes(0x01, `Orbit ${orbitIndex + 1} · ${pulseCount} ${countLabel}`),
     });
 
     for (let beat = 0; beat < totalBeats; beat += intervalBeats) {

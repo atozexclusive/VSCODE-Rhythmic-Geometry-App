@@ -334,6 +334,17 @@
 }
 
 @media (min-width: 768px) {
+  :root {
+    --rg-desktop-panel-scale: 0.96;
+    --rg-desktop-dock-scale: 1;
+  }
+
+  .rg-desktop-dock-scale {
+    transform: scale(var(--rg-desktop-dock-scale, 1));
+    transform-origin: bottom center;
+    will-change: transform;
+  }
+
   .rg-desktop-panel-left {
     transform: scale(var(--rg-desktop-panel-scale, 0.96));
     transform-origin: top left;
@@ -356,6 +367,20 @@
     transform: scale(var(--rg-desktop-panel-scale, 0.96));
     transform-origin: bottom right;
     will-change: transform;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1500px), (min-width: 768px) and (max-height: 860px) {
+  :root {
+    --rg-desktop-panel-scale: 0.9;
+    --rg-desktop-dock-scale: 0.9;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1320px), (min-width: 768px) and (max-height: 760px) {
+  :root {
+    --rg-desktop-panel-scale: 0.84;
+    --rg-desktop-dock-scale: 0.84;
   }
 }
 

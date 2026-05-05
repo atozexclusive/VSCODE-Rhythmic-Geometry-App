@@ -8,7 +8,7 @@
 
 export interface Orbit {
   id: string;
-  pulseCount: number;       // 1–1000 integer beats per cycle
+  pulseCount: number;       // 1-1000 timing count, interpreted by OrbitCountMode
   radius: number;           // px from center
   direction: 1 | -1;        // 1 = CW, -1 = CCW
   color: string;            // hex color
@@ -33,13 +33,30 @@ export const DEFAULT_BASE_BPM = 120.0;
 export const DEFAULT_ORBIT_TEMPO_BPM = 20;
 export const ORBIT_TEMPO_MIN_BPM = 10;
 export const ORBIT_TEMPO_MAX_BPM = 1000;
+export const CYCLE_ORBIT_TEMPO_MAX_BPM = 240;
 export const SWEEP_ORBIT_TEMPO_MAX_BPM = 3000;
-export type OrbitTempoMode = 'standard' | 'sweep';
+export type OrbitTempoMode = 'standard' | 'cycle' | 'sweep';
+export type OrbitCountMode = 'beats-per-turn' | 'turns-per-cycle';
+export const DEFAULT_ORBIT_COUNT_MODE: OrbitCountMode = 'beats-per-turn';
+export const ENABLE_STANDARD_TURNS_PER_CYCLE = false;
 const SWEEP_TEMPO_TURNS_PER_COMPLETION = 10;
 const SWEEP_TEMPO_COMPLETION_BEATS = 48;
 
 export function getOrbitTempoMaxBpm(tempoMode: OrbitTempoMode = 'standard'): number {
+  if (ENABLE_STANDARD_TURNS_PER_CYCLE && tempoMode === 'cycle') {
+    return CYCLE_ORBIT_TEMPO_MAX_BPM;
+  }
   return tempoMode === 'sweep' ? SWEEP_ORBIT_TEMPO_MAX_BPM : ORBIT_TEMPO_MAX_BPM;
+}
+
+export function normalizeOrbitCountMode(value: unknown): OrbitCountMode {
+  return ENABLE_STANDARD_TURNS_PER_CYCLE && value === 'turns-per-cycle'
+    ? 'turns-per-cycle'
+    : DEFAULT_ORBIT_COUNT_MODE;
+}
+
+export function getOrbitCyclePulseCount(orbits: Array<{ pulseCount: number }>): number {
+  return Math.max(1, ...orbits.map((orbit) => Math.max(1, orbit.pulseCount)));
 }
 
 export function clampOrbitTempoBpm(
@@ -59,6 +76,8 @@ export function orbitTempoBpmToSpeedMultiplier(
   const anchorRotationsPerMasterBeat =
     tempoMode === 'sweep'
       ? (pulseCount * SWEEP_TEMPO_TURNS_PER_COMPLETION) / SWEEP_TEMPO_COMPLETION_BEATS
+      : ENABLE_STANDARD_TURNS_PER_CYCLE && tempoMode === 'cycle'
+        ? 1
       : 1 / pulseCount;
   return clampOrbitTempoBpm(tempoBpm, tempoMode) / (Math.max(1, baseBpm) * anchorRotationsPerMasterBeat);
 }
@@ -73,6 +92,8 @@ export function orbitSpeedMultiplierToTempoBpm(
   const anchorRotationsPerMasterBeat =
     tempoMode === 'sweep'
       ? (pulseCount * SWEEP_TEMPO_TURNS_PER_COMPLETION) / SWEEP_TEMPO_COMPLETION_BEATS
+      : ENABLE_STANDARD_TURNS_PER_CYCLE && tempoMode === 'cycle'
+        ? 1
       : 1 / pulseCount;
   return Math.max(1, baseBpm) * speedMultiplier * anchorRotationsPerMasterBeat;
 }
@@ -93,8 +114,8 @@ export function createEngineState(): EngineState {
 
 /**
  * Deterministic phase for an orbit given elapsed master beats.
- * Each orbit completes one full rotation every `pulseCount` master beats.
- * Phase = (elapsedBeats / pulseCount) * TAU * direction   (mod TAU)
+ * Default mode: each orbit completes one full rotation every `pulseCount` master beats.
+ * Turns-per-cycle mode: `pulseCount` is rotations during one shared cycle.
  *
  * Because we derive phase from the absolute elapsed counter
  * rather than accumulating deltas, there is zero drift.
@@ -103,12 +124,32 @@ export function computePhase(
   elapsedBeats: number,
   pulseCount: number,
   direction: 1 | -1,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
+  cyclePulseCount: number = Math.max(1, pulseCount),
 ): number {
-  const rotations: number = elapsedBeats / pulseCount;
+  const safePulseCount = Math.max(1, pulseCount);
+  const safeCyclePulseCount = Math.max(1, cyclePulseCount);
+  const rotations: number =
+    ENABLE_STANDARD_TURNS_PER_CYCLE && countMode === 'turns-per-cycle'
+      ? (elapsedBeats * safePulseCount) / safeCyclePulseCount
+      : elapsedBeats / safePulseCount;
   const frac: number = rotations - Math.floor(rotations);
   let angle: number = frac * TAU * direction;
   angle = ((angle % TAU) + TAU) % TAU;
   return angle;
+}
+
+export function computeOrbitRotations(
+  elapsedBeats: number,
+  pulseCount: number,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
+  cyclePulseCount: number = Math.max(1, pulseCount),
+): number {
+  const safePulseCount = Math.max(1, pulseCount);
+  const safeCyclePulseCount = Math.max(1, cyclePulseCount);
+  return ENABLE_STANDARD_TURNS_PER_CYCLE && countMode === 'turns-per-cycle'
+    ? (elapsedBeats * safePulseCount) / safeCyclePulseCount
+    : elapsedBeats / safePulseCount;
 }
 
 /**
@@ -137,8 +178,10 @@ export function resonancePositionAtBeats(
   elapsedBeats: number,
   centerX: number,
   centerY: number,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
+  cyclePulseCount: number = Math.max(1, orbit.pulseCount),
 ): { x: number; y: number } {
-  const phase = computePhase(elapsedBeats, orbit.pulseCount, orbit.direction);
+  const phase = computePhase(elapsedBeats, orbit.pulseCount, orbit.direction, countMode, cyclePulseCount);
   const angle: number = -Math.PI / 2.0 + phase;
   return {
     x: centerX + orbit.radius * Math.cos(angle),
@@ -159,12 +202,14 @@ function advanceEngineByDeltaBeats(
   deltaBeats: number,
   centerX: number,
   centerY: number,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
 ): TriggerEvent[] {
   if (deltaBeats <= 0) {
     return [];
   }
 
   state.elapsedBeats += deltaBeats;
+  const cyclePulseCount = getOrbitCyclePulseCount(state.orbits);
 
   const triggers: TriggerEvent[] = [];
 
@@ -173,9 +218,16 @@ function advanceEngineByDeltaBeats(
       state.elapsedBeats,
       orbit.pulseCount,
       orbit.direction,
+      countMode,
+      cyclePulseCount,
     );
 
-    const totalRotations = state.elapsedBeats / orbit.pulseCount;
+    const totalRotations = computeOrbitRotations(
+      state.elapsedBeats,
+      orbit.pulseCount,
+      countMode,
+      cyclePulseCount,
+    );
     const currentBeatIndex = Math.floor(totalRotations);
 
     if (currentBeatIndex > orbit.lastTriggerBeat) {
@@ -199,9 +251,10 @@ export function stepEngineByBeats(
   deltaBeats: number,
   centerX: number,
   centerY: number,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
 ): TriggerEvent[] {
   state.lastTimestamp = -1.0;
-  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY);
+  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY, countMode);
 }
 
 /**
@@ -214,6 +267,7 @@ export function tick(
   timestamp: number,
   centerX: number,
   centerY: number,
+  countMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
 ): TriggerEvent[] {
   if (!state.playing) {
     state.lastTimestamp = timestamp;
@@ -235,7 +289,7 @@ export function tick(
   // Beats elapsed this frame
   const beatsPerSecond: number = (state.baseBPM / 60.0) * state.speedMultiplier;
   const deltaBeats: number = cappedDt * beatsPerSecond;
-  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY);
+  return advanceEngineByDeltaBeats(state, deltaBeats, centerX, centerY, countMode);
 }
 
 /**

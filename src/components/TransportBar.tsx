@@ -7,7 +7,15 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
-import { ORBIT_TEMPO_MIN_BPM, getOrbitTempoMaxBpm, orbitSpeedMultiplierToTempoBpm, type OrbitTempoMode } from '../lib/orbitalEngine';
+import {
+  DEFAULT_ORBIT_COUNT_MODE,
+  ENABLE_STANDARD_TURNS_PER_CYCLE,
+  ORBIT_TEMPO_MIN_BPM,
+  getOrbitTempoMaxBpm,
+  orbitSpeedMultiplierToTempoBpm,
+  type OrbitCountMode,
+  type OrbitTempoMode,
+} from '../lib/orbitalEngine';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import {
@@ -34,6 +42,7 @@ interface TransportBarProps {
   allClockwise: boolean;
   presentationMode: boolean;
   geometryMode: GeometryMode;
+  standardTimingMode?: OrbitCountMode;
   showHelp: boolean;
   tonePreset: TonePreset;
   rootNote: RootNote;
@@ -50,6 +59,7 @@ interface TransportBarProps {
   onSetQuickOrbit: (orbitId: string, pulseCount: number) => void;
   onOpenOrbitEditor: (orbitId: string) => void;
   onGeometryModeChange: (mode: GeometryMode) => void;
+  onStandardTimingModeChange: (mode: OrbitCountMode) => void;
   onReverseDirections: () => void;
   onAllClockwise: () => void;
   onAlternateDirections: () => void;
@@ -98,6 +108,7 @@ export default function TransportBar({
   allClockwise,
   presentationMode,
   geometryMode,
+  standardTimingMode = DEFAULT_ORBIT_COUNT_MODE,
   showHelp,
   tonePreset,
   rootNote,
@@ -108,6 +119,7 @@ export default function TransportBar({
   onSetQuickOrbit,
   onOpenOrbitEditor,
   onGeometryModeChange,
+  onStandardTimingModeChange,
   onReverseDirections,
   onAllClockwise,
   onAlternateDirections,
@@ -268,10 +280,23 @@ export default function TransportBar({
       : style;
   const modeDescription =
     geometryMode === 'standard-trace'
-      ? 'Connects all active orbits into a shared string-art field.'
+      ? ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle'
+        ? 'Numbers are turns inside one shared cycle. 3 and 7 return home together.'
+        : 'Numbers are beats per turn. Lower numbers move faster; higher numbers move slower.'
       : geometryMode === 'interference-trace'
         ? 'Traces one live path from the relationship between the selected orbits.'
         : 'Plots a finite sampled figure from the selected orbits.';
+  const standardUsesCycleCount = ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle';
+  const standardCountLabel = standardUsesCycleCount ? 'Turns / Cycle' : 'Beats / Turn';
+  const standardCountShortLabel = standardUsesCycleCount ? 'turns/cycle' : 'beats/turn';
+  const standardOrbitSummary =
+    standardUsesCycleCount
+      ? 'Set how many turns each layer makes before the shared cycle restarts.'
+      : 'Set how many beats each layer takes to make one turn.';
+  const standardOrbitInfo =
+    standardUsesCycleCount
+      ? 'Each number is rotations in one shared cycle. In 3 against 7, one layer turns 3 times while the other turns 7 times before they return home together.'
+      : 'Each number is beats per turn. Lower numbers orbit faster; higher numbers orbit slower and create longer alignments.';
   const handleTouchSliderPointerDown = useCallback(
     (
       event: ReactPointerEvent<HTMLInputElement>,
@@ -835,6 +860,40 @@ export default function TransportBar({
                   Sweep
                 </button>
               </div>
+              {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' ? (
+                <div className="rounded-xl px-2.5 py-2" style={desktopSideSectionStyle}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[9px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                      Number Meaning
+                    </span>
+                    <InfoTip text="This only changes Standard mode. Beats / Turn is the original behavior. Turns / Cycle makes each number mean rotations during one shared loop." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ['beats-per-turn', 'Beats / Turn'],
+                      ['turns-per-cycle', 'Turns / Cycle'],
+                    ] as const).map(([mode, label]) => {
+                      const selected = standardTimingMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => onStandardTimingModeChange(mode)}
+                          className={compactButtonStyle}
+                          style={{
+                            background: selected ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.045)',
+                            border: `1px solid ${selected ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
+                            color: selected ? '#00FFAA' : 'rgba(255, 255, 255, 0.66)',
+                          }}
+                          title={mode === 'turns-per-cycle' ? 'Use rotations per shared cycle' : 'Use beats per turn'}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
                 {modeDescription}
               </p>
@@ -856,7 +915,7 @@ export default function TransportBar({
                         </span>
                         <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
                           {geometryMode === 'standard-trace'
-                            ? 'Change how many beats each layer takes to turn.'
+                            ? standardOrbitSummary
                             : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
                               ? 'Shape the active orbit quartet from the main bar.'
                               : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
@@ -882,7 +941,7 @@ export default function TransportBar({
                     <InfoTip
                       text={
                         geometryMode === 'standard-trace'
-                          ? 'Each number is beats per turn. Lower numbers orbit faster; higher numbers orbit slower and create longer alignments.'
+                          ? standardOrbitInfo
                           : 'Each number is beats per turn for the active layers driving the current derived shape.'
                       }
                     />
@@ -950,13 +1009,13 @@ export default function TransportBar({
                                     background: 'rgba(255, 255, 255, 0.04)',
                                     borderColor: 'rgba(255, 255, 255, 0.08)',
                                   }}
-                                  aria-label={`${orbit.label} beats per turn`}
+                                  aria-label={`${orbit.label} ${geometryMode === 'standard-trace' ? standardCountShortLabel : 'beats/turn'}`}
                                 />
                                 <span
                                   className="-ml-1 text-[8px] font-mono uppercase tracking-[0.12em]"
                                   style={{ color: 'rgba(255, 255, 255, 0.36)' }}
                                 >
-                                  Beats / Turn
+                                  {geometryMode === 'standard-trace' ? standardCountLabel : 'Beats / Turn'}
                                 </span>
                                 <button
                                   onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
@@ -1619,7 +1678,7 @@ export default function TransportBar({
         </div>
       ) : (
       <div
-        className="mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-nowrap items-center justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
+        className="rg-desktop-dock-scale mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-nowrap items-center justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
         style={{
           background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
           borderColor: 'rgba(255,255,255,0.08)',
@@ -1728,7 +1787,7 @@ export default function TransportBar({
         {/* Center: Tempo */}
         <div
           data-guide="desktop-speed"
-          className="rg-transport-tempo-row mx-0 xl:mx-3 flex min-w-[320px] max-w-[860px] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
+          className="rg-transport-tempo-row mx-0 xl:mx-3 flex min-w-[260px] max-w-[min(860px,52vw)] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
           style={desktopTempoPanelStyle}
         >
           <div className="shrink-0">

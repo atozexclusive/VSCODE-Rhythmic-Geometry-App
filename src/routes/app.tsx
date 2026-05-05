@@ -42,10 +42,15 @@ import {
 import {
   type Orbit,
   type EngineState,
+  type OrbitCountMode,
   type OrbitTempoMode,
+  DEFAULT_ORBIT_COUNT_MODE,
+  ENABLE_STANDARD_TURNS_PER_CYCLE,
   ORBIT_TEMPO_MAX_BPM,
   ORBIT_TEMPO_MIN_BPM,
+  getOrbitCyclePulseCount,
   getOrbitTempoMaxBpm,
+  normalizeOrbitCountMode,
   orbitSpeedMultiplierToTempoBpm,
   orbitTempoBpmToSpeedMultiplier,
   createEngineState,
@@ -1594,6 +1599,7 @@ export interface SceneSnapshot {
   traceMode: boolean;
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
+  standardTimingMode?: OrbitCountMode;
   interferenceSettings: SceneInterferenceSettings;
 }
 
@@ -2784,6 +2790,7 @@ const DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
   traceMode: true,
   harmonySettings: { ...DEFAULT_HARMONY_SETTINGS },
   geometryMode: 'standard-trace',
+  standardTimingMode: DEFAULT_ORBIT_COUNT_MODE,
   interferenceSettings: {
     sourceOrbitAIndex: null,
     sourceOrbitBIndex: null,
@@ -3386,7 +3393,22 @@ function computeRandomSpeed(
   mode: GeometryMode,
   pulses: number[],
   options?: { extended?: boolean },
+  standardTimingMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
 ): number {
+  if (
+    ENABLE_STANDARD_TURNS_PER_CYCLE &&
+    mode === 'standard-trace' &&
+    standardTimingMode === 'turns-per-cycle'
+  ) {
+    const targetTempoBpm = options?.extended ? randomInt(18, 48) : randomInt(12, 30);
+    return orbitTempoBpmToSpeedMultiplier(
+      targetTempoBpm,
+      DEFAULT_BASE_BPM,
+      Math.max(1, ...pulses),
+      'cycle',
+    );
+  }
+
   if (options?.extended) {
     let speed = computeRandomPlusSpeed(pulses);
     if (mode === 'sweep') speed += 0.35;
@@ -3415,18 +3437,35 @@ function getOuterRingPulseCount(orbits: Orbit[], pulsesOverride?: number[]): num
   return Math.max(1, pulsesOverride?.[anchorIndex] ?? orbits[anchorIndex]?.pulseCount ?? 1);
 }
 
-function getOrbitTempoMode(mode: GeometryMode): OrbitTempoMode {
-  return mode === 'sweep' ? 'sweep' : 'standard';
+function getOrbitTempoMode(
+  mode: GeometryMode,
+  standardTimingMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
+): OrbitTempoMode {
+  if (mode === 'sweep') {
+    return 'sweep';
+  }
+  if (
+    ENABLE_STANDARD_TURNS_PER_CYCLE &&
+    mode === 'standard-trace' &&
+    standardTimingMode === 'turns-per-cycle'
+  ) {
+    return 'cycle';
+  }
+  return 'standard';
 }
 
 function getTempoAnchorPulseCount(
   orbits: Orbit[],
   mode: GeometryMode,
   settings: InterferenceSettings,
+  standardTimingMode: OrbitCountMode = DEFAULT_ORBIT_COUNT_MODE,
   pulsesOverride?: number[],
   selectedIndices?: number[],
 ): number {
   if (mode === 'standard-trace') {
+    if (ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle') {
+      return Math.max(1, ...(pulsesOverride ?? orbits.map((orbit) => orbit.pulseCount)));
+    }
     return getOuterRingPulseCount(orbits, pulsesOverride);
   }
 
@@ -3620,7 +3659,14 @@ export function createScenePreviewDataUrl(
     })) satisfies Orbit[];
 
   const traceOrbits = getScenePreviewOrbits();
-  const cycleBeats = Math.min(840, Math.max(60, lcmForPulseCounts(traceOrbits.map((orbit) => orbit.pulseCount))));
+  const standardTimingMode = normalizeOrbitCountMode(snapshot.standardTimingMode);
+  const standardCyclePulseCount = getOrbitCyclePulseCount(traceOrbits);
+  const cycleBeats =
+    ENABLE_STANDARD_TURNS_PER_CYCLE &&
+    snapshot.geometryMode === 'standard-trace' &&
+    standardTimingMode === 'turns-per-cycle'
+      ? standardCyclePulseCount
+      : Math.min(840, Math.max(60, lcmForPulseCounts(traceOrbits.map((orbit) => orbit.pulseCount))));
   const maxRadius = Math.max(...traceOrbits.map((orbit) => orbit.radius), 1);
   const standardScale = (renderSize * scaleRatio) / maxRadius;
   const totalPairs = Math.max(1, (traceOrbits.length * (traceOrbits.length - 1)) / 2);
@@ -3752,8 +3798,14 @@ export function createScenePreviewDataUrl(
         ctx.globalAlpha = 1;
       }
     } else {
-      const beatsWindow = Math.max(24, cycleBeats * cycleFactor);
-      const steps = Math.min(3200, Math.max(1100, beatsWindow * 5));
+      const beatsWindow =
+        ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle'
+          ? Math.max(standardCyclePulseCount * 0.65, standardCyclePulseCount * cycleFactor)
+          : Math.max(24, cycleBeats * cycleFactor);
+      const steps =
+        ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle'
+          ? Math.min(3200, Math.max(1100, standardCyclePulseCount * 120))
+          : Math.min(3200, Math.max(1100, beatsWindow * 5));
 
       for (let step = 0; step <= steps; step++) {
         const beats = (step / steps) * beatsWindow;
@@ -3763,6 +3815,8 @@ export function createScenePreviewDataUrl(
             beats,
             center,
             center,
+            standardTimingMode,
+            standardCyclePulseCount,
           );
           return { ...pos, color: orbit.color };
         });
@@ -4489,6 +4543,7 @@ function mapStoredSceneRecord(record: StoredSceneRecord): SavedScene | null {
           : snapshot.geometryMode === 'sweep'
             ? 'sweep'
             : 'standard-trace',
+      standardTimingMode: normalizeOrbitCountMode(snapshot.standardTimingMode),
       interferenceSettings: normalizeSceneInterferenceSettings(
         snapshot.orbits.length,
         snapshot.interferenceSettings as Partial<SceneInterferenceSettings> | undefined,
@@ -4567,7 +4622,7 @@ function downloadOrbitMidiFile(
   harmonySettings: HarmonySettings,
   bpm: number,
   anchorPulseCount: number,
-  options: { bars: 4 | 8 | 16 },
+  options: { bars: 4 | 8 | 16; countMode?: OrbitCountMode },
 ): void {
   if (typeof window === 'undefined') {
     return;
@@ -4708,6 +4763,7 @@ function normalizeImportedScene(value: unknown): SavedScene | null {
           : snapshot.geometryMode === 'sweep'
             ? 'sweep'
             : 'standard-trace',
+      standardTimingMode: normalizeOrbitCountMode(snapshot.standardTimingMode),
       interferenceSettings: normalizeSceneInterferenceSettings(
         snapshot.orbits.length,
         snapshot.interferenceSettings as Partial<SceneInterferenceSettings> | undefined,
@@ -4722,6 +4778,7 @@ function applySceneSnapshot(
   setTraceMode: (traceMode: boolean) => void,
   setHarmonySettings: (settings: HarmonySettings) => void,
   setGeometryMode: (mode: GeometryMode) => void,
+  setStandardTimingMode: (mode: OrbitCountMode) => void,
   setInterferenceSettings: (settings: InterferenceSettings) => void,
   clearTraces: () => void,
 ): void {
@@ -4733,6 +4790,7 @@ function applySceneSnapshot(
   setTraceMode(snapshot.traceMode);
   setHarmonySettings(snapshot.harmonySettings);
   setGeometryMode(snapshot.geometryMode);
+  setStandardTimingMode(normalizeOrbitCountMode(snapshot.standardTimingMode));
   setInterferenceSettings(
     resolveLiveInterferenceSettings(
       engineState.orbits,
@@ -4790,6 +4848,7 @@ function OrbitalPolymeter() {
   const [muted, setMuted] = useState(() => getAudioMuted());
   const [harmonySettings, setHarmonySettings] = useState<HarmonySettings>(DEFAULT_HARMONY_SETTINGS);
   const [geometryMode, setGeometryMode] = useState<GeometryMode>('standard-trace');
+  const [standardTimingMode, setStandardTimingMode] = useState<OrbitCountMode>(DEFAULT_ORBIT_COUNT_MODE);
   const [interferenceSettings, setInterferenceSettings] = useState<InterferenceSettings>(() =>
     normalizeInterferenceSettings(engineState.orbits, DEFAULT_INTERFERENCE_SETTINGS),
   );
@@ -7884,6 +7943,7 @@ function OrbitalPolymeter() {
       setTraceMode,
       setHarmonySettings,
       setGeometryMode,
+      setStandardTimingMode,
       setInterferenceSettings,
       handleClearTraces,
     );
@@ -7913,6 +7973,7 @@ function OrbitalPolymeter() {
       setTraceMode,
       setHarmonySettings,
       setGeometryMode,
+      setStandardTimingMode,
       setInterferenceSettings,
       handleClearTraces,
     );
@@ -7943,14 +8004,14 @@ function OrbitalPolymeter() {
       engineState.speedMultiplier = orbitTempoBpmToSpeedMultiplier(
         tempoBpm,
         engineState.baseBPM,
-        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings),
-        getOrbitTempoMode(geometryMode),
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, standardTimingMode),
+        getOrbitTempoMode(geometryMode, standardTimingMode),
       );
       resetEngine(engineState);
       handleClearTraces();
       rerender();
     },
-    [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender],
+    [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender, standardTimingMode],
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
@@ -7995,6 +8056,7 @@ function OrbitalPolymeter() {
       setTraceMode,
       setHarmonySettings,
       setGeometryMode,
+      setStandardTimingMode,
       setInterferenceSettings,
       handleClearTraces,
     );
@@ -8010,6 +8072,7 @@ function OrbitalPolymeter() {
       setTraceMode,
       setHarmonySettings,
       setGeometryMode,
+      setStandardTimingMode,
       setInterferenceSettings,
       handleClearTraces,
     );
@@ -8045,9 +8108,15 @@ function OrbitalPolymeter() {
     const dpr = window.devicePixelRatio || 1;
     const centerX = canvasEl.width / dpr / 2;
     const centerY = canvasEl.height / dpr / 2;
-    stepEngineByBeats(engineState, MANUAL_STEP_BEATS, centerX, centerY);
+    stepEngineByBeats(
+      engineState,
+      MANUAL_STEP_BEATS,
+      centerX,
+      centerY,
+      geometryMode === 'standard-trace' ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE,
+    );
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, geometryMode, rerender, standardTimingMode]);
 
   const handleUpdateOrbit = useCallback(
     (
@@ -8198,13 +8267,13 @@ function OrbitalPolymeter() {
       if (geometryMode === mode) {
         return;
       }
-      const nextTempoMode = getOrbitTempoMode(mode);
+      const nextTempoMode = getOrbitTempoMode(mode, standardTimingMode);
       const nextTempoMaxBpm = getOrbitTempoMaxBpm(nextTempoMode);
       const currentTempoBpm = orbitSpeedMultiplierToTempoBpm(
         engineState.speedMultiplier,
         engineState.baseBPM,
-        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings),
-        getOrbitTempoMode(geometryMode),
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, standardTimingMode),
+        getOrbitTempoMode(geometryMode, standardTimingMode),
       );
       const nextTempoBpm = Math.max(
         ORBIT_TEMPO_MIN_BPM,
@@ -8214,7 +8283,7 @@ function OrbitalPolymeter() {
       engineState.speedMultiplier = orbitTempoBpmToSpeedMultiplier(
         nextTempoBpm,
         engineState.baseBPM,
-        getTempoAnchorPulseCount(engineState.orbits, mode, interferenceSettings),
+        getTempoAnchorPulseCount(engineState.orbits, mode, interferenceSettings, standardTimingMode),
         nextTempoMode,
       );
       resetEngine(engineState);
@@ -8222,7 +8291,53 @@ function OrbitalPolymeter() {
       setActiveSceneSource('custom');
       rerender();
     },
-    [engineState, geometryMode, handleClearTraces, interferenceSettings, requireUnlockedSceneEditing, rerender],
+    [engineState, geometryMode, handleClearTraces, interferenceSettings, requireUnlockedSceneEditing, rerender, standardTimingMode],
+  );
+
+  const handleStandardTimingModeChange = useCallback(
+    (mode: OrbitCountMode) => {
+      const nextMode = normalizeOrbitCountMode(mode);
+      if (requireUnlockedSceneEditing()) {
+        return;
+      }
+      if (standardTimingMode === nextMode) {
+        return;
+      }
+
+      const currentTempoMode = getOrbitTempoMode(geometryMode, standardTimingMode);
+      const nextTempoMode = getOrbitTempoMode(geometryMode, nextMode);
+      const currentTempoBpm = orbitSpeedMultiplierToTempoBpm(
+        engineState.speedMultiplier,
+        engineState.baseBPM,
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, standardTimingMode),
+        currentTempoMode,
+      );
+      const nextTempoBpm = Math.max(
+        ORBIT_TEMPO_MIN_BPM,
+        Math.min(getOrbitTempoMaxBpm(nextTempoMode), currentTempoBpm),
+      );
+
+      setStandardTimingMode(nextMode);
+      engineState.speedMultiplier = orbitTempoBpmToSpeedMultiplier(
+        nextTempoBpm,
+        engineState.baseBPM,
+        getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, nextMode),
+        nextTempoMode,
+      );
+      resetEngine(engineState);
+      handleClearTraces();
+      setActiveSceneSource('custom');
+      rerender();
+    },
+    [
+      engineState,
+      geometryMode,
+      handleClearTraces,
+      interferenceSettings,
+      requireUnlockedSceneEditing,
+      rerender,
+      standardTimingMode,
+    ],
   );
 
   const handleInterferenceSettingsChange = useCallback(
@@ -8501,19 +8616,26 @@ function OrbitalPolymeter() {
                     : 2,
               )
               .sort((a, b) => a - b);
-    let anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, pulses, selectedCandidates);
+    let anchorPulseCount = getTempoAnchorPulseCount(
+      engineState.orbits,
+      geometryMode,
+      interferenceSettings,
+      standardTimingMode,
+      pulses,
+      selectedCandidates,
+    );
     const randomPlusMinTempoBpm = isSweepMode ? SWEEP_RANDOM_PLUS_MIN_TEMPO_BPM : RANDOM_PLUS_MIN_TEMPO_BPM;
     const randomPlusMaxTempoBpm = isSweepMode
-      ? getOrbitTempoMaxBpm(getOrbitTempoMode(geometryMode))
+      ? getOrbitTempoMaxBpm(getOrbitTempoMode(geometryMode, standardTimingMode))
       : RANDOM_PLUS_MAX_TEMPO_BPM;
     let speedMultiplier = isExtended
       ? orbitTempoBpmToSpeedMultiplier(
           randomInt(randomPlusMinTempoBpm, randomPlusMaxTempoBpm),
           engineState.baseBPM,
           anchorPulseCount,
-          getOrbitTempoMode(geometryMode),
+          getOrbitTempoMode(geometryMode, standardTimingMode),
         )
-      : computeRandomSpeed(geometryMode, pulses, options);
+      : computeRandomSpeed(geometryMode, pulses, options, standardTimingMode);
     let candidate: RandomHistoryEntry = {
       pulses,
       directions,
@@ -8542,15 +8664,22 @@ function OrbitalPolymeter() {
       colors = isFreeBaseRandom
         ? engineState.orbits.map((orbit) => orbit.color)
         : buildRandomColors(engineState.orbits.length, options);
-      anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, pulses, selectedCandidates);
+      anchorPulseCount = getTempoAnchorPulseCount(
+        engineState.orbits,
+        geometryMode,
+        interferenceSettings,
+        standardTimingMode,
+        pulses,
+        selectedCandidates,
+      );
       speedMultiplier = isExtended
         ? orbitTempoBpmToSpeedMultiplier(
             randomInt(randomPlusMinTempoBpm, randomPlusMaxTempoBpm),
             engineState.baseBPM,
             anchorPulseCount,
-            getOrbitTempoMode(geometryMode),
+            getOrbitTempoMode(geometryMode, standardTimingMode),
           )
-        : computeRandomSpeed(geometryMode, pulses, options);
+        : computeRandomSpeed(geometryMode, pulses, options, standardTimingMode);
       candidate = {
         pulses,
         directions,
@@ -8616,7 +8745,7 @@ function OrbitalPolymeter() {
     engineState.playing = true;
     engineState.lastTimestamp = -1;
     rerender();
-  }, [effectivePlan, engineState, geometryMode, handleClearTraces, harmonySettings.tonePreset, interferenceSettings, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, harmonySettings.tonePreset, interferenceSettings, rerender, standardTimingMode]);
 
   const handleRandomPattern = useCallback(() => {
     triggerPatternMutation(() => {
@@ -8667,6 +8796,7 @@ function OrbitalPolymeter() {
       {
         extended: geometryMode !== 'standard-trace' && Math.random() > 0.5,
       },
+      standardTimingMode,
     );
     const useManualOrbitRoles = useKeyedHarmony && Math.random() > 0.55;
     const scaleLength = SCALE_PRESETS[nextScale].intervals.length;
@@ -8710,7 +8840,7 @@ function OrbitalPolymeter() {
     setActiveSceneSource('custom');
     setLaunchOrbitLockActive(false);
     rerender();
-  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender, triggerPatternMutation]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender, standardTimingMode, triggerPatternMutation]);
 
   const buildCurrentSceneSnapshot = useCallback((): SceneSnapshot => ({
     orbits: engineState.orbits.map(
@@ -8727,6 +8857,7 @@ function OrbitalPolymeter() {
     traceMode,
     harmonySettings,
     geometryMode,
+    standardTimingMode,
     interferenceSettings: serializeInterferenceSettings(
       engineState.orbits,
       interferenceSettings,
@@ -8737,6 +8868,7 @@ function OrbitalPolymeter() {
     geometryMode,
     harmonySettings,
     interferenceSettings,
+    standardTimingMode,
     traceMode,
   ]);
 
@@ -8893,6 +9025,7 @@ function OrbitalPolymeter() {
         setTraceMode,
         setHarmonySettings,
         setGeometryMode,
+        setStandardTimingMode,
         setInterferenceSettings,
         handleClearTraces,
       );
@@ -8920,6 +9053,7 @@ function OrbitalPolymeter() {
         setTraceMode,
         setHarmonySettings,
         setGeometryMode,
+        setStandardTimingMode,
         setInterferenceSettings,
         handleClearTraces,
       );
@@ -9039,8 +9173,13 @@ function OrbitalPolymeter() {
         return;
       }
 
-      const anchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings);
-      const tempoMode = getOrbitTempoMode(geometryMode);
+      const anchorPulseCount = getTempoAnchorPulseCount(
+        engineState.orbits,
+        geometryMode,
+        interferenceSettings,
+        standardTimingMode,
+      );
+      const tempoMode = getOrbitTempoMode(geometryMode, standardTimingMode);
       const displayBpm = Math.max(
         ORBIT_TEMPO_MIN_BPM,
         Math.round(orbitSpeedMultiplierToTempoBpm(engineState.speedMultiplier, engineState.baseBPM, anchorPulseCount, tempoMode)),
@@ -9052,7 +9191,7 @@ function OrbitalPolymeter() {
         harmonySettings,
         displayBpm,
         anchorPulseCount,
-        options,
+        { ...options, countMode: geometryMode === 'standard-trace' ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE },
       );
 
       void recordExportForAccount({
@@ -9067,9 +9206,12 @@ function OrbitalPolymeter() {
       engineState.baseBPM,
       engineState.orbits,
       engineState.speedMultiplier,
+      geometryMode,
       harmonySettings,
+      interferenceSettings,
       openProPrompt,
       recordExportForAccount,
+      standardTimingMode,
     ],
   );
 
@@ -9254,14 +9396,26 @@ function OrbitalPolymeter() {
   );
   const modeDescription =
     geometryMode === 'standard-trace'
-      ? 'Colored layers move on their own counts and draw one connected shape.'
+      ? ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle'
+        ? 'Numbers are turns inside one shared cycle. 3 and 7 return home together.'
+        : 'Colored layers move on their own counts and draw one connected shape.'
       : geometryMode === 'interference-trace'
         ? 'Watch two or more layers push and pull into one combined path.'
         : 'Sample the motion into a cleaner sweeping shape.';
-  const orbitTempoAnchorLabel = 'Outer Ring';
-  const orbitTempoMode = getOrbitTempoMode(geometryMode);
+  const orbitTempoAnchorLabel =
+    ENABLE_STANDARD_TURNS_PER_CYCLE &&
+    geometryMode === 'standard-trace' &&
+    standardTimingMode === 'turns-per-cycle'
+      ? 'Max Orbit'
+      : 'Outer Ring';
+  const orbitTempoMode = getOrbitTempoMode(geometryMode, standardTimingMode);
   const orbitTempoMaxBpm = getOrbitTempoMaxBpm(orbitTempoMode);
-  const orbitTempoAnchorPulseCount = getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings);
+  const orbitTempoAnchorPulseCount = getTempoAnchorPulseCount(
+    engineState.orbits,
+    geometryMode,
+    interferenceSettings,
+    standardTimingMode,
+  );
   const orbitTempoDisplayBpm = Math.max(
     ORBIT_TEMPO_MIN_BPM,
     Math.min(
@@ -10628,7 +10782,7 @@ function OrbitalPolymeter() {
           </div>
         ) : (
           <div className="fixed z-20 left-6 right-6 bottom-6">
-            <StudyShellDock className="grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3">
+            <StudyShellDock className="rg-desktop-dock-scale grid grid-cols-[auto_minmax(20rem,1fr)_auto] items-center gap-3">
               <div data-guide="flow-desktop-transport" className="flex items-center gap-2">
                 <StudyShellButton tone={flowExperience.playing ? 'red' : 'green'} highlighted icon={flowExperience.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleToggleFlowPlayback}>
                   {flowExperience.playing ? 'Pause' : 'Play'}
@@ -10647,7 +10801,7 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
               </div>
 
-              <div data-guide="flow-desktop-speed" className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
+              <div data-guide="flow-desktop-speed" className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
                 <div className="rg-transport-tempo-row flex items-center gap-4">
                   <div className="min-w-[4.5rem] shrink-0">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">Speed</div>
@@ -14189,7 +14343,7 @@ function OrbitalPolymeter() {
           </div>
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
-            <StudyShellDock className={isMobile ? 'space-y-3' : 'grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3'}>
+            <StudyShellDock className={isMobile ? 'space-y-3' : 'rg-desktop-dock-scale grid grid-cols-[auto_minmax(20rem,1fr)_auto] items-center gap-3'}>
               <div data-guide={isMobile ? 'study-mobile-playback' : 'study-desktop-transport'} className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}>
                 <StudyShellButton tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleTutorialAwareStudyPlaybackToggle}>
                   {polyrhythmStudy.playing ? 'Pause' : 'Play'}
@@ -14218,7 +14372,7 @@ function OrbitalPolymeter() {
                 </StudyShellButton>
               </div>
 
-              <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
+              <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
                 <div className="rg-transport-tempo-row flex items-center gap-4">
                   <div
                     className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white"
@@ -19002,7 +19156,7 @@ function OrbitalPolymeter() {
               className={
                 isMobile
                   ? 'space-y-3'
-                  : 'grid grid-cols-[auto_minmax(24rem,1fr)_auto] items-center gap-3'
+                  : 'rg-desktop-dock-scale grid grid-cols-[auto_minmax(22rem,1fr)_auto] items-center gap-3'
               }
             >
               <div
@@ -19062,7 +19216,7 @@ function OrbitalPolymeter() {
               <div
                 data-guide={isMobile ? 'riff-mobile-tempo' : 'riff-desktop-tempo'}
                 className={`rounded-2xl border border-white/8 bg-white/[0.03] ${
-                  isMobile ? 'px-3 py-2.5' : 'min-w-[30rem] lg:min-w-[38rem] xl:min-w-[42rem] px-4 py-2.5'
+                  isMobile ? 'px-3 py-2.5' : 'w-[clamp(28rem,42vw,42rem)] max-w-full px-4 py-2.5'
                 }`}
               >
                 <div className="rg-transport-tempo-row flex items-center gap-3">
@@ -19258,6 +19412,7 @@ function OrbitalPolymeter() {
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
+          standardTimingMode={standardTimingMode}
           interferenceSettings={interferenceSettings}
           displaySettings={canvasDisplayState.orbit}
           presentationMode={presentationMode}
@@ -19278,6 +19433,7 @@ function OrbitalPolymeter() {
             presentationMode={presentationMode}
             showHelp={false}
             geometryMode={geometryMode}
+            standardTimingMode={standardTimingMode}
             tonePreset={harmonySettings.tonePreset}
             rootNote={harmonySettings.rootNote}
             scaleName={harmonySettings.scaleName}
@@ -19287,6 +19443,7 @@ function OrbitalPolymeter() {
             onSetQuickOrbit={handleSetQuickOrbit}
             onOpenOrbitEditor={handleOpenOrbitEditor}
             onGeometryModeChange={handleGeometryModeChange}
+            onStandardTimingModeChange={handleStandardTimingModeChange}
             onReverseDirections={handleReverseDirections}
             onAllClockwise={handleAllClockwise}
             onAlternateDirections={handleAlternateDirections}
@@ -19334,6 +19491,7 @@ function OrbitalPolymeter() {
               onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
               harmonySettings={harmonySettings}
               geometryMode={geometryMode}
+              standardTimingMode={standardTimingMode}
               interferenceSettings={interferenceSettings}
               displaySettings={canvasDisplayState.orbit}
               presentationMode={presentationMode}
@@ -19562,6 +19720,46 @@ function OrbitalPolymeter() {
                         </button>
                       ))}
                     </div>
+                    {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && (
+                      <div className="rounded-xl border px-3 py-3 space-y-2" style={{ background: 'rgba(0,255,170,0.035)', borderColor: 'rgba(0,255,170,0.12)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                            Number Meaning
+                          </div>
+                          <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                            Standard only
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {([
+                            ['beats-per-turn', 'Beats / Turn'],
+                            ['turns-per-cycle', 'Turns / Cycle'],
+                          ] as const).map(([mode, label]) => {
+                            const selected = standardTimingMode === mode;
+                            return (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => handleStandardTimingModeChange(mode)}
+                                className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                                style={{
+                                  background: selected ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.045)',
+                                  border: `1px solid ${selected ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                                  color: selected ? '#00FFAA' : 'rgba(255,255,255,0.68)',
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                          {standardTimingMode === 'turns-per-cycle'
+                            ? 'Example: 3 and 7 means 3 turns against 7 turns before the loop restarts.'
+                            : 'Example: 7 means that layer takes 7 beats to make one turn.'}
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         data-guide="mobile-trail"
@@ -19648,16 +19846,21 @@ function OrbitalPolymeter() {
                             </button>
                           </div>
                           <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="1"
-                              max="1000"
-                              value={orbit.pulseCount}
-                              onFocus={(e) => e.currentTarget.select()}
-                              onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                              className="w-20 rounded-xl border px-2 py-2 text-center text-[14px] font-mono focus:outline-none"
-                              style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
-                            />
+                            <div className="flex flex-col items-end gap-1">
+                              <input
+                                type="number"
+                                min="1"
+                                max="1000"
+                                value={orbit.pulseCount}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                                className="w-20 rounded-xl border px-2 py-2 text-center text-[14px] font-mono focus:outline-none"
+                                style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
+                              />
+                              <span className="text-[8px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                                {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && standardTimingMode === 'turns-per-cycle' ? 'Turns/Cycle' : 'Beats/Turn'}
+                              </span>
+                            </div>
                             <button
                               data-guide="mobile-direction"
                               onClick={() => handleToggleOrbitDirection(orbit.id)}
@@ -20194,6 +20397,7 @@ function OrbitalPolymeter() {
           currentSurface={appSurface}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
+          standardTimingMode={standardTimingMode}
           interferenceSettings={interferenceSettings}
           builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
           premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
@@ -20212,6 +20416,7 @@ function OrbitalPolymeter() {
           onAllClockwise={handleAllClockwise}
           onAlternateDirections={handleAlternateDirections}
           onGeometryModeChange={handleGeometryModeChange}
+          onStandardTimingModeChange={handleStandardTimingModeChange}
           onInterferenceSettingsChange={handleInterferenceSettingsChange}
           onHarmonyChange={handleHarmonyChange}
           onSaveScene={handleSaveScene}
@@ -20261,6 +20466,7 @@ function OrbitalPolymeter() {
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
+          standardTimingMode={standardTimingMode}
           interferenceSettings={interferenceSettings}
           displaySettings={canvasDisplayState.orbit}
           presentationMode
@@ -20287,6 +20493,7 @@ function OrbitalPolymeter() {
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
           geometryMode={geometryMode}
+          standardTimingMode={standardTimingMode}
           interferenceSettings={interferenceSettings}
           displaySettings={canvasDisplayState.orbit}
           presentationMode={presentationMode}
@@ -20383,6 +20590,52 @@ function OrbitalPolymeter() {
                   </button>
                 ))}
               </div>
+              {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && (
+                <div
+                  className="rounded-2xl border px-3 py-3 space-y-2"
+                  style={{
+                    background: 'rgba(0,255,170,0.035)',
+                    borderColor: 'rgba(0,255,170,0.12)',
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                      Number Meaning
+                    </div>
+                    <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                      Standard only
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ['beats-per-turn', 'Beats / Turn'],
+                      ['turns-per-cycle', 'Turns / Cycle'],
+                    ] as const).map(([mode, label]) => {
+                      const selected = standardTimingMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => handleStandardTimingModeChange(mode)}
+                          className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                          style={{
+                            background: selected ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.045)',
+                            border: `1px solid ${selected ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                            color: selected ? '#00FFAA' : 'rgba(255,255,255,0.68)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                    {standardTimingMode === 'turns-per-cycle'
+                      ? 'Example: 3 and 7 means 3 turns against 7 turns before the loop restarts.'
+                      : 'Example: 7 means that layer takes 7 beats to make one turn.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {geometryMode !== 'standard-trace' && (
@@ -20536,6 +20789,7 @@ function OrbitalPolymeter() {
           presentationMode={presentationMode}
           showHelp={helpOpen}
           geometryMode={geometryMode}
+          standardTimingMode={standardTimingMode}
           tonePreset={harmonySettings.tonePreset}
           rootNote={harmonySettings.rootNote}
           scaleName={harmonySettings.scaleName}
@@ -20545,6 +20799,7 @@ function OrbitalPolymeter() {
           onSetQuickOrbit={handleSetQuickOrbit}
           onOpenOrbitEditor={handleOpenOrbitEditor}
           onGeometryModeChange={handleGeometryModeChange}
+          onStandardTimingModeChange={handleStandardTimingModeChange}
           onReverseDirections={handleReverseDirections}
           onAllClockwise={handleAllClockwise}
           onAlternateDirections={handleAlternateDirections}
@@ -20588,6 +20843,7 @@ function OrbitalPolymeter() {
         currentSurface={appSurface}
         harmonySettings={harmonySettings}
         geometryMode={geometryMode}
+        standardTimingMode={standardTimingMode}
         interferenceSettings={interferenceSettings}
         builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
         premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
@@ -20606,6 +20862,7 @@ function OrbitalPolymeter() {
         onAllClockwise={handleAllClockwise}
         onAlternateDirections={handleAlternateDirections}
         onGeometryModeChange={handleGeometryModeChange}
+        onStandardTimingModeChange={handleStandardTimingModeChange}
         onInterferenceSettingsChange={handleInterferenceSettingsChange}
         onHarmonyChange={handleHarmonyChange}
         onSaveScene={handleSaveScene}
