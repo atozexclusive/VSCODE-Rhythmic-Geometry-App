@@ -286,6 +286,7 @@ export default function RiffCycleCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const studyRef = useRef(study);
   const selectedStepRef = useRef(selectedStep);
+  const hoveredStepRef = useRef<number | null>(null);
   const localPlaybackStateRef = useRef<RiffCyclePlaybackState>({
     referenceProgress: 0,
     lastTimestamp: null,
@@ -368,6 +369,7 @@ export default function RiffCycleCanvas({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const currentStudy = studyRef.current;
     const currentDisplaySettings = displaySettingsRef.current;
+    const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -680,6 +682,7 @@ export default function RiffCycleCanvas({
 
     riffPoints.forEach((point) => {
       const isSelected = selectedStepRef.current === point.index;
+      const isHovered = !isSelected && currentHoveredStep === point.index;
       const isCurrent = currentRiffStep === point.index;
       const isPhraseRestart = point.index === 0;
       const effectiveActive = isCurrent ? currentRiffStepState.active : point.active;
@@ -690,7 +693,25 @@ export default function RiffCycleCanvas({
           (effectiveAccented ? 320 : 220),
       );
       const radius =
-        (isSelected ? 8.4 : effectiveActive ? 5.4 : 3) + attackRemaining * (effectiveAccented ? 3 : 1.8);
+        (isSelected ? 8.4 : isHovered ? (effectiveActive ? 7 : 5.4) : effectiveActive ? 5.4 : 3) +
+        attackRemaining * (effectiveAccented ? 3 : 1.8);
+
+      if (isHovered) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.65;
+        ctx.shadowBlur = 15 * glowMultiplier;
+        ctx.shadowColor = currentStudy.riff.color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + 5.6, 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = currentStudy.riff.color;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + 8.5, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      }
 
       if (isSelected) {
         ctx.save();
@@ -707,10 +728,14 @@ export default function RiffCycleCanvas({
         ? currentStudy.riff.color
         : 'rgba(255,255,255,0.18)';
       ctx.globalAlpha = effectiveActive
-        ? Math.min(1, (isCurrent ? 1 : 0.88) + attackRemaining * 0.3)
-        : 0.26 * inactiveAlpha;
-      ctx.shadowBlur = effectiveActive ? ((isCurrent ? 16 : 9) + attackRemaining * 18) * glowMultiplier : 0;
-      ctx.shadowColor = effectiveActive ? currentStudy.riff.color : 'transparent';
+        ? Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
+        : (isHovered ? 0.48 : 0.26) * inactiveAlpha;
+      ctx.shadowBlur = effectiveActive
+        ? ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier
+        : isHovered
+          ? 10 * glowMultiplier
+          : 0;
+      ctx.shadowColor = effectiveActive || isHovered ? currentStudy.riff.color : 'transparent';
       ctx.beginPath();
       ctx.arc(point.x, point.y, radius, 0, TAU);
       ctx.fill();
@@ -1197,9 +1222,11 @@ export default function RiffCycleCanvas({
         const drawX = Math.max(x + 0.75, Math.min(x + width - 0.75, markerX));
         ctx.save();
         ctx.strokeStyle =
-          cycleStart ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.17)';
+          cycleStart ? 'rgba(255,255,255,0.66)' : 'rgba(255,255,255,0.42)';
         ctx.lineWidth =
-          cycleStart ? 1.35 : 1;
+          cycleStart ? 1.45 : 1.05;
+        ctx.shadowBlur = (cycleStart ? 10 : 6) * glowMultiplier;
+        ctx.shadowColor = cycleStart ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.18)';
         ctx.beginPath();
         ctx.moveTo(drawX, y + 8);
         ctx.lineTo(drawX, y + height - 8);
@@ -1254,10 +1281,15 @@ export default function RiffCycleCanvas({
           ctx.fillStyle =
             markerFlashRemaining > 0
               ? `${currentStudy.riff.color}F0`
-              : 'rgba(255,255,255,0.48)';
+              : 'rgba(255,255,255,0.72)';
           ctx.font = '8px "SF Mono", "Fira Code", monospace';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
+          ctx.shadowBlur = 9 * glowMultiplier;
+          ctx.shadowColor =
+            markerFlashRemaining > 0
+              ? `${currentStudy.riff.color}88`
+              : 'rgba(255,255,255,0.24)';
           ctx.fillText(`BAR ${visibleBarNumber}`, drawX + 5, topLaneY - 14);
         }
         ctx.restore();
@@ -1275,13 +1307,19 @@ export default function RiffCycleCanvas({
       }
 
       ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.48)';
       ctx.font = `${compactMobileTimeline ? 9 : 10}px "SF Mono", "Fira Code", monospace`;
       ctx.textBaseline = 'top';
+      ctx.shadowBlur = 8 * glowMultiplier;
+      ctx.shadowColor = 'rgba(255,255,255,0.22)';
+      ctx.fillStyle = 'rgba(255,255,255,0.76)';
       ctx.fillText(compactMobileTimeline ? 'BAR' : 'BAR GRID', x + 12, y + 6);
+      ctx.shadowBlur = 9 * glowMultiplier;
+      ctx.shadowColor = currentStudy.landingEditEnabled
+        ? 'rgba(127,215,255,0.32)'
+        : `${currentStudy.riff.color}44`;
       ctx.fillStyle = currentStudy.landingEditEnabled
-        ? 'rgba(127,215,255,0.72)'
-        : `${currentStudy.riff.color}B8`;
+        ? 'rgba(225,246,255,0.88)'
+        : 'rgba(255,255,255,0.86)';
       const lowerLaneLabel = currentStudy.landingEditEnabled
         ? compactMobileTimeline
           ? 'TAIL'
@@ -1294,7 +1332,9 @@ export default function RiffCycleCanvas({
       if (lowerLaneLabel) {
         ctx.fillText(lowerLaneLabel, x + 12, bottomLaneY - 16);
       }
-      ctx.fillStyle = 'rgba(255,255,255,0.34)';
+      ctx.shadowBlur = 8 * glowMultiplier;
+      ctx.shadowColor = 'rgba(255,255,255,0.18)';
+      ctx.fillStyle = 'rgba(255,255,255,0.68)';
       ctx.fillText(
         compactMobileTimeline ? 'TAP WRITE · HOLD ACCENT' : 'TAP TO WRITE · HOLD FOR ACCENT',
         x + 12,
@@ -1303,10 +1343,13 @@ export default function RiffCycleCanvas({
       for (let barIndex = visibleBarStart; barIndex < visibleBarEnd; barIndex += 1) {
         const barStartStep = Math.max(visibleStartStep, barIndex * metrics.stepsPerBar);
         const visibleBarNumber = getVisibleBarNumber(currentStudy, barIndex);
-        ctx.fillStyle = 'rgba(255,255,255,0.32)';
+        const barLabelX = x + (barStartStep - visibleStartStep) * stepWidth + 10;
+        ctx.fillStyle = 'rgba(255,255,255,0.76)';
+        ctx.shadowBlur = 8 * glowMultiplier;
+        ctx.shadowColor = 'rgba(255,255,255,0.2)';
         ctx.fillText(
           compactMobileTimeline ? String(visibleBarNumber) : `BAR ${visibleBarNumber}`,
-          x + (barStartStep - visibleStartStep) * stepWidth + 10,
+          barLabelX,
           y + height - 16,
         );
       }
@@ -1675,12 +1718,13 @@ export default function RiffCycleCanvas({
 
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
-      if (activePointerIdRef.current !== event.pointerId) {
+      const canvas = canvasRef.current;
+      if (!canvas) {
         return;
       }
 
-      const canvas = canvasRef.current;
-      if (!canvas) {
+      const activePointerId = activePointerIdRef.current;
+      if (activePointerId != null && activePointerId !== event.pointerId) {
         return;
       }
 
@@ -1706,6 +1750,14 @@ export default function RiffCycleCanvas({
         event.clientX - rect.left,
         event.clientY - rect.top,
       );
+
+      if (activePointerId == null) {
+        if (!isMobileRef.current) {
+          hoveredStepRef.current = hit?.stepIndex ?? null;
+          canvas.style.cursor = hit?.stepIndex != null ? 'pointer' : 'default';
+        }
+        return;
+      }
 
       const pending = pendingLongPressRef.current;
       if (pending && pending.pointerId === event.pointerId && !pending.longPressed) {
@@ -1737,6 +1789,18 @@ export default function RiffCycleCanvas({
     },
     [applyLandingPaint, applyStepPaint, clearLongPressTimer],
   );
+
+  const handlePointerLeave = useCallback(() => {
+    if (activePointerIdRef.current != null) {
+      return;
+    }
+
+    hoveredStepRef.current = null;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = 'default';
+    }
+  }, []);
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -1813,6 +1877,7 @@ export default function RiffCycleCanvas({
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onContextMenu={handleContextMenu}

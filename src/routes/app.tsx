@@ -6,7 +6,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Maximize2, Menu, Minimize2, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Lock, Maximize2, Menu, Minimize2, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -212,6 +212,14 @@ const PATTERN_MUTATION_COOLDOWN_MS = 140;
 const INTERFERENCE_PREVIEW_WEIGHTS = [-1, 1, 1, -1] as const;
 const DEFAULT_POLYRHYTHM_PRESET_ID = 'three-five';
 type GuideActionId =
+  | 'orbit-toggle-play'
+  | 'orbit-try-random'
+  | 'orbit-open-scenes'
+  | 'orbit-open-customize'
+  | 'flow-toggle-play'
+  | 'flow-try-random'
+  | 'flow-next-sound'
+  | 'flow-next-motion'
   | 'study-load-default'
   | 'study-open-scenes'
   | 'study-toggle-play'
@@ -241,6 +249,7 @@ type TutorialEventId =
   | 'study-editor-invert'
   | 'riff-play'
   | 'riff-pause'
+  | 'riff-random'
   | 'riff-open-edit'
   | 'riff-select-bar'
   | 'riff-select-riff'
@@ -262,6 +271,9 @@ interface StartGuideStep {
   notice?: string;
   actionLabel?: string;
   actionId?: GuideActionId;
+  completeOn?: TutorialEventId;
+  hint?: string;
+  success?: string;
 }
 
 interface TutorialStep {
@@ -315,11 +327,11 @@ type FeatureInfoId =
 const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> = {
   panel_quick_edit: {
     title: 'Quick Edit',
-    body: 'Fast composition controls for the current target. Use it for immediate changes without opening the full menu.',
+    body: 'Edit the selected layer without opening the full menu. Use the step editor when you want more precise changes.',
   },
   panel_utility: {
-    title: 'Utility',
-    body: 'Playback and display controls live here. Use it for playback focus, overlays, sound, and canvas mood.',
+    title: 'Tools',
+    body: 'Extra listening, display, sound, and canvas controls live here. You can skip this while learning the basics.',
   },
   study_playback_output: {
     title: 'Output',
@@ -375,7 +387,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   canvas_glow: {
     title: 'Glow',
-    body: 'Controls how strongly the geometry blooms against the background. Lower settings feel cleaner, higher settings feel more luminous.',
+    body: 'Controls how strongly the drawing blooms against the background. Lower settings feel cleaner, higher settings feel more luminous.',
   },
   riff_meter: {
     title: 'Meter',
@@ -465,405 +477,508 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
 
 const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
-    target: 'mobile-scenes',
-    title: 'Start Here',
-    text: 'Orbit layers moving rhythm circles. Start with a scene or Random, press Play, then change one layer. There is no single right way to use it.',
+    target: 'mobile-colors',
+    title: 'Read The Orbits',
+    kicker: 'Orbit Guide',
+    text: 'Each colored dot is one orbit layer. Each layer moves on its own count. The lines connect the layers as they move, and that motion draws the shape.',
+    doThis: 'Watch the dots for one loop before changing controls.',
+    notice: 'You do not need to count yet. First notice which colors are moving together.',
   },
   {
     target: 'mobile-playback',
     title: 'Playback',
-    text: 'Play starts the motion. Reset brings everything back to the start. Audio and tempo let you listen slowly or push the pattern into a denser flow.',
+    kicker: 'Orbit Guide',
+    text: 'These buttons control time and sound. Play starts or stops motion. Reset jumps back to the beginning. Audio mutes sound without changing the shape.',
+    doThis: 'Press Play or Pause to feel the motion.',
+    actionLabel: 'Play / Pause',
+    actionId: 'orbit-toggle-play',
+    notice: 'Reset restarts the motion. It does not erase your setup.',
   },
   {
     target: 'mobile-speed',
     title: 'Tempo',
-    text: 'Tempo controls how fast the pattern moves. Slower tempos make the structure easier to read. Faster tempos make the same pattern feel more like a texture.',
+    kicker: 'Orbit Guide',
+    text: 'Tempo is the speed of the motion. Slower makes each layer easier to follow. Faster makes the same shape feel more dense.',
+    doThis: 'Slow tempo down before changing layer counts.',
+    notice: 'If the drawing feels confusing, slow it down first.',
+  },
+  {
+    target: 'mobile-scenes',
+    title: 'Scenes',
+    kicker: 'Orbit Guide',
+    text: 'Scenes are ready-made examples. Open it when you want a starting point, a saved scene, or the Pro scene set. Random creates a new setup without making you build from zero.',
+    doThis: 'Use Random when you want a fresh starting point.',
+    actionLabel: 'Try Random',
+    actionId: 'orbit-try-random',
+    notice: 'The tabs are simple: Scenes for examples, Saved for your work, Pro for locked extras.',
   },
   {
     target: 'mobile-present',
-    title: 'Present',
-    text: 'Present strips most of the chrome away so you can watch, show, or record the pattern cleanly.',
+    title: 'Fullscreen',
+    kicker: 'Orbit Guide',
+    text: 'Fullscreen hides setup controls so the shape is easier to watch or record.',
+    doThis: 'Use it after the current orbit setup makes sense.',
+    notice: 'Leave Fullscreen when you want to edit again.',
   },
   {
     target: 'mobile-customize',
-    title: 'Edit Pattern',
-    text: 'This is where you shape the pattern. Start by changing one geometry mode or one layer count and see how the drawing changes.',
+    title: 'Customize Pattern',
+    kicker: 'Orbit Guide',
+    text: 'Customize is the main editing section. Orbit Mode changes the drawing style. Layers changes the colored counts. Direction changes how the layers travel.',
+    doThis: 'Open Customize, then change one layer count by one step.',
+    actionLabel: 'Open Customize',
+    actionId: 'orbit-open-customize',
+    notice: 'Optional display and sound controls are lower on the page. Learn Orbit Mode, Layers, and Direction first.',
   },
   {
     target: 'mobile-layers',
     title: 'Layers',
-    text: 'Each layer is one repeating count. Small number changes can make a very different shape, so this is one of the best places to experiment.',
+    kicker: 'Orbit Guide',
+    text: 'Layers are the colored orbit counts. A 3-beat orbit completes 7 rotations in the same shared cycle where a 7-beat orbit completes 3 rotations.',
+    doThis: 'Change one layer number, then watch the shape redraw.',
+    notice: 'Smaller counts move faster. Larger counts move slower. One number change can make a very different drawing.',
   },
   {
     target: 'mobile-direction',
     title: 'Direction',
-    text: 'Direction changes how the layers move around the circle. Reverse and Alternate are fast ways to discover new motion without rebuilding the pattern.',
-  },
-  {
-    target: 'mobile-trail',
-    title: 'Trace',
-    text: 'Trace leaves the path behind. Turn it on when you want a drawing to build over time.',
-  },
-  {
-    target: 'mobile-markers',
-    title: 'Markers',
-    text: 'Markers show the moving dots. Turn them off when you want the image to feel cleaner.',
-  },
-  {
-    target: 'mobile-sound',
-    title: 'Sound',
-    text: 'Original keeps the raw sound. In Key keeps the notes inside one note family. If theory terms are unfamiliar, stay on Original first.',
+    kicker: 'Orbit Guide',
+    text: 'Direction changes which way a layer moves around the circle. Reversing direction can change the drawing without changing any layer counts.',
+    doThis: 'Flip one layer direction when the counts feel right but the motion needs a different feel.',
+    notice: 'Same counts. Different motion.',
   },
   {
     target: 'mobile-audio',
     title: 'Audio',
-    text: 'Audio can be turned on or off at any time. You can explore the visuals first and add sound later.',
-  },
-  {
-    target: 'mobile-colors',
-    title: 'Colors',
-    text: 'Long-press a layer to change its color. Color is expressive here, and in some modes it can also shape the sound.',
+    kicker: 'Orbit Guide',
+    text: 'Audio turns sound on or off. Muting does not stop the motion or change the shape.',
+    doThis: 'Mute if you want to learn visually first.',
+    notice: 'You can add sound back at any time.',
   },
   {
     target: 'mobile-menu',
     title: 'Menu',
-    text: 'Menu holds deeper controls, scenes, and export. You do not need it to have fun in the first minute.',
+    kicker: 'Orbit Guide',
+    text: 'Menu is for saved scenes, export, account, and deeper project actions.',
+    doThis: 'Skip it while learning. Use Scenes, Play, and Customize first.',
+    notice: 'Menu is not required for a first orbit setup.',
   },
 ];
 
 const DESKTOP_START_GUIDE: StartGuideStep[] = [
   {
     target: 'desktop-playback',
-    title: 'Start Here',
-    text: 'Orbit layers moving rhythm circles. Start with Play or Random, then change one layer. There is no single correct way to use it.',
+    title: 'Start Controls',
+    kicker: 'Orbit Guide',
+    text: 'This bottom bar starts Orbit. Play controls motion, Restart returns to the beginning, and Random makes a new example.',
+    doThis: 'Press Play, then try Random when you want a fresh setup.',
+    actionLabel: 'Try Random',
+    actionId: 'orbit-try-random',
+    notice: 'Random is the fastest beginner-safe way to explore.',
+  },
+  {
+    target: 'desktop-colors',
+    title: 'Read The Orbits',
+    kicker: 'Orbit Guide',
+    text: 'Each colored dot is one orbit layer. Each layer moves on its own count. The connected motion draws the shape on the canvas.',
+    doThis: 'Watch one full loop and notice which colors move together.',
+    notice: 'Click or long-press an orbit later when you want to change its color or sound role.',
   },
   {
     target: 'desktop-speed',
     title: 'Tempo',
-    text: 'Use tempo to move between slow structural study and denser flowing motion.',
+    kicker: 'Orbit Guide',
+    text: 'Tempo is the speed of the motion. Slower makes the layers easier to follow. Faster makes the same shape feel more dense.',
+    doThis: 'Move tempo left before editing if the drawing feels hard to read.',
+    notice: 'Tempo changes speed, not the orbit counts.',
   },
   {
     target: 'desktop-geometry',
-    title: 'Geometry',
-    text: 'These are three ways to look at the same rhythm system. Start with one mode, then switch only when you want a different visual behavior.',
+    title: 'Orbit Mode',
+    kicker: 'Orbit Guide',
+    text: 'Orbit Mode is the main editing panel on desktop. Change how the drawing behaves here, then adjust the colored layer counts in the same panel.',
+    doThis: 'Try one orbit mode, then change one layer count.',
+    notice: 'Orbit Mode changes how the pattern is drawn. Layer counts change the pattern itself.',
   },
   {
-    target: 'desktop-direction',
-    title: 'Direction',
-    text: 'Reverse, Clockwise, and Alternate quickly change how the orbits move and how the geometry grows.',
+    target: 'desktop-orbits',
+    title: 'Orbits',
+    kicker: 'Orbit Guide',
+    text: 'Each row is one colored orbit layer. A 3-beat orbit completes 7 rotations in the same shared cycle where a 7-beat orbit completes 3 rotations.',
+    doThis: 'Change one orbit number by one step, then watch how the shape changes.',
+    notice: 'Smaller counts move faster. Larger counts move slower. Start with one orbit at a time.',
   },
   {
-    target: 'desktop-trace',
-    title: 'Trace',
-    text: 'Trace keeps path history visible so the structure can build into a denser field over time.',
-  },
-  {
-    target: 'desktop-markers',
-    title: 'Markers',
-    text: 'Markers show or hide the orbit dots and guides when you want a cleaner final image.',
-  },
-  {
-    target: 'desktop-sound',
-    title: 'Sound',
-    text: 'Original keeps the raw sound. In Key keeps the notes inside one note family. Ignore the theory words at first if they are not useful.',
+    target: 'desktop-tools',
+    title: 'Tools',
+    kicker: 'Orbit Guide',
+    text: 'Tools holds optional adjustments once the orbit is readable. The quick buttons switch between Clockwise and Alternate motion. Open the panel for Playback, Motion, Overlays, Canvas, and Sound.',
+    doThis: 'Use Motion when the counts are good but the movement needs a different feel.',
+    notice: 'Overlays, Canvas, and Sound change presentation. They do not rewrite the layer counts.',
   },
   {
     target: 'desktop-audio',
     title: 'Audio',
-    text: 'Mute audio at any time without affecting the geometry or motion.',
+    kicker: 'Orbit Guide',
+    text: 'Audio turns sound on or off. Muting does not stop motion or change the shape.',
+    doThis: 'Mute if you want to work visually first.',
+    notice: 'You can add sound back at any time.',
   },
   {
     target: 'desktop-present',
-    title: 'Present',
-    text: 'Present hides most UI so you can focus on the form, show it, or record it cleanly.',
-  },
-  {
-    target: 'desktop-colors',
-    title: 'Colors',
-    text: 'Tap an orbit to edit color and quick musical roles. Color is expressive and can shape tone mapping too.',
+    title: 'Fullscreen',
+    kicker: 'Orbit Guide',
+    text: 'Fullscreen hides setup controls so the form is easier to watch or record.',
+    doThis: 'Use it after the current orbit setup makes sense.',
+    notice: 'Exit Fullscreen when you want to edit again.',
   },
   {
     target: 'desktop-menu',
     title: 'Menu',
-    text: 'Open the menu for scenes, export, and deeper editing after you understand the basics.',
+    kicker: 'Orbit Guide',
+    text: 'Menu is for scenes, saved work, export, account, and deeper editing.',
+    doThis: 'Open Menu when you want scenes, saving, or export.',
+    actionLabel: 'Open Scenes',
+    actionId: 'orbit-open-scenes',
+    notice: 'You can skip this while learning the main controls.',
   },
 ];
 
 const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
   {
     target: 'riff-mobile-main-canvas',
-    title: 'Start Here',
+    title: 'Read The Pattern',
     kicker: 'Riff Guide',
-    text: 'Riff turns a bar frame and a step pattern into a looping groove.',
-    doThis: 'Start by pressing Play, then watch how the shape and lane move together.',
-    notice: 'The shape is the overview. The lane is the close time view.',
+    text: 'The bright shape is the repeating pattern. Each dot is an editable step: tap a dot to turn that hit on or off.',
+    doThis: 'Press Play, watch one loop, then tap one dot on the circle.',
+    notice: 'The circle is the overview. The lane is the same timing shown in a straight row.',
+    actionLabel: 'Play / Pause',
+    actionId: 'riff-toggle-play',
   },
   {
     target: 'riff-mobile-transport',
     title: 'Playback',
     kicker: 'Riff Guide',
-    text: 'Play starts the loop. Restart brings you back to beat 1. Mute silences the groove without stopping it.',
-    doThis: 'Use Restart when you want to hear the true beginning again.',
-    notice: 'Mute is the fastest way to adjust the groove quietly.',
+    text: 'These buttons control time and sound. Play starts or stops motion. Restart jumps back to beat 1. Mute turns sound off without changing the pattern.',
+    doThis: 'Use Restart whenever you want to hear the beginning again.',
+    notice: 'Restart resets the clock, not your edits.',
   },
   {
     target: 'riff-mobile-tempo',
     title: 'Tempo',
     kicker: 'Riff Guide',
-    text: 'Tempo controls how fast the pattern moves.',
-    doThis: 'Slow it down first if the groove feels too dense.',
-    notice: 'The same phrase usually becomes clearer at a slower speed.',
+    text: 'Tempo is the speed of the loop. Slower makes the pattern easier to follow. Faster makes the same pattern feel more dense.',
+    doThis: 'Drag tempo down before changing hits.',
+    notice: 'If the motion feels confusing, slow it down first.',
   },
   {
     target: 'riff-mobile-edit',
     title: 'Edit',
     kicker: 'Riff Guide',
-    text: 'Edit is where you choose what you are changing.',
-    doThis: 'Pick Bar, Riff, or Ending, then change one thing at a time.',
-    notice: 'Make the frame clear first, then shape the groove inside it.',
+    text: 'Edit chooses which part you are changing. Bar changes the counting grid. Riff changes the repeating hits. Ending changes the final landing area.',
+    doThis: 'Open Edit, choose one part, then change only that part.',
+    notice: 'Start with Riff when you want to write notes. Use Bar when the grid itself needs to change.',
     actionLabel: 'Open Edit',
     actionId: 'riff-open-edit',
+    completeOn: 'riff-open-edit',
+    hint: 'Open Edit to choose Bar, Riff, or Ending.',
+    success: 'Edit opened.',
   },
   {
     target: 'riff-mobile-scenes',
     title: 'Scenes',
     kicker: 'Riff Guide',
-    text: 'Scenes are starting grooves. Random, Remix, and Random+ also live here.',
-    doThis: 'Load a scene or press Random when you want a fast new idea.',
-    notice: 'Scenes are starting points, not final answers.',
+    text: 'Scenes are ready-made examples. Random creates a new pattern and bar setup without making you build from zero.',
+    doThis: 'Use Random when you want a fresh starting point.',
+    notice: 'Remix and Random+ are Pro options for branching later.',
+    actionLabel: 'Try Random',
+    actionId: 'riff-try-random',
+    completeOn: 'riff-random',
+    hint: 'Use Random when you want a fast new example.',
+    success: 'New riff loaded.',
   },
   {
     target: 'riff-mobile-audio-tab',
     title: 'Audio',
     kicker: 'Riff Guide',
-    text: 'Audio changes what you hear and how the groove sounds. Original keeps the raw voice. In Key keeps the notes inside one note family.',
-    doThis: 'Solo Bar, solo Riff, or hear both together, then compare Original and In Key.',
-    notice: 'Original is the easiest place to start. In Key makes the groove more melodic.',
+    text: 'Audio controls what you hear. Bar plays the counting grid. Riff plays the repeating hits. Both plays them together. Original is the simplest sound mode; In Key makes the hits more musical.',
+    doThis: 'Solo Bar or Riff if Both feels too busy.',
+    notice: 'Learn one part first, then return to Both.',
   },
   {
     target: 'riff-mobile-canvas',
     title: 'Canvas',
     kicker: 'Riff Guide',
-    text: 'Canvas controls change how the groove is displayed without changing the notes.',
-    doThis: 'Use Numbers and Start Lines when you need clearer orientation.',
-    notice: 'These controls change readability, not rhythm.',
+    text: 'Canvas controls change how the riff is drawn. Numbers, start lines, shape, glow, and background help you read the pattern.',
+    doThis: 'Turn on Numbers or Start Lines when the view feels hard to read.',
+    notice: 'These are visual aids. They do not change the timing.',
   },
   {
-    target: 'riff-mobile-tutorial',
-    title: 'Tutorial',
+    target: 'riff-mobile-focus-pattern',
+    title: 'Step Editor',
     kicker: 'Riff Guide',
-    text: 'Tutorial walks you through one short mission at a time.',
-    doThis: 'Use it when you want guided actions instead of explanations.',
-    notice: 'Tutorial is for doing. Help is for understanding.',
+    text: 'Step Editor is the close-up editor for the Riff pattern. Each cell is one possible hit. Filled cells play; empty cells rest. Hold a cell to accent it.',
+    doThis: 'Open Step Editor after choosing Riff.',
+    notice: 'Use this for precise hit-by-hit changes.',
+    actionLabel: 'Open Step Editor',
+    actionId: 'riff-open-pattern-editor',
+    completeOn: 'riff-open-pattern-editor',
+    hint: 'Open Step Editor from the Edit card.',
+    success: 'Step editor ready.',
   },
   {
     target: 'riff-mobile-present',
-    title: 'Present',
+    title: 'Fullscreen',
     kicker: 'Riff Guide',
-    text: 'Present hides most of the controls so you can watch and hear the groove more clearly.',
-    doThis: 'Use Present after you understand one scene.',
-    notice: 'Present is for watching and performing, not deep setup.',
+    text: 'Fullscreen hides setup controls so you can watch or listen without distractions.',
+    doThis: 'Use it after the current riff makes sense.',
+    notice: 'Leave Fullscreen when you want to edit again.',
   },
   {
     target: 'riff-mobile-menu',
     title: 'Menu',
     kicker: 'Riff Guide',
-    text: 'Menu holds scenes, saving, account, and refresh.',
-    doThis: 'You can ignore it on your first pass.',
-    notice: 'The fast path is Scenes, Play, Edit.',
+    text: 'Menu is for account, saving, export, and other project actions.',
+    doThis: 'Skip it while learning. Use Scenes, Play, and Edit first.',
+    notice: 'Menu is not required for a first riff.',
   },
 ];
 
 const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
   {
     target: 'riff-desktop-transport',
-    title: 'Start Here',
+    title: 'Start Controls',
     kicker: 'Riff Guide',
-    text: 'Riff builds a groove from a bar, a moving riff, and an ending.',
-    doThis: 'Start with Play or a scene, then change one riff step.',
-    notice: 'Build feel first. Do not try to change everything at once.',
-    actionLabel: 'Load Scene',
-    actionId: 'riff-load-default',
+    text: 'This bottom bar starts Riff. Play controls motion, Restart returns to beat 1, and Random makes a new example.',
+    doThis: 'Press Play and listen for one full loop before editing.',
+    notice: 'Start with listening and watching before editing.',
+    actionLabel: 'Play / Pause',
+    actionId: 'riff-toggle-play',
   },
   {
-    target: 'riff-desktop-canvas',
-    title: 'The Main View',
+    target: 'riff-desktop-pattern',
+    title: 'Read The Riff',
     kicker: 'Riff Guide',
-    text: 'The main canvas shows how the riff moves through the bar frame while the lane below shows the same phrase in straight time.',
-    doThis: 'Use the shape to feel the loop and the lane to inspect exact placement.',
-    notice: 'The canvas is the overview. The roll is the close writer.',
+    text: 'The bright shape is the repeating pattern. Each dot is an editable step. Hover a dot to highlight it, then click to turn that hit on or off.',
+    doThis: 'Move over a dot on the circle, then click one step you want to change.',
+    notice: 'The circle is the overview. Use it to see the pattern shape before editing exact timing.',
+  },
+  {
+    target: 'riff-desktop-sequencer',
+    title: 'Sequencer Lane',
+    kicker: 'Riff Guide',
+    text: 'The lane is the same riff shown as straight time. The top row is the bar grid. The lower row is the riff: filled cells play, empty cells rest, and diamonds mark accents.',
+    doThis: 'Use the lane when you need exact placement inside the bar.',
+    notice: 'Circle for overview. Lane for precise timing.',
   },
   {
     target: 'riff-desktop-tempo',
-    title: 'Tempo And Offset',
+    title: 'Tempo And Shift',
     kicker: 'Riff Guide',
-    text: 'Tempo is the center control. Offset Pattern moves the phrase against the bar without rewriting it.',
-    doThis: 'Try a 1-step offset before changing the whole pattern.',
-    notice: 'Same phrase. Different landing point.',
+    text: 'Tempo controls speed. The step arrows shift the pattern earlier or later against the bar grid without adding or removing hits.',
+    doThis: 'Try a 1-step shift before rewriting the pattern.',
+    notice: 'Same hits. Different starting place.',
   },
   {
     target: 'riff-desktop-roll-size',
     title: 'Lane View',
     kicker: 'Riff Guide',
-    text: 'Lane View controls whether the lane is visible and how much of the phrase you see at once.',
-    doThis: 'Use 1 Bar for close writing, Pattern for the full phrase, and Hide Lane when you want the canvas alone.',
+    text: 'Lane View controls whether the straight time lane is visible and how much of the pattern you see at once.',
+    doThis: 'Use 1 Bar for close reading, Pattern for the full pattern, and Hide Lane when you only want the circle.',
     notice: 'This changes the view, not the notes.',
   },
   {
     target: 'riff-desktop-quick',
     title: 'Quick Edit',
     kicker: 'Riff Guide',
-    text: 'Use the left card to choose the bar, riff, or ending, then edit the visible target.',
-    doThis: 'Keep one target active at a time.',
-    notice: 'The screen is clearer when you know what you are editing.',
+    text: 'The left card chooses what part you are editing: Bar, Pattern, or Ending.',
+    doThis: 'Pick one part first, then change one control inside it.',
+    notice: 'One target at a time keeps the result understandable.',
   },
   {
     target: 'riff-layer-1',
-    title: 'Bar',
+    title: 'Bar Grid',
     kicker: 'Riff Guide',
-    text: 'Bar handles the fixed frame: meter, visible bars, subdivision, and backbeat.',
-    doThis: 'Change bars or subdivision before rewriting the phrase.',
-    notice: 'Bars is phrase length. Subdivision is grid detail.',
+    text: 'Bar is the counting grid behind the pattern. Meter sets the count, Grid and Subdivision set the step detail, and Backbeat adds a reference pulse.',
+    doThis: 'Change Meter or Subdivision only when the grid itself feels wrong.',
+    notice: 'Bar changes the frame. It does not directly write the hits.',
   },
   {
     target: 'riff-layer-2',
-    title: 'Riff',
+    title: 'Riff Pattern',
     kicker: 'Riff Guide',
-    text: 'Riff handles the moving pattern.',
-    doThis: 'Use Focus Pattern when you want a close writing surface.',
-    notice: 'The lower lane is still the main writing surface.',
-    actionLabel: 'Open Focus Pattern',
+    text: 'Riff means the repeating hit pattern. Steps changes its length. Shift Pattern moves where it starts. Invert flips hits and rests.',
+    doThis: 'Use Step Editor when you want exact hit-by-hit writing.',
+    notice: 'Start here when you want to change what plays.',
+    actionLabel: 'Open Step Editor',
     actionId: 'riff-open-pattern-editor',
+    completeOn: 'riff-open-pattern-editor',
+    hint: 'Open Step Editor when you want the precise writing surface.',
+    success: 'Step editor ready.',
   },
   {
     target: 'riff-ending',
     title: 'Ending',
     kicker: 'Riff Guide',
-    text: 'Ending shapes the return zone without changing the whole study surface.',
-    doThis: 'Use Ending when the loop hand-off feels weak.',
-    notice: 'The return is often what makes the riff feel intentional.',
-    actionLabel: 'Open Ending',
+    text: 'Ending controls the last landing area before the loop returns. It lets you adjust the finish without rewriting the whole pattern.',
+    doThis: 'Use Ending only when the restart feels abrupt or unfinished.',
+    notice: 'Ending is optional. The main pattern still lives in Riff Pattern.',
+    actionLabel: 'Open Ending Panel',
     actionId: 'riff-open-ending',
+  },
+  {
+    target: 'riff-desktop-scenes',
+    title: 'Scenes',
+    kicker: 'Riff Guide',
+    text: 'Scenes are ready-made examples. Standard loads built-in riffs, Saved holds your work, and Random creates a new starting point.',
+    doThis: 'Use Random when you want a fresh example quickly.',
+    notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
+    actionLabel: 'Try Random',
+    actionId: 'riff-try-random',
+    completeOn: 'riff-random',
+    hint: 'Use Random when you want a fast new example.',
+    success: 'New riff loaded.',
   },
   {
     target: 'riff-desktop-audio',
     title: 'Playback',
     kicker: 'Riff Guide',
-    text: 'Choose whether you want to hear the frame, the riff, or both together.',
-    doThis: 'Solo one part when you need to hear the structure more clearly.',
+    text: 'This panel chooses what you hear. Frame plays the bar grid. Riff plays the repeating hits. Both plays the grid and hits together.',
+    doThis: 'Solo Frame or Riff if Both feels too busy.',
+    notice: 'Solo helps you learn one part. Both shows how the parts fit.',
   },
   {
     target: 'riff-desktop-sound',
     title: 'Sound',
     kicker: 'Riff Guide',
-    text: 'Original keeps the native Riff voice. In Key keeps notes inside one note family.',
-    doThis: 'If theory terms feel distracting, leave it on Original first.',
+    text: 'Sound changes tone without rewriting the pattern. Original keeps simple pulse sounds. In Key maps hits to musical notes.',
+    doThis: 'Stay on Original while learning the timing.',
+    notice: 'Use In Key later when you want the riff to sound more melodic.',
   },
   {
     target: 'riff-desktop-view',
     title: 'Overlays',
     kicker: 'Riff Guide',
-    text: 'Overlays change labels, start lines, and pattern shape without changing the groove.',
-    doThis: 'Use labels and start lines when learning, then simplify the view once the phrase feels familiar.',
+    text: 'Overlays add numbers, start lines, and shape weight. They help you see starts, hits, and alignment points.',
+    doThis: 'Turn Numbers or Start Lines on while learning, then hide them once the pattern feels familiar.',
+    notice: 'Overlays change readability, not timing.',
   },
   {
     target: 'riff-desktop-present',
-    title: 'Present',
+    title: 'Fullscreen',
     kicker: 'Riff Guide',
-    text: 'Present strips back the chrome for showing, recording, or focused study.',
-    doThis: 'Use it after one scene feels stable.',
+    text: 'Fullscreen hides setup controls so the riff is easier to watch, listen to, or record.',
+    doThis: 'Use it after the current riff makes sense.',
+    notice: 'Exit Fullscreen when you want to edit again.',
   },
   {
     target: 'riff-desktop-menu',
     title: 'Menu',
     kicker: 'Riff Guide',
-    text: 'Use Menu for scenes, saving, audio, and deeper settings after the basics feel clear.',
-    doThis: 'Stay in quick edit until you know what part you want to change.',
+    text: 'Menu is for saved scenes, export, account, and refresh.',
+    doThis: 'Skip it while learning. Use visible Play, Random, Quick Edit, and Tools first.',
+    notice: 'Menu is useful later, but it is not part of the first learning path.',
   },
 ];
 
 const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
   {
     target: 'study-mobile-main-canvas',
-    title: 'Start Here',
+    title: 'Read The Rings',
     kicker: 'Study Guide',
-    text: 'Study lets you hear two or more rhythm layers on the same loop.',
-    doThis: 'Start by pressing Play, then watch where two layers land together.',
-    notice: 'You do not need theory to use it.',
+    text: 'Each colored ring is one rhythm layer. Each dot is an editable step: bright dots play, dim dots rest.',
+    doThis: 'Press Play, watch one lap, then tap one dot on a ring.',
+    notice: 'Tap a dot once to select it. Tap the same dot again to turn that hit on or off.',
+    actionLabel: 'Play / Pause',
+    actionId: 'study-toggle-play',
   },
   {
     target: 'study-mobile-playback',
     title: 'Playback',
     kicker: 'Study Guide',
-    text: 'Play starts the loop. Restart brings you back to the same beginning every time. Mute silences the study without stopping it.',
-    doThis: 'Use Restart when you want to hear the cycle from beat 1 again.',
-    notice: 'Mute is the fastest way to listen quietly while you change things.',
+    text: 'These buttons control time and sound. Play starts or stops motion. Restart jumps back to beat 1. Mute turns sound off without changing the pattern.',
+    doThis: 'Use Restart whenever you want to hear the beginning again.',
+    notice: 'Restart resets the clock, not your edits.',
+    actionLabel: 'Restart',
+    actionId: 'study-restart',
   },
   {
     target: 'study-mobile-tempo',
     title: 'Tempo',
     kicker: 'Study Guide',
-    text: 'Tempo controls how fast the pattern moves.',
-    doThis: 'Slow it down first if two layers feel hard to separate.',
-    notice: 'The same pattern often makes more sense at a slower speed.',
+    text: 'Tempo is the speed of the loop. Slower makes each layer easier to follow. Faster makes the same pattern feel more dense.',
+    doThis: 'Drag tempo down before changing notes.',
+    notice: 'If the study feels confusing, slow it down first.',
   },
   {
     target: 'study-mobile-edit',
     title: 'Edit',
     kicker: 'Study Guide',
-    text: 'Edit is where you pick one layer and change its pattern.',
-    doThis: 'Pick one layer, then write hits in Pattern with the roll or the focused editor.',
-    notice: 'Only the selected layer changes.',
+    text: 'Edit opens controls for the selected layer. A layer is one colored rhythm ring.',
+    doThis: 'Open Edit, choose one layer, then change only that layer.',
+    notice: 'The highlighted layer is the only one you are editing.',
     actionLabel: 'Open Edit',
     actionId: 'study-open-edit',
+    completeOn: 'study-open-edit',
+    hint: 'Open Edit to choose one layer before changing its pattern.',
+    success: 'Edit opened.',
   },
   {
     target: 'study-mobile-scenes',
     title: 'Scenes',
     kicker: 'Study Guide',
-    text: 'Scenes are starting examples. Random, Remix, and Random+ also live here.',
-    doThis: 'Load a scene or press Random when you want a fast new study.',
-    notice: 'Scenes teach the relationship. They are not final answers.',
+    text: 'Scenes are ready-made examples. Random creates a new study without making you build from zero.',
+    doThis: 'Use Random when you want a fresh example.',
+    notice: 'Remix and Random+ are Pro options for branching later.',
+    actionLabel: 'Try Random',
+    actionId: 'study-try-random',
+    completeOn: 'study-random',
+    hint: 'Use Random when you want a fast new starting point.',
+    success: 'New study loaded.',
   },
   {
     target: 'study-mobile-audio-tab',
     title: 'Audio',
     kicker: 'Study Guide',
-    text: 'Audio lets you focus one layer or hear the full stack. Original keeps the raw sound. In Key keeps notes inside one note family.',
-    doThis: 'Start on Original, then try In Key when you want the study to feel more melodic.',
-    notice: 'You can learn the rhythm first and add key later.',
+    text: 'Audio controls what you hear. Solo plays one layer by itself. Stack plays all layers together. Original is the simplest sound mode; In Key makes the hits more musical.',
+    doThis: 'Solo one layer if the full sound is too busy.',
+    notice: 'Focus on one part first, then return to the full stack.',
   },
   {
     target: 'study-mobile-canvas',
     title: 'Canvas',
     kicker: 'Study Guide',
-    text: 'Canvas controls change how the layers are displayed without changing the rhythm.',
-    doThis: 'Use this area when you want a cleaner look or stronger visual guides.',
-    notice: 'These controls change the picture, not the timing.',
+    text: 'Canvas controls change how the study is drawn. Numbers, ghost steps, glow, and background help you read the pattern.',
+    doThis: 'Turn on Numbers or Ghost Steps when the picture feels hard to read.',
+    notice: 'These are visual aids. They do not change the rhythm.',
   },
   {
-    target: 'study-mobile-tutorial',
-    title: 'Tutorial',
+    target: 'study-mobile-focus-pattern',
+    title: 'Step Editor',
     kicker: 'Study Guide',
-    text: 'Tutorial walks you through one short mission at a time.',
-    doThis: 'Use it when you want guided actions instead of explanations.',
-    notice: 'Tutorial is for doing. Help is for understanding.',
+    text: 'Step Editor is the close-up editor for one layer. Each cell is one possible hit. Filled cells play; empty cells rest.',
+    doThis: 'Open Step Editor after choosing the layer you want.',
+    notice: 'Use this for precise changes instead of broad shape changes.',
+    actionLabel: 'Open Step Editor',
+    actionId: 'study-open-pattern-editor',
+    completeOn: 'study-open-pattern-editor',
+    hint: 'Open Step Editor from the Edit card.',
+    success: 'Step editor ready.',
   },
   {
     target: 'study-mobile-present',
-    title: 'Present',
+    title: 'Fullscreen',
     kicker: 'Study Guide',
-    text: 'Present removes most of the controls so the cycle is easier to watch.',
-    doThis: 'Use Present after one scene feels clear.',
-    notice: 'Present is for watching and listening, not deep setup.',
+    text: 'Fullscreen hides setup controls so you can watch or listen without distractions.',
+    doThis: 'Use it after the current study makes sense.',
+    notice: 'Leave Fullscreen when you want to edit again.',
   },
   {
     target: 'study-mobile-menu',
     title: 'Menu',
     kicker: 'Study Guide',
-    text: 'Menu holds scenes, saving, account, and refresh.',
-    doThis: 'You can ignore it on your first pass.',
-    notice: 'The fast path is Scenes, Play, Edit.',
+    text: 'Menu is for account, saving, export, and other project actions.',
+    doThis: 'Skip it while learning. Use Scenes, Play, and Edit first.',
+    notice: 'Menu is not required for a first study.',
   },
 ];
 
@@ -902,18 +1017,18 @@ const MOBILE_STUDY_TUTORIAL: TutorialStep[] = [
   },
   {
     target: 'study-mobile-focus-pattern',
-    title: 'Enter Close Write Mode',
-    mission: 'Tap Focus Pattern.',
+    title: 'Open The Step Editor',
+    mission: 'Tap Step Editor.',
     hint: 'This is the fastest way to write one layer clearly.',
     completeOn: 'study-open-pattern-editor',
-    success: 'Pattern editor ready.',
+    success: 'Step editor ready.',
   },
 ];
 
 const DESKTOP_STUDY_TUTORIAL: TutorialStep[] = [
   {
     target: 'study-desktop-transport',
-    title: 'Hear The Cycle',
+    title: 'Hear The Loop',
     mission: 'Press Play to start the study.',
     hint: 'Listen for one shared loop before you edit anything.',
     completeOn: 'study-play',
@@ -921,7 +1036,7 @@ const DESKTOP_STUDY_TUTORIAL: TutorialStep[] = [
   },
   {
     target: 'study-desktop-transport',
-    title: 'Stop The Cycle',
+    title: 'Stop The Loop',
     mission: 'Press Pause to stop the study.',
     hint: 'The rest of the tutorial stays quiet so you can focus on the writing tools.',
     completeOn: 'study-pause',
@@ -931,122 +1046,131 @@ const DESKTOP_STUDY_TUTORIAL: TutorialStep[] = [
     target: 'study-desktop-transport',
     title: 'Load A New Study',
     mission: 'Press Random once.',
-    hint: 'This gives you a new starting relationship without needing to build one first.',
+    hint: 'This gives you a new example without needing to build one first.',
     completeOn: 'study-random',
     success: 'New study loaded.',
   },
   {
     target: 'study-desktop-focus-pattern',
-    title: 'Enter Close Write Mode',
-    mission: 'Press Focus Pattern.',
-    hint: 'This opens the close writing view for one layer.',
+    title: 'Open The Step Editor',
+    mission: 'Press Step Editor.',
+    hint: 'This opens the precise writing view for one layer.',
     completeOn: 'study-open-pattern-editor',
-    success: 'Pattern editor ready.',
+    success: 'Step editor ready.',
   },
 ];
 
 const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
   {
     target: 'study-desktop-transport',
-    title: 'Start Here',
+    title: 'Start Controls',
     kicker: 'Study Guide',
-    text: 'Study compares pulse patterns on one shared cycle.',
-    doThis: 'Start with Play or a scene, then edit one layer.',
-    notice: 'There is no single correct way to use it.',
-    actionLabel: 'Load 3:5',
-    actionId: 'study-load-default',
+    text: 'This bottom bar starts the study. Play controls motion, Restart returns to beat 1, and Random makes a new example.',
+    doThis: 'Press Play and watch one full loop before editing.',
+    notice: 'Start with listening and watching before editing.',
+    actionLabel: 'Play / Pause',
+    actionId: 'study-toggle-play',
   },
   {
-    target: 'study-desktop-canvas',
-    title: 'The Main View',
+    target: 'study-desktop-pattern',
+    title: 'Read The Study',
     kicker: 'Study Guide',
-    text: 'The main canvas shows how the layers line up on one shared loop.',
-    doThis: 'Start slow and watch for where two layers strike together.',
-    notice: 'Use the picture to understand the relationship before changing lots of controls.',
+    text: 'Each colored ring is one rhythm layer. Each dot is an editable step: bright dots play, dim dots rest. Hover a dot to highlight it.',
+    doThis: 'Move over a dot on a ring, then click one step you want to change.',
+    notice: 'Click once to select a dot. Click the same dot again to turn that hit on or off.',
   },
   {
     target: 'study-desktop-tempo',
     title: 'Tempo',
     kicker: 'Study Guide',
-    text: 'Tempo stays centered so speed is always easy to find.',
-    doThis: 'Slow it down first when the relationship feels crowded.',
+    text: 'Tempo controls how fast the loop moves. Slower makes it easier to see and hear each layer.',
+    doThis: 'Move it left until you can track one layer clearly.',
+    notice: 'Most studies are easier to learn slowly.',
   },
   {
     target: 'study-desktop-quick',
     title: 'Quick Edit',
     kicker: 'Study Guide',
-    text: 'The left card is the fast editing area.',
-    doThis: 'Pick a layer, adjust steps, offset, and radius, then open Focus Pattern when you want the roll.',
-    notice: 'Quick edit changes structure. The focused editor is for writing.',
+    text: 'The left card edits the active layer without opening the full editor.',
+    doThis: 'Pick one layer first, then change steps, offset, or radius.',
+    notice: 'One layer at a time keeps the result understandable.',
   },
   {
     target: 'study-quick-layer',
     title: 'Layers',
     kicker: 'Study Guide',
-    text: 'Choose the active layer here.',
-    doThis: 'The plus adds a layer. The trash removes the selected layer when more than one exists.',
-    notice: 'Only the highlighted layer will change.',
+    text: 'This list chooses the active layer. The color dot matches the ring on the canvas.',
+    doThis: 'Click a layer before changing its controls. Use plus to add one, or trash to remove one.',
+    notice: 'Only the selected layer changes.',
   },
   {
     target: 'study-quick-stack',
     title: 'Layer Shape',
     kicker: 'Study Guide',
-    text: 'Step count, offset, and radius change how the selected layer sits in the study.',
-    doThis: 'Change one of these before changing all three.',
-    notice: 'Offset moves placement. Radius changes spacing. Steps changes density.',
+    text: 'Steps sets how many positions the layer has. Offset moves where the pattern starts. Radius moves the ring closer to or farther from the center.',
+    doThis: 'Change Steps by one first, then watch the canvas update.',
+    notice: 'Change one control at a time so you can see what it did.',
   },
   {
     target: 'study-quick-shape',
     title: 'Pattern Tools',
     kicker: 'Study Guide',
-    text: 'Invert and Clear are quick actions.',
-    doThis: 'Use Focus Pattern when you want to write hits directly.',
-    notice: 'The roll is the circle flattened into a straight row for faster editing.',
-    actionLabel: 'Open Pattern Editor',
+    text: 'Invert flips hits and rests on the selected layer. Clear removes that layer’s hits. Step Editor opens exact hit-by-hit editing.',
+    doThis: 'Use Step Editor when you want to choose exactly which hits play.',
+    notice: 'Invert is a quick experiment. Clear gives you silence to write from.',
+    actionLabel: 'Open Step Editor',
     actionId: 'study-open-pattern-editor',
+    completeOn: 'study-open-pattern-editor',
+    hint: 'Open Step Editor when you want to edit the hits directly.',
+    success: 'Step editor ready.',
   },
   {
     target: 'study-desktop-scenes',
     title: 'Scenes',
     kicker: 'Study Guide',
-    text: 'Scenes give you quick starting points without opening the full menu.',
-    doThis: 'Use Standard for built-in studies and Saved for your own.',
-    notice: 'Random, Remix, and Random+ are the fastest way to branch from the current study.',
+    text: 'Scenes are ready-made studies. Standard loads built-in examples, Saved holds your work, and Random creates a new starting point.',
+    doThis: 'Use Random when you want a fresh example quickly.',
+    notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
   },
   {
     target: 'study-desktop-audio',
     title: 'Playback',
     kicker: 'Study Guide',
-    text: 'Playback lets you choose what part of the study you hear right now.',
-    doThis: 'Solo one layer when the stack feels too dense, then switch the target layer if needed.',
+    text: 'This panel chooses what you hear. Sound On or Off mutes output. Solo plays the selected layer alone. Stack plays all layers together.',
+    doThis: 'Solo a confusing layer, then return to Stack.',
+    notice: 'Solo helps you learn one part. Stack shows how the parts fit.',
   },
   {
     target: 'study-desktop-sound',
     title: 'Sound',
     kicker: 'Study Guide',
-    text: 'Sound holds palette, In Key controls, register, key, and note family.',
-    doThis: 'If theory is distracting, leave it on Original first.',
+    text: 'Sound changes tone without rewriting the rhythm. Original keeps simple pulse sounds. In Key maps hits to musical notes.',
+    doThis: 'Stay on Original while learning the timing.',
+    notice: 'Use In Key later when you want the study to sound more melodic.',
   },
   {
     target: 'study-desktop-view',
     title: 'Overlays',
     kicker: 'Study Guide',
-    text: 'Overlays control labels and guide marks without changing the rhythm itself.',
-    doThis: 'Use numbers when learning and hide them when the cycle feels familiar.',
+    text: 'Overlays add visual labels and ghost steps. They help you see hits, empty spaces, and alignment points.',
+    doThis: 'Turn Numbers on while learning, then hide them when the pattern feels familiar.',
+    notice: 'Overlays change readability, not the rhythm.',
   },
   {
     target: 'study-desktop-present',
-    title: 'Present',
+    title: 'Fullscreen',
     kicker: 'Study Guide',
-    text: 'Present reduces the chrome so the cycle becomes the main focus.',
-    doThis: 'Use it after one scene feels readable.',
+    text: 'Fullscreen hides setup controls so the study is easier to watch, listen to, or record.',
+    doThis: 'Use it after the current study makes sense.',
+    notice: 'Exit Fullscreen when you want to edit again.',
   },
   {
     target: 'study-desktop-menu',
     title: 'Menu',
     kicker: 'Study Guide',
-    text: 'Open the full menu for saved scenes, export, account, and refresh after the basics feel clear.',
-    doThis: 'Stay in quick edit until you know what part you want to change.',
+    text: 'Menu is for saved scenes, export, account, and refresh.',
+    doThis: 'Skip it while learning. Use the visible Scenes, Play, and Quick Edit controls first.',
+    notice: 'Menu is useful later, but it is not part of the first learning path.',
   },
 ];
 
@@ -1055,49 +1179,58 @@ const STUDY_EDITOR_GUIDE: StartGuideStep[] = [
     target: 'study-editor-screen',
     title: 'This Screen',
     kicker: 'Study Editor',
-    text: 'This is the close writing view for one layer.',
-    doThis: 'Choose a layer before changing anything else.',
-    notice: 'Use this screen when you want to work on one rhythm without the rest of the interface in the way.',
+    text: 'Step Editor edits one selected layer up close. The large view and the row of cells show the same layer.',
+    doThis: 'Confirm the correct layer is selected before changing hits.',
+    notice: 'Use this screen when you want exact control instead of broad quick edits.',
   },
   {
     target: 'study-editor-steps',
     title: 'Steps',
     kicker: 'Study Editor',
-    text: 'Steps decides how many places this layer can land on.',
+    text: 'Steps is how many cells this layer has around the loop. More steps gives more possible hit positions; fewer steps makes a simpler pattern.',
     doThis: 'Add or remove one step and watch the layer update.',
-    notice: 'More steps means a finer grid.',
+    notice: 'Changing Steps changes the grid for this layer.',
   },
   {
     target: 'study-editor-roll',
     title: 'Pattern Roll',
     kicker: 'Study Editor',
-    text: 'The roll is the layer laid out in a straight line for faster editing.',
-    doThis: 'Tap one empty cell to turn it on.',
-    notice: 'The layer view and the roll always show the same pattern.',
+    text: 'The roll is the selected layer flattened into boxes. Each box is one possible hit. Filled boxes play; empty boxes rest.',
+    doThis: 'Tap one empty box to turn it on.',
+    notice: 'The ring and the roll always show the same pattern.',
+    completeOn: 'study-editor-toggle-step',
+    hint: 'Tap one empty step in the roll.',
+    success: 'One hit changed.',
   },
   {
     target: 'study-editor-offset',
     title: 'Offset Pattern',
     kicker: 'Study Editor',
-    text: 'Offset moves the whole rhythm earlier or later without changing its shape.',
+    text: 'Offset slides the whole pattern earlier or later. It does not add hits or remove hits.',
     doThis: 'Move it 1 step left or right.',
-    notice: 'Same rhythm. Different start point.',
+    notice: 'Same hits. Different starting place.',
+    completeOn: 'study-editor-offset',
+    hint: 'Move the pattern by one step.',
+    success: 'Pattern shifted.',
   },
   {
     target: 'study-editor-invert',
     title: 'Invert',
     kicker: 'Study Editor',
-    text: 'Invert flips filled and empty steps.',
+    text: 'Invert swaps hits and rests on the selected layer.',
     doThis: 'Try it once, then undo it if needed.',
-    notice: 'Use it when you want a fast opposite pattern.',
+    notice: 'It is a quick experiment, not a small tweak.',
+    completeOn: 'study-editor-invert',
+    hint: 'Press Invert once.',
+    success: 'Pattern inverted.',
   },
   {
     target: 'study-editor-clear',
     title: 'Clear',
     kicker: 'Study Editor',
-    text: 'Clear removes only this layer.',
-    doThis: 'Use it when you want to write from silence.',
-    notice: 'It only affects the current layer.',
+    text: 'Clear removes all hits from the selected layer.',
+    doThis: 'Use Clear when you want to write a layer from silence.',
+    notice: 'It affects only the selected layer, not the whole study.',
   },
 ];
 
@@ -1133,40 +1266,56 @@ const RIFF_EDITOR_GUIDE: StartGuideStep[] = [
     target: 'riff-editor-screen',
     title: 'This Screen',
     kicker: 'Riff Editor',
-    text: 'Use this screen when you want to edit the bar, riff, or ending up close.',
+    text: 'Step Editor edits one part up close. Bar changes the grid, Riff changes the repeating hits, and Ending changes the final landing area.',
+    doThis: 'Confirm the correct part is selected before changing cells.',
+    notice: 'Use this screen when the main lane feels too small or too crowded.',
   },
   {
     target: 'riff-editor-view-width',
     title: 'View Width',
     kicker: 'Riff Editor',
-    text: 'Use 1 Bar for detail. Use Pattern when you want to see the full phrase.',
+    text: 'View Width controls how much of the pattern is visible. 1 Bar is close-up. Pattern shows the whole repeating pattern.',
+    doThis: 'Set View Width to Pattern when you want the full view.',
+    actionLabel: 'Show Pattern',
+    actionId: 'riff-editor-set-pattern',
+    completeOn: 'riff-editor-view-pattern',
+    hint: 'Pattern shows the whole repeating pattern at once.',
+    success: 'Full pattern visible.',
   },
   {
     target: 'riff-editor-window',
     title: 'Window',
     kicker: 'Riff Editor',
-    text: 'Window slides your view through the phrase. It does not move the notes.',
+    text: 'Window slides the visible area through a longer pattern. It does not move hits earlier or later.',
+    doThis: 'Use Window only when the full pattern is longer than the visible area.',
+    notice: 'This changes what you can see, not what plays.',
   },
   {
     target: 'riff-editor-roll',
     title: 'Pattern Roll',
     kicker: 'Riff Editor',
-    text: 'The roll is the fastest way to write the groove. Tap to turn a step on or off. Hold to accent it.',
+    text: 'The roll is the pattern flattened into boxes. Each box is one possible hit. Filled boxes play; empty boxes rest. Hold a box to accent it.',
+    doThis: 'Tap one empty box to turn it on.',
+    completeOn: 'riff-editor-toggle-step',
+    hint: 'Tap one step in the roll.',
+    success: 'One step changed.',
   },
   {
     target: 'riff-editor-step-states',
     title: 'Rest, Hit, Accent',
     kicker: 'Riff Editor',
-    text: 'Rest is silence. Hit plays the note. Accent makes it speak harder without changing timing.',
+    text: 'Rest is silence. Hit plays. Accent plays louder or stronger. None of these buttons move the timing.',
+    doThis: 'Select one step, then compare Rest, Hit, and Accent.',
+    notice: 'Accent changes emphasis, not placement.',
   },
 ];
 
 const MOBILE_RIFF_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-mobile-transport',
-    title: 'Hear The Groove',
+    title: 'Hear The Loop',
     mission: 'Press Play to start the loop.',
-    hint: 'Listen for the steady frame and the moving riff inside it.',
+    hint: 'Listen for the bar grid and the repeating hits moving against it.',
     completeOn: 'riff-play',
     success: 'Loop started.',
   },
@@ -1182,48 +1331,48 @@ const MOBILE_RIFF_TUTORIAL: TutorialStep[] = [
     target: 'riff-mobile-edit',
     title: 'Open The Writing Tools',
     mission: 'Open the Edit card.',
-    hint: 'This is where you switch between frame, riff, and ending.',
+    hint: 'This is where you choose Bar, Riff, or Ending before editing.',
     completeOn: 'riff-open-edit',
     success: 'Edit opened.',
   },
   {
     target: 'riff-layer-1',
-    title: 'Check The Frame',
+    title: 'Check The Bar Grid',
     mission: 'Tap Bar.',
-    hint: 'Bar controls phrase length and grid detail.',
+    hint: 'Bar changes the count and grid, not the individual hits.',
     completeOn: 'riff-select-bar',
     success: 'Bar selected.',
   },
   {
     target: 'riff-layer-2',
-    title: 'Return To The Riff',
+    title: 'Return To The Pattern',
     mission: 'Tap Riff.',
-    hint: 'This brings you back to the main pattern.',
+    hint: 'Riff is the repeating hit pattern.',
     completeOn: 'riff-select-riff',
     success: 'Riff selected.',
   },
   {
     target: 'riff-mobile-focus-pattern',
-    title: 'Enter Close Write Mode',
-    mission: 'Tap Focus Pattern.',
+    title: 'Open The Step Editor',
+    mission: 'Tap Step Editor.',
     hint: 'This is the fastest place to write steps clearly.',
     completeOn: 'riff-open-pattern-editor',
-    success: 'Pattern editor ready.',
+    success: 'Step editor ready.',
   },
 ];
 
 const DESKTOP_RIFF_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-desktop-transport',
-    title: 'Hear The Groove',
+    title: 'Hear The Loop',
     mission: 'Press Play to start the loop.',
-    hint: 'Listen for the fixed frame and the moving riff inside it.',
+    hint: 'Listen for the bar grid and the repeating hits moving against it.',
     completeOn: 'riff-play',
     success: 'Loop started.',
   },
   {
     target: 'riff-desktop-transport',
-    title: 'Stop The Groove',
+    title: 'Stop The Loop',
     mission: 'Press Pause to stop the loop.',
     hint: 'The rest of the tutorial stays quiet so you can focus on the writing tools.',
     completeOn: 'riff-pause',
@@ -1231,28 +1380,28 @@ const DESKTOP_RIFF_TUTORIAL: TutorialStep[] = [
   },
   {
     target: 'riff-desktop-quick',
-    title: 'Enter Close Write Mode',
-    mission: 'Press Focus Pattern.',
-    hint: 'This opens the focused writing surface for the riff.',
+    title: 'Open The Step Editor',
+    mission: 'Press Step Editor.',
+    hint: 'This opens the precise writing surface for the riff.',
     completeOn: 'riff-open-pattern-editor',
-    success: 'Pattern editor ready.',
+    success: 'Step editor ready.',
   },
 ];
 
 const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
   {
     target: 'riff-editor-bar-tab',
-    title: 'Check The Frame',
+    title: 'Check The Bar Grid',
     mission: 'Tap Bar.',
-    hint: 'These controls change the frame, not the notes.',
+    hint: 'These controls change the count and grid, not the individual hits.',
     completeOn: 'riff-editor-select-bar',
     success: 'Bar tab open.',
   },
   {
     target: 'riff-editor-riff-tab',
-    title: 'Return To The Riff',
+    title: 'Return To The Pattern',
     mission: 'Tap Riff.',
-    hint: 'The riff tab is the main pattern writer.',
+    hint: 'Riff is where you write the repeating hits.',
     completeOn: 'riff-editor-select-riff',
     success: 'Riff tab open.',
   },
@@ -1260,9 +1409,9 @@ const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
     target: 'riff-editor-view-width',
     title: 'Zoom Out',
     mission: 'Set View Width to Pattern.',
-    hint: 'Pattern shows the whole phrase at once.',
+    hint: 'Pattern shows the whole repeating pattern at once.',
     completeOn: 'riff-editor-view-pattern',
-    success: 'Full phrase visible.',
+    success: 'Full pattern visible.',
   },
   {
     target: 'riff-editor-roll',
@@ -1276,7 +1425,7 @@ const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
     target: 'riff-editor-ending-tab',
     title: 'Jump To The Ending',
     mission: 'Tap Ending.',
-    hint: 'Ending edits only the last part of the phrase.',
+    hint: 'Ending edits only the final landing area.',
     completeOn: 'riff-editor-select-ending',
     success: 'Ending tab open.',
   },
@@ -1285,33 +1434,39 @@ const RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
 const DESKTOP_RIFF_EDITOR_GUIDE: StartGuideStep[] = [
   {
     target: 'riff-editor-target',
-    title: 'Pattern Editor',
+    title: 'Step Editor',
     kicker: 'Riff Editor',
-    text: 'This is the focused writing view for the riff pattern.',
-    doThis: 'Use this screen when the main lane feels too wide.',
-    notice: 'The large shape and the roll below stay in sync.',
+    text: 'Step Editor is the close-up writing view for the Riff pattern. The large shape and the roll below show the same hits.',
+    doThis: 'Use this screen when the main lane is too crowded for precise editing.',
+    notice: 'Changing one cell updates both views.',
   },
   {
     target: 'riff-editor-roll',
     title: 'Pattern Roll',
     kicker: 'Riff Editor',
-    text: 'The roll is the fastest way to write the groove.',
-    doThis: 'Tap a cell to toggle it.',
+    text: 'The roll is the pattern flattened into boxes. Each box is one possible hit. Filled boxes play; empty boxes rest.',
+    doThis: 'Tap one empty cell to turn it on.',
     notice: 'The shape above updates immediately.',
+    completeOn: 'riff-editor-toggle-step',
+    hint: 'Tap one step in the roll.',
+    success: 'One step changed.',
   },
   {
     target: 'riff-editor-offset',
     title: 'Offset Pattern',
     kicker: 'Riff Editor',
-    text: 'Offset moves the same phrase earlier or later against the bar.',
-    doThis: 'Move it 1 step and compare the landing point.',
-    notice: 'Same pattern. Different placement.',
+    text: 'Offset moves the same pattern earlier or later against the bar grid. It does not add or remove hits.',
+    doThis: 'Move it 1 step and compare where the pattern starts.',
+    notice: 'Same hits. Different starting place.',
+    completeOn: 'riff-editor-offset',
+    hint: 'Shift the pattern by one step.',
+    success: 'Pattern shifted.',
   },
   {
     target: 'riff-editor-step-states',
     title: 'Hit, Rest, Accent',
     kicker: 'Riff Editor',
-    text: 'Each selected step can be off, on, or accented.',
+    text: 'Each selected step can be silent, on, or accented.',
     doThis: 'Select one step, then compare Rest, Hit, and Accent.',
     notice: 'Accent changes emphasis, not timing.',
   },
@@ -1330,9 +1485,9 @@ const DESKTOP_RIFF_EDITOR_TUTORIAL: TutorialStep[] = [
     target: 'riff-editor-offset',
     title: 'Move The Phrase',
     mission: 'Shift the pattern by 1 step.',
-    hint: 'You are moving the same phrase to a new landing point.',
+    hint: 'You are moving the same hits to a new starting place.',
     completeOn: 'riff-editor-offset',
-    success: 'Phrase shifted.',
+    success: 'Pattern shifted.',
   },
 ];
 
@@ -1341,26 +1496,40 @@ const MOBILE_FLOW_GUIDE: StartGuideStep[] = [
     target: 'flow-mobile-playback',
     title: 'Start Here',
     text: 'Flow turns repeating rhythm cycles into glowing motion and ambient sound. Press Play, then try Random. You do not need theory for this mode.',
+    doThis: 'Press Play, then try Random when you want a new mood.',
+    actionLabel: 'Try Random',
+    actionId: 'flow-try-random',
+    notice: 'Flow is the simplest mode: pick a mood, then watch and listen.',
   },
   {
     target: 'flow-mobile-scenes',
     title: 'Scenes',
     text: 'Scenes are finished starting points. Pick one when you want a different mood instead of building anything from scratch.',
+    doThis: 'Open Scenes and pick one mood that looks interesting.',
+    notice: 'Scenes are meant to work immediately.',
   },
   {
     target: 'flow-mobile-sound',
     title: 'Sound',
     text: 'Sound uses plain moods like Glass, Deep, Rain, and Dream. Choose what feels good.',
+    doThis: 'Try the next sound mood.',
+    actionLabel: 'Next Sound',
+    actionId: 'flow-next-sound',
+    notice: 'No music theory terms are needed in Flow.',
   },
   {
     target: 'flow-mobile-motion',
     title: 'Motion',
     text: 'Motion changes how calm or lively the animation feels without rewriting the scene.',
+    doThis: 'Try the next motion level.',
+    actionLabel: 'Next Motion',
+    actionId: 'flow-next-motion',
+    notice: 'This changes energy, not the scene itself.',
   },
   {
     target: 'flow-mobile-present',
-    title: 'Present',
-    text: 'Present is the main Flow experience: fewer controls, bigger motion, and room to watch.',
+    title: 'Fullscreen',
+    text: 'Fullscreen gives Flow fewer controls, bigger motion, and more room to watch.',
   },
 ];
 
@@ -1369,6 +1538,10 @@ const DESKTOP_FLOW_GUIDE: StartGuideStep[] = [
     target: 'flow-desktop-transport',
     title: 'Start Here',
     text: 'Flow turns repeating rhythm cycles into glowing motion and ambient sound. Press Play, then try Random or Dream+.',
+    doThis: 'Press Play or Random to start quickly.',
+    actionLabel: 'Try Random',
+    actionId: 'flow-try-random',
+    notice: 'Flow is for quick watching and listening, not dense editing.',
   },
   {
     target: 'flow-desktop-speed',
@@ -1384,16 +1557,24 @@ const DESKTOP_FLOW_GUIDE: StartGuideStep[] = [
     target: 'flow-desktop-sound',
     title: 'Sound',
     text: 'Sound chooses a plain-language mood. No scale names are needed here.',
+    doThis: 'Try the next sound mood.',
+    actionLabel: 'Next Sound',
+    actionId: 'flow-next-sound',
+    notice: 'Choose what feels good. There is no wrong setting here.',
   },
   {
     target: 'flow-desktop-motion',
     title: 'Motion',
     text: 'Motion changes the energy of the animation while preserving the scene.',
+    doThis: 'Try the next motion level.',
+    actionLabel: 'Next Motion',
+    actionId: 'flow-next-motion',
+    notice: 'Use this when the scene feels too still or too busy.',
   },
   {
     target: 'flow-desktop-present',
-    title: 'Present',
-    text: 'Present strips Flow down to the controls you need while watching or recording.',
+    title: 'Fullscreen',
+    text: 'Fullscreen keeps only the controls you need while watching or recording.',
   },
 ];
 
@@ -1469,6 +1650,16 @@ type RiffEditMode = 'phrase' | 'landing';
 type GuideContext = 'surface' | 'study-editor' | 'riff-editor';
 type BeginnerGuideSeenState = Partial<Record<AppSurface, boolean>>;
 
+function getGuideNextContextForStep(step: StartGuideStep | null): GuideContext | null {
+  if (step?.completeOn === 'study-open-pattern-editor') {
+    return 'study-editor';
+  }
+  if (step?.completeOn === 'riff-open-pattern-editor') {
+    return 'riff-editor';
+  }
+  return null;
+}
+
 function parseAppSurfaceParam(raw: string | null | undefined): AppSurface | null {
   if (
     raw === 'orbital' ||
@@ -1529,9 +1720,9 @@ const MODE_BEGINNER_COPY: Record<
 > = {
   orbital: {
     label: 'Orbit',
-    summary: 'Layer moving rhythm circles.',
-    firstSteps: 'Start with Scenes or Random, press Play, then change one layer.',
-    helper: 'There is no wrong way to explore. Change one thing and listen.',
+    summary: 'Draw shapes from colored layers that each move on their own count.',
+    firstSteps: 'Start with Random or Scenes, press Play, then change one layer count.',
+    helper: 'Change one count or one view setting at a time so the motion stays readable.',
   },
   'polyrhythm-study': {
     label: 'Study',
@@ -1541,9 +1732,9 @@ const MODE_BEGINNER_COPY: Record<
   },
   'riff-cycle-study': {
     label: 'Riff',
-    summary: 'Build a groove from bar, riff, and ending patterns.',
-    firstSteps: 'Start with Scenes, press Play, then change one step.',
-    helper: 'The goal is feel first. Edit one part at a time.',
+    summary: 'Write a repeating hit pattern and see how it lines up against a bar grid.',
+    firstSteps: 'Start with Random or Scenes, press Play, then edit one Riff step.',
+    helper: 'Change one part at a time: Bar grid, Riff pattern, or Ending.',
   },
   flow: {
     label: 'Flow',
@@ -1718,6 +1909,8 @@ function LimitedColorPickerButton({
   label,
   iconSize = 13,
   className = 'h-8 w-8',
+  locked = false,
+  onLockedClick,
 }: {
   colors: readonly string[];
   value: string;
@@ -1725,6 +1918,8 @@ function LimitedColorPickerButton({
   label: string;
   iconSize?: number;
   className?: string;
+  locked?: boolean;
+  onLockedClick?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -1783,18 +1978,30 @@ function LimitedColorPickerButton({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        className={`flex cursor-pointer items-center justify-center rounded-lg border transition active:scale-[0.97] ${className}`}
+        onClick={() => {
+          if (locked) {
+            onLockedClick?.();
+            return;
+          }
+          setOpen((current) => !current);
+        }}
+        className={`relative flex cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition active:scale-[0.97] ${className}`}
         style={{
-          background: `${value}12`,
-          borderColor: `${value}32`,
-          color: value,
-          boxShadow: open ? `0 0 18px ${value}18` : `0 0 14px ${value}10`,
+          background: locked ? 'rgba(255,255,255,0.035)' : `${value}12`,
+          borderColor: locked ? 'rgba(255,255,255,0.1)' : `${value}32`,
+          color: locked ? 'rgba(255,255,255,0.46)' : value,
+          boxShadow: locked ? 'none' : open ? `0 0 18px ${value}18` : `0 0 14px ${value}10`,
+          filter: locked ? 'grayscale(0.6)' : undefined,
         }}
         aria-label={label}
         title={label}
       >
         <Palette size={iconSize} />
+        {locked ? (
+          <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
+            <Lock size={8} strokeWidth={2.4} />
+          </span>
+        ) : null}
       </button>
       {open && position
         ? createPortal(
@@ -1844,6 +2051,7 @@ function MobilePresentActionButton({
   icon,
   accent,
   active = true,
+  locked = false,
   className = '',
   style,
   ...props
@@ -1852,17 +2060,27 @@ function MobilePresentActionButton({
   icon?: ReactNode;
   accent: string;
   active?: boolean;
+  locked?: boolean;
 }) {
   return (
     <button
       type="button"
-      className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-center transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`relative flex min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border px-1.5 py-2 text-center transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
       style={{
         background: active ? `${accent}14` : 'rgba(255,255,255,0.05)',
         borderColor: active ? `${accent}30` : 'rgba(255,255,255,0.1)',
         color: active ? accent : 'rgba(255,255,255,0.76)',
         boxShadow: active ? `0 0 0 1px ${accent}14 inset` : 'inset 0 1px 0 rgba(255,255,255,0.04)',
         ...style,
+        ...(locked
+          ? {
+              background: 'rgba(255,255,255,0.035)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.44)',
+              boxShadow: 'none',
+              filter: 'grayscale(0.55)',
+            }
+          : null),
       }}
       {...props}
     >
@@ -1870,6 +2088,11 @@ function MobilePresentActionButton({
       <span className="min-w-0 truncate text-[8px] font-mono uppercase tracking-[0.12em]">
         {label}
       </span>
+      {locked ? (
+        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+          <Lock size={8} strokeWidth={2.4} />
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -4661,6 +4884,7 @@ function OrbitalPolymeter() {
   const [riffDesktopLaneView, setRiffDesktopLaneView] = useState<1 | 2 | 4 | 'pattern'>(4);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
   const [helpContext, setHelpContext] = useState<GuideContext>('surface');
+  const [guideStepStartTick, setGuideStepStartTick] = useState(0);
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
   const [tutorialContext, setTutorialContext] = useState<GuideContext>('surface');
   const [tutorialStepStartTick, setTutorialStepStartTick] = useState(0);
@@ -4676,6 +4900,12 @@ function OrbitalPolymeter() {
   } | null>(null);
   const isSignedIn = Boolean(authEnabled && user);
   const hasProAccess = isProPlan(effectivePlan);
+  const remixLocked = !canUseProFeature(effectivePlan, 'remix');
+  const randomPlusLocked = !canUseProFeature(effectivePlan, 'random-plus');
+  const colorEditingLocked = !canUseProFeature(effectivePlan, 'color-editing');
+  const soundEditingLocked = !canUseProFeature(effectivePlan, 'sound-editing');
+  const canvasOptionsLocked = !canUseProFeature(effectivePlan, 'canvas-options');
+  const extraOrbitsLocked = !canUseProFeature(effectivePlan, 'extra-orbits');
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
     const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
@@ -6119,6 +6349,14 @@ function OrbitalPolymeter() {
     guideSteps.length > 0 ? guideSteps[Math.min(helpStepIndex, guideSteps.length - 1)] : null;
   const currentTutorialStep =
     tutorialSteps.length > 0 ? tutorialSteps[Math.min(tutorialStepIndex, tutorialSteps.length - 1)] : null;
+  const guideStepComplete =
+    Boolean(
+      helpOpen &&
+      currentGuideStep?.completeOn &&
+      tutorialEvent &&
+      tutorialEvent.tick > guideStepStartTick &&
+      tutorialEvent.id === currentGuideStep.completeOn,
+    );
   const tutorialStepComplete =
     Boolean(
       tutorialOpen &&
@@ -6334,7 +6572,10 @@ function OrbitalPolymeter() {
   );
   const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
-  const guideCalloutHeight = isMobile ? guideMeasuredHeight : 220;
+  const guideCalloutHeight = Math.min(
+    Math.max(220, guideMeasuredHeight),
+    Math.max(220, viewportHeight - 48),
+  );
   const guideCalloutWidth = isMobile ? Math.max(320, viewportWidth - 24) : 360;
   const mobileChevronButtonBaseStyle = {
     background: 'rgba(255,255,255,0.08)',
@@ -6429,7 +6670,22 @@ function OrbitalPolymeter() {
     const canFitRight = guideRect.right + guideCalloutWidth + 32 < viewportWidth;
     const canFitLeft = guideRect.left - guideCalloutWidth - 32 > 0;
     const maxHeight = Math.max(220, viewportHeight - 48);
-    const top = Math.min(viewportHeight - guideCalloutHeight - 24, Math.max(24, guideRect.top - 8));
+    const clampedMaxTop = Math.max(24, viewportHeight - guideCalloutHeight - 24);
+    const top = Math.min(clampedMaxTop, Math.max(24, guideRect.top - 8));
+    const targetIsLarge =
+      guideRect.width > viewportWidth * 0.58 ||
+      guideRect.height > viewportHeight * 0.58;
+
+    if (targetIsLarge) {
+      return {
+        ...base,
+        width: guideCalloutWidth,
+        right: 24,
+        top: Math.min(clampedMaxTop, Math.max(88, viewportHeight * 0.16)),
+        maxHeight,
+        overflowY: 'auto' as const,
+      };
+    }
 
     if (canFitRight) {
       return {
@@ -6454,12 +6710,17 @@ function OrbitalPolymeter() {
     }
 
     const fitsBelow = guideRect.bottom + guideCalloutHeight + 28 < viewportHeight;
+    const centeredLeft = Math.min(
+      viewportWidth - guideCalloutWidth - 24,
+      Math.max(24, guideRect.left + guideRect.width / 2 - guideCalloutWidth / 2),
+    );
     return {
       ...base,
       width: guideCalloutWidth,
-      left: Math.min(viewportWidth - guideCalloutWidth - 24, Math.max(24, guideRect.left + guideRect.width / 2 - guideCalloutWidth / 2)),
-      top: fitsBelow ? Math.min(viewportHeight - guideCalloutHeight - 24, guideRect.bottom + 18) : undefined,
-      bottom: fitsBelow ? undefined : Math.max(24, viewportHeight - guideRect.top + 18),
+      left: centeredLeft,
+      top: fitsBelow
+        ? Math.min(clampedMaxTop, guideRect.bottom + 18)
+        : Math.min(clampedMaxTop, Math.max(24, guideRect.top - guideCalloutHeight - 18)),
       maxHeight,
       overflowY: 'auto' as const,
     };
@@ -6753,17 +7014,9 @@ function OrbitalPolymeter() {
     if (
       currentGuideStep.target === 'mobile-customize' ||
       currentGuideStep.target === 'mobile-layers' ||
-      currentGuideStep.target === 'mobile-direction' ||
-      currentGuideStep.target === 'mobile-trail' ||
-      currentGuideStep.target === 'mobile-markers'
+      currentGuideStep.target === 'mobile-direction'
     ) {
       setMobileCustomizeOpen(true);
-    }
-    if (
-      currentGuideStep.target === 'mobile-sound' ||
-      currentGuideStep.target === 'mobile-audio'
-    ) {
-      setMobileSoundOpen(true);
     }
   }, [currentGuideStep, helpOpen, isMobile]);
 
@@ -6787,17 +7040,32 @@ function OrbitalPolymeter() {
     if (
       !isMobile &&
       (
+        currentGuideStep.target === 'riff-desktop-sequencer' ||
         currentGuideStep.target === 'riff-desktop-roll-size' ||
         currentGuideStep.target === 'riff-desktop-audio' ||
         currentGuideStep.target === 'riff-desktop-sound' ||
         currentGuideStep.target === 'riff-desktop-view' ||
+        currentGuideStep.target === 'riff-desktop-scenes' ||
         currentGuideStep.target === 'riff-desktop-menu'
       )
     ) {
       setRiffDesktopUtilityCollapsed(false);
     }
 
+    if (!isMobile && currentGuideStep.target === 'riff-desktop-sequencer') {
+      setRiffCycleStudy((current) =>
+        current.viewMode === 'unwrapped' ? current : { ...current, viewMode: 'unwrapped' },
+      );
+      setRiffUtilityPanel('roll');
+      return;
+    }
+
     if (isMobile && currentGuideStep.target === 'riff-mobile-edit') {
+      setRiffMobileSection('edit');
+      setRiffMobileEditTab('phrase');
+      return;
+    }
+    if (isMobile && currentGuideStep.target === 'riff-mobile-focus-pattern') {
       setRiffMobileSection('edit');
       setRiffMobileEditTab('phrase');
       return;
@@ -6926,6 +7194,10 @@ function OrbitalPolymeter() {
     }
     if (currentGuideStep.target === 'riff-desktop-view') {
       setRiffUtilityPanel('overlay');
+      return;
+    }
+    if (currentGuideStep.target === 'riff-desktop-scenes') {
+      setRiffUtilityPanel('scenes');
     }
   }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile, riffDesktopPatternEditorOpen, riffMobileEditorOpen]);
 
@@ -6961,6 +7233,11 @@ function OrbitalPolymeter() {
     }
 
     if (isMobile && currentGuideStep.target === 'study-mobile-edit') {
+      setPolyrhythmMobileSection('edit');
+      setPolyrhythmMobileEditTab('pattern');
+      return;
+    }
+    if (isMobile && currentGuideStep.target === 'study-mobile-focus-pattern') {
       setPolyrhythmMobileSection('edit');
       setPolyrhythmMobileEditTab('pattern');
       return;
@@ -7411,8 +7688,9 @@ function OrbitalPolymeter() {
     setTutorialOpen(false);
     setHelpContext(context);
     setHelpStepIndex(0);
+    setGuideStepStartTick(tutorialEvent?.tick ?? 0);
     setHelpOpen(true);
-  }, [isMobile]);
+  }, [isMobile, tutorialEvent?.tick]);
 
   const openTutorial = useCallback((context: GuideContext = 'surface') => {
     setHelpOpen(false);
@@ -7448,14 +7726,14 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleToggleHelpGuide = useCallback(() => {
-    if (helpOpen) {
+    if (helpOpen && helpContext === 'surface') {
       closeStartGuide();
       return;
     }
     setSidebarOpen(false);
     setRadialMenu(null);
     openStartGuide('surface');
-  }, [closeStartGuide, helpOpen, openStartGuide]);
+  }, [closeStartGuide, helpContext, helpOpen, openStartGuide]);
 
   const handleToggleTutorial = useCallback(() => {
     if (tutorialOpen) {
@@ -7476,6 +7754,13 @@ function OrbitalPolymeter() {
     handleToggleRiffCyclePlayback();
     recordTutorialEvent(wasPlaying ? 'riff-pause' : 'riff-play');
   }, [handleToggleRiffCyclePlayback, recordTutorialEvent, riffCycleStudy.playing]);
+
+  useEffect(() => {
+    if (!helpOpen) {
+      return;
+    }
+    setGuideStepStartTick(tutorialEvent?.tick ?? 0);
+  }, [helpContext, helpOpen, helpStepIndex]);
 
   useEffect(() => {
     if (!tutorialOpen) {
@@ -8969,9 +9254,9 @@ function OrbitalPolymeter() {
   );
   const modeDescription =
     geometryMode === 'standard-trace'
-      ? 'Layer moving rhythm circles on one field.'
+      ? 'Colored layers move on their own counts and draw one connected shape.'
       : geometryMode === 'interference-trace'
-        ? 'Watch two or more layers create a combined path.'
+        ? 'Watch two or more layers push and pull into one combined path.'
         : 'Sample the motion into a cleaner sweeping shape.';
   const orbitTempoAnchorLabel = 'Outer Ring';
   const orbitTempoMode = getOrbitTempoMode(geometryMode);
@@ -8992,6 +9277,8 @@ function OrbitalPolymeter() {
     ),
   );
   const allClockwise = engineState.orbits.every((orbit) => orbit.direction === 1);
+  const desktopOrbitGuideRadius = Math.max(180, ...engineState.orbits.map((orbit) => orbit.radius));
+  const desktopOrbitGuideTargetSize = `min(calc(100vw - 4rem), calc(100vh - 13rem), ${Math.round((desktopOrbitGuideRadius + 48) * 2)}px)`;
   const presentationSoundLabel = muted
     ? 'Muted'
     : harmonySettings.tonePreset === 'original'
@@ -9202,8 +9489,8 @@ function OrbitalPolymeter() {
           ? 'Ending'
           : 'Riff';
   const riffDesktopFocusActionLabel =
-    riffQuickFocusLabel === 'Ending' ? 'Focus Ending' : 'Focus Pattern';
-  const riffQuickControlLabelClass = 'text-[11px] font-mono font-semibold tracking-[0.04em] text-white/70';
+    riffQuickFocusLabel === 'Ending' ? 'Edit Ending' : 'Step Editor';
+  const riffQuickControlLabelClass = 'text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64';
   const riffSelectedStepActive =
     selectedRiffCycleStep != null ? Boolean(riffCycleStudy.riff.activeSteps[selectedRiffCycleStep]) : null;
   const riffSelectedStepAccented =
@@ -9248,6 +9535,26 @@ function OrbitalPolymeter() {
         : appSurface === 'flow'
           ? flowExperience.palette[1] ?? '#7FD7FF'
           : '#72F1B8';
+  const desktopSideMenuWidthClass = 'w-[min(340px,calc(100vw-1.5rem))]';
+  const desktopToolPanelStyle = {
+    background: `
+      radial-gradient(circle at 82% -14%, rgba(127,215,255,0.14), transparent 38%),
+      radial-gradient(circle at 8% 0%, rgba(136,204,255,0.08), transparent 32%),
+      linear-gradient(180deg, rgba(17,17,22,0.92), rgba(17,17,22,0.82))
+    `,
+    borderColor: 'rgba(127,215,255,0.12)',
+    boxShadow: '0 20px 54px rgba(0,0,0,0.26), 0 0 24px rgba(127,215,255,0.055), inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(16px)',
+  } as const;
+  const desktopSideMenuHeaderClass = 'relative flex min-h-[32px] items-center justify-end gap-1.5 px-0.5';
+  const desktopSideMenuTitleClass =
+    'pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]';
+  const desktopSideMenuToggleClass =
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition-all duration-200 active:scale-[0.96]';
+  const desktopToolTitleStyle = {
+    color: '#88CCFF',
+    textShadow: '0 0 14px rgba(136,204,255,0.22)',
+  } as const;
   const desktopMenuSubheaderStyle = {
     color: 'rgba(238, 246, 255, 0.9)',
     textShadow: '0 0 14px rgba(136,204,255,0.3), 0 0 26px rgba(136,204,255,0.12)',
@@ -9263,21 +9570,29 @@ function OrbitalPolymeter() {
     'relative flex w-full items-center justify-center px-12 py-2.5 text-center';
   const utilityAccordionBodyClass =
     'space-y-2 border-t border-white/8 px-2.5 pb-2.5 pt-2';
-  const getUtilitySectionStyle = (active: boolean, color: string): CSSProperties => ({
-    background: active
-      ? `linear-gradient(180deg, ${color}1c, rgba(255,255,255,0.03))`
-      : 'rgba(255,255,255,0.03)',
-    borderColor: active ? `${color}2e` : 'rgba(255,255,255,0.08)',
-    boxShadow: active ? `0 0 0 1px ${color}14 inset, 0 12px 28px rgba(0,0,0,0.22)` : 'none',
+  const utilitySectionLockBadge = (
+    <span className="pointer-events-none absolute left-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-white/14 bg-black/34 text-white/62">
+      <Lock size={10} strokeWidth={2.4} />
+    </span>
+  );
+  const getUtilitySectionStyle = (active: boolean, color: string, locked = false): CSSProperties => ({
+    background: locked
+      ? 'rgba(255,255,255,0.025)'
+      : active
+        ? `linear-gradient(180deg, ${color}1c, rgba(255,255,255,0.03))`
+        : 'rgba(255,255,255,0.03)',
+    borderColor: locked ? 'rgba(255,255,255,0.08)' : active ? `${color}2e` : 'rgba(255,255,255,0.08)',
+    boxShadow: locked ? 'none' : active ? `0 0 0 1px ${color}14 inset, 0 12px 28px rgba(0,0,0,0.22)` : 'none',
+    filter: locked ? 'grayscale(0.45)' : undefined,
   });
-  const getUtilityTitleStyle = (active: boolean, color: string): CSSProperties => ({
-    color: active ? color : 'rgba(255,255,255,0.72)',
-    textShadow: active ? `0 0 12px ${color}38` : 'none',
+  const getUtilityTitleStyle = (active: boolean, color: string, locked = false): CSSProperties => ({
+    color: locked ? 'rgba(255,255,255,0.44)' : active ? color : 'rgba(255,255,255,0.72)',
+    textShadow: locked ? 'none' : active ? `0 0 12px ${color}38` : 'none',
   });
-  const getUtilityChevronStyle = (active: boolean, color: string): CSSProperties => ({
-    background: active ? `${color}1f` : 'rgba(255,255,255,0.04)',
-    borderColor: active ? `${color}38` : 'rgba(255,255,255,0.08)',
-    color: active ? color : 'rgba(255,255,255,0.56)',
+  const getUtilityChevronStyle = (active: boolean, color: string, locked = false): CSSProperties => ({
+    background: locked ? 'rgba(255,255,255,0.035)' : active ? `${color}1f` : 'rgba(255,255,255,0.04)',
+    borderColor: locked ? 'rgba(255,255,255,0.08)' : active ? `${color}38` : 'rgba(255,255,255,0.08)',
+    color: locked ? 'rgba(255,255,255,0.44)' : active ? color : 'rgba(255,255,255,0.56)',
   });
   const renderUtilityOpenIntro = (
     label: string,
@@ -9299,6 +9614,179 @@ function OrbitalPolymeter() {
   );
   const utilitySceneRowClass = 'w-full rounded-xl border px-2.5 py-2 text-left';
   const utilitySceneThumbClass = 'h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-white/8 bg-black/20';
+  const handleGuideAction = (actionId: GuideActionId) => {
+    switch (actionId) {
+      case 'orbit-toggle-play':
+        handleTogglePlay();
+        return;
+      case 'orbit-try-random':
+        handleRandomPattern();
+        return;
+      case 'orbit-open-scenes':
+        if (isMobile) {
+          setMobileScenesOpen(true);
+        } else {
+          setSidebarOpen(true);
+        }
+        return;
+      case 'orbit-open-customize':
+        setMobileCustomizeOpen(true);
+        return;
+      case 'flow-toggle-play':
+        handleToggleFlowPlayback();
+        return;
+      case 'flow-try-random':
+        handleRandomFlow();
+        return;
+      case 'flow-next-sound': {
+        const activeSoundIndex = FLOW_SOUND_PRESETS.findIndex(
+          (entry) => entry.id === flowExperience.soundId,
+        );
+        const nextSound =
+          FLOW_SOUND_PRESETS[(Math.max(0, activeSoundIndex) + 1) % FLOW_SOUND_PRESETS.length];
+        handleFlowSoundChange(nextSound.id);
+        return;
+      }
+      case 'flow-next-motion': {
+        const motionOptions: FlowMotionLevel[] = ['calm', 'balanced', 'lively'];
+        const activeMotionIndex = motionOptions.findIndex((entry) => entry === flowExperience.motionLevel);
+        const nextMotion = motionOptions[(Math.max(0, activeMotionIndex) + 1) % motionOptions.length];
+        handleFlowMotionChange(nextMotion);
+        return;
+      }
+      case 'study-load-default':
+        handleLoadPolyrhythmPreset(DEFAULT_POLYRHYTHM_PRESET_ID);
+        return;
+      case 'study-open-scenes':
+        if (isMobile) {
+          setPolyrhythmMobileSection('scenes');
+        } else {
+          setPolyrhythmDesktopUtilityCollapsed(false);
+          setPolyrhythmUtilityPanel('scenes');
+        }
+        return;
+      case 'study-toggle-play':
+        handleTutorialAwareStudyPlaybackToggle();
+        return;
+      case 'study-try-random':
+        handleRandomPolyrhythmStudy();
+        recordTutorialEvent('study-random');
+        return;
+      case 'study-restart':
+        handleRestartPolyrhythmTransport();
+        return;
+      case 'study-open-edit':
+        if (isMobile) {
+          setPolyrhythmMobileSection('edit');
+          setPolyrhythmMobileEditTab('pattern');
+        } else {
+          setPolyrhythmDesktopQuickCollapsed(false);
+          setPolyrhythmQuickPanel('shape');
+        }
+        recordTutorialEvent('study-open-edit');
+        return;
+      case 'study-open-pattern-editor':
+        if (isMobile) {
+          setPolyrhythmMobileSection('edit');
+          setPolyrhythmMobileEditTab('pattern');
+          setPolyrhythmMobileEditorOpen(true);
+        } else {
+          setPolyrhythmDesktopPatternEditorOpen(true);
+        }
+        setSelectedPolyrhythmStep(null);
+        recordTutorialEvent('study-open-pattern-editor');
+        return;
+      case 'riff-load-default':
+        handleLoadRiffCyclePreset(DEFAULT_RIFF_CYCLE_PRESET_ID);
+        return;
+      case 'riff-open-scenes':
+        if (isMobile) {
+          setRiffMobileSection('scenes');
+        } else {
+          setRiffDesktopUtilityCollapsed(false);
+          setRiffUtilityPanel('scenes');
+        }
+        return;
+      case 'riff-toggle-play':
+        handleTutorialAwareRiffPlaybackToggle();
+        return;
+      case 'riff-try-random':
+        handleRandomRiffCycleStudy();
+        recordTutorialEvent('riff-random');
+        return;
+      case 'riff-open-edit':
+        if (isMobile) {
+          setRiffMobileSection('edit');
+          setRiffMobileEditTab('phrase');
+        } else {
+          setRiffDesktopQuickCollapsed(false);
+          setRiffQuickPanel('phrase');
+        }
+        recordTutorialEvent('riff-open-edit');
+        return;
+      case 'riff-open-ending':
+        if (isMobile) {
+          setRiffMobileSection('edit');
+          setRiffMobileEditTab('return');
+        } else {
+          setRiffDesktopQuickCollapsed(false);
+          setRiffQuickPanel('return');
+        }
+        handleSetRiffEditMode('landing');
+        return;
+      case 'riff-open-pattern-editor':
+        if (isMobile) {
+          setRiffMobileSection('edit');
+          setRiffMobileEditTab('phrase');
+          setRiffMobileEditorOpen(true);
+          setRiffMobileLanePage(0);
+          handleSetRiffEditMode('phrase');
+          recordTutorialEvent('riff-open-pattern-editor');
+        } else {
+          openRiffDesktopFocusEditor('phrase');
+        }
+        setSelectedRiffCycleStep(null);
+        return;
+      case 'riff-open-ending-editor':
+        if (isMobile) {
+          setRiffMobileSection('edit');
+          setRiffMobileEditTab('return');
+          setRiffMobileEditorOpen(true);
+          setRiffMobileLanePage(Math.max(0, riffMobileLanePageCount - 1));
+          handleSetRiffEditMode('landing');
+          recordTutorialEvent('riff-open-ending-editor');
+        } else {
+          openRiffDesktopFocusEditor('landing');
+        }
+        setSelectedRiffCycleStep(null);
+        return;
+      case 'riff-editor-set-one-bar':
+        setRiffMobileLaneBarsPerPage(1);
+        setRiffDesktopLaneView(1);
+        return;
+      case 'riff-editor-set-pattern':
+        setRiffMobileLaneBarsPerPage('pattern');
+        setRiffDesktopLaneView('pattern');
+        recordTutorialEvent('riff-editor-view-pattern');
+        return;
+    }
+  };
+  const handleAdvanceGuide = () => {
+    const nextGuideContext = getGuideNextContextForStep(currentGuideStep);
+    if (guideStepComplete && nextGuideContext) {
+      prepareTutorialContext(nextGuideContext);
+      setHelpContext(nextGuideContext);
+      setHelpStepIndex(0);
+      setGuideStepStartTick(tutorialEvent?.tick ?? 0);
+      return;
+    }
+    if (helpStepIndex >= guideSteps.length - 1) {
+      closeStartGuide();
+      return;
+    }
+    setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
+  };
+  const guideNextContext = getGuideNextContextForStep(currentGuideStep);
   const guideAccent =
     activeOverlayContext === 'study-editor'
       ? selectedPolyrhythmLayer?.color ?? '#72F1B8'
@@ -9354,6 +9842,58 @@ function OrbitalPolymeter() {
           <p className="mt-2 text-[12px] leading-relaxed text-white/68">
             {currentGuideStep.text}
           </p>
+          {currentGuideStep.doThis || currentGuideStep.completeOn ? (
+            <div
+              className="mt-3 rounded-2xl border px-3 py-3"
+              style={{
+                background: guideStepComplete ? `${accentColor}13` : 'rgba(255,255,255,0.045)',
+                borderColor: guideStepComplete ? `${accentColor}32` : 'rgba(255,255,255,0.09)',
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div
+                  className="text-[9px] font-mono uppercase tracking-[0.18em]"
+                  style={{ color: guideStepComplete ? accentColor : 'rgba(255,255,255,0.42)' }}
+                >
+                  {guideStepComplete ? 'Complete' : 'Try This'}
+                </div>
+                {currentGuideStep.actionId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (currentGuideStep.actionId) {
+                        handleGuideAction(currentGuideStep.actionId);
+                      }
+                    }}
+                    className="rounded-full px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.14em]"
+                    style={{ color: accentColor, background: `${accentColor}12`, border: `1px solid ${accentColor}2f` }}
+                  >
+                    {currentGuideStep.actionLabel ?? 'Try It'}
+                  </button>
+                ) : null}
+              </div>
+              {currentGuideStep.doThis ? (
+                <div className="mt-2 text-[12px] leading-relaxed text-white/82">
+                  {currentGuideStep.doThis}
+                </div>
+              ) : null}
+              {currentGuideStep.completeOn ? (
+                <div className="mt-2 text-[11px] leading-relaxed text-white/54">
+                  {guideStepComplete
+                    ? currentGuideStep.success ?? 'Action complete.'
+                    : currentGuideStep.hint ?? currentGuideStep.notice ?? 'Use the highlighted control when you want to try it.'}
+                </div>
+              ) : currentGuideStep.notice ? (
+                <div className="mt-2 text-[11px] leading-relaxed text-white/48">
+                  {currentGuideStep.notice}
+                </div>
+              ) : null}
+            </div>
+          ) : currentGuideStep.notice ? (
+            <div className="mt-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2.5 text-[11px] leading-relaxed text-white/48">
+              {currentGuideStep.notice}
+            </div>
+          ) : null}
           <div className="mt-4 flex items-center justify-between gap-2">
             <button
               onClick={closeStartGuide}
@@ -9370,17 +9910,17 @@ function OrbitalPolymeter() {
                 Back
               </button>
               <button
-                onClick={() => {
-                  if (helpStepIndex >= guideSteps.length - 1) {
-                    closeStartGuide();
-                    return;
-                  }
-                  setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
-                }}
+                onClick={handleAdvanceGuide}
                 className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em]"
                 style={{ color: accentColor, background: `${accentColor}12`, border: `1px solid ${accentColor}2f` }}
               >
-                {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
+                {guideStepComplete && guideNextContext
+                  ? 'Continue'
+                  : helpStepIndex >= guideSteps.length - 1
+                    ? 'Finish'
+                    : currentGuideStep.completeOn && !guideStepComplete
+                      ? 'Skip'
+                      : 'Next'}
               </button>
             </div>
           </div>
@@ -9607,76 +10147,7 @@ function OrbitalPolymeter() {
           minHeight: presentationMode ? '100svh' : '540px',
         } as const)
       : undefined;
-    const flowGuideOverlay = helpOpen && !presentationMode && currentGuideStep ? (
-      <>
-        <div
-          className="fixed inset-0 z-30 bg-black/42"
-          onClick={closeStartGuide}
-        />
-        {guideRect ? (
-          <div
-            className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
-            style={{
-              left: Math.max(8, guideRect.left - 8),
-              top: Math.max(8, guideRect.top - 8),
-              width: guideRect.width + 16,
-              height: guideRect.height + 16,
-              borderColor: 'rgba(127,215,255,0.42)',
-              boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(127,215,255,0.15)',
-            }}
-          />
-        ) : null}
-        <div
-          ref={guideCalloutRef}
-          className={`fixed z-40 rounded-2xl border p-4 ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
-          style={guideCalloutStyle}
-        >
-          <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#7FD7FF' }}>
-            {helpStepIndex === 0 ? guideLabel : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
-          </div>
-          <div className="mt-2 text-[15px] font-medium text-white/90">
-            {currentGuideStep.title}
-          </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-white/62">
-            {currentGuideStep.text}
-          </p>
-          <div className="mt-4 flex items-center justify-between gap-2">
-            <button
-              onClick={closeStartGuide}
-              className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
-            >
-              Done
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
-                disabled={helpStepIndex === 0}
-                className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/72 disabled:text-white/28"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => {
-                  if (helpStepIndex >= guideSteps.length - 1) {
-                    closeStartGuide();
-                    return;
-                  }
-                  setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
-                }}
-                className="rounded-xl border border-[#7FD7FF]/22 bg-[#7FD7FF]/10 px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-[#7FD7FF]"
-              >
-                {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
-              </button>
-            </div>
-          </div>
-          {helpStepIndex === guideSteps.length - 1 ? (
-            <div className="mt-3 text-[11px] text-white/45">
-              Next move: {currentModeCopy.firstSteps}
-            </div>
-          ) : null}
-        </div>
-      </>
-    ) : null;
+    const flowGuideOverlay = renderGuideOverlay('#7FD7FF', 30);
 
     if (isMobile) {
       if (presentationMode) {
@@ -9774,7 +10245,7 @@ function OrbitalPolymeter() {
                       type="button"
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                      aria-label="Presentation mode"
+                      aria-label="Fullscreen mode"
                     >
                       <Maximize2 size={17} />
                     </button>
@@ -9808,7 +10279,7 @@ function OrbitalPolymeter() {
                     step="0.01"
                     value={flowExperience.speed}
                     onChange={(event) => handleFlowSpeedChange(parseFloat(event.target.value))}
-                    className="touch-slider w-full"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#7FD7FF' }}
                     aria-label="Set Flow speed"
                   />
@@ -10177,7 +10648,7 @@ function OrbitalPolymeter() {
               </div>
 
               <div data-guide="flow-desktop-speed" className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
-                <div className="flex items-center gap-4">
+                <div className="rg-transport-tempo-row flex items-center gap-4">
                   <div className="min-w-[4.5rem] shrink-0">
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">Speed</div>
                     <div className="mt-1 text-[18px] font-light leading-none text-white">{flowExperience.speed.toFixed(2)}x</div>
@@ -10189,7 +10660,7 @@ function OrbitalPolymeter() {
                     step="0.01"
                     value={flowExperience.speed}
                     onChange={(event) => handleFlowSpeedChange(parseFloat(event.target.value))}
-                    className="touch-slider w-full"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#7FD7FF' }}
                     aria-label="Set Flow speed"
                   />
@@ -10201,7 +10672,7 @@ function OrbitalPolymeter() {
                   {flowExperience.soundEnabled ? activeFlowSound.name : 'Muted'}
                 </StudyShellButton>
                 <StudyShellButton tone="green" highlighted={presentationMode} icon={presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />} onClick={handleTogglePresentation} data-guide="flow-desktop-present">
-                  {presentationMode ? 'Exit' : 'Present'}
+                  {presentationMode ? 'Exit' : 'Fullscreen'}
                 </StudyShellButton>
                 <StudyShellButton tone="neutral" highlighted={helpOpen} icon={<CircleHelp size={15} />} onClick={handleToggleHelpGuide}>
                   Help
@@ -10576,18 +11047,9 @@ function OrbitalPolymeter() {
                       type="button"
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ color: helpOpen ? '#72F1B8' : 'rgba(255,255,255,0.72)', background: helpOpen ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.05)', border: helpOpen ? '1px solid rgba(114,241,184,0.24)' : '1px solid rgba(255,255,255,0.08)' }}
-                      aria-label="Open study help"
+                      aria-label="Open study guide"
                     >
                       <CircleHelp size={17} />
-                    </button>
-                    <button
-                      data-guide="study-mobile-tutorial"
-                      onClick={handleToggleTutorial}
-                      type="button"
-                      className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]"
-                      style={{ color: tutorialOpen && tutorialContext === 'surface' ? '#72F1B8' : 'rgba(255,255,255,0.72)', background: tutorialOpen && tutorialContext === 'surface' ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.05)', border: tutorialOpen && tutorialContext === 'surface' ? '1px solid rgba(114,241,184,0.24)' : '1px solid rgba(255,255,255,0.08)' }}
-                    >
-                      Tutorial
                     </button>
                     <button
                       data-guide="study-mobile-present"
@@ -10595,7 +11057,7 @@ function OrbitalPolymeter() {
                       type="button"
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                      aria-label="Presentation mode"
+                      aria-label="Fullscreen mode"
                     >
                       <Maximize2 size={17} />
                     </button>
@@ -10644,7 +11106,7 @@ function OrbitalPolymeter() {
                 </div>
 
                 <div data-guide="study-mobile-tempo" className="space-y-2">
-                  <div className="flex items-center gap-3">
+                  <div className="rg-transport-tempo-row flex items-center gap-3">
                     <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
                       Tempo
                     </div>
@@ -10669,7 +11131,7 @@ function OrbitalPolymeter() {
                       onPointerCancel={() => clearActiveMobileSlider('study-tempo')}
                       onBlur={() => clearActiveMobileSlider('study-tempo')}
                       data-dragging={activeMobileSliderId === 'study-tempo'}
-                      className="touch-slider min-w-0 flex-1"
+                      className="touch-slider rg-transport-tempo-track"
                       style={{ ['--slider-accent' as string]: '#ffffff' }}
                       aria-label="Set study tempo"
                     />
@@ -10876,7 +11338,7 @@ function OrbitalPolymeter() {
                                 }}
                                 className="w-full"
                               >
-                                Focus Pattern
+                                Step Editor
                               </StudyShellButton>
                             </div>
 
@@ -11004,7 +11466,7 @@ function OrbitalPolymeter() {
 	                                }}
 	                                className="mt-3 w-full"
 	                              >
-	                                Focus Pattern
+	                                Step Editor
 	                              </StudyShellButton>
 	                            </div>
 
@@ -11280,10 +11742,17 @@ function OrbitalPolymeter() {
                         event.stopPropagation();
                         handleRemixPolyrhythmStudy();
                       }}
-                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{ color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
+                      className="relative overflow-hidden px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={remixLocked
+                        ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
+                        : { color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
                     >
                       Remix
+                      {remixLocked ? (
+                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+                          <Lock size={8} strokeWidth={2.4} />
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -11291,10 +11760,17 @@ function OrbitalPolymeter() {
                         event.stopPropagation();
                         handleRandomPlusPolyrhythmStudy();
                       }}
-                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                      className="relative overflow-hidden px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={randomPlusLocked
+                        ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
+                        : { color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
                     >
                       Random+
+                      {randomPlusLocked ? (
+                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+                          <Lock size={8} strokeWidth={2.4} />
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -11619,15 +12095,7 @@ function OrbitalPolymeter() {
                       icon={<CircleHelp size={14} />}
                       onClick={() => openStartGuide('study-editor')}
                     >
-                      Help
-                    </StudyShellButton>
-                    <StudyShellButton
-                      size="compact"
-                      tone="blue"
-                      highlighted={tutorialOpen && tutorialContext === 'study-editor'}
-                      onClick={() => openTutorial('study-editor')}
-                    >
-                      Tutorial
+                      Guide
                     </StudyShellButton>
                     <StudyShellButton
                       size="compact"
@@ -11919,7 +12387,7 @@ function OrbitalPolymeter() {
                             onClick={() => setPolyrhythmMobileEditTab('pattern')}
                             className="w-full"
                           >
-                            Focus Pattern
+                            Step Editor
                           </StudyShellButton>
                         </div>
 
@@ -12089,7 +12557,6 @@ function OrbitalPolymeter() {
         }
       >
         <div
-          data-guide={!isMobile ? 'study-desktop-canvas' : undefined}
           className={isMobile ? 'absolute inset-0' : 'absolute inset-x-0 bottom-0 top-6'}
         >
           <PolyrhythmCanvas
@@ -12108,6 +12575,18 @@ function OrbitalPolymeter() {
 	            onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
 	            onClearSelection={handleClearPolyrhythmSelection}
           />
+          {!isMobile && !presentationMode ? (
+            <div
+              data-guide="study-desktop-pattern"
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                top: 'calc(50% - 34px)',
+                width: 'min(calc(100vw - 4rem), calc(100vh - 8.75rem))',
+                height: 'min(calc(100vw - 4rem), calc(100vh - 8.75rem))',
+              }}
+            />
+          ) : null}
           {!isMobile ? (
             <div className="absolute right-6 top-24 z-20 w-[21rem]">
               {renderPolyrhythmLayerQuickMenu()}
@@ -12137,15 +12616,17 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!presentationMode ? appSurfaceToggle : null}
+        {!isMobile && !presentationMode && helpContext === 'surface' ? renderGuideOverlay(guideAccent, 30) : null}
+        {!isMobile && !presentationMode && tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
         {!presentationMode ? (
           polyrhythmDesktopQuickCollapsed ? (
             <div
               data-guide="study-desktop-quick"
-              className="fixed z-30 left-6 w-[18.25rem]"
+              className={`fixed z-30 left-6 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-left`}
               style={{ bottom: studyDesktopPanelBottom }}
             >
-              <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="space-y-1.5">
-                <div className="relative flex min-h-8 items-center justify-end gap-3 rounded-[1.35rem] px-0.5 py-0.5">
+              <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="rg-side-menu-panel-tight">
+                <div className={desktopSideMenuHeaderClass}>
                   <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
                     <InlineInfoLabel
                       infoId="panel_quick_edit"
@@ -12160,7 +12641,7 @@ function OrbitalPolymeter() {
                   <button
                     type="button"
                     onClick={() => setPolyrhythmDesktopQuickCollapsed(false)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition active:scale-[0.99]"
+                    className={desktopSideMenuToggleClass}
                     aria-label="Expand quick edit"
                     title="Expand quick edit"
                     style={{
@@ -12171,9 +12652,6 @@ function OrbitalPolymeter() {
                   >
                     <ChevronUp size={16} />
                   </button>
-                </div>
-                <div className="px-3 text-center text-[10px] leading-snug text-white/42">
-                  Shape the selected layer, then open the full pattern view when you need precise step editing.
                 </div>
                 <StudyShellButton
                   data-guide="study-desktop-focus-pattern"
@@ -12187,24 +12665,24 @@ function OrbitalPolymeter() {
                     recordTutorialEvent('study-open-pattern-editor');
                   }}
                 >
-                  Focus Pattern
+                  Step Editor
                 </StudyShellButton>
               </StudyShellPremiumPanel>
             </div>
           ) : (
           <div
             data-guide="study-desktop-quick"
-            className="fixed z-20 left-6 top-20 w-[18.25rem]"
+            className={`fixed z-20 left-6 top-20 ${desktopSideMenuWidthClass} rg-desktop-panel-left`}
             style={{ maxHeight: studyDesktopQuickMaxHeight }}
           >
             <StudyShellPremiumPanel
               accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-              className="max-h-full space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
+              className="rg-side-menu-panel-tight max-h-full overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
               style={{ maxHeight: '100%' }}
             >
-              <div className="relative flex items-center justify-end gap-2 px-0.5">
+              <div className={desktopSideMenuHeaderClass}>
                 <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
+                  className={desktopSideMenuTitleClass}
                   style={{
                     color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
                     textShadow: `0 0 14px ${(selectedPolyrhythmLayer?.color ?? '#72F1B8')}33`,
@@ -12215,7 +12693,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setPolyrhythmDesktopQuickCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                  className={desktopSideMenuToggleClass}
                   aria-label="Collapse quick edit"
                   title="Collapse quick edit"
                 >
@@ -12306,6 +12784,8 @@ function OrbitalPolymeter() {
                               label={`Pick Layer ${index + 1} color`}
                               iconSize={12}
                               className="h-7 w-7"
+                              locked={colorEditingLocked}
+                              onLockedClick={() => openProPrompt('color-editing')}
                             />
                           </div>
                           <button
@@ -12492,7 +12972,7 @@ function OrbitalPolymeter() {
                         recordTutorialEvent('study-open-pattern-editor');
                       }}
                     >
-                      Focus Pattern
+                      Step Editor
                     </StudyShellButton>
                   </div>
                 </>
@@ -12509,15 +12989,15 @@ function OrbitalPolymeter() {
         {!isMobile && !presentationMode ? (
           polyrhythmDesktopUtilityCollapsed ? (
             <div
-              className="fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))]"
+              className={`fixed right-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-right`}
               style={{ bottom: studyDesktopPanelBottom }}
             >
-              <StudyShellPremiumPanel accent="#88CCFF" className="space-y-2.5">
-                <div className="relative flex min-h-8 items-center justify-end gap-3 rounded-[1.35rem] px-0.5 py-0.5">
+              <StudyShellPremiumPanel accent="#88CCFF" className="rg-side-menu-panel" style={desktopToolPanelStyle}>
+                <div className={desktopSideMenuHeaderClass}>
                   <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
                     <InlineInfoLabel
                       infoId="panel_utility"
-                      label="Utility"
+                      label="Tools"
                       labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]"
                       labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
                     />
@@ -12525,15 +13005,12 @@ function OrbitalPolymeter() {
                   <button
                     type="button"
                     onClick={() => setPolyrhythmDesktopUtilityCollapsed(false)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
-                    aria-label="Expand study utility menu"
-                    title="Expand study utility menu"
+                    className={desktopSideMenuToggleClass}
+                    aria-label="Expand study tools menu"
+                    title="Expand study tools menu"
                   >
                     <ChevronUp size={16} />
                   </button>
-                </div>
-                <div className="px-3 text-center text-[10px] leading-snug text-white/42">
-                  Listen to one layer in isolation, then jump back to the full relationship when you want the alignment to speak.
                 </div>
                 <StudyShellButton
                   size="compact"
@@ -12554,24 +13031,24 @@ function OrbitalPolymeter() {
             </div>
           ) : (
           <div
-            className="fixed right-6 top-20 z-20 w-[min(340px,calc(100vw-1.5rem))]"
+            className={`fixed right-6 top-20 z-20 ${desktopSideMenuWidthClass} rg-desktop-panel-right`}
             style={{ maxHeight: studyDesktopUtilityMaxHeight }}
           >
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="max-h-full flex flex-col gap-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
-              style={{ maxHeight: '100%' }}
+              className="rg-side-menu-panel max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
+              style={{ ...desktopToolPanelStyle, maxHeight: '100%' }}
             >
-              <div className="relative flex items-center justify-end gap-1.5 px-0.5">
-                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]" style={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}>
-                  Utility
+              <div className={desktopSideMenuHeaderClass}>
+                <div className={desktopSideMenuTitleClass} style={desktopToolTitleStyle}>
+                  Tools
                 </div>
                 <button
                   type="button"
                   onClick={() => setPolyrhythmDesktopUtilityCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
-                  aria-label="Collapse study utility menu"
-                  title="Collapse utility"
+                  className={desktopSideMenuToggleClass}
+                  aria-label="Collapse study tools menu"
+                  title="Collapse tools"
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -12749,10 +13226,10 @@ function OrbitalPolymeter() {
                       <StudyShellButton size="compact" tone="blue" highlighted onClick={handleRandomPolyrhythmStudy}>
                         Random
                       </StudyShellButton>
-                      <StudyShellButton size="compact" highlighted onClick={handleRemixPolyrhythmStudy} style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}>
+                      <StudyShellButton size="compact" highlighted onClick={handleRemixPolyrhythmStudy} locked={remixLocked} style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}>
                         Remix
                       </StudyShellButton>
-                      <StudyShellButton size="compact" tone="amber" highlighted onClick={handleRandomPlusPolyrhythmStudy}>
+                      <StudyShellButton size="compact" tone="amber" highlighted onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
                         Random+
                       </StudyShellButton>
                     </div>
@@ -12906,7 +13383,7 @@ function OrbitalPolymeter() {
                 className="rounded-2xl border"
                 style={{
                   order: 3,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF'),
+                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked),
                 }}
               >
                 <button
@@ -12914,13 +13391,14 @@ function OrbitalPolymeter() {
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
                   className={utilityAccordionButtonClass}
                 >
+                  {soundEditingLocked ? utilitySectionLockBadge : null}
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF')}
+                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
                   >
                     Sound
                   </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF')}>
+                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}>
                     {polyrhythmUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
                 </button>
@@ -13063,7 +13541,7 @@ function OrbitalPolymeter() {
                 className="rounded-2xl border"
                 style={{
                   order: 4,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF'),
+                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked),
                 }}
               >
                 <button
@@ -13071,13 +13549,14 @@ function OrbitalPolymeter() {
                   onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'))}
                   className={utilityAccordionButtonClass}
                 >
+                  {canvasOptionsLocked ? utilitySectionLockBadge : null}
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF')}
+                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
                   >
                     Canvas
                   </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF')}>
+                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}>
                     {polyrhythmUtilityPanel === 'canvas' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
                 </button>
@@ -13198,7 +13677,7 @@ function OrbitalPolymeter() {
                 <div className="mt-2 max-w-[30rem]">
                 </div>
               </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
+              <div className="rg-transport-tempo-row flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
                 <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
                   Tempo
                 </div>
@@ -13209,7 +13688,7 @@ function OrbitalPolymeter() {
                   step="1"
                   value={polyrhythmStudy.bpm}
                   onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
-                  className="touch-slider min-w-0 flex-1"
+                  className="touch-slider rg-transport-tempo-track"
                   style={{ ['--slider-accent' as string]: selectedPolyrhythmLayer?.color ?? '#72F1B8' }}
                   aria-label="Set study tempo"
                 />
@@ -13241,15 +13720,7 @@ function OrbitalPolymeter() {
                   icon={<CircleHelp size={14} />}
                   onClick={() => openStartGuide('study-editor')}
                 >
-                  Help
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="blue"
-                  highlighted={tutorialOpen && tutorialContext === 'study-editor'}
-                  onClick={() => openTutorial('study-editor')}
-                >
-                  Tutorial
+                  Guide
                 </StudyShellButton>
                 <StudyShellButton
                   size="compact"
@@ -13629,6 +14100,7 @@ function OrbitalPolymeter() {
                   onClick={handleRemixPolyrhythmStudy}
                   aria-label="Remix study"
                   title="Remix"
+                  locked={remixLocked}
                 />
                 <MobilePresentActionButton
                   label="Random+"
@@ -13637,6 +14109,7 @@ function OrbitalPolymeter() {
                   onClick={handleRandomPlusPolyrhythmStudy}
                   aria-label="Random plus study"
                   title="Random+"
+                  locked={randomPlusLocked}
                 />
               </div>
               <div className="grid grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] gap-1.5">
@@ -13708,8 +14181,8 @@ function OrbitalPolymeter() {
                   icon={<Minimize2 size={15} />}
                   accent="#72F1B8"
                   onClick={handleTogglePresentation}
-                  aria-label="Exit presentation mode"
-                  title="Exit Present"
+                  aria-label="Exit fullscreen mode"
+                  title="Exit Fullscreen"
                 />
               </div>
             </StudyShellPanel>
@@ -13735,17 +14208,18 @@ function OrbitalPolymeter() {
                   highlighted
                   icon={<Zap size={15} />}
                   onClick={handleRemixPolyrhythmStudy}
+                  locked={remixLocked}
                   style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}
                 >
                   Remix
                 </StudyShellButton>
-                <StudyShellButton tone="amber" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPlusPolyrhythmStudy}>
+                <StudyShellButton tone="amber" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
                   Random+
                 </StudyShellButton>
               </div>
 
               <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
-                <div className="flex items-center gap-4">
+                <div className="rg-transport-tempo-row flex items-center gap-4">
                   <div
                     className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white"
                     style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
@@ -13773,7 +14247,7 @@ function OrbitalPolymeter() {
                     onPointerCancel={() => clearActiveMobileSlider('study-desktop-tempo')}
                     onBlur={() => clearActiveMobileSlider('study-desktop-tempo')}
                     data-dragging={activeMobileSliderId === 'study-desktop-tempo'}
-                    className="touch-slider min-w-0 flex-1"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label="Set study tempo"
                   />
@@ -13819,7 +14293,7 @@ function OrbitalPolymeter() {
 	                  onClick={handleTogglePresentation}
 	                  data-guide={isMobile ? 'study-mobile-present' : 'study-desktop-present'}
 	                >
-	                  {presentationMode ? 'Exit' : 'Present'}
+	                  {presentationMode ? 'Exit' : 'Fullscreen'}
 	                </StudyShellButton>
 	                {!presentationMode ? (
 	                  <>
@@ -13829,14 +14303,7 @@ function OrbitalPolymeter() {
 	                      icon={<CircleHelp size={15} />}
 	                      onClick={handleToggleHelpGuide}
 	                    >
-	                      Help
-	                    </StudyShellButton>
-	                    <StudyShellButton
-	                      tone="blue"
-	                      highlighted={tutorialOpen && tutorialContext === 'surface'}
-	                      onClick={handleToggleTutorial}
-	                    >
-	                      Tutorial
+	                      Guide
 	                    </StudyShellButton>
 	                  </>
 	                ) : null}
@@ -14009,18 +14476,9 @@ function OrbitalPolymeter() {
                       type="button"
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ color: helpOpen ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.72)', background: helpOpen ? `${riffCycleStudy.riff.color}16` : 'rgba(255,255,255,0.05)', border: helpOpen ? `1px solid ${riffCycleStudy.riff.color}32` : '1px solid rgba(255,255,255,0.08)' }}
-                      aria-label="Open riff help"
+                      aria-label="Open riff guide"
                     >
                       <CircleHelp size={17} />
-                    </button>
-                    <button
-                      data-guide="riff-mobile-tutorial"
-                      onClick={handleToggleTutorial}
-                      type="button"
-                      className="rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em]"
-                      style={{ color: tutorialOpen && tutorialContext === 'surface' ? riffCycleStudy.riff.color : 'rgba(255,255,255,0.72)', background: tutorialOpen && tutorialContext === 'surface' ? `${riffCycleStudy.riff.color}16` : 'rgba(255,255,255,0.05)', border: tutorialOpen && tutorialContext === 'surface' ? `1px solid ${riffCycleStudy.riff.color}32` : '1px solid rgba(255,255,255,0.08)' }}
-                    >
-                      Tutorial
                     </button>
                     <button
                       data-guide="riff-mobile-present"
@@ -14028,7 +14486,7 @@ function OrbitalPolymeter() {
                       type="button"
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                      aria-label="Presentation mode"
+                      aria-label="Fullscreen mode"
                     >
                       <Maximize2 size={17} />
                     </button>
@@ -14077,7 +14535,7 @@ function OrbitalPolymeter() {
                 </div>
 
                 <div data-guide="riff-mobile-tempo" className="space-y-2">
-                  <div className="flex items-center gap-3">
+                  <div className="rg-transport-tempo-row flex items-center gap-3">
                     <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
                       Tempo
                     </div>
@@ -14106,7 +14564,7 @@ function OrbitalPolymeter() {
                       onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
                       onBlur={() => clearActiveMobileSlider('riff-tempo')}
                       data-dragging={activeMobileSliderId === 'riff-tempo'}
-                      className="touch-slider min-w-0 flex-1"
+                      className="touch-slider rg-transport-tempo-track"
                       style={{ ['--slider-accent' as string]: '#ffffff' }}
                       aria-label="Set riff cycle tempo"
                     />
@@ -14440,7 +14898,7 @@ function OrbitalPolymeter() {
                           }}
                           className="w-full"
                         >
-                          Focus Pattern
+                          Step Editor
                         </StudyShellButton>
                       </div>
                     ) : null}
@@ -14500,7 +14958,7 @@ function OrbitalPolymeter() {
                                 labelClassName="text-[10px] font-mono uppercase tracking-[0.16em] text-white/56"
                               />
                               <div className="mt-1 text-[11px] text-white/42">
-                                Tap for hit/rest. Hold a step to accent. Focus Pattern opens just the riff steps.
+                                Tap for hit/rest. Hold a step to accent. Step Editor opens just the riff steps.
                               </div>
                             </div>
                           </div>
@@ -14540,7 +14998,7 @@ function OrbitalPolymeter() {
 	                            }}
 	                            className="mt-3 w-full"
 	                          >
-	                            Focus Pattern
+	                            Step Editor
 	                          </StudyShellButton>
 	                        </div>
 
@@ -14686,7 +15144,7 @@ function OrbitalPolymeter() {
                             }}
                             className="w-full"
                           >
-                            Focus Ending
+                            Edit Ending
                           </StudyShellButton>
                           <StudyShellButton
                             size="compact"
@@ -14973,6 +15431,7 @@ function OrbitalPolymeter() {
                       onClick={(event) => {
                         event.stopPropagation();
                         handleRandomRiffCycleStudy();
+                        recordTutorialEvent('riff-random');
                       }}
                       className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
                       style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
@@ -14985,10 +15444,17 @@ function OrbitalPolymeter() {
                         event.stopPropagation();
                         handleRemixRiffCycleStudy();
                       }}
-                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{ color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
+                      className="relative overflow-hidden px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={remixLocked
+                        ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
+                        : { color: '#B6A0FF', background: 'rgba(182,160,255,0.12)', border: '1px solid rgba(182,160,255,0.22)' }}
                     >
                       Remix
+                      {remixLocked ? (
+                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+                          <Lock size={8} strokeWidth={2.4} />
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -14996,10 +15462,17 @@ function OrbitalPolymeter() {
                         event.stopPropagation();
                         handleRandomPlusRiffCycleStudy();
                       }}
-                      className="px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{ color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
+                      className="relative overflow-hidden px-2.5 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={randomPlusLocked
+                        ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
+                        : { color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
                     >
                       Random+
+                      {randomPlusLocked ? (
+                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+                          <Lock size={8} strokeWidth={2.4} />
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -15346,15 +15819,7 @@ function OrbitalPolymeter() {
                           icon={<CircleHelp size={14} />}
                           onClick={() => openStartGuide('riff-editor')}
                         >
-                          Help
-                        </StudyShellButton>
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={tutorialOpen && tutorialContext === 'riff-editor'}
-                          onClick={() => openTutorial('riff-editor')}
-                        >
-                          Tutorial
+                          Guide
                         </StudyShellButton>
                         <button
                           type="button"
@@ -15928,7 +16393,7 @@ function OrbitalPolymeter() {
             : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
         }
       >
-        <div data-guide={!isMobile ? 'riff-desktop-canvas' : undefined} className="absolute inset-0">
+        <div className="absolute inset-0">
           <RiffCycleCanvas
             study={riffCycleStudy}
             viewModeOverride={
@@ -15967,6 +16432,33 @@ function OrbitalPolymeter() {
             onSetLandingStepActive={handleSetRiffLandingStepActive}
             onToggleLandingAccent={handleToggleRiffLandingAccent}
           />
+          {!isMobile && !presentationMode ? (
+            <>
+              <div
+                data-guide="riff-desktop-pattern"
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  top: riffCycleStudy.viewMode === 'unwrapped' ? 'calc(50% - 105px)' : 'calc(50% - 25px)',
+                  width:
+                    riffCycleStudy.viewMode === 'unwrapped'
+                      ? 'min(calc(100vw - 7rem), calc(100vh - 22rem))'
+                      : 'min(calc(100vw - 7rem), calc(100vh - 10rem))',
+                  height:
+                    riffCycleStudy.viewMode === 'unwrapped'
+                      ? 'min(calc(100vw - 7rem), calc(100vh - 22rem))'
+                      : 'min(calc(100vw - 7rem), calc(100vh - 10rem))',
+                }}
+              />
+              {riffCycleStudy.viewMode === 'unwrapped' ? (
+                <div
+                  data-guide="riff-desktop-sequencer"
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-11 right-11 bottom-[7.5rem] z-[1] h-[8.625rem] rounded-[1.35rem]"
+                />
+              ) : null}
+            </>
+          ) : null}
         </div>
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/42 via-black/14 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/92 to-transparent" />
@@ -15993,9 +16485,9 @@ function OrbitalPolymeter() {
         {!presentationMode ? appSurfaceToggle : null}
         {!presentationMode ? (
           !isMobile && riffDesktopQuickCollapsed ? (
-            <div data-guide="riff-desktop-quick" className="fixed left-6 z-30 w-[20rem]" style={{ bottom: riffDesktopPanelBottom }}>
-              <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="space-y-1.5">
-                <div className="relative flex min-h-8 items-center justify-end gap-3 rounded-[1.35rem] px-0.5 py-0.5">
+            <div data-guide="riff-desktop-quick" className={`fixed left-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-left`} style={{ bottom: riffDesktopPanelBottom }}>
+              <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="rg-side-menu-panel-tight">
+                <div className={desktopSideMenuHeaderClass}>
                   <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
                     <InlineInfoLabel
                       infoId="panel_quick_edit"
@@ -16011,7 +16503,7 @@ function OrbitalPolymeter() {
                       setRiffQuickPanel('phrase');
                       setRiffDesktopQuickCollapsed(false);
                     }}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border transition active:scale-[0.99]"
+                    className={desktopSideMenuToggleClass}
                     aria-label="Expand riff edit menu"
                     title="Expand riff edit menu"
                     style={{
@@ -16038,13 +16530,13 @@ function OrbitalPolymeter() {
           ) : (
         <div
           data-guide={isMobile ? 'riff-mobile-quick' : 'riff-desktop-quick'}
-          className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : 'left-6 top-20 w-[20rem]'}`}
+          className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : `left-6 top-20 ${desktopSideMenuWidthClass} rg-desktop-panel-left`}`}
         >
           <StudyShellPremiumPanel
             accent={riffCycleStudy.riff.color}
-            className={`${isMobile ? 'max-h-[calc(100vh-22rem)]' : ''} space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
+            className={`rg-side-menu-panel-tight ${isMobile ? 'max-h-[calc(100vh-22rem)]' : ''} overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
           >
-            <div className="relative flex items-center justify-end gap-3 px-0.5">
+            <div className={desktopSideMenuHeaderClass}>
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]" style={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}>
                 Quick Edit
               </div>
@@ -16052,7 +16544,7 @@ function OrbitalPolymeter() {
                 <button
                   type="button"
                   onClick={() => setRiffDesktopQuickCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
+                  className={desktopSideMenuToggleClass}
                   aria-label="Collapse riff edit menu"
                   title="Collapse edit"
                 >
@@ -16359,6 +16851,8 @@ function OrbitalPolymeter() {
                           value={riffCycleStudy.riff.color}
                           onChange={handleSetRiffPhraseColor}
                           label="Pick riff pattern color"
+                          locked={colorEditingLocked}
+                          onLockedClick={() => openProPrompt('color-editing')}
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -16499,7 +16993,7 @@ function OrbitalPolymeter() {
                   icon={<Maximize2 size={13} />}
                   className="w-full"
                 >
-                  Focus Pattern
+                  Step Editor
                 </StudyShellButton>
                 </div>
               </div>
@@ -16622,7 +17116,7 @@ function OrbitalPolymeter() {
                   onClick={() => openRiffDesktopFocusEditor('landing')}
                   className="w-full"
                 >
-                  Focus Ending
+                  Edit Ending
                 </StudyShellButton>
 	                <StudyShellButton
                   size="compact"
@@ -16653,13 +17147,13 @@ function OrbitalPolymeter() {
 
         {!isMobile && !presentationMode ? (
           riffDesktopUtilityCollapsed ? (
-            <div className="fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))]" style={{ bottom: riffDesktopPanelBottom }}>
-              <StudyShellPremiumPanel accent="#88CCFF" className="space-y-2.5">
-                <div className="relative flex min-h-8 items-center justify-end gap-3 rounded-[1.35rem] px-0.5 py-0.5">
+            <div className={`fixed right-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-right`} style={{ bottom: riffDesktopPanelBottom }}>
+              <StudyShellPremiumPanel accent="#88CCFF" className="rg-side-menu-panel" style={desktopToolPanelStyle}>
+                <div className={desktopSideMenuHeaderClass}>
                   <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
                     <InlineInfoLabel
                       infoId="panel_utility"
-                      label="Utility"
+                      label="Tools"
                       labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]"
                       labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
                     />
@@ -16667,15 +17161,12 @@ function OrbitalPolymeter() {
                   <button
                     type="button"
                     onClick={() => setRiffDesktopUtilityCollapsed(false)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#88CCFF]/25 bg-[#88CCFF]/10 text-[#88CCFF] transition active:scale-[0.99]"
-                    aria-label="Expand riff utility menu"
-                    title="Expand riff utility menu"
+                    className={desktopSideMenuToggleClass}
+                    aria-label="Expand riff tools menu"
+                    title="Expand riff tools menu"
                   >
                     <ChevronUp size={16} />
                   </button>
-                </div>
-                <div className="px-3 text-center text-[10px] leading-snug text-white/42">
-                  Hide the lane when you want the circular form. Bring it back when you need to follow the riff through the bar.
                 </div>
                 <StudyShellButton
                   size="compact"
@@ -16690,24 +17181,24 @@ function OrbitalPolymeter() {
             </div>
           ) : (
           <div
-            className="fixed right-6 top-20 z-20 w-[min(340px,calc(100vw-1.5rem))]"
+            className={`fixed right-6 top-20 z-20 ${desktopSideMenuWidthClass} rg-desktop-panel-right`}
             style={{ bottom: riffDesktopPanelBottom, maxHeight: riffDesktopUtilityMaxHeight }}
           >
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="max-h-full flex flex-col gap-2 overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
-              style={{ maxHeight: '100%' }}
+              className="rg-side-menu-panel max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
+              style={{ ...desktopToolPanelStyle, maxHeight: '100%' }}
             >
-              <div className="relative flex items-center justify-end gap-1.5 px-0.5">
-                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]" style={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}>
-                  Utility
+              <div className={desktopSideMenuHeaderClass}>
+                <div className={desktopSideMenuTitleClass} style={desktopToolTitleStyle}>
+                  Tools
                 </div>
                 <button
                   type="button"
                   onClick={() => setRiffDesktopUtilityCollapsed(true)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/58 transition active:scale-[0.96]"
-                  aria-label="Collapse riff utility menu"
-                  title="Collapse utility"
+                  className={desktopSideMenuToggleClass}
+                  aria-label="Collapse riff tools menu"
+                  title="Collapse tools"
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -16968,7 +17459,7 @@ function OrbitalPolymeter() {
                 className="rounded-2xl border"
                 style={{
                   order: 4,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'sound', '#88CCFF'),
+                  ...getUtilitySectionStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked),
                 }}
               >
                 <button
@@ -16976,15 +17467,16 @@ function OrbitalPolymeter() {
                   onClick={() => setRiffUtilityPanel((current) => (current === 'sound' ? null : 'sound'))}
                   className={utilityAccordionButtonClass}
                 >
+                  {soundEditingLocked ? utilitySectionLockBadge : null}
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'sound', '#88CCFF')}
+                    style={getUtilityTitleStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
                   >
                     Sound
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'sound', '#88CCFF')}
+                    style={getUtilityChevronStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
                   >
                     {riffUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
@@ -17261,7 +17753,7 @@ function OrbitalPolymeter() {
                 className="rounded-2xl border"
                 style={{
                   order: 5,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'canvas', '#88CCFF'),
+                  ...getUtilitySectionStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked),
                 }}
               >
                 <button
@@ -17269,15 +17761,16 @@ function OrbitalPolymeter() {
                   onClick={() => setRiffUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'))}
                   className={utilityAccordionButtonClass}
                 >
+                  {canvasOptionsLocked ? utilitySectionLockBadge : null}
                   <div
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'canvas', '#88CCFF')}
+                    style={getUtilityTitleStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
                   >
                     Canvas
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'canvas', '#88CCFF')}
+                    style={getUtilityChevronStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
                   >
                     {riffUtilityPanel === 'canvas' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
@@ -17288,7 +17781,7 @@ function OrbitalPolymeter() {
                       'Canvas',
                       'Tune the visual stage when the riff becomes too faint, too busy, or too bright.',
                       '#88CCFF',
-                      'Use background and glow to keep the phrase readable for writing, presenting, or recording.',
+                      'Use background and glow to keep the phrase readable for writing, watching, or recording.',
                     )}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
@@ -17590,7 +18083,7 @@ function OrbitalPolymeter() {
                   </button>
                 </div>
               </div>
-              <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
+              <div className="rg-transport-tempo-row flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.035] px-3 py-2">
                 <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
                   Tempo
                 </div>
@@ -17605,7 +18098,7 @@ function OrbitalPolymeter() {
                       bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
                     })
                   }
-                  className="touch-slider min-w-0 flex-1"
+                  className="touch-slider rg-transport-tempo-track"
                   style={{ ['--slider-accent' as string]: riffCycleStudy.riff.color }}
                   aria-label="Set riff cycle tempo"
                 />
@@ -17629,15 +18122,7 @@ function OrbitalPolymeter() {
                   icon={<CircleHelp size={14} />}
                   onClick={() => openStartGuide('riff-editor')}
                 >
-                  Help
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="blue"
-                  highlighted={tutorialOpen && tutorialContext === 'riff-editor'}
-                  onClick={() => openTutorial('riff-editor')}
-                >
-                  Tutorial
+                  Guide
                 </StudyShellButton>
                 <StudyShellButton
                   size="compact"
@@ -18389,6 +18874,7 @@ function OrbitalPolymeter() {
                   onClick={handleRemixRiffCycleStudy}
                   aria-label="Remix riff cycle study"
                   title="Remix"
+                  locked={remixLocked}
                 />
                 <MobilePresentActionButton
                   label="Random+"
@@ -18397,6 +18883,7 @@ function OrbitalPolymeter() {
                   onClick={handleRandomPlusRiffCycleStudy}
                   aria-label="Random plus riff cycle study"
                   title="Random+"
+                  locked={randomPlusLocked}
                 />
               </div>
 
@@ -18476,8 +18963,8 @@ function OrbitalPolymeter() {
                   accent="#72F1B8"
                   onClick={handleTogglePresentation}
                   data-guide="riff-mobile-present"
-                  aria-label="Exit presentation mode"
-                  title="Exit Present"
+                  aria-label="Exit fullscreen mode"
+                  title="Exit Fullscreen"
                 />
               </div>
               <div className="space-y-1">
@@ -18551,6 +19038,7 @@ function OrbitalPolymeter() {
                   highlighted
                   icon={<Zap size={15} />}
                   onClick={handleRemixRiffCycleStudy}
+                  locked={remixLocked}
                   style={{
                     background: 'rgba(182,160,255,0.14)',
                     borderColor: 'rgba(182,160,255,0.3)',
@@ -18565,6 +19053,7 @@ function OrbitalPolymeter() {
                   highlighted
                   icon={<Shuffle size={15} />}
                   onClick={handleRandomPlusRiffCycleStudy}
+                  locked={randomPlusLocked}
                 >
                   Random+
                 </StudyShellButton>
@@ -18573,10 +19062,10 @@ function OrbitalPolymeter() {
               <div
                 data-guide={isMobile ? 'riff-mobile-tempo' : 'riff-desktop-tempo'}
                 className={`rounded-2xl border border-white/8 bg-white/[0.03] ${
-                  isMobile ? 'px-3 py-2.5' : 'min-w-[30rem] px-4 py-2.5'
+                  isMobile ? 'px-3 py-2.5' : 'min-w-[30rem] lg:min-w-[38rem] xl:min-w-[42rem] px-4 py-2.5'
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="rg-transport-tempo-row flex items-center gap-3">
                   <div
                     className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
                     style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
@@ -18608,7 +19097,7 @@ function OrbitalPolymeter() {
                     onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
                     onBlur={() => clearActiveMobileSlider('riff-tempo')}
                     data-dragging={activeMobileSliderId === 'riff-tempo'}
-                    className="touch-slider min-w-0 flex-1"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label="Set riff cycle tempo"
                   />
@@ -18677,7 +19166,7 @@ function OrbitalPolymeter() {
 	                  onClick={handleTogglePresentation}
 	                  data-guide={isMobile ? 'riff-mobile-present' : 'riff-desktop-present'}
 	                >
-	                  {presentationMode ? 'Exit' : 'Present'}
+	                  {presentationMode ? 'Exit' : 'Fullscreen'}
 	                </StudyShellButton>
 	                {!presentationMode ? (
 	                  <>
@@ -18687,14 +19176,7 @@ function OrbitalPolymeter() {
 	                      icon={<CircleHelp size={15} />}
 	                      onClick={handleToggleHelpGuide}
 	                    >
-	                      Help
-	                    </StudyShellButton>
-	                    <StudyShellButton
-	                      tone="blue"
-	                      highlighted={tutorialOpen && tutorialContext === 'surface'}
-	                      onClick={handleToggleTutorial}
-	                    >
-	                      Tutorial
+	                      Guide
 	                    </StudyShellButton>
 	                  </>
 	                ) : null}
@@ -18879,7 +19361,7 @@ function OrbitalPolymeter() {
                     type="button"
                     className="h-10 w-10 rounded-xl flex items-center justify-center"
                     style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    aria-label="Presentation mode"
+                    aria-label="Fullscreen mode"
                   >
                     <Maximize2 size={17} />
                   </button>
@@ -18927,7 +19409,7 @@ function OrbitalPolymeter() {
                 </button>
               </div>
               <div data-guide="mobile-speed" className="space-y-1">
-                <div className="flex items-center gap-3">
+                <div className="rg-transport-tempo-row flex items-center gap-3">
                   <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
                     Tempo
                   </div>
@@ -18948,7 +19430,7 @@ function OrbitalPolymeter() {
                     onPointerCancel={() => clearActiveMobileSlider('speed')}
                     onBlur={() => clearActiveMobileSlider('speed')}
                     data-dragging={activeMobileSliderId === 'speed'}
-                    className="touch-slider min-w-0 flex-1"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
                   />
@@ -19058,7 +19540,7 @@ function OrbitalPolymeter() {
                 <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <div className="space-y-3 rounded-2xl border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.48)' }}>
-                      Geometry
+                      Orbit Mode
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {[
@@ -19704,83 +20186,7 @@ function OrbitalPolymeter() {
         </div>
         {proPromptOverlay}
 
-        {helpOpen && !presentationMode && currentGuideStep && (
-          <>
-            <div
-              className="fixed inset-0 z-30 bg-black/42"
-              onClick={closeStartGuide}
-            />
-            {guideRect && (
-              <div
-                className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
-                style={{
-                  left: Math.max(8, guideRect.left - 8),
-                  top: Math.max(8, guideRect.top - 8),
-                  width: guideRect.width + 16,
-                  height: guideRect.height + 16,
-                  borderColor: 'rgba(0,255,170,0.42)',
-                  boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
-                }}
-              />
-            )}
-            <div
-              ref={guideCalloutRef}
-              className="fixed z-40 left-3 right-3 rounded-2xl border p-4"
-              style={guideCalloutStyle}
-            >
-              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
-                {helpStepIndex === 0 ? guideLabel : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
-              </div>
-              <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                {currentGuideStep.title}
-              </div>
-              <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
-                {currentGuideStep.text}
-              </p>
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <button
-                  onClick={closeStartGuide}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  Done
-                </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
-                    disabled={helpStepIndex === 0}
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{
-                      color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (helpStepIndex >= guideSteps.length - 1) {
-                        closeStartGuide();
-                        return;
-                      }
-                      setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
-                    }}
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
-                  >
-                    {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
-                  </button>
-                </div>
-              </div>
-              {helpStepIndex === guideSteps.length - 1 && (
-                <div className="mt-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  Next move: {currentModeCopy.firstSteps}
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        {helpOpen && !presentationMode ? renderGuideOverlay('#00FFAA', 30) : null}
 
         <OrbitSidebar
           orbits={engineState.orbits}
@@ -19869,7 +20275,6 @@ function OrbitalPolymeter() {
       {/* Canvas */}
       {isMobile && <div style={mobileCanvasFrameStyle} />}
       <div
-        data-guide={!isMobile ? 'desktop-colors' : undefined}
         className={isMobile ? 'absolute inset-x-0 top-0 overflow-hidden' : undefined}
         style={isMobile ? mobileCanvasFrameStyle : undefined}
       >
@@ -19889,6 +20294,17 @@ function OrbitalPolymeter() {
           className={isMobile ? 'absolute inset-0 w-full h-full' : undefined}
         />
       </div>
+      {!isMobile && !presentationMode ? (
+        <div
+          data-guide="desktop-colors"
+          aria-hidden="true"
+          className="pointer-events-none fixed left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            width: desktopOrbitGuideTargetSize,
+            height: desktopOrbitGuideTargetSize,
+          }}
+        />
+      ) : null}
 
       {/* Title */}
       {!presentationMode && (
@@ -19913,83 +20329,7 @@ function OrbitalPolymeter() {
       {appSurfaceToggle}
       {desktopBeginnerHint}
 
-      {helpOpen && !presentationMode && currentGuideStep && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-black/42"
-            onClick={closeStartGuide}
-          />
-          {guideRect && (
-            <div
-              className="fixed z-40 rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.16)] transition-all duration-200"
-              style={{
-                left: Math.max(8, guideRect.left - 8),
-                top: Math.max(8, guideRect.top - 8),
-                width: guideRect.width + 16,
-                height: guideRect.height + 16,
-                borderColor: 'rgba(0,255,170,0.42)',
-                boxShadow: '0 0 0 2px rgba(255,255,255,0.06), 0 0 28px rgba(0,255,170,0.15)',
-              }}
-            />
-          )}
-          <div
-            ref={guideCalloutRef}
-            className={`fixed z-40 rounded-2xl border p-4 ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
-            style={guideCalloutStyle}
-          >
-            <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#00FFAA' }}>
-              {helpStepIndex === 0 ? guideLabel : `Step ${helpStepIndex + 1} of ${guideSteps.length}`}
-            </div>
-            <div className="mt-2 text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>
-              {currentGuideStep.title}
-            </div>
-            <p className="mt-2 text-[12px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
-              {currentGuideStep.text}
-            </p>
-            <div className="mt-4 flex items-center justify-between gap-2">
-              <button
-                onClick={closeStartGuide}
-                className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                style={{ color: 'rgba(255,255,255,0.62)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                Done
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setHelpStepIndex((current) => Math.max(0, current - 1))}
-                  disabled={helpStepIndex === 0}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{
-                    color: helpStepIndex === 0 ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (helpStepIndex >= guideSteps.length - 1) {
-                      closeStartGuide();
-                      return;
-                    }
-                    setHelpStepIndex((current) => Math.min(guideSteps.length - 1, current + 1));
-                  }}
-                  className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                  style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.2)' }}
-                >
-                  {helpStepIndex >= guideSteps.length - 1 ? 'Finish' : 'Next'}
-                </button>
-              </div>
-            </div>
-            {helpStepIndex === guideSteps.length - 1 && (
-              <div className="mt-3 text-[11px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Next move: {currentModeCopy.firstSteps}
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      {helpOpen && !presentationMode ? renderGuideOverlay('#00FFAA', 30) : null}
 
       {isMobile && !presentationMode && (
         <div className="relative z-20 px-3 pb-28 space-y-3">
@@ -20005,7 +20345,7 @@ function OrbitalPolymeter() {
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                    Geometry
+                    Orbit Mode
                   </div>
                   <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     {modeDescription}
@@ -20225,6 +20565,15 @@ function OrbitalPolymeter() {
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
           onCanvasDisplayChange={handleUpdateOrbitDisplay}
+          activeGuideTarget={activeOverlayStep?.target ?? null}
+          lockedFeatures={{
+            remix: remixLocked,
+            randomPlus: randomPlusLocked,
+            soundEditing: soundEditingLocked,
+            canvasOptions: canvasOptionsLocked,
+            colorEditing: colorEditingLocked,
+            extraOrbits: extraOrbitsLocked,
+          }}
           onAddOrbit={handleAddOrbit}
           onDeleteOrbit={handleDeleteOrbit}
           onReset={handleReset}

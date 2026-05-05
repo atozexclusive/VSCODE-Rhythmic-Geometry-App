@@ -309,6 +309,56 @@
     0 0 18px color-mix(in srgb, var(--slider-accent) 65%, transparent);
 }
 
+.rg-transport-tempo-row {
+  justify-content: flex-start;
+}
+
+.rg-transport-tempo-track {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rg-side-menu-panel > .relative,
+.rg-side-menu-panel-tight > .relative {
+  display: flex;
+  flex-direction: column;
+}
+
+.rg-side-menu-panel > .relative {
+  gap: 0.75rem;
+}
+
+.rg-side-menu-panel-tight > .relative {
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .rg-desktop-panel-left {
+    transform: scale(var(--rg-desktop-panel-scale, 0.96));
+    transform-origin: top left;
+    will-change: transform;
+  }
+
+  .rg-desktop-panel-right {
+    transform: scale(var(--rg-desktop-panel-scale, 0.96));
+    transform-origin: top right;
+    will-change: transform;
+  }
+
+  .rg-desktop-panel-bottom-left {
+    transform: scale(var(--rg-desktop-panel-scale, 0.96));
+    transform-origin: bottom left;
+    will-change: transform;
+  }
+
+  .rg-desktop-panel-bottom-right {
+    transform: scale(var(--rg-desktop-panel-scale, 0.96));
+    transform-origin: bottom right;
+    will-change: transform;
+  }
+}
+
 @media (pointer: coarse) {
   .touch-slider {
     height: 3rem;

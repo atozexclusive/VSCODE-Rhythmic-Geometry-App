@@ -4,7 +4,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
-import { cn } from '../lib/utils';
+import { Lock } from 'lucide-react';
 
 type ShellTone = 'neutral' | 'green' | 'blue' | 'amber' | 'pink' | 'red';
 type ShellButtonSize = 'default' | 'compact' | 'square';
@@ -111,7 +111,7 @@ export function StudyShellPremiumPanel({
 }) {
   return (
     <div
-      className={cn('relative overflow-hidden rounded-[1.65rem] border px-3.5 py-3.5', className)}
+      className={`relative overflow-hidden rounded-[1.65rem] border px-3.5 py-3.5 ${className}`}
       style={{
         background: `
           radial-gradient(circle at 82% -12%, ${colorAlpha(accent, '2a', 'rgba(114,241,184,0.16)')}, transparent 42%),
@@ -140,7 +140,7 @@ export function StudyShellPremiumPanel({
         className="pointer-events-none absolute -right-16 -top-20 h-36 w-36 rounded-full blur-2xl"
         style={{ background: colorAlpha(accent, '18', 'rgba(114,241,184,0.1)') }}
       />
-      <div className={`relative ${className}`}>{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 }
@@ -173,6 +173,7 @@ interface StudyShellButtonProps
   tone?: ShellTone;
   highlighted?: boolean;
   size?: ShellButtonSize;
+  locked?: boolean;
 }
 
 export function StudyShellButton({
@@ -182,23 +183,38 @@ export function StudyShellButton({
   tone = 'neutral',
   highlighted = false,
   size = 'default',
+  locked = false,
   style,
   ...props
 }: StudyShellButtonProps) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap border text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${getButtonSizeClass(
+      className={`relative inline-flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap border text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${getButtonSizeClass(
         size,
       )} ${className}`}
       style={{
         ...getToneStyles(tone, highlighted),
         ...style,
+        ...(locked
+          ? {
+              background: 'rgba(255,255,255,0.035)',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.44)',
+              boxShadow: 'none',
+              filter: 'grayscale(0.55)',
+            }
+          : null),
       }}
       {...props}
     >
       {icon}
       {children}
+      {locked ? (
+        <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-white/14 bg-black/35 text-white/66">
+          <Lock size={9} strokeWidth={2.4} />
+        </span>
+      ) : null}
     </button>
   );
 }

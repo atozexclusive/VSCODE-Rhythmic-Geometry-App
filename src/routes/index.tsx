@@ -36,7 +36,7 @@ const featureGrid = [
   { icon: GalleryVerticalEnd, label: 'Library', title: 'Scene Library', text: 'Built-in scenes give Orbits, Polyrhythm Study, and Riff Cycle a strong starting point instead of a blank canvas.' },
   { icon: SquarePlay, label: 'Edit', title: 'Focused Editors', text: 'Open a close writing view when you want to shape one ring or one groove directly.' },
   { icon: MonitorPlay, label: 'Capture', title: 'Loop Capture', text: 'Record short moving studies directly from the live canvas.' },
-  { icon: Play, label: 'Present', title: 'Presentation Mode', text: 'Strip the chrome back for cleaner watching, sharing, and playback.' },
+  { icon: Play, label: 'Fullscreen', title: 'Fullscreen View', text: 'Hide extra controls so the pattern is easier to watch or record.' },
   { icon: Layers3, label: 'Layouts', title: 'Desktop + Mobile', text: 'A wide desktop instrument or a tighter mobile flow, without changing the core ideas.' },
   { icon: Waves, label: 'Entry', title: 'Three Clear Entries', text: 'Orbits is for discovery, Polyrhythm Study is for clarity, and Riff Cycle is for writing.' },
 ] as const;
@@ -789,7 +789,7 @@ function OrbitalPolymeterLanding() {
                 Workflow Tools
               </div>
               <h2 className="mt-6 font-serif text-3xl font-light tracking-[-0.04em] text-white sm:text-5xl sm:leading-[0.98]">
-                Save, edit, capture, and present.
+                Save, edit, capture, and watch fullscreen.
               </h2>
               <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
                 Rhythmic Geometry is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.

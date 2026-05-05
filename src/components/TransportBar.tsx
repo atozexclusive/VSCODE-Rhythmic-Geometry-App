@@ -3,8 +3,8 @@
 // Play/Pause, Tempo, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { useCallback, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import { ORBIT_TEMPO_MIN_BPM, getOrbitTempoMaxBpm, orbitSpeedMultiplierToTempoBpm, type OrbitTempoMode } from '../lib/orbitalEngine';
@@ -70,6 +70,15 @@ interface TransportBarProps {
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
   onCanvasDisplayChange: (settings: Partial<CanvasDisplaySettings>) => void;
+  activeGuideTarget?: string | null;
+  lockedFeatures?: {
+    remix?: boolean;
+    randomPlus?: boolean;
+    soundEditing?: boolean;
+    canvasOptions?: boolean;
+    colorEditing?: boolean;
+    extraOrbits?: boolean;
+  };
   onAddOrbit: () => void;
   onDeleteOrbit: (orbitId: string) => void;
   onReset: () => void;
@@ -119,12 +128,15 @@ export default function TransportBar({
   onRootNoteChange,
   onScaleChange,
   onCanvasDisplayChange,
+  activeGuideTarget = null,
+  lockedFeatures = {},
   onAddOrbit,
   onDeleteOrbit,
   onReset,
   onOpenSidebar,
 }: TransportBarProps) {
   const isMobile = useIsMobile();
+  const desktopOrbitPanelRef = useRef<HTMLDivElement | null>(null);
   const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
   const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(false);
   const [desktopUtilityPlaybackOpen, setDesktopUtilityPlaybackOpen] = useState(false);
@@ -132,6 +144,7 @@ export default function TransportBar({
   const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(false);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
+  const [desktopOrbitPanelTop, setDesktopOrbitPanelTop] = useState<number | null>(null);
   const closeDesktopUtilitySections = useCallback(() => {
     setDesktopUtilityPlaybackOpen(false);
     setDesktopUtilityDirectionOpen(false);
@@ -237,6 +250,22 @@ export default function TransportBar({
   const desktopSideSubmenuButtonStyle = "flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left transition-all duration-200 hover:bg-white/5";
   const desktopDockButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98]";
   const desktopDockSquareButtonStyle = "h-10 w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-200 active:scale-[0.98]";
+  const lockBadge = (
+    <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
+      <Lock size={9} strokeWidth={2.4} />
+    </span>
+  );
+  const getLockedStyle = (style: CSSProperties, locked?: boolean): CSSProperties =>
+    locked
+      ? {
+          ...style,
+          background: 'rgba(255,255,255,0.035)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'rgba(255,255,255,0.44)',
+          boxShadow: 'none',
+          filter: 'grayscale(0.55)',
+        }
+      : style;
   const modeDescription =
     geometryMode === 'standard-trace'
       ? 'Connects all active orbits into a shared string-art field.'
@@ -281,6 +310,48 @@ export default function TransportBar({
   const clearTouchSlider = useCallback((sliderId: string) => {
     setActiveTouchSlider((current) => (current === sliderId ? null : current));
   }, []);
+  useEffect(() => {
+    if (!isMobile && activeGuideTarget === 'desktop-orbits') {
+      setDesktopOrbitPanelOpen(true);
+    }
+  }, [activeGuideTarget, isMobile]);
+  useEffect(() => {
+    if (isMobile || presentationMode) {
+      setDesktopOrbitPanelTop(null);
+      return;
+    }
+
+    const updateOrbitPanelTop = () => {
+      const nextTop = desktopOrbitPanelRef.current?.getBoundingClientRect().top ?? null;
+
+      setDesktopOrbitPanelTop((currentTop) => {
+        if (currentTop == null || nextTop == null) {
+          return nextTop;
+        }
+
+        return Math.abs(currentTop - nextTop) > 0.5 ? nextTop : currentTop;
+      });
+    };
+
+    updateOrbitPanelTop();
+
+    const frame = window.requestAnimationFrame(updateOrbitPanelTop);
+    window.addEventListener('resize', updateOrbitPanelTop);
+
+    const panel = desktopOrbitPanelRef.current;
+    const observer =
+      typeof ResizeObserver !== 'undefined' && panel ? new ResizeObserver(updateOrbitPanelTop) : null;
+
+    if (panel) {
+      observer?.observe(panel);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updateOrbitPanelTop);
+      observer?.disconnect();
+    };
+  }, [desktopOrbitPanelOpen, geometryMode, isMobile, presentationMode, quickOrbitControls.length]);
   const canAddDesktopOrbit =
     (geometryMode === 'standard-trace' ||
       (geometryMode === 'sweep' && quickOrbitControls.length < 4) ||
@@ -301,12 +372,15 @@ export default function TransportBar({
     color: selected ? color : 'rgba(255,255,255,0.62)',
     boxShadow: selected ? `0 0 0 1px ${color}18 inset, 0 0 16px ${color}12` : 'none',
   });
-  const getStandardUtilitySectionStyle = (active: boolean, color: string): CSSProperties => ({
-    background: active
-      ? `linear-gradient(180deg, ${color}1c, rgba(255,255,255,0.03))`
-      : 'rgba(255,255,255,0.03)',
-    borderColor: active ? `${color}2e` : 'rgba(255,255,255,0.08)',
-    boxShadow: active ? `0 0 0 1px ${color}14 inset, 0 12px 28px rgba(0,0,0,0.22)` : 'none',
+  const getStandardUtilitySectionStyle = (active: boolean, color: string, locked?: boolean): CSSProperties => ({
+    background: locked
+      ? 'rgba(255,255,255,0.025)'
+      : active
+        ? `linear-gradient(180deg, ${color}1c, rgba(255,255,255,0.03))`
+        : 'rgba(255,255,255,0.03)',
+    borderColor: locked ? 'rgba(255,255,255,0.08)' : active ? `${color}2e` : 'rgba(255,255,255,0.08)',
+    boxShadow: locked ? 'none' : active ? `0 0 0 1px ${color}14 inset, 0 12px 28px rgba(0,0,0,0.22)` : 'none',
+    filter: locked ? 'grayscale(0.45)' : undefined,
   });
   const renderStandardUtilitySection = ({
     label,
@@ -317,6 +391,7 @@ export default function TransportBar({
     title,
     onToggle,
     children,
+    locked = false,
   }: {
     label: string;
     descriptor: string;
@@ -326,20 +401,26 @@ export default function TransportBar({
     title: string;
     onToggle: () => void;
     children: ReactNode;
+    locked?: boolean;
   }) => (
-    <div className="rounded-2xl border" style={getStandardUtilitySectionStyle(active, color)}>
+    <div className="rounded-2xl border" style={getStandardUtilitySectionStyle(active, color, locked)}>
       <button
         type="button"
         onClick={onToggle}
         className="relative flex w-full items-center justify-center px-12 py-2.5 text-center"
         title={title}
       >
+        {locked ? (
+          <span className="pointer-events-none absolute left-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-white/14 bg-black/34 text-white/62">
+            <Lock size={10} strokeWidth={2.4} />
+          </span>
+        ) : null}
         <div className="flex min-w-0 flex-col items-center">
           <div
             className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
             style={{
-              color: active ? color : 'rgba(255,255,255,0.72)',
-              textShadow: active ? `0 0 12px ${color}38` : 'none',
+              color: locked ? 'rgba(255,255,255,0.44)' : active ? color : 'rgba(255,255,255,0.72)',
+              textShadow: locked ? 'none' : active ? `0 0 12px ${color}38` : 'none',
             }}
           >
             {label}
@@ -348,9 +429,9 @@ export default function TransportBar({
         <div
           className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
           style={{
-            background: active ? `${color}1f` : 'rgba(255,255,255,0.04)',
-            borderColor: active ? `${color}38` : 'rgba(255,255,255,0.08)',
-            color: active ? color : 'rgba(255,255,255,0.56)',
+            background: locked ? 'rgba(255,255,255,0.035)' : active ? `${color}1f` : 'rgba(255,255,255,0.04)',
+            borderColor: locked ? 'rgba(255,255,255,0.08)' : active ? `${color}38` : 'rgba(255,255,255,0.08)',
+            color: locked ? 'rgba(255,255,255,0.44)' : active ? color : 'rgba(255,255,255,0.56)',
           }}
         >
           {active ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -430,25 +511,27 @@ export default function TransportBar({
                 </button>
                 <button
                   onClick={onRemixPattern}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
+                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
+                  style={getLockedStyle({ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }, lockedFeatures.remix)}
                   title="Refresh the current setup with new color, direction, sound, and speed"
                 >
                   <Zap size={15} />
                   <span>Remix</span>
+                  {lockedFeatures.remix ? lockBadge : null}
                 </button>
                 <button
                   onClick={onRandomPatternPlus}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
+                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
+                  style={getLockedStyle({ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }, lockedFeatures.randomPlus)}
                   title="Extended random pattern"
                 >
                   <Shuffle size={15} />
                   <span>Random+</span>
+                  {lockedFeatures.randomPlus ? lockBadge : null}
                 </button>
               </div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5">
-                <div className="flex items-center gap-3">
+                <div className="rg-transport-tempo-row flex items-center gap-3">
                   <div
                     className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
                     style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
@@ -472,7 +555,7 @@ export default function TransportBar({
                     onPointerCancel={() => clearTouchSlider('present-tempo')}
                     onBlur={() => clearTouchSlider('present-tempo')}
                     data-dragging={activeTouchSlider === 'present-tempo'}
-                    className="touch-slider min-w-0 flex-1"
+                    className="touch-slider rg-transport-tempo-track"
                     style={{ ['--slider-accent' as string]: '#ffffff' }}
                     aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
                   />
@@ -531,7 +614,7 @@ export default function TransportBar({
                   onClick={onTogglePresentation}
                   className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
-                  title="Exit presentation mode"
+                  title="Exit fullscreen mode"
                 >
                   <Minimize2 size={15} />
                   <span>Exit</span>
@@ -573,27 +656,29 @@ export default function TransportBar({
           </button>
           <button
             onClick={onRemixPattern}
-            className={desktopDockButtonStyle}
-            style={{ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }}
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }, lockedFeatures.remix)}
             title="Refresh the current setup with new color, direction, sound, and speed"
           >
             <Zap size={15} />
             <span>Remix</span>
+            {lockedFeatures.remix ? lockBadge : null}
           </button>
           <button
             onClick={onRandomPatternPlus}
-            className={desktopDockButtonStyle}
-            style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }, lockedFeatures.randomPlus)}
             title="Extended random pattern"
           >
             <Shuffle size={15} />
             <span>Random+</span>
+            {lockedFeatures.randomPlus ? lockBadge : null}
           </button>
             </div>
           )}
           {!isMobile ? (
             <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
-              <div className="flex items-center gap-4">
+              <div className="rg-transport-tempo-row flex items-center gap-4">
                 <div
                   className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
                   style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
@@ -607,7 +692,7 @@ export default function TransportBar({
                   step="1"
                   value={anchorTempoSliderValue}
                   onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
-                  className="touch-slider min-w-0 flex-1"
+                  className="touch-slider rg-transport-tempo-track"
                   style={{ ['--slider-accent' as string]: '#ffffff' }}
                   aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
                 />
@@ -656,7 +741,7 @@ export default function TransportBar({
             onClick={onTogglePresentation}
             className={desktopDockButtonStyle}
             style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
-            title="Exit presentation mode"
+            title="Exit fullscreen mode"
           >
             <Minimize2 size={15} />
             <span>Exit</span>
@@ -684,11 +769,13 @@ export default function TransportBar({
         {!isMobile ? (
           <div className="pointer-events-none mb-2">
             <div
+              ref={desktopOrbitPanelRef}
               data-guide="desktop-geometry"
               className="pointer-events-auto fixed left-6 bottom-[6.75rem] z-30 w-[min(420px,calc(100vw-1.5rem))] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
               style={{
                 ...desktopGeometryPanelStyle,
-                transform: 'translateY(-4px)',
+                transform: 'translateY(-4px) scale(var(--rg-desktop-panel-scale, 0.96))',
+                transformOrigin: 'bottom left',
               }}
             >
               <div className="relative flex items-start justify-center gap-3">
@@ -697,14 +784,14 @@ export default function TransportBar({
                     className="text-[10px] font-mono uppercase tracking-[0.2em]"
                     style={desktopGeometryGlowLabelStyle}
                   >
-                    Geometry Mode
+                    Orbit Mode
                   </div>
                   <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Select how the rhythm field is interpreted.
+                    Choose how Orbit draws the same layers.
                   </div>
                 </div>
                 <div className="absolute right-0 top-0">
-                  <InfoTip text="Choose how Orbit turns the same rhythm layers into shape: Standard connects all layers, Interference derives a moving relationship point, and Sweep draws fixed-radius sweep figures." />
+                  <InfoTip text="Choose how Orbit turns the same layers into a shape: Standard connects all layers, Interference shows how layers push and pull, and Sweep draws a cleaner outline." />
                 </div>
               </div>
               <div
@@ -719,7 +806,7 @@ export default function TransportBar({
                     border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
                     color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
                   }}
-                  title="Use the original connector-based trace geometry"
+                  title="Use Standard orbit mode"
                 >
                   Standard
                 </button>
@@ -731,7 +818,7 @@ export default function TransportBar({
                     border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
                     color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
                   }}
-                  title="Use the derived interference-point trace geometry"
+                  title="Use Interference orbit mode"
                 >
                   Interference
                 </button>
@@ -743,7 +830,7 @@ export default function TransportBar({
                     border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
                     color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
                   }}
-                  title="Use the original-style fixed-radius sweep geometry"
+                  title="Use Sweep orbit mode"
                 >
                   Sweep
                 </button>
@@ -753,6 +840,7 @@ export default function TransportBar({
               </p>
               {quickOrbitControls.length > 0 && (
                 <div
+                  data-guide="desktop-orbits"
                   className="w-full rounded-2xl px-2.5 py-2.5"
                   style={desktopSideSectionStyle}
                 >
@@ -768,7 +856,7 @@ export default function TransportBar({
                         </span>
                         <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
                           {geometryMode === 'standard-trace'
-                            ? 'Adjust pulse counts without opening the menu.'
+                            ? 'Change how many beats each layer takes to turn.'
                             : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
                               ? 'Shape the active orbit quartet from the main bar.'
                               : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
@@ -794,8 +882,8 @@ export default function TransportBar({
                     <InfoTip
                       text={
                         geometryMode === 'standard-trace'
-                          ? 'Open orbit controls to adjust each layer pulse count, color, and active orbit list.'
-                          : 'Open orbit controls to adjust the layers driving the current derived shape.'
+                          ? 'Each number is beats per turn. Lower numbers orbit faster; higher numbers orbit slower and create longer alignments.'
+                          : 'Each number is beats per turn for the active layers driving the current derived shape.'
                       }
                     />
                   </div>
@@ -856,13 +944,20 @@ export default function TransportBar({
                                   value={orbit.pulseCount}
                                   onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
                                   onFocus={(e) => e.currentTarget.select()}
-                                  className="h-8 w-32 rounded-md border text-center text-[11px] font-mono focus:outline-none"
+                                  className="h-8 w-28 rounded-md border text-center text-[11px] font-mono focus:outline-none"
                                   style={{
                                     color: 'rgba(255, 255, 255, 0.82)',
                                     background: 'rgba(255, 255, 255, 0.04)',
                                     borderColor: 'rgba(255, 255, 255, 0.08)',
                                   }}
+                                  aria-label={`${orbit.label} beats per turn`}
                                 />
+                                <span
+                                  className="-ml-1 text-[8px] font-mono uppercase tracking-[0.12em]"
+                                  style={{ color: 'rgba(255, 255, 255, 0.36)' }}
+                                >
+                                  Beats / Turn
+                                </span>
                                 <button
                                   onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
                                   className="h-8 w-10 rounded-md text-[12px] font-mono"
@@ -945,13 +1040,13 @@ export default function TransportBar({
             </div>
 
             <div
-              data-guide="desktop-direction"
-              className={`pointer-events-auto fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 overflow-y-auto px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border [scrollbar-width:none] ${
-                desktopSettingsPanelOpen ? 'top-20' : 'bottom-[6.75rem]'
-              }`}
+              data-guide="desktop-tools"
+              className={`pointer-events-auto fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 overflow-y-auto px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border rg-desktop-panel-right [scrollbar-width:none] ${desktopSettingsPanelOpen ? 'top-20' : ''}`}
               style={{
                 ...desktopTopPanelStyle,
-                maxHeight: desktopSettingsPanelOpen ? 'calc(100vh - 7rem)' : undefined,
+                ...(desktopSettingsPanelOpen
+                  ? { maxHeight: 'calc(100vh - 7rem)' }
+                  : { top: desktopOrbitPanelTop != null ? `${desktopOrbitPanelTop}px` : 'calc(100vh - 22.25rem)' }),
               }}
             >
               <div className="relative flex min-h-[32px] items-center justify-end gap-1.5 px-0.5">
@@ -959,10 +1054,10 @@ export default function TransportBar({
                   className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
                   style={desktopGlowLabelStyle}
                 >
-                  Utility
+                  Tools
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <InfoTip text="Open quick utility controls for orbit direction behavior and the current sound mode." />
+                  <InfoTip text="Open quick tools for orbit direction and the current sound mode." />
                   <button
                     type="button"
                     onClick={() => setDesktopSettingsPanelOpen((open) => !open)}
@@ -975,18 +1070,12 @@ export default function TransportBar({
                         ? '0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 0 1px rgba(136,204,255,0.14), 0 0 18px rgba(255,255,255,0.08)'
                         : 'none',
                     }}
-                    title={desktopSettingsPanelOpen ? 'Close utility controls' : 'Open utility controls'}
+                    title={desktopSettingsPanelOpen ? 'Close tools' : 'Open tools'}
                   >
                     {desktopSettingsPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
                 </div>
               </div>
-              {!desktopSettingsPanelOpen ? (
-                <div className="px-3 text-center text-[10px] leading-snug text-white/42">
-                  Make performance changes without touching the orbit counts. The quick buttons flip the motion feel between unified rotation and alternating counter-motion.
-                </div>
-              ) : null}
-
               {!desktopSettingsPanelOpen ? (
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -1038,7 +1127,7 @@ export default function TransportBar({
                             onClick={onStepForward}
                             className={standardUtilityButtonClass}
                             style={getStandardUtilityPillStyle(true, '#88CCFF', 'rgba(136,204,255,0.14)')}
-                            title="Advance the geometry by one small step while paused"
+                            title="Advance the orbit motion by one small step while paused"
                           >
                             Step
                           </button>
@@ -1142,6 +1231,7 @@ export default function TransportBar({
                     color: '#88CCFF',
                     title: 'Open canvas controls',
                     info: 'Canvas settings only affect the visual environment: contrast, atmosphere, glow, grid, and axes. They do not change timing or sound.',
+                    locked: lockedFeatures.canvasOptions,
                     onToggle: () => toggleDesktopUtilitySection('canvas'),
                     children: (
                       <>
@@ -1265,6 +1355,7 @@ export default function TransportBar({
                     color: '#88CCFF',
                     title: 'Open sound controls',
                     info: 'Original keeps the orbit tones direct. In Key maps them into the selected root and note family so complex motion feels more harmonic.',
+                    locked: lockedFeatures.soundEditing,
                     onToggle: () => toggleDesktopUtilitySection('audio'),
                     children: (
                       <>
@@ -1371,7 +1462,7 @@ export default function TransportBar({
                   border: '1px solid rgba(51, 136, 255, 0.32)',
                   color: '#3388FF',
                 }}
-                title="Advance the geometry by one small step while paused"
+                title="Advance the orbit motion by one small step while paused"
               >
                 <SkipForward size={20} />
                 <span className="text-[10px] font-mono uppercase tracking-wider">Step</span>
@@ -1397,10 +1488,10 @@ export default function TransportBar({
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   color: 'rgba(255, 255, 255, 0.6)',
                 }}
-                title="Enter presentation mode"
+                title="Enter fullscreen mode"
               >
                 <Maximize2 size={18} />
-                <span className="text-[10px] font-mono uppercase tracking-wider">Present</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider">Fullscreen</span>
               </button>
               <button
                 onClick={onOpenSidebar}
@@ -1471,7 +1562,7 @@ export default function TransportBar({
                   border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
                   color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.5)',
                 }}
-                title="Toggle trace mode (sweep geometry)"
+                title="Toggle trace drawing"
               >
                 {traceMode ? 'Trace On' : 'Trace Off'}
               </button>
@@ -1519,9 +1610,9 @@ export default function TransportBar({
                   border: `1px solid ${showHelp ? 'rgba(0, 255, 170, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
                   color: showHelp ? '#00FFAA' : 'rgba(255, 255, 255, 0.6)',
                 }}
-                title="Show quick help"
+                title="Open guide"
               >
-                HELP
+                GUIDE
               </button>
             </div>
           </div>
@@ -1598,36 +1689,38 @@ export default function TransportBar({
 
           <button
             onClick={onRemixPattern}
-            className={desktopDockButtonStyle}
-            style={{
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({
               background: 'rgba(182,160,255,0.14)',
               border: '1px solid rgba(182,160,255,0.3)',
               color: '#B6A0FF',
               boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
-            }}
+            }, lockedFeatures.remix)}
             title="Refresh the current setup with new color, direction, sound, and speed"
           >
             <Zap size={15} />
             <span>
               Remix
             </span>
+            {lockedFeatures.remix ? lockBadge : null}
           </button>
 
           <button
             onClick={onRandomPatternPlus}
-            className={desktopDockButtonStyle}
-            style={{
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({
               background: 'rgba(255,170,0,0.12)',
               border: '1px solid rgba(255,170,0,0.22)',
               color: '#FFAA00',
               boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
-            }}
+            }, lockedFeatures.randomPlus)}
             title="Generate an extended curated random pattern with values up to 100"
           >
             <Shuffle size={15} />
             <span>
               Random+
             </span>
+            {lockedFeatures.randomPlus ? lockBadge : null}
           </button>
 
         </div>
@@ -1635,7 +1728,7 @@ export default function TransportBar({
         {/* Center: Tempo */}
         <div
           data-guide="desktop-speed"
-          className="mx-0 xl:mx-3 flex min-w-[320px] max-w-[860px] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
+          className="rg-transport-tempo-row mx-0 xl:mx-3 flex min-w-[320px] max-w-[860px] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
           style={desktopTempoPanelStyle}
         >
           <div className="shrink-0">
@@ -1653,7 +1746,7 @@ export default function TransportBar({
             step="1"
             value={anchorTempoSliderValue}
             onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-            className="touch-slider min-w-0 flex-1 cursor-pointer"
+            className="touch-slider rg-transport-tempo-track cursor-pointer"
             style={{
               ['--slider-accent' as string]: '#ffffff',
             }}
@@ -1674,7 +1767,7 @@ export default function TransportBar({
           </div>
         </div>
 
-        {/* Right: Audio + Present + Help + Menu */}
+        {/* Right: Audio + Fullscreen + Help + Menu */}
         <div className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
@@ -1704,11 +1797,11 @@ export default function TransportBar({
               color: presentationMode ? '#72F1B8' : 'rgba(255,255,255,0.72)',
               boxShadow: presentationMode ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
             }}
-            title={presentationMode ? 'Exit presentation mode' : 'Enter presentation mode'}
+            title={presentationMode ? 'Exit fullscreen mode' : 'Enter fullscreen mode'}
           >
             <span className="flex items-center gap-2">
               {presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              <span>{presentationMode ? 'Exit' : 'Present'}</span>
+              <span>{presentationMode ? 'Exit' : 'Fullscreen'}</span>
             </span>
           </button>
 
@@ -1720,25 +1813,12 @@ export default function TransportBar({
               border: `1px solid ${showHelp ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.1)'}`,
               color: showHelp ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.72)',
             }}
-            title="Show quick help"
+            title="Open guide"
           >
             <span className="flex items-center gap-2">
               <CircleHelp size={15} />
-              <span>Help</span>
+              <span>Guide</span>
             </span>
-          </button>
-
-          <button
-            onClick={onToggleTutorial}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.72)',
-            }}
-            title="Open guided tutorial"
-          >
-            <span>Tutorial</span>
           </button>
 
           {/* Menu */}

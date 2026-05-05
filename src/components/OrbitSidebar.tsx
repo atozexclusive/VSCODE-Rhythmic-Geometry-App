@@ -235,7 +235,7 @@ export default function OrbitSidebar({
   const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
     { key: 'account', label: 'Account', activeColor: '#FFAA00' },
     { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
-    { key: 'geometry', label: 'Ratios', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
+    { key: 'geometry', label: 'Orbit Mode', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
     { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
     { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
     { key: 'export', label: 'Export', activeColor: '#FFAA00' },
@@ -1399,15 +1399,15 @@ export default function OrbitSidebar({
             </div>
           )}
 
-          {/* GEOMETRY TAB */}
+          {/* ORBIT MODE TAB */}
           {activeTab === 'geometry' && (
             <div className="space-y-4">
               <div className="space-y-1">
                 <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
-                  Ratios
+                  Orbit Mode
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Shape the core orbit relationships and the geometry they produce.
+                  Choose how Orbit draws the core layer relationships.
                 </p>
               </div>
 
