@@ -6,6 +6,7 @@ import {
   X,
 } from 'lucide-react';
 import AccountPanel from './AccountPanel';
+import InfoTip from './InfoTip';
 import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
 import type { PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
@@ -275,6 +276,14 @@ export default function PolyrhythmSidebar({
           )
         ? 'layer'
         : 'stack';
+  const mobilePrimaryTitleStyle = {
+    color: '#FFD166',
+    textShadow: '0 0 14px rgba(255,209,102,0.26)',
+  } as const;
+  const mobileSubTitleStyle = {
+    color: 'rgba(244,250,255,0.9)',
+    textShadow: '0 0 12px rgba(255,255,255,0.14)',
+  } as const;
 
   const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = isMobile
     ? [
@@ -319,33 +328,44 @@ export default function PolyrhythmSidebar({
 
   return (
     <>
-      {isOpen ? <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" onClick={onClose} /> : null}
+      {isOpen ? <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]" onClick={onClose} /> : null}
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${
-          isMobile ? 'inset-0 w-full' : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
+          isMobile
+            ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
+            : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
         }`}
         style={{
           background: isMobile
-            ? 'linear-gradient(135deg, rgba(17,17,22,0.97), rgba(28,28,34,0.96))'
+            ? `
+              radial-gradient(circle at 84% -8%, ${(selectedLayer?.color ?? '#72F1B8')}2f, transparent 42%),
+              radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
+              linear-gradient(145deg, rgba(17,19,27,0.94), rgba(8,10,16,0.9))
+            `
             : `
               radial-gradient(circle at 84% -8%, ${(selectedLayer?.color ?? '#72F1B8')}2b, transparent 42%),
               radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
               linear-gradient(145deg, rgba(17,19,27,0.97), rgba(8,10,16,0.92))
             `,
-          borderColor: isMobile ? undefined : `${selectedLayer?.color ?? '#72F1B8'}28`,
+          borderColor: isMobile ? `${selectedLayer?.color ?? '#72F1B8'}24` : `${selectedLayer?.color ?? '#72F1B8'}28`,
           borderLeft: isMobile ? 'none' : undefined,
           boxShadow: isMobile
-            ? undefined
+            ? `0 -28px 90px rgba(0,0,0,0.56), 0 0 54px ${(selectedLayer?.color ?? '#72F1B8')}14, inset 0 1px 0 rgba(255,255,255,0.1)`
             : `0 28px 90px rgba(0,0,0,0.5), 0 0 48px ${(selectedLayer?.color ?? '#72F1B8')}12, inset 0 1px 0 rgba(255,255,255,0.08)`,
-          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : 'calc(100% + 1.5rem)'})`,
+          transform: isOpen ? 'translate(0, 0)' : isMobile ? 'translateY(calc(100% + 1rem))' : 'translateX(calc(100% + 1.5rem))',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
           backdropFilter: 'blur(22px)',
         }}
       >
+        {isMobile ? (
+          <div className="flex justify-center pt-2">
+            <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(114,241,184,0.16)]" />
+          </div>
+        ) : null}
         <div
-          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}
+          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-3' : 'px-5 py-4'}`}
           style={{
             background: isMobile
               ? undefined
@@ -396,7 +416,7 @@ export default function PolyrhythmSidebar({
             <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
                     Mode
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed text-white/42">
@@ -499,7 +519,7 @@ export default function PolyrhythmSidebar({
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
                     Scenes
                   </div>
                   <div className="mt-1 text-[11px] text-white/52">
@@ -523,11 +543,15 @@ export default function PolyrhythmSidebar({
               {groupedPresets.map(({ group, presets }) => (
                 <div key={group} className="space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/56">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobileSubTitleStyle}>
                       {POLYRHYTHM_PRESET_GROUP_META[group].label}
                     </div>
-                    <div className="mt-1 text-[11px] text-white/42">
-                      {POLYRHYTHM_PRESET_GROUP_META[group].description}
+                    <div className="mt-1 text-[11px] leading-relaxed text-white/50">
+                      {group === 'one-layer'
+                        ? 'Start with one editable rhythm layer.'
+                        : group === 'two-layer'
+                          ? 'Hear two layers lock, drift, and resolve.'
+                          : 'More layers and denser relationships.'}
                     </div>
                   </div>
                   {presets.map((preset) => {
@@ -544,7 +568,7 @@ export default function PolyrhythmSidebar({
                           boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                         }}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-3">
                           <PolyrhythmSceneThumbnail preset={preset} />
                           <div className="min-w-0 flex-1">
                             <div
@@ -559,19 +583,19 @@ export default function PolyrhythmSidebar({
                             <div className="mt-2 text-[11px] leading-relaxed text-white/46">
                               {preset.description}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => onLoadPreset(preset.id)}
-                              className="mt-3 rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
-                              style={{
-                                background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
-                                borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                                color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
-                              }}
-                            >
-                              {active ? 'Loaded' : 'Load Scene'}
-                            </button>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => onLoadPreset(preset.id)}
+                            className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em]"
+                            style={{
+                              background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
+                              borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                              color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
+                            }}
+                          >
+                            {active ? 'Loaded' : 'Load'}
+                          </button>
                         </div>
                       </div>
                     );
@@ -1327,11 +1351,14 @@ export default function PolyrhythmSidebar({
             <section className="space-y-3">
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    PNG Export
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                      Image Export
+                    </div>
+                    <InfoTip text="Choose the crop shape, then choose output size. HD is smallest, 2K is sharper, 4K is best for large posts or prints." />
                   </div>
-                  <div className="mt-1 text-[11px] text-white/52">
-                    Export the current study canvas as an image.
+                  <div className="mt-1.5 text-[11px] text-white/52">
+                    Save the current Study canvas as a PNG image.
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -1356,7 +1383,11 @@ export default function PolyrhythmSidebar({
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  {[1, 2, 4].map((scale) => (
+                  {([
+                    [1, 'HD'],
+                    [2, '2K'],
+                    [4, '4K'],
+                  ] as const).map(([scale, label]) => (
                     <button
                       key={scale}
                       type="button"
@@ -1368,7 +1399,7 @@ export default function PolyrhythmSidebar({
                         color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
                       }}
                     >
-                      {scale}x
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -1391,11 +1422,14 @@ export default function PolyrhythmSidebar({
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                    MIDI Export
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                      MIDI Export
+                    </div>
+                    <InfoTip text="MIDI exports the rhythm as note events for a DAW. It does not export the app's synth sound." />
                   </div>
-                  <div className="mt-1 text-[11px] text-white/52">
-                    Export one shared study cycle as MIDI.
+                  <div className="mt-1.5 text-[11px] text-white/52">
+                    Send the Study rhythm to a DAW as MIDI notes.
                   </div>
                 </div>
 
@@ -1454,7 +1488,7 @@ export default function PolyrhythmSidebar({
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
                     Saved Scene
                   </div>
                   <div className="mt-1 text-[11px] text-white/52">

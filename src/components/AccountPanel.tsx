@@ -45,6 +45,23 @@ export default function AccountPanel() {
           : 'none';
   const planLabel = effectivePlan === 'pro' ? 'Pro' : 'Free';
   const isCreateMode = authMode === 'create-account';
+  const amberTitleStyle = {
+    color: '#FFD166',
+    textShadow: '0 0 14px rgba(255,209,102,0.26)',
+  } as const;
+  const whiteTitleStyle = {
+    color: 'rgba(244,250,255,0.9)',
+    textShadow: '0 0 12px rgba(255,255,255,0.14)',
+  } as const;
+  const subtleCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.022))',
+    borderColor: 'rgba(255,255,255,0.08)',
+  } as const;
+  const proCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,209,102,0.105), rgba(255,255,255,0.025))',
+    borderColor: 'rgba(255,209,102,0.18)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 26px rgba(255,209,102,0.07)',
+  } as const;
 
   const handlePasswordSignIn = async () => {
     const nextEmail = email.trim();
@@ -150,19 +167,23 @@ export default function AccountPanel() {
 
   return (
     <div
-      className="rounded-xl border p-3 space-y-3"
+      className="rounded-[1.35rem] border p-3.5 space-y-3"
       style={{
-        background: 'rgba(255,255,255,0.025)',
-        borderColor: 'rgba(255,255,255,0.08)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.024))',
+        borderColor: 'rgba(255,209,102,0.12)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
       }}
     >
       <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
+            <div
+              className="text-[12px] font-mono uppercase tracking-[0.22em]"
+              style={amberTitleStyle}
+            >
               Account
             </div>
-            <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              {enabled ? 'Sign in to keep your scenes, exports, and Pro access with you.' : 'Set Supabase env vars to enable accounts.'}
+            <div className="mt-1 text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
+              {enabled ? 'Choose Free or Pro, then sign in when you want scenes to follow you.' : 'Accounts are offline until Supabase is configured.'}
             </div>
           </div>
         <div
@@ -195,11 +216,8 @@ export default function AccountPanel() {
       ) : user ? (
         <div className="space-y-3">
           <div
-            className="rounded-lg border px-3 py-2.5"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
+            className="rounded-2xl border px-3 py-3"
+            style={subtleCardStyle}
           >
             <div className="flex items-center gap-2 text-[11px]" style={{ color: 'rgba(255,255,255,0.84)' }}>
               <UserRound size={14} />
@@ -211,19 +229,16 @@ export default function AccountPanel() {
           </div>
 
           <div
-            className="rounded-lg border px-3 py-3 space-y-2"
-            style={{
-              background: 'rgba(255,255,255,0.025)',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
+            className="rounded-2xl border px-3 py-3 space-y-2"
+            style={account?.plan === 'pro' ? proCardStyle : subtleCardStyle}
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  Account Plan
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={account?.plan === 'pro' ? amberTitleStyle : whiteTitleStyle}>
+                  {account?.plan === 'pro' ? 'Pro Is Active' : 'Free Plan'}
                 </div>
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Your live account access.
+                  {account?.plan === 'pro' ? 'Everything is unlocked on this login.' : 'Core tools stay focused for learning.'}
                 </div>
               </div>
               <div
@@ -238,10 +253,12 @@ export default function AccountPanel() {
               </div>
             </div>
             <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-              Source: {accessSourceLabel}
+              {account?.plan === 'pro'
+                ? `Access source: ${accessSourceLabel}.`
+                : 'Upgrade when you want saved scenes, deeper exports, and the locked creative controls.'}
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5" style={subtleCardStyle}>
             <KeyRound size={14} style={{ color: 'rgba(255,255,255,0.48)' }} />
             <input
               type="password"
@@ -320,7 +337,7 @@ export default function AccountPanel() {
                   Pro Preview
                 </div>
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                  Testing override only.
+                  Temporary testing switch.
                 </div>
               </div>
               <button
@@ -339,16 +356,36 @@ export default function AccountPanel() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div>
-            <div className="text-[11px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.78)' }}>
-              {isCreateMode ? 'Create Account' : 'Sign In'}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border px-3 py-3" style={subtleCardStyle}>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={whiteTitleStyle}>
+                Free
+              </div>
+              <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                Learn the basics with a tighter set of controls.
+              </div>
             </div>
-            <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-              {isCreateMode ? 'Create a password-based account to keep your work in sync.' : 'Sign in to restore your scenes, exports, and plan.'}
+            <div className="rounded-2xl border px-3 py-3" style={proCardStyle}>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={amberTitleStyle}>
+                Pro
+              </div>
+              <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,239,195,0.68)' }}>
+                Unlock scenes, exports, sound, and deeper controls.
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="rounded-2xl border px-3 py-3 space-y-3" style={subtleCardStyle}>
+            <div>
+              <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={whiteTitleStyle}>
+                {isCreateMode ? 'Create Account' : 'Sign In'}
+              </div>
+              <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                {isCreateMode ? 'Create a login so saved scenes can follow you.' : 'Restore saved scenes and Pro access.'}
+              </div>
+            </div>
+
+          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
             <Mail size={14} style={{ color: 'rgba(255,255,255,0.48)' }} />
             <input
               type="email"
@@ -359,7 +396,7 @@ export default function AccountPanel() {
               style={{ color: 'rgba(255,255,255,0.82)' }}
             />
           </div>
-          <div className="flex items-center gap-2 rounded-lg border px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center gap-2 rounded-xl border px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
             <KeyRound size={14} style={{ color: 'rgba(255,255,255,0.48)' }} />
             <input
               type="password"
@@ -404,6 +441,7 @@ export default function AccountPanel() {
               </button>
             ) : null}
           </div>
+          </div>
           <div
             className="rounded-lg border px-3 py-2.5"
             style={{
@@ -417,7 +455,7 @@ export default function AccountPanel() {
                   Pro Preview
                 </div>
                 <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                  Testing override only.
+                  Temporary testing switch.
                 </div>
               </div>
               <button

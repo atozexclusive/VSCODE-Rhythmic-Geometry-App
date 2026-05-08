@@ -6,6 +6,7 @@ import {
   X,
 } from 'lucide-react';
 import AccountPanel from './AccountPanel';
+import InfoTip from './InfoTip';
 import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
 import {
@@ -300,6 +301,14 @@ export default function RiffCycleSidebar({
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
   const selectedStepEditable = selectedStep != null;
+  const mobilePrimaryTitleStyle = {
+    color: '#FFD166',
+    textShadow: '0 0 14px rgba(255,209,102,0.26)',
+  } as const;
+  const mobileSubTitleStyle = {
+    color: 'rgba(244,250,255,0.9)',
+    textShadow: '0 0 12px rgba(255,255,255,0.14)',
+  } as const;
   const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = isMobile
     ? [
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
@@ -344,33 +353,44 @@ export default function RiffCycleSidebar({
 
   return (
     <>
-      {isOpen ? <div className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm" onClick={onClose} /> : null}
+      {isOpen ? <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]" onClick={onClose} /> : null}
       <div
         className={`fixed z-50 flex flex-col overflow-hidden ${
-          isMobile ? 'inset-0 w-full' : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
+          isMobile
+            ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
+            : 'right-4 top-4 bottom-4 w-[28rem] rounded-[2rem] border'
         }`}
         style={{
           background: isMobile
-            ? 'linear-gradient(135deg, rgba(17, 17, 22, 0.97), rgba(28, 28, 34, 0.96))'
+            ? `
+              radial-gradient(circle at 84% -8%, ${study.riff.color}2f, transparent 42%),
+              radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
+              linear-gradient(145deg, rgba(17,19,27,0.94), rgba(8,10,16,0.9))
+            `
             : `
               radial-gradient(circle at 84% -8%, ${study.riff.color}2b, transparent 42%),
               radial-gradient(circle at 12% 0%, rgba(255,255,255,0.08), transparent 36%),
               linear-gradient(145deg, rgba(17,19,27,0.97), rgba(8,10,16,0.92))
             `,
-          borderColor: isMobile ? undefined : `${study.riff.color}28`,
+          borderColor: isMobile ? `${study.riff.color}24` : `${study.riff.color}28`,
           borderLeft: isMobile ? 'none' : undefined,
           boxShadow: isMobile
-            ? undefined
+            ? `0 -28px 90px rgba(0,0,0,0.56), 0 0 54px ${study.riff.color}14, inset 0 1px 0 rgba(255,255,255,0.1)`
             : `0 28px 90px rgba(0,0,0,0.5), 0 0 48px ${study.riff.color}12, inset 0 1px 0 rgba(255,255,255,0.08)`,
-          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : 'calc(100% + 1.5rem)'})`,
+          transform: isOpen ? 'translate(0, 0)' : isMobile ? 'translateY(calc(100% + 1rem))' : 'translateX(calc(100% + 1.5rem))',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease',
           backdropFilter: 'blur(22px)',
         }}
       >
+        {isMobile ? (
+          <div className="flex justify-center pt-2">
+            <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(255,209,102,0.16)]" />
+          </div>
+        ) : null}
         <div
-          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'px-5 py-4'}`}
+          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-3' : 'px-5 py-4'}`}
           style={{
             background: isMobile
               ? undefined
@@ -421,7 +441,7 @@ export default function RiffCycleSidebar({
             <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
                     Mode
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed text-white/42">
@@ -532,6 +552,14 @@ export default function RiffCycleSidebar({
 
           {activeTab === 'scenes' ? (
           <section className="space-y-3">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+              <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
+                Scenes
+              </div>
+              <div className="mt-1 text-[11px] leading-relaxed text-white/52">
+                Load a starting riff, then edit the pattern and ending from the main controls.
+              </div>
+            </div>
             {RIFF_CYCLE_PRESETS.map((preset) => {
               const active = preset.id === activePresetId;
               return (
@@ -546,7 +574,7 @@ export default function RiffCycleSidebar({
                     boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                   }}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     <RiffSceneThumbnail preset={preset} />
                     <div className="min-w-0 flex-1">
                       <div
@@ -562,19 +590,19 @@ export default function RiffCycleSidebar({
                         {preset.description}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => onLoadPreset(preset.id)}
+                      className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em] transition-all duration-200"
+                      style={{
+                        background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.06)',
+                        borderColor: active ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.12)',
+                        color: active ? '#72F1B8' : 'rgba(255,255,255,0.72)',
+                      }}
+                    >
+                      {active ? 'Loaded' : 'Load'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onLoadPreset(preset.id)}
-                    className="mt-3 w-full rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200"
-                    style={{
-                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.06)',
-                      border: `1px solid ${active ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.12)'}`,
-                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.72)',
-                    }}
-                  >
-                    {active ? 'Loaded' : 'Load Scene'}
-                  </button>
                 </div>
               );
             })}
@@ -1001,13 +1029,21 @@ export default function RiffCycleSidebar({
                 borderColor: 'rgba(255, 170, 0, 0.12)',
               }}
             >
-              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                PNG Export
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                    Image Export
+                  </div>
+                  <InfoTip text="Choose the crop shape, then choose output size. HD is smallest, 2K is sharper, 4K is best for large posts or prints." />
+                </div>
+                <div className="mt-1.5 text-[11px] leading-relaxed text-white/52">
+                  Save the current Riff canvas as a PNG image.
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  ['square', 'Square'],
-                  ['landscape', 'Wide'],
+                  ['square', 'Square Post'],
+                  ['landscape', 'HD Wide'],
                   ['story', 'Story'],
                 ] as const).map(([aspect, label]) => (
                   <button
@@ -1026,7 +1062,11 @@ export default function RiffCycleSidebar({
                 ))}
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {[1, 2, 4].map((scale) => (
+                {([
+                  [1, 'HD'],
+                  [2, '2K'],
+                  [4, '4K'],
+                ] as const).map(([scale, label]) => (
                   <button
                     key={scale}
                     type="button"
@@ -1038,7 +1078,7 @@ export default function RiffCycleSidebar({
                       color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
                     }}
                   >
-                    {scale}x
+                    {label}
                   </button>
                 ))}
               </div>
@@ -1066,8 +1106,11 @@ export default function RiffCycleSidebar({
                 borderColor: 'rgba(127, 215, 255, 0.14)',
               }}
             >
-              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                MIDI Export
+              <div className="flex items-center gap-2">
+                <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                  MIDI Export
+                </div>
+                <InfoTip text="MIDI exports the riff as note events for a DAW. Cycle includes the restart and ending behavior; Pattern is only the raw step pattern." />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {([
@@ -1089,10 +1132,10 @@ export default function RiffCycleSidebar({
                   </button>
                 ))}
               </div>
-              <div className="text-[11px] leading-relaxed text-white/46">
+              <div className="text-[11px] leading-relaxed text-white/52">
                 {exportMidiMode === 'cycle'
-                  ? 'Export the performed return cycle with tempo, time signature, phrase restarts, and ending logic.'
-                  : 'Export the raw riff pattern only, without the return-cycle ending render.'}
+                  ? 'Cycle includes bar timing, riff restarts, and ending slots.'
+                  : 'Pattern exports the riff steps only, without restart or ending behavior.'}
               </div>
               <button
                 type="button"
@@ -1122,7 +1165,7 @@ export default function RiffCycleSidebar({
                 borderColor: 'rgba(255, 170, 0, 0.12)',
               }}
             >
-              <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+              <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
                 Saved Scene
               </div>
               <div className="text-[11px] leading-relaxed text-white/46">

@@ -186,6 +186,14 @@ export default function OrbitSidebar({
     color: 'rgba(244, 250, 255, 0.9)',
     textShadow: '0 0 12px rgba(127,215,255,0.14)',
   } as const;
+  const mobilePrimaryTitleStyle = {
+    color: '#FFD166',
+    textShadow: '0 0 14px rgba(255,209,102,0.26)',
+  } as const;
+  const mobileSubTitleStyle = {
+    color: 'rgba(244,250,255,0.9)',
+    textShadow: '0 0 12px rgba(255,255,255,0.14)',
+  } as const;
   const sectionCopyStyle = {
     color: 'rgba(255, 255, 255, 0.48)',
   } as const;
@@ -253,14 +261,33 @@ export default function OrbitSidebar({
     borderColor: 'rgba(255, 170, 0, 0.1)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
-  const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
-    { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
-    { key: 'geometry', label: 'Orbit Mode', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
-    { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
-    { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
-    { key: 'export', label: 'Export', activeColor: '#FFAA00' },
-    { key: 'account', label: 'Account', activeColor: '#FFAA00' },
-  ];
+  const mobileSceneCardStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.044), rgba(255,255,255,0.024))',
+    borderColor: 'rgba(255, 255, 255, 0.085)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 14px 28px rgba(0,0,0,0.12)',
+  } as const;
+  const mobileSectionTitleClass = 'text-[12px] font-mono uppercase tracking-[0.22em]';
+  const mobileSubTitleClass = 'text-[10px] font-mono uppercase tracking-[0.18em]';
+  const getCompactDescription = (description: string) => {
+    const firstSentence = description.split('. ')[0]?.trim();
+    return firstSentence ? `${firstSentence.replace(/\.$/, '')}.` : description;
+  };
+  const exportScaleLabel = (scale?: number | null) =>
+    scale === 4 ? '4K' : scale === 2 ? '2K' : scale === 1 ? 'HD' : null;
+  const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = isMobile
+    ? [
+        { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
+        { key: 'export', label: 'Export', activeColor: '#FFAA00' },
+        { key: 'account', label: 'Account', activeColor: '#88CCFF' },
+      ]
+    : [
+        { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
+        { key: 'geometry', label: 'Orbit Mode', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
+        { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
+        { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
+        { key: 'export', label: 'Export', activeColor: '#FFAA00' },
+        { key: 'account', label: 'Account', activeColor: '#FFAA00' },
+      ];
   const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
     { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
     { key: 'interference-trace', label: 'Interference', color: '#88CCFF' },
@@ -287,7 +314,7 @@ export default function OrbitSidebar({
       {/* Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]"
           onClick={onClose}
           style={{ animation: 'fadeIn 0.2s ease-out' }}
         />
@@ -295,31 +322,59 @@ export default function OrbitSidebar({
 
       {/* Sidebar */}
       <div
-        className={`fixed z-50 flex flex-col overflow-hidden ${isMobile ? 'inset-0 w-full' : 'right-0 top-0 bottom-0 w-[31.5rem]'}`}
+        className={`fixed z-50 flex flex-col overflow-hidden ${
+          isMobile
+            ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
+            : 'right-0 top-0 bottom-0 w-[31.5rem]'
+        }`}
         style={{
           background: `
-            radial-gradient(circle at 88% 6%, rgba(127,215,255,0.08), transparent 22%),
-            radial-gradient(circle at 12% 0%, rgba(0,255,170,0.08), transparent 26%),
-            linear-gradient(180deg, rgba(17, 18, 26, 0.98), rgba(12, 14, 22, 0.96))
+            radial-gradient(circle at 88% 6%, rgba(127,215,255,${isMobile ? '0.18' : '0.08'}), transparent ${isMobile ? '34%' : '22%'}),
+            radial-gradient(circle at 12% 0%, rgba(0,255,170,${isMobile ? '0.14' : '0.08'}), transparent ${isMobile ? '38%' : '26%'}),
+            linear-gradient(180deg, rgba(17, 18, 26, ${isMobile ? '0.94' : '0.98'}), rgba(8, 10, 16, ${isMobile ? '0.9' : '0.96'}))
           `,
           backdropFilter: 'blur(20px)',
-          borderLeft: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: isMobile ? undefined : '-24px 0 60px rgba(0,0,0,0.34)',
-          transform: isOpen ? 'translateX(0)' : `translateX(${isMobile ? '0' : '100%'})`,
+          borderColor: isMobile ? 'rgba(127,215,255,0.16)' : undefined,
+          borderLeft: isMobile ? undefined : '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: isMobile
+            ? '0 -28px 90px rgba(0,0,0,0.56), 0 0 54px rgba(127,215,255,0.12), inset 0 1px 0 rgba(255,255,255,0.1)'
+            : '-24px 0 60px rgba(0,0,0,0.34)',
+          transform: isOpen ? 'translate(0, 0)' : isMobile ? 'translateY(calc(100% + 1rem))' : 'translateX(100%)',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
+        {isMobile ? (
+          <div className="flex justify-center pt-2">
+            <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(127,215,255,0.16)]" />
+          </div>
+        ) : null}
         {/* Header */}
-        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-4' : 'p-6'}`}>
-          <div className="space-y-1">
-            <div className="text-[10px] font-mono uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Menu
+        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-3' : 'p-6'}`}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: ratioAccentColor,
+                  boxShadow: `0 0 18px ${ratioAccentColor}66`,
+                }}
+              />
+              <h2 className="text-sm font-light tracking-[0.24em] uppercase" style={{ color: 'rgba(244,250,255,0.88)', textShadow: '0 0 12px rgba(127,215,255,0.14)' }}>
+                {isMobile ? 'Orbit Menu' : 'Orbit Controls'}
+              </h2>
             </div>
-            <h2 className="text-sm font-light tracking-[0.24em] uppercase" style={{ color: 'rgba(244,250,255,0.88)', textShadow: '0 0 12px rgba(127,215,255,0.14)' }}>
-              Orbit Controls
-            </h2>
+            {isMobile ? (
+              <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                Scenes, export, and account tools for Orbit.
+              </div>
+            ) : null}
+            {!isMobile ? (
+              <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/34">
+                scenes · export · account
+              </div>
+            ) : null}
           </div>
           <button
             onClick={onClose}
@@ -333,33 +388,45 @@ export default function OrbitSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-white/36">
-              Mode
-            </div>
-            <div className="flex gap-2">
-              {([
-                ['orbital', 'Orbit'],
-                ['polyrhythm-study', 'Study'],
-                ['riff-cycle-study', 'Riff'],
-                ['flow', 'Flow'],
-              ] as const).map(([surfaceId, label]) => {
-                const active = currentSurface === surfaceId;
-                return (
-                  <button
-                    key={surfaceId}
-                    type="button"
-                    onClick={() => onSurfaceChange(surfaceId)}
-                    className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
-                      borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                      color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
+                    Mode
+                  </div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+                    Switch between Orbit, Study, and Riff.
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                  3 Modes
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {([
+                  ['orbital', 'Orbit'],
+                  ['polyrhythm-study', 'Study'],
+                  ['riff-cycle-study', 'Riff'],
+                ] as const).map(([surfaceId, label]) => {
+                  const active = currentSurface === surfaceId;
+                  return (
+                    <button
+                      key={surfaceId}
+                      type="button"
+                      onClick={() => onSurfaceChange(surfaceId)}
+                      className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
+                        borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                        color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
+                        boxShadow: active ? '0 0 0 1px rgba(114,241,184,0.12) inset, 0 10px 24px rgba(0,0,0,0.18)' : 'none',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}
@@ -377,7 +444,7 @@ export default function OrbitSidebar({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-xl border text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-3' : 'px-3 py-2.5'}`}
+              className={`shrink-0 rounded-xl border text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-2.5' : 'px-3 py-2.5'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
@@ -394,15 +461,7 @@ export default function OrbitSidebar({
         {/* Content */}
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-4'}`}>
           {activeTab === 'account' && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
-                  Account
-                </div>
-                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Sign in, review your plan, and manage account access from one place.
-                </p>
-              </div>
+            <div className="space-y-3">
               <AccountPanel />
             </div>
           )}
@@ -694,26 +753,26 @@ export default function OrbitSidebar({
 
           {/* SCENES TAB */}
           {activeTab === 'scenes' && (
-            <div className="space-y-4">
+            <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
               <div className="space-y-1">
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
+                <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
                   Scenes
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Start from built-ins, keep your own saves, or preview pro-only scene packs.
+                  Load a starting point, save your own, or preview Pro scenes.
                 </p>
               </div>
 
-              <div className="rounded-xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+              <div className="rounded-2xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                 {[
                   { key: 'built-in' as const, label: 'Scenes', color: '#00FFAA' },
                   { key: 'saved' as const, label: 'Saved', color: '#88CCFF' },
-                  { key: 'premium' as const, label: 'Premium', color: '#FFAA00' },
+                  { key: 'premium' as const, label: 'Pro', color: '#FFAA00' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveSceneTab(tab.key)}
-                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
+                    className="flex-1 px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
                     style={{
                       background: activeSceneTab === tab.key ? `${tab.color}16` : 'transparent',
                       border: `1px solid ${activeSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
@@ -725,16 +784,16 @@ export default function OrbitSidebar({
                 ))}
               </div>
 
-              <div className="rounded-xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+              <div className="rounded-[1.15rem] border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
                 {sceneModeTabs.map((mode) => (
                   <button
                     key={mode.key}
                     onClick={() => setActiveSceneMode(mode.key)}
-                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
+                    className="flex-1 px-2.5 py-2 rounded-[0.9rem] text-[9px] font-mono uppercase tracking-[0.13em] transition-all duration-200"
                     style={{
-                      background: activeSceneMode === mode.key ? `${mode.color}16` : 'transparent',
-                      border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}45` : 'transparent'}`,
-                      color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.46)',
+                      background: activeSceneMode === mode.key ? `${mode.color}12` : 'transparent',
+                      border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}32` : 'transparent'}`,
+                      color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.42)',
                     }}
                   >
                     {mode.label}
@@ -743,7 +802,7 @@ export default function OrbitSidebar({
               </div>
 
               {activeSceneTab === 'built-in' && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {filteredBuiltInScenes.length === 0 ? (
                     <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
                       No {sceneModeLabel.toLowerCase()} scenes in this set yet.
@@ -751,47 +810,46 @@ export default function OrbitSidebar({
                   ) : filteredBuiltInScenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="rounded-[1.25rem] border p-3.5"
-                      style={sceneCardStyle}
+                      className="rounded-2xl border p-3"
+                      style={isMobile ? mobileSceneCardStyle : sceneCardStyle}
                     >
-                      {scene.thumbnailDataUrl && (
-                        <div className="mb-3 flex justify-center">
+                      <div className="flex items-center gap-3">
+                        {scene.thumbnailDataUrl ? (
                           <img
                             src={scene.thumbnailDataUrl}
                             alt={`${scene.name} thumbnail`}
-                            className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1"
+                            className={`${isMobile ? 'h-16 w-16' : 'h-24 w-24'} shrink-0 rounded-xl border border-white/10 object-contain p-1`}
                             style={{ background: 'rgba(255,255,255,0.02)' }}
                           />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-mono uppercase tracking-[0.16em]" style={isMobile ? mobileSubTitleStyle : { color: 'rgba(255,255,255,0.86)' }}>
+                            {scene.name}
+                          </div>
+                          <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.48)' }}>
+                            {isMobile ? getCompactDescription(scene.description) : scene.description}
+                          </div>
                         </div>
-                      )}
-                      <div className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.88)' }}>
-                        {scene.name}
+                        <button
+                          onClick={() => onLoadBuiltInScene(scene.id)}
+                          className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em] transition-all duration-200 hover:bg-white/5"
+                          style={{
+                            background: 'rgba(0, 255, 170, 0.08)',
+                            borderColor: 'rgba(0, 255, 170, 0.2)',
+                            color: '#00FFAA',
+                          }}
+                        >
+                          Load
+                        </button>
                       </div>
-                      <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                        {sceneModeLabel}
-                      </div>
-                      <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
-                        {scene.description}
-                      </div>
-                      <button
-                        onClick={() => onLoadBuiltInScene(scene.id)}
-                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                        style={{
-                          background: 'rgba(0, 255, 170, 0.08)',
-                          border: '1px solid rgba(0, 255, 170, 0.2)',
-                          color: '#00FFAA',
-                        }}
-                      >
-                        Load Scene
-                      </button>
                     </div>
                   ))}
                 </div>
               )}
 
               {activeSceneTab === 'saved' && (
-                <div className="space-y-3">
-                  <div className="space-y-3 rounded-[1.25rem] border p-3.5" style={sceneCardStyle}>
+                <div className="space-y-2.5">
+                  <div className="space-y-3 rounded-2xl border p-3.5" style={isMobile ? mobileSceneCardStyle : sceneCardStyle}>
                     <div
                       className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
                       style={{
@@ -869,41 +927,38 @@ export default function OrbitSidebar({
                     filteredSavedScenes.map((scene) => (
                       <div
                         key={scene.id}
-                        className="rounded-[1.25rem] border p-3.5"
-                        style={baseCardStyle}
+                        className="rounded-2xl border p-3"
+                        style={isMobile ? mobileSceneCardStyle : baseCardStyle}
                       >
-                        {scene.thumbnailDataUrl && (
-                          <div className="mb-3 flex justify-center">
+                        <div className="flex items-center gap-3">
+                          {scene.thumbnailDataUrl ? (
                             <img
                               src={scene.thumbnailDataUrl}
                               alt={`${scene.name} thumbnail`}
-                              className="w-20 h-20 rounded-lg object-contain border border-white/10 p-1"
+                              className="h-14 w-14 shrink-0 rounded-xl object-contain border border-white/10 p-1"
                               style={{ background: 'rgba(255,255,255,0.02)' }}
                             />
-                          </div>
-                        )}
-                        <div className="flex items-start justify-between gap-3">
+                          ) : null}
                           <div className="min-w-0">
-                            <div className="text-xs font-mono truncate" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                            <div className="truncate text-xs font-mono uppercase tracking-[0.14em]" style={mobileSubTitleStyle}>
                               {scene.name}
-                            </div>
-                            <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                              {sceneModeLabel}
                             </div>
                             <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
                               {new Date(scene.updatedAt).toLocaleString()}
                             </div>
                           </div>
-                          <button
-                            onClick={() => onDeleteScene(scene.id)}
-                            className="p-1 rounded transition-colors hover:bg-red-500/10"
-                            style={{ color: 'rgba(255, 99, 132, 0.8)' }}
-                            title="Delete scene"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                            <button
+                              onClick={() => onDeleteScene(scene.id)}
+                              className="rounded-lg p-2 transition-colors hover:bg-red-500/10"
+                              style={{ color: 'rgba(255, 99, 132, 0.8)' }}
+                              title="Delete scene"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2 mt-3">
+                        <div className="mt-3 flex gap-2">
                           <button
                             onClick={() => onLoadScene(scene.id)}
                             className="flex-1 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
@@ -934,9 +989,9 @@ export default function OrbitSidebar({
               )}
 
               {activeSceneTab === 'premium' && (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <div
-                    className="rounded-[1.25rem] border p-3.5"
+                    className="rounded-2xl border p-3.5"
                     style={{
                       background: 'linear-gradient(180deg, rgba(255,170,0,0.08), rgba(255,255,255,0.025))',
                       borderColor: 'rgba(255, 170, 0, 0.16)',
@@ -956,32 +1011,27 @@ export default function OrbitSidebar({
                   ) : filteredPremiumScenes.map((scene) => (
                     <div
                       key={scene.id}
-                      className="rounded-[1.25rem] border p-3.5"
-                      style={{
+                      className="rounded-2xl border p-3"
+                      style={isMobile ? mobileSceneCardStyle : {
                         background: 'linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.025))',
                         borderColor: 'rgba(255, 170, 0, 0.14)',
                       }}
                     >
-                      {scene.thumbnailDataUrl && (
-                        <div className="mb-3 flex justify-center">
+                      <div className="flex items-center gap-3">
+                        {scene.thumbnailDataUrl ? (
                           <img
                             src={scene.thumbnailDataUrl}
                             alt={`${scene.name} thumbnail`}
-                            className="w-24 h-24 rounded-lg object-contain border border-white/10 p-1 opacity-90"
+                            className="h-16 w-16 shrink-0 rounded-xl object-contain border border-white/10 p-1 opacity-90"
                             style={{ background: 'rgba(255,255,255,0.02)' }}
                           />
-                        </div>
-                      )}
-                      <div className="flex items-start justify-between gap-3">
+                        ) : null}
                         <div className="min-w-0">
-                          <div className="text-xs font-mono truncate" style={{ color: 'rgba(255,255,255,0.84)' }}>
+                          <div className="truncate text-xs font-mono uppercase tracking-[0.14em]" style={mobileSubTitleStyle}>
                             {scene.name}
                           </div>
-                          <div className="text-[10px] mt-1 font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.32)' }}>
-                            {sceneModeLabel}
-                          </div>
                           <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                            {scene.description}
+                            {isMobile ? getCompactDescription(scene.description) : scene.description}
                           </div>
                         </div>
                         <div
@@ -993,7 +1043,7 @@ export default function OrbitSidebar({
                       </div>
                       <button
                         onClick={() => onLoadBuiltInScene(scene.id)}
-                        className="w-full mt-3 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                        className="mt-3 w-full rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 hover:bg-white/5"
                         style={{
                           background: 'rgba(255, 170, 0, 0.1)',
                           border: '1px solid rgba(255, 170, 0, 0.22)',
@@ -1011,13 +1061,13 @@ export default function OrbitSidebar({
 
           {/* EXPORT TAB */}
           {activeTab === 'export' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="space-y-1">
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
+                <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
                   Export
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Export clean stills, short motion loops, or scene files.
+                  Save an image, record motion, export MIDI, or move the editable scene.
                 </p>
               </div>
 
@@ -1025,8 +1075,11 @@ export default function OrbitSidebar({
                 className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Image Export
+                <div className="flex items-center gap-2">
+                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
+                    Image Export
+                  </div>
+                  <InfoTip text="Choose the crop shape, then choose output size. HD is smallest, 2K is sharper, 4K is best for large posts or prints." />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <select
@@ -1071,8 +1124,11 @@ export default function OrbitSidebar({
                 className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Motion Export
+                <div className="flex items-center gap-2">
+                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
+                    Motion Export
+                  </div>
+                  <InfoTip text="Records the canvas motion as a short WebM loop from the start of the cycle. PNG is more reliable on iPhone." />
                 </div>
                 <div className="grid grid-cols-[1fr,auto] gap-2">
                   <select
@@ -1110,11 +1166,14 @@ export default function OrbitSidebar({
                 className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  MIDI Export
+                <div className="flex items-center gap-2">
+                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
+                    MIDI Export
+                  </div>
+                  <InfoTip text="Exports note triggers that match the orbit hits. Use this if you want to edit the rhythm in a DAW." />
                 </div>
-                <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.46)' }}>
-                  Export the merged Orbit trigger field as MIDI over a fixed bar window.
+                <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
+                  Send Orbit hits to a DAW as notes. Choose how many bars to capture.
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {([4, 8, 16] as const).map((bars) => (
@@ -1153,8 +1212,11 @@ export default function OrbitSidebar({
                 className="rounded-[1.25rem] border p-3.5 space-y-3"
                 style={exportCardStyle}
               >
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Scene Files
+                <div className="flex items-center gap-2">
+                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
+                    Scene Files
+                  </div>
+                  <InfoTip text="Scene files save the editable setup, not just a picture. Use them to move a scene between devices." />
                 </div>
                 <button
                   onClick={() => importInputRef.current?.click()}
@@ -1203,7 +1265,7 @@ export default function OrbitSidebar({
                 }}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
                     Export History
                   </div>
                   <div
@@ -1251,7 +1313,7 @@ export default function OrbitSidebar({
                         <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
                           {new Date(record.createdAt).toLocaleString()}
                           {record.aspect ? ` · ${record.aspect}` : ''}
-                          {record.scale ? ` · ${record.scale}x` : ''}
+                          {exportScaleLabel(record.scale) ? ` · ${exportScaleLabel(record.scale)}` : ''}
                           {record.durationSeconds ? ` · ${record.durationSeconds}s` : ''}
                         </div>
                       </div>
