@@ -211,6 +211,16 @@ export default function TransportBar({
   const mobileIconButtonStyle = "px-2 py-2 rounded-lg transition-all duration-200 active:scale-95 flex flex-col items-center gap-1 min-w-[56px]";
   const directionButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-3 py-2' : 'px-3 py-2 hover:scale-105'}`;
   const compactButtonStyle = `rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all duration-200 active:scale-95 ${isMobile ? 'px-2 py-2' : 'px-2 py-1.5 hover:scale-105'}`;
+  const mobilePanelTitleClass = 'text-[11px] font-mono font-semibold uppercase tracking-[0.2em]';
+  const mobilePanelTitleStyle = {
+    color: 'rgba(255,226,158,0.94)',
+    textShadow: '0 0 14px rgba(255,209,102,0.3), 0 0 26px rgba(255,209,102,0.12)',
+  } as const;
+  const mobilePanelSubtitleClass = 'text-[10px] font-mono font-semibold uppercase tracking-[0.18em]';
+  const mobilePanelSubtitleStyle = {
+    color: 'rgba(244,250,255,0.86)',
+    textShadow: '0 0 12px rgba(255,255,255,0.24), 0 0 22px rgba(136,204,255,0.1)',
+  } as const;
   const desktopUtilityButtonStyle = "h-10 rounded-2xl border px-3.5 inline-flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98]";
   const desktopDockPanelStyle = {
     background: 'transparent',
@@ -1499,6 +1509,9 @@ export default function TransportBar({
               borderColor: 'rgba(255, 255, 255, 0.08)',
             }}
           >
+            <div className={mobilePanelTitleClass} style={mobilePanelTitleStyle}>
+              Playback
+            </div>
             <div className="grid grid-cols-5 gap-2">
               <button
                 onClick={onTogglePlay}
@@ -1570,8 +1583,8 @@ export default function TransportBar({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <Zap size={14} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                  <Zap size={14} style={{ color: 'rgba(244,250,255,0.72)', filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.2))' }} />
+                  <span className={mobilePanelSubtitleClass} style={mobilePanelSubtitleStyle}>
                     Tempo
                   </span>
                 </div>
@@ -1826,7 +1839,7 @@ export default function TransportBar({
           </div>
         </div>
 
-        {/* Right: Audio + Fullscreen + Help + Menu */}
+        {/* Right: Sound + Fullscreen + Help + Menu */}
         <div className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"

@@ -2,6 +2,7 @@ import {
   type ButtonHTMLAttributes,
   type CSSProperties,
   type HTMLAttributes,
+  type MouseEvent,
   type ReactNode,
 } from 'react';
 import { Lock } from 'lucide-react';
@@ -25,45 +26,45 @@ function getToneStyles(tone: ShellTone, highlighted: boolean): CSSProperties {
   switch (tone) {
     case 'green':
       return {
-        background: 'rgba(114,241,184,0.16)',
-        borderColor: 'rgba(114,241,184,0.28)',
+        background: 'rgba(114,241,184,0.1)',
+        borderColor: 'rgba(114,241,184,0.22)',
         color: '#72F1B8',
-        boxShadow: '0 0 0 1px rgba(114,241,184,0.16) inset',
+        boxShadow: '0 0 0 1px rgba(114,241,184,0.1) inset',
       };
     case 'blue':
       return {
-        background: 'rgba(127,215,255,0.14)',
-        borderColor: 'rgba(127,215,255,0.24)',
+        background: 'rgba(127,215,255,0.09)',
+        borderColor: 'rgba(127,215,255,0.2)',
         color: '#7FD7FF',
-        boxShadow: '0 0 0 1px rgba(127,215,255,0.16) inset',
+        boxShadow: '0 0 0 1px rgba(127,215,255,0.1) inset',
       };
     case 'amber':
       return {
-        background: 'rgba(255,170,0,0.12)',
-        borderColor: 'rgba(255,170,0,0.22)',
+        background: 'rgba(255,170,0,0.08)',
+        borderColor: 'rgba(255,170,0,0.18)',
         color: '#FFAA00',
-        boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
+        boxShadow: '0 0 0 1px rgba(255,170,0,0.09) inset',
       };
     case 'pink':
       return {
-        background: 'rgba(255,136,194,0.12)',
-        borderColor: 'rgba(255,136,194,0.24)',
+        background: 'rgba(255,136,194,0.08)',
+        borderColor: 'rgba(255,136,194,0.19)',
         color: '#FF88C2',
-        boxShadow: '0 0 0 1px rgba(255,136,194,0.14) inset',
+        boxShadow: '0 0 0 1px rgba(255,136,194,0.09) inset',
       };
     case 'red':
       return {
-        background: 'rgba(255,51,102,0.18)',
-        borderColor: 'rgba(255,51,102,0.3)',
+        background: 'rgba(255,51,102,0.13)',
+        borderColor: 'rgba(255,51,102,0.25)',
         color: '#FF3366',
-        boxShadow: '0 0 0 1px rgba(255,51,102,0.16) inset',
+        boxShadow: '0 0 0 1px rgba(255,51,102,0.1) inset',
       };
     case 'neutral':
     default:
       return {
-        background: 'rgba(255,255,255,0.1)',
-        borderColor: 'rgba(255,255,255,0.18)',
-        color: 'rgba(255,255,255,0.88)',
+        background: 'rgba(255,255,255,0.075)',
+        borderColor: 'rgba(255,255,255,0.16)',
+        color: 'rgba(255,255,255,0.84)',
       };
   }
 }
@@ -174,12 +175,15 @@ interface StudyShellButtonProps
   highlighted?: boolean;
   size?: ShellButtonSize;
   locked?: boolean;
+  onLockedClick?: () => void;
 }
 
 export function StudyShellButton({
   children,
   className = '',
   icon,
+  onClick,
+  onLockedClick,
   tone = 'neutral',
   highlighted = false,
   size = 'default',
@@ -187,9 +191,19 @@ export function StudyShellButton({
   style,
   ...props
 }: StudyShellButtonProps) {
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (locked && onLockedClick) {
+      event.preventDefault();
+      onLockedClick();
+      return;
+    }
+    onClick?.(event);
+  };
+
   return (
     <button
       type="button"
+      onClick={handleClick}
       className={`relative inline-flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap border text-[10px] font-mono uppercase tracking-[0.15em] transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${getButtonSizeClass(
         size,
       )} ${className}`}

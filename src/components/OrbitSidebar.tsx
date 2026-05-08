@@ -3,8 +3,8 @@
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
-import { X, Plus, Trash2, ChevronDown, RotateCcw } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { X, Plus, Trash2, ChevronDown, RotateCcw, Lock } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_ORBIT_COUNT_MODE,
   ENABLE_STANDARD_TURNS_PER_CYCLE,
@@ -94,6 +94,10 @@ interface OrbitSidebarProps {
   onExportMidi: (options: { bars: 4 | 8 | 16 }) => void;
   isRecordingVideo: boolean;
   onHardReset: () => void;
+  lockedFeatures?: {
+    colorEditing?: boolean;
+  };
+  onLockedFeature?: (feature: 'color-editing') => void;
 }
 
 const COLORS = [
@@ -150,10 +154,12 @@ export default function OrbitSidebar({
   onExportMidi,
   isRecordingVideo,
   onHardReset,
+  lockedFeatures = {},
+  onLockedFeature,
 }: OrbitSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
-  const [activeTab, setActiveTab] = useState<'account' | 'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('account');
+  const [activeTab, setActiveTab] = useState<'account' | 'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
   const [activeSceneTab, setActiveSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [activeSceneMode, setActiveSceneMode] = useState<GeometryMode>('standard-trace');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
@@ -248,12 +254,12 @@ export default function OrbitSidebar({
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = [
-    { key: 'account', label: 'Account', activeColor: '#FFAA00' },
     { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
     { key: 'geometry', label: 'Orbit Mode', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
     { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
     { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
     { key: 'export', label: 'Export', activeColor: '#FFAA00' },
+    { key: 'account', label: 'Account', activeColor: '#FFAA00' },
   ];
   const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
     { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
@@ -269,6 +275,12 @@ export default function OrbitSidebar({
       : activeSceneMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
+
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      setActiveTab('scenes');
+    }
+  }, [isMobile, isOpen]);
 
   return (
     <>
@@ -563,14 +575,29 @@ export default function OrbitSidebar({
                             {COLORS.map((color) => (
                               <button
                                 key={color}
-                                onClick={() => onUpdateOrbit(orbit.id, { color })}
-                                className="w-full aspect-square rounded-md transition-all duration-200 hover:scale-110"
-                                style={{
-                                  background: color,
-                                  boxShadow: orbit.color === color ? `0 0 12px ${color}` : 'none',
-                                  border: orbit.color === color ? `2px solid ${color}` : '1px solid rgba(255, 255, 255, 0.2)',
+                                onClick={() => {
+                                  if (lockedFeatures.colorEditing) {
+                                    onLockedFeature?.('color-editing');
+                                    return;
+                                  }
+                                  onUpdateOrbit(orbit.id, { color });
                                 }}
-                              />
+                                className="relative w-full aspect-square overflow-hidden rounded-md transition-all duration-200 hover:scale-110"
+                                style={{
+                                  background: lockedFeatures.colorEditing ? 'rgba(255,255,255,0.035)' : color,
+                                  boxShadow: !lockedFeatures.colorEditing && orbit.color === color ? `0 0 12px ${color}` : 'none',
+                                  border: lockedFeatures.colorEditing
+                                    ? '1px solid rgba(255, 255, 255, 0.1)'
+                                    : orbit.color === color ? `2px solid ${color}` : '1px solid rgba(255, 255, 255, 0.2)',
+                                  filter: lockedFeatures.colorEditing ? 'grayscale(0.6)' : undefined,
+                                }}
+                              >
+                                {lockedFeatures.colorEditing ? (
+                                  <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
+                                    <Lock size={8} strokeWidth={2.4} />
+                                  </span>
+                                ) : null}
+                              </button>
                             ))}
                           </div>
                         </div>

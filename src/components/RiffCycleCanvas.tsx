@@ -68,6 +68,7 @@ interface RiffCycleCanvasProps {
   layoutBottomInset?: number;
   laneWindowStartStep?: number;
   laneWindowStepCount?: number;
+  endingCycleGuideBarCount?: number;
   displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
   playbackStateRef?: MutableRefObject<RiffCyclePlaybackState>;
@@ -270,6 +271,7 @@ export default function RiffCycleCanvas({
   layoutBottomInset = 0,
   laneWindowStartStep,
   laneWindowStepCount,
+  endingCycleGuideBarCount,
   displaySettings = DEFAULT_RIFF_DISPLAY_SETTINGS,
   presentationMode = false,
   playbackStateRef,
@@ -306,6 +308,7 @@ export default function RiffCycleCanvas({
   const layoutBottomInsetRef = useRef(layoutBottomInset);
   const laneWindowStartStepRef = useRef(laneWindowStartStep);
   const laneWindowStepCountRef = useRef(laneWindowStepCount);
+  const endingCycleGuideBarCountRef = useRef(endingCycleGuideBarCount);
   const displaySettingsRef = useRef(displaySettings);
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
@@ -334,6 +337,7 @@ export default function RiffCycleCanvas({
   layoutBottomInsetRef.current = layoutBottomInset;
   laneWindowStartStepRef.current = laneWindowStartStep;
   laneWindowStepCountRef.current = laneWindowStepCount;
+  endingCycleGuideBarCountRef.current = endingCycleGuideBarCount;
   displaySettingsRef.current = displaySettings;
   presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
@@ -452,7 +456,6 @@ export default function RiffCycleCanvas({
       landingWindowLength;
     const finalBarStartStep = Math.max(0, landingWindowLength - stepsPerBar);
     const landingReferenceOverlayVisible =
-      currentStudy.viewMode !== 'unwrapped' &&
       currentStudy.landingEditEnabled &&
       (landingReferenceOverlayMode === 'always' ||
         (landingReferenceOverlayMode === 'auto' &&
@@ -922,6 +925,16 @@ export default function RiffCycleCanvas({
       const visibleEndStep = visibleStartStep + visibleStepCount;
       const visibleBarStart = Math.floor(visibleStartStep / metrics.stepsPerBar);
       const visibleBarEnd = Math.ceil(visibleEndStep / metrics.stepsPerBar);
+      const endingGuideBarCount =
+        endingCycleGuideBarCountRef.current == null
+          ? null
+          : Math.max(1, Math.floor(endingCycleGuideBarCountRef.current));
+      const currentAbsoluteBar = Math.floor(currentAbsoluteReferenceStep / metrics.stepsPerBar);
+      const currentEndingGuideBar =
+        endingGuideBarCount == null
+          ? null
+          : ((currentAbsoluteBar % endingGuideBarCount) + endingGuideBarCount) %
+            endingGuideBarCount;
       const playheadVisible =
         currentLaneReferenceStep >= visibleStartStep && currentLaneReferenceStep < visibleEndStep;
       const playheadX = playheadVisible
@@ -942,10 +955,55 @@ export default function RiffCycleCanvas({
         const barEndStep = Math.min(visibleEndStep, (barIndex + 1) * metrics.stepsPerBar);
         const barX = x + (barStartStep - visibleStartStep) * stepWidth;
         const barWidth = Math.max(0, (barEndStep - barStartStep) * stepWidth);
+        const endingGuideBar =
+          endingGuideBarCount == null
+            ? null
+            : ((barIndex % endingGuideBarCount) + endingGuideBarCount) % endingGuideBarCount;
+        const showEndingGuideBar =
+          endingGuideBarCount != null && endingGuideBarCount > 1;
+        const isEndingGuideBar =
+          showEndingGuideBar && endingGuideBar === endingGuideBarCount - 1;
+        const isCurrentEndingGuideBar =
+          showEndingGuideBar && endingGuideBar === currentEndingGuideBar;
         ctx.save();
-        ctx.fillStyle =
-          barIndex % 2 === 0 ? 'rgba(255,255,255,0.012)' : 'rgba(255,255,255,0.028)';
+        ctx.fillStyle = isCurrentEndingGuideBar
+          ? isEndingGuideBar
+            ? 'rgba(127,215,255,0.2)'
+            : `${currentStudy.riff.color}18`
+          : isEndingGuideBar
+            ? 'rgba(127,215,255,0.11)'
+            : barIndex % 2 === 0
+              ? 'rgba(255,255,255,0.012)'
+              : 'rgba(255,255,255,0.028)';
         ctx.fillRect(barX, y + 10, barWidth, height - 20);
+        if (endingGuideBarCount != null && barWidth > 18) {
+          ctx.lineWidth = isCurrentEndingGuideBar ? 1.4 : 1;
+          ctx.strokeStyle = isCurrentEndingGuideBar
+            ? isEndingGuideBar
+              ? 'rgba(127,215,255,0.62)'
+              : `${currentStudy.riff.color}88`
+            : isEndingGuideBar
+              ? 'rgba(127,215,255,0.36)'
+              : 'rgba(255,255,255,0.08)';
+          ctx.strokeRect(barX + 1, y + 11, Math.max(0, barWidth - 2), height - 22);
+          if (isCurrentEndingGuideBar || isEndingGuideBar) {
+            ctx.font = `${compactMobileTimeline ? 7 : 8}px "SF Mono", "Fira Code", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = isEndingGuideBar ? '#7FD7FF' : 'rgba(255,255,255,0.74)';
+            ctx.shadowBlur = isCurrentEndingGuideBar ? 10 * glowMultiplier : 4 * glowMultiplier;
+            ctx.shadowColor = isEndingGuideBar
+              ? 'rgba(127,215,255,0.34)'
+              : `${currentStudy.riff.color}55`;
+            if (showEndingGuideBar || isCurrentEndingGuideBar) {
+              ctx.fillText(
+                isEndingGuideBar ? 'ENDING' : 'NOW',
+                barX + barWidth / 2,
+                y + height - (compactMobileTimeline ? 28 : 32),
+              );
+            }
+          }
+        }
         ctx.restore();
       }
 
@@ -1393,7 +1451,7 @@ export default function RiffCycleCanvas({
         playbackDriverRef.current &&
         currentAbsoluteReferenceStep !== playbackState.previousReferenceStep
       ) {
-        onReferenceStepChangeRef.current?.(currentDisplayReferenceStep);
+        onReferenceStepChangeRef.current?.(currentAbsoluteReferenceStep);
       }
       if (
         playbackDriverRef.current &&
@@ -1470,7 +1528,15 @@ export default function RiffCycleCanvas({
 
   useEffect(() => {
     draw();
-  }, [draw, study, viewModeOverride, layoutBottomInset, laneWindowStartStep, laneWindowStepCount]);
+  }, [
+    draw,
+    study,
+    viewModeOverride,
+    layoutBottomInset,
+    laneWindowStartStep,
+    laneWindowStepCount,
+    endingCycleGuideBarCount,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

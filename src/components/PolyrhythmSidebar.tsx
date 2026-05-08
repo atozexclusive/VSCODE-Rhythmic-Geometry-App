@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Lock,
   RotateCcw,
   RotateCw,
   X,
@@ -61,6 +62,10 @@ interface PolyrhythmSidebarProps {
   onExportScene: () => void;
   onSaveScene: () => void;
   onHardRefresh: () => void;
+  lockedFeatures?: {
+    colorEditing?: boolean;
+  };
+  onLockedFeature?: (feature: 'color-editing') => void;
 }
 
 type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export' | 'account';
@@ -240,9 +245,11 @@ export default function PolyrhythmSidebar({
   onExportScene,
   onSaveScene,
   onHardRefresh,
+  lockedFeatures = {},
+  onLockedFeature,
 }: PolyrhythmSidebarProps) {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>(isMobile ? 'account' : 'scenes');
+  const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
@@ -271,14 +278,14 @@ export default function PolyrhythmSidebar({
 
   const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = isMobile
     ? [
-        { id: 'account', label: 'Account', color: '#88CCFF' },
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
+        { id: 'account', label: 'Account', color: '#88CCFF' },
       ]
     : [
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
         { id: 'layers', label: 'Layers', color: selectedLayer?.color ?? '#7FD7FF' },
-        { id: 'sound', label: 'Audio', color: '#88CCFF' },
+        { id: 'sound', label: 'Sound', color: '#88CCFF' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#88CCFF' },
       ];
@@ -288,10 +295,10 @@ export default function PolyrhythmSidebar({
   }));
 
   useEffect(() => {
-    if (isMobile) {
-      setActiveTab('account');
+    if (isMobile && isOpen) {
+      setActiveTab('scenes');
     }
-  }, [isMobile]);
+  }, [isMobile, isOpen]);
 
   useEffect(() => {
     if (!exportNotice) {
@@ -718,14 +725,27 @@ export default function PolyrhythmSidebar({
                             <button
                               key={color}
                               type="button"
-                              onClick={() => onUpdateLayer(selectedLayer.id, { color })}
-                              className="h-9 rounded-lg border transition-transform active:scale-[0.97]"
-                              style={{
-                                background: `${color}18`,
-                                borderColor: active ? `${color}aa` : `${color}44`,
-                                boxShadow: active ? `0 0 0 1px ${color}aa inset` : 'none',
+                              onClick={() => {
+                                if (lockedFeatures.colorEditing) {
+                                  onLockedFeature?.('color-editing');
+                                  return;
+                                }
+                                onUpdateLayer(selectedLayer.id, { color });
                               }}
-                            />
+                              className="relative h-9 overflow-hidden rounded-lg border transition-transform active:scale-[0.97]"
+                              style={{
+                                background: lockedFeatures.colorEditing ? 'rgba(255,255,255,0.035)' : `${color}18`,
+                                borderColor: lockedFeatures.colorEditing ? 'rgba(255,255,255,0.1)' : active ? `${color}aa` : `${color}44`,
+                                boxShadow: lockedFeatures.colorEditing ? 'none' : active ? `0 0 0 1px ${color}aa inset` : 'none',
+                                filter: lockedFeatures.colorEditing ? 'grayscale(0.6)' : undefined,
+                              }}
+                            >
+                              {lockedFeatures.colorEditing ? (
+                                <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
+                                  <Lock size={8} strokeWidth={2.4} />
+                                </span>
+                              ) : null}
+                            </button>
                           );
                         })}
                       </div>
@@ -1087,7 +1107,7 @@ export default function PolyrhythmSidebar({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                      Audio
+                      Sound
                     </div>
                     <div className="mt-1 text-[11px] text-white/52">
                       Focus one layer or hear the full stack.

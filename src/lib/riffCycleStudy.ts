@@ -1094,35 +1094,9 @@ function withPhraseMask(
 
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   withPhraseMask(
-    'seventeen-free',
-    'Rational Drift',
-    'A 17-step line drifting across a straight 4/4 frame with no forced return.',
-    { numerator: 4, denominator: 4, subdivision: 16, bpm: 112, barCountForDisplay: 4 },
-    {
-      stepCount: 17,
-      activeSteps: [true, false, false, true, false, true, false, false, true, false, true, false, false, true, false, true, false],
-      accents: [true, false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-      resetMode: 'free',
-      color: RIFF_CYCLE_COLORS[0],
-      pitchHz: 118,
-      gain: 0.13,
-    },
-    {
-      soundSettings: {
-        palette: 'architectural',
-        pitchMode: 'free',
-        rootNote: 'E',
-        scaleName: 'minorPentatonic',
-        register: 'low',
-        accentPush: 'soft',
-      },
-      emphasisMode: 'analysis',
-    },
-  ),
-  withPhraseMask(
     'seventeen-reset-four',
-    'Rational Return',
-    'A 17-step phrase forced back onto beat 1 every four bars.',
+    'Four-Bar Return',
+    'A 17-step pattern that returns every four bars.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 112, barCountForDisplay: 4 },
     {
       stepCount: 17,
@@ -1148,8 +1122,8 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   ),
   withPhraseMask(
     'seventeen-reset-two',
-    'Cyanide Drag',
-    'A shorter odd-cycle leash: 13-style displacement against a straight 4/4 backbeat.',
+    'Short Fuse',
+    'A tight 13-step pattern with a quick return.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 118, barCountForDisplay: 4 },
     {
       stepCount: 13,
@@ -1175,8 +1149,8 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   ),
   withPhraseMask(
     'five-four-twelve',
-    'Five-Gate Pressure',
-    'A wider 5/4 frame with a compact phrase pressing against its landmarks.',
+    'Wide Gate',
+    'A compact phrase inside a wider 5/4 frame.',
     { numerator: 5, denominator: 4, subdivision: 16, bpm: 108, barCountForDisplay: 3, backbeatBeat: 3 },
     {
       stepCount: 12,
@@ -1201,8 +1175,8 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   ),
   withPhraseMask(
     'sparse-kick',
-    'Bleed Cell',
-    'A quintuplet-grid engine with herta-like bursts and a heavy low-end push.',
+    'Pulse Engine',
+    'A fast grid with clustered hits and heavy accents.',
     { numerator: 4, denominator: 4, subdivision: 20, bpm: 104, barCountForDisplay: 4 },
     {
       stepCount: 19,
@@ -1228,8 +1202,8 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   ),
   withPhraseMask(
     'snare-on-three',
-    'Anchor Snare',
-    'A simpler backbeat-anchored study where the bar stays obvious while the phrase moves.',
+    'Anchor Loop',
+    'A clear backbeat with a moving 15-step phrase.',
     { numerator: 4, denominator: 4, subdivision: 16, bpm: 114, barCountForDisplay: 4, backbeatBeat: 3 },
     {
       stepCount: 15,

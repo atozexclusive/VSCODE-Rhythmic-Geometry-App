@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Lock,
   RotateCcw,
   RotateCw,
   X,
@@ -64,6 +65,10 @@ interface RiffCycleSidebarProps {
   onExportScene: () => void;
   onSaveScene: () => void;
   onHardRefresh: () => void;
+  lockedFeatures?: {
+    colorEditing?: boolean;
+  };
+  onLockedFeature?: (feature: 'color-editing') => void;
 }
 
 type RiffCycleSidebarTab =
@@ -284,9 +289,11 @@ export default function RiffCycleSidebar({
   onExportScene,
   onSaveScene,
   onHardRefresh,
+  lockedFeatures = {},
+  onLockedFeature,
 }: RiffCycleSidebarProps) {
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>(isMobile ? 'account' : 'scenes');
+  const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
@@ -295,25 +302,25 @@ export default function RiffCycleSidebar({
   const selectedStepEditable = selectedStep != null;
   const tabMeta: Array<{ id: RiffCycleSidebarTab; label: string; color: string }> = isMobile
     ? [
-        { id: 'account', label: 'Account', color: '#88CCFF' },
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
+        { id: 'account', label: 'Account', color: '#88CCFF' },
       ]
     : [
         { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
         { id: 'bar', label: 'Bar', color: '#FF88C2' },
         { id: 'phrase', label: 'Pattern', color: study.riff.color },
         { id: 'ending', label: 'Ending', color: '#7FD7FF' },
-        { id: 'sound', label: 'Audio', color: '#88CCFF' },
+        { id: 'sound', label: 'Sound', color: '#88CCFF' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#88CCFF' },
       ];
 
   useEffect(() => {
-    if (isMobile) {
-      setActiveTab('account');
+    if (isMobile && isOpen) {
+      setActiveTab('scenes');
     }
-  }, [isMobile]);
+  }, [isMobile, isOpen]);
 
   useEffect(() => {
     if (!isMobile && study.landingEditEnabled) {
@@ -549,13 +556,7 @@ export default function RiffCycleSidebar({
                         {preset.name}
                       </div>
                       <div
-                        className="mt-1 text-[10px] font-mono uppercase tracking-[0.16em]"
-                        style={{ color: 'rgba(255,255,255,0.34)' }}
-                      >
-                        {preset.study.reference.numerator}/{preset.study.reference.denominator} · {preset.study.riff.stepCount} steps
-                      </div>
-                      <div
-                        className="mt-2 text-[10px] leading-relaxed"
+                        className="mt-1.5 text-[10px] leading-relaxed"
                         style={{ color: 'rgba(255,255,255,0.48)' }}
                       >
                         {preset.description}
@@ -703,14 +704,27 @@ export default function RiffCycleSidebar({
                   <button
                     key={color}
                     type="button"
-                    onClick={() => onUpdateRiff({ color })}
-                    className="h-10 rounded-xl border transition-transform active:scale-[0.97]"
-                    style={{
-                      background: `${color}18`,
-                      borderColor: active ? `${color}AA` : `${color}44`,
-                      boxShadow: active ? `0 0 0 1px ${color}AA inset` : 'none',
+                    onClick={() => {
+                      if (lockedFeatures.colorEditing) {
+                        onLockedFeature?.('color-editing');
+                        return;
+                      }
+                      onUpdateRiff({ color });
                     }}
-                  />
+                    className="relative h-10 overflow-hidden rounded-xl border transition-transform active:scale-[0.97]"
+                    style={{
+                      background: lockedFeatures.colorEditing ? 'rgba(255,255,255,0.035)' : `${color}18`,
+                      borderColor: lockedFeatures.colorEditing ? 'rgba(255,255,255,0.1)' : active ? `${color}AA` : `${color}44`,
+                      boxShadow: lockedFeatures.colorEditing ? 'none' : active ? `0 0 0 1px ${color}AA inset` : 'none',
+                      filter: lockedFeatures.colorEditing ? 'grayscale(0.6)' : undefined,
+                    }}
+                  >
+                    {lockedFeatures.colorEditing ? (
+                      <span className="pointer-events-none absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
+                        <Lock size={9} strokeWidth={2.4} />
+                      </span>
+                    ) : null}
+                  </button>
                 );
               })}
             </div>
