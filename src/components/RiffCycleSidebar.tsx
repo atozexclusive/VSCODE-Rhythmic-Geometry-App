@@ -68,8 +68,11 @@ interface RiffCycleSidebarProps {
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
+    export?: boolean;
+    soundEditing?: boolean;
+    proScenes?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing') => void;
 }
 
 type RiffCycleSidebarTab =
@@ -299,6 +302,29 @@ export default function RiffCycleSidebar({
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const exportLocked = Boolean(lockedFeatures.export);
+  const promptLockedExport = () => {
+    onLockedFeature?.('export');
+    setExportNotice('Export is a Pro feature.');
+  };
+  const promptLockedSound = () => {
+    onLockedFeature?.('sound-editing');
+  };
+  const lockedExportStyle = exportLocked
+    ? {
+        background: 'rgba(255,255,255,0.035)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        color: 'rgba(255,255,255,0.5)',
+        filter: 'grayscale(0.45)',
+      }
+    : {};
+  const soundLocked = Boolean(lockedFeatures.soundEditing);
+  const lockedSoundStyle = soundLocked
+    ? {
+        opacity: 0.68,
+        filter: 'grayscale(0.45)',
+      }
+    : {};
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
   const selectedStepEditable = selectedStep != null;
   const mobilePrimaryTitleStyle = {
@@ -1046,17 +1072,24 @@ export default function RiffCycleSidebar({
                   ['landscape', 'HD Wide'],
                   ['story', 'Story'],
                 ] as const).map(([aspect, label]) => (
-                  <button
-                    key={aspect}
-                    type="button"
-                    onClick={() => setExportAspect(aspect)}
-                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: exportAspect === aspect ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.04)',
-                      borderColor: exportAspect === aspect ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: exportAspect === aspect ? '#88CCFF' : 'rgba(255,255,255,0.64)',
-                    }}
-                  >
+                    <button
+                      key={aspect}
+                      type="button"
+                      onClick={() => {
+                        if (exportLocked) {
+                          promptLockedExport();
+                          return;
+                        }
+                        setExportAspect(aspect);
+                      }}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportAspect === aspect ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportAspect === aspect ? 'rgba(136,204,255,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportAspect === aspect ? '#88CCFF' : 'rgba(255,255,255,0.64)',
+                        ...lockedExportStyle,
+                      }}
+                    >
                     {label}
                   </button>
                 ))}
@@ -1067,17 +1100,24 @@ export default function RiffCycleSidebar({
                   [2, '2K'],
                   [4, '4K'],
                 ] as const).map(([scale, label]) => (
-                  <button
-                    key={scale}
-                    type="button"
-                    onClick={() => setExportScale(scale as 1 | 2 | 4)}
-                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: exportScale === scale ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
-                      borderColor: exportScale === scale ? 'rgba(255,209,102,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
-                    }}
-                  >
+                    <button
+                      key={scale}
+                      type="button"
+                      onClick={() => {
+                        if (exportLocked) {
+                          promptLockedExport();
+                          return;
+                        }
+                        setExportScale(scale as 1 | 2 | 4);
+                      }}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportScale === scale ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportScale === scale ? 'rgba(255,209,102,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportScale === scale ? '#FFD166' : 'rgba(255,255,255,0.64)',
+                        ...lockedExportStyle,
+                      }}
+                    >
                     {label}
                   </button>
                 ))}
@@ -1085,6 +1125,10 @@ export default function RiffCycleSidebar({
               <button
                 type="button"
                 onClick={() => {
+                  if (exportLocked) {
+                    promptLockedExport();
+                    return;
+                  }
                   onExportPng({ aspect: exportAspect, scale: exportScale });
                   setExportNotice('PNG exported.');
                 }}
@@ -1093,9 +1137,10 @@ export default function RiffCycleSidebar({
                   background: 'rgba(136, 204, 255, 0.08)',
                   border: '1px solid rgba(136, 204, 255, 0.2)',
                   color: '#88CCFF',
+                  ...lockedExportStyle,
                 }}
               >
-                Export PNG
+                {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export PNG'}
               </button>
             </div>
 
@@ -1117,17 +1162,24 @@ export default function RiffCycleSidebar({
                   ['pattern', 'Pattern Only'],
                   ['cycle', 'Full Cycle'],
                 ] as const).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setExportMidiMode(mode)}
-                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: exportMidiMode === mode ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
-                      borderColor: exportMidiMode === mode ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.64)',
-                    }}
-                  >
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        if (exportLocked) {
+                          promptLockedExport();
+                          return;
+                        }
+                        setExportMidiMode(mode);
+                      }}
+                      className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      style={{
+                        background: exportMidiMode === mode ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        borderColor: exportMidiMode === mode ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                        color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.64)',
+                        ...lockedExportStyle,
+                      }}
+                    >
                     {label}
                   </button>
                 ))}
@@ -1140,6 +1192,10 @@ export default function RiffCycleSidebar({
               <button
                 type="button"
                 onClick={() => {
+                  if (exportLocked) {
+                    promptLockedExport();
+                    return;
+                  }
                   onExportMidi(exportMidiMode);
                   setExportNotice(
                     exportMidiMode === 'cycle'
@@ -1152,9 +1208,10 @@ export default function RiffCycleSidebar({
                   background: 'rgba(127, 215, 255, 0.08)',
                   border: '1px solid rgba(127, 215, 255, 0.2)',
                   color: '#7FD7FF',
+                  ...lockedExportStyle,
                 }}
               >
-                Export MIDI
+                {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
               </button>
             </div>
 
@@ -1234,8 +1291,20 @@ export default function RiffCycleSidebar({
           ) : null}
 
           {activeTab === 'sound' ? (
-          <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
-            <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#88CCFF]">Sound</div>
+          <section
+            className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3"
+            onClickCapture={(event) => {
+              if (!soundLocked) return;
+              event.preventDefault();
+              event.stopPropagation();
+              promptLockedSound();
+            }}
+            style={lockedSoundStyle}
+          >
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#88CCFF]">Sound</div>
+              {soundLocked ? <Lock size={13} className="text-white/45" /> : null}
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'bar', label: 'Bar' },

@@ -72,6 +72,7 @@ interface TransportBarProps {
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onToggleTutorial: () => void;
+  guideLabel?: string;
   onTogglePresentation: () => void;
   onRandomPattern: () => void;
   onRemixPattern: () => void;
@@ -132,6 +133,7 @@ export default function TransportBar({
   onToggleMute,
   onToggleHelp,
   onToggleTutorial,
+  guideLabel = 'Guide',
   onTogglePresentation,
   onRandomPattern,
   onRemixPattern,
@@ -634,16 +636,17 @@ export default function TransportBar({
                 </button>
                 <button
                   onClick={onToggleMute}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{
+                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
+                  style={getLockedStyle({
                     background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
                     border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
                     color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
-                  }}
-                  title={muted ? 'Unmute audio' : 'Mute audio'}
+                  }, lockedFeatures.soundEditing)}
+                  title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
                 >
                   {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                   <span>{muted ? 'Unmute' : 'Mute'}</span>
+                  {lockedFeatures.soundEditing ? lockBadge : null}
                 </button>
                 <button
                   onClick={onTogglePresentation}
@@ -761,16 +764,17 @@ export default function TransportBar({
           </button>
           <button
             onClick={onToggleMute}
-            className={desktopDockButtonStyle}
-            style={{
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({
               background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
               border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
               color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
-            }}
-            title={muted ? 'Unmute audio' : 'Mute audio'}
+            }, lockedFeatures.soundEditing)}
+            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
           >
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
             <span>{muted ? 'Unmute' : 'Mute'}</span>
+            {lockedFeatures.soundEditing ? lockBadge : null}
           </button>
           <button
             onClick={onTogglePresentation}
@@ -1652,15 +1656,16 @@ export default function TransportBar({
               </button>
               <button
                 onClick={onToggleMute}
-                className="px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
-                style={{
+                className="relative overflow-hidden px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
+                style={getLockedStyle({
                   background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
                   border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
                   color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.6)',
-                }}
-                title={muted ? 'Unmute audio' : 'Mute audio'}
+                }, lockedFeatures.soundEditing)}
+                title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
               >
                 {muted ? 'MUTED' : 'AUDIO'}
+                {lockedFeatures.soundEditing ? lockBadge : null}
               </button>
               <button
                 onClick={onTogglePlanets}
@@ -1684,7 +1689,7 @@ export default function TransportBar({
                 }}
                 title="Open guide"
               >
-                GUIDE
+                {guideLabel.toUpperCase()}
               </button>
             </div>
           </div>
@@ -1844,19 +1849,20 @@ export default function TransportBar({
           <button
             data-guide="desktop-audio"
             onClick={onToggleMute}
-            className={desktopUtilityButtonStyle}
-            style={{
+            className={`${desktopUtilityButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({
               background: muted ? 'rgba(255,255,255,0.04)' : 'rgba(127,215,255,0.14)',
               border: `1px solid ${muted ? 'rgba(255,255,255,0.1)' : 'rgba(127,215,255,0.24)'}`,
               color: muted ? 'rgba(255,255,255,0.72)' : '#7FD7FF',
               boxShadow: muted ? 'none' : '0 0 0 1px rgba(127,215,255,0.16) inset',
-            }}
-            title={muted ? 'Unmute audio' : 'Mute audio'}
+            }, lockedFeatures.soundEditing)}
+            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
           >
             <span className="flex items-center gap-2">
               {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
               <span>{muted ? 'Unmute' : 'Mute'}</span>
             </span>
+            {lockedFeatures.soundEditing ? lockBadge : null}
           </button>
 
           <button
@@ -1889,7 +1895,7 @@ export default function TransportBar({
           >
             <span className="flex items-center gap-2">
               <CircleHelp size={15} />
-              <span>Guide</span>
+              <span>{guideLabel}</span>
             </span>
           </button>
 

@@ -73,6 +73,7 @@ interface RiffCycleCanvasProps {
   presentationMode?: boolean;
   playbackStateRef?: MutableRefObject<RiffCyclePlaybackState>;
   playbackDriver?: boolean;
+  audioEnabled?: boolean;
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
@@ -276,6 +277,7 @@ export default function RiffCycleCanvas({
   presentationMode = false,
   playbackStateRef,
   playbackDriver = true,
+  audioEnabled = true,
   onReferenceStepChange,
   externalCanvasRef,
   onSelectStep,
@@ -313,6 +315,7 @@ export default function RiffCycleCanvas({
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
+  const audioEnabledRef = useRef(audioEnabled);
   const onReferenceStepChangeRef = useRef(onReferenceStepChange);
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
@@ -342,6 +345,7 @@ export default function RiffCycleCanvas({
   presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
+  audioEnabledRef.current = audioEnabled;
   onReferenceStepChangeRef.current = onReferenceStepChange;
 
   const draw = useCallback(() => {
@@ -1460,10 +1464,10 @@ export default function RiffCycleCanvas({
       ) {
         const referenceBeatStart = isReferenceBeatStart(currentStudy, currentAbsoluteReferenceStep);
         const backbeatStep = isBackbeatStep(currentStudy, currentAbsoluteReferenceStep);
-        if (currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
+        if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
           triggerReferencePulse(currentStudy.soundSettings);
         }
-        if (currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled) {
+        if (audioEnabledRef.current && currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled) {
           triggerBackbeatAccent(currentStudy.soundSettings);
         }
         if (
@@ -1476,7 +1480,7 @@ export default function RiffCycleCanvas({
           barMarkerFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
             BAR_MARKER_FLASH_DURATION;
-          if (currentStudy.soundEnabled) {
+          if (audioEnabledRef.current && currentStudy.soundEnabled) {
             triggerBarMarkerCue(currentStudy.soundSettings);
           }
         }
@@ -1493,7 +1497,7 @@ export default function RiffCycleCanvas({
             attackUntil;
           laneAttackReferenceStepRef.current = currentAbsoluteReferenceStep;
           laneAttackUntilRef.current = attackUntil;
-          if (currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
+          if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
             triggerRiffPulse({
               frequency: currentStudy.riff.pitchHz,
               gain: currentStudy.riff.gain,
@@ -1510,7 +1514,7 @@ export default function RiffCycleCanvas({
         ) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
-          if (currentStudy.soundEnabled) {
+          if (audioEnabledRef.current && currentStudy.soundEnabled) {
             triggerResetCue(currentStudy.soundSettings);
           }
         }

@@ -68,6 +68,7 @@ interface PolyrhythmCanvasProps {
   showReferenceLayers?: boolean;
   displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
+  audioEnabled?: boolean;
   onSelectLayer: (layerId: string) => void;
   onOpenLayerMenu?: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
@@ -90,6 +91,7 @@ export default function PolyrhythmCanvas({
   showReferenceLayers = false,
   displaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
   presentationMode = false,
+  audioEnabled = true,
   onSelectLayer,
   onOpenLayerMenu,
   onSelectStep,
@@ -116,6 +118,7 @@ export default function PolyrhythmCanvas({
   const soloLayerDisplayRef = useRef(soloLayerDisplay);
   const showReferenceLayersRef = useRef(showReferenceLayers);
   const displaySettingsRef = useRef(displaySettings);
+  const audioEnabledRef = useRef(audioEnabled);
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
@@ -138,6 +141,7 @@ export default function PolyrhythmCanvas({
   soloLayerDisplayRef.current = soloLayerDisplay;
   showReferenceLayersRef.current = showReferenceLayers;
   displaySettingsRef.current = displaySettings;
+  audioEnabledRef.current = audioEnabled;
   presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
@@ -692,7 +696,7 @@ export default function PolyrhythmCanvas({
             });
           }
 
-          if (activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
+          if (audioEnabledRef.current && activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
             triggerPolyrhythmPulse({
               frequency: layer.pitchHz,
               gain: layer.gain,

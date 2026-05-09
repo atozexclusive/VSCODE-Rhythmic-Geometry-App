@@ -96,8 +96,11 @@ interface OrbitSidebarProps {
   onHardReset: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
+    export?: boolean;
+    soundEditing?: boolean;
+    proScenes?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'pro-scenes') => void;
 }
 
 const COLORS = [
@@ -170,6 +173,33 @@ export default function OrbitSidebar({
   const [midiBars, setMidiBars] = useState<4 | 8 | 16>(8);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const exportLocked = Boolean(lockedFeatures.export);
+  const promptLockedExport = () => {
+    onLockedFeature?.('export');
+    setExportNotice('Export is a Pro feature.');
+  };
+  const promptLockedSound = () => {
+    onLockedFeature?.('sound-editing');
+  };
+  const promptLockedProScene = () => {
+    onLockedFeature?.('pro-scenes');
+  };
+  const lockedExportStyle = exportLocked
+    ? {
+        background: 'rgba(255,255,255,0.035)',
+        borderColor: 'rgba(255,255,255,0.1)',
+        color: 'rgba(255,255,255,0.5)',
+        filter: 'grayscale(0.45)',
+      }
+    : {};
+  const soundLocked = Boolean(lockedFeatures.soundEditing);
+  const proScenesLocked = Boolean(lockedFeatures.proScenes);
+  const lockedSoundStyle = soundLocked
+    ? {
+        opacity: 0.68,
+        filter: 'grayscale(0.45)',
+      }
+    : {};
   const currentModeLabel =
     geometryMode === 'standard-trace'
       ? 'Standard'
@@ -971,15 +1001,22 @@ export default function OrbitSidebar({
                             Load
                           </button>
                           <button
-                            onClick={() => onExportScene(scene.id)}
+                            onClick={() => {
+                              if (exportLocked) {
+                                promptLockedExport();
+                                return;
+                              }
+                              onExportScene(scene.id);
+                            }}
                             className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
                             style={{
                               background: 'rgba(0, 255, 170, 0.08)',
                               border: '1px solid rgba(0, 255, 170, 0.2)',
                               color: '#00FFAA',
+                              ...lockedExportStyle,
                             }}
                           >
-                            Export
+                            {exportLocked ? <span className="inline-flex items-center gap-1.5"><Lock size={11} /> Pro</span> : 'Export'}
                           </button>
                         </div>
                       </div>
@@ -1042,15 +1079,22 @@ export default function OrbitSidebar({
                         </div>
                       </div>
                       <button
-                        onClick={() => onLoadBuiltInScene(scene.id)}
+                        onClick={() => {
+                          if (proScenesLocked) {
+                            promptLockedProScene();
+                            return;
+                          }
+                          onLoadBuiltInScene(scene.id);
+                        }}
                         className="mt-3 w-full rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-all duration-200 hover:bg-white/5"
                         style={{
-                          background: 'rgba(255, 170, 0, 0.1)',
-                          border: '1px solid rgba(255, 170, 0, 0.22)',
-                          color: '#FFAA00',
+                          background: proScenesLocked ? 'rgba(255,255,255,0.035)' : 'rgba(255, 170, 0, 0.1)',
+                          border: proScenesLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255, 170, 0, 0.22)',
+                          color: proScenesLocked ? 'rgba(255,255,255,0.5)' : '#FFAA00',
+                          filter: proScenesLocked ? 'grayscale(0.45)' : undefined,
                         }}
                       >
-                        Load Preview
+                        {proScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={11} /> Pro Scene</span> : 'Load Preview'}
                       </button>
                     </div>
                   ))}
@@ -1084,9 +1128,15 @@ export default function OrbitSidebar({
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     value={exportAspect}
-                    onChange={(e) => setExportAspect(e.target.value as typeof exportAspect)}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setExportAspect(e.target.value as typeof exportAspect);
+                    }}
                     className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
                   >
                     <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
                     <option value="square" style={{ background: '#181820' }}>Square Post</option>
@@ -1095,9 +1145,15 @@ export default function OrbitSidebar({
                   </select>
                   <select
                     value={String(exportScale)}
-                    onChange={(e) => setExportScale(Number(e.target.value) as 1 | 2 | 4)}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setExportScale(Number(e.target.value) as 1 | 2 | 4);
+                    }}
                     className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
                   >
                     <option value="1" style={{ background: '#181820' }}>HD</option>
                     <option value="2" style={{ background: '#181820' }}>2K</option>
@@ -1106,6 +1162,10 @@ export default function OrbitSidebar({
                 </div>
                 <button
                   onClick={() => {
+                    if (exportLocked) {
+                      promptLockedExport();
+                      return;
+                    }
                     onExportPng({ aspect: exportAspect, scale: exportScale });
                     setExportNotice('PNG exported. On mobile: Share > Save Image.');
                   }}
@@ -1114,9 +1174,10 @@ export default function OrbitSidebar({
                     background: 'rgba(0, 255, 170, 0.08)',
                     border: '1px solid rgba(0, 255, 170, 0.2)',
                     color: '#00FFAA',
+                    ...lockedExportStyle,
                   }}
                 >
-                  Export PNG
+                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export PNG'}
                 </button>
               </div>
 
@@ -1133,15 +1194,25 @@ export default function OrbitSidebar({
                 <div className="grid grid-cols-[1fr,auto] gap-2">
                   <select
                     value={String(videoDuration)}
-                    onChange={(e) => setVideoDuration(Number(e.target.value) as 8 | 12)}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoDuration(Number(e.target.value) as 8 | 12);
+                    }}
                     className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
                   >
                     <option value="8" style={{ background: '#181820' }}>8s loop</option>
                     <option value="12" style={{ background: '#181820' }}>12s clip</option>
                   </select>
                   <button
                     onClick={() => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
                       void onExportVideo({ durationSeconds: videoDuration });
                       setExportNotice(
                         isIOS
@@ -1153,11 +1224,12 @@ export default function OrbitSidebar({
                     className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
                     style={{
                       background: 'rgba(51, 136, 255, 0.08)',
-                      border: '1px solid rgba(51, 136, 255, 0.2)',
-                      color: '#88CCFF',
-                    }}
-                  >
-                    {isRecordingVideo ? 'Recording…' : 'Record WebM'}
+                    border: '1px solid rgba(51, 136, 255, 0.2)',
+                    color: '#88CCFF',
+                    ...lockedExportStyle,
+                  }}
+                >
+                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Record WebM'}
                   </button>
                 </div>
               </div>
@@ -1180,12 +1252,19 @@ export default function OrbitSidebar({
                     <button
                       key={bars}
                       type="button"
-                      onClick={() => setMidiBars(bars)}
+                      onClick={() => {
+                        if (exportLocked) {
+                          promptLockedExport();
+                          return;
+                        }
+                        setMidiBars(bars);
+                      }}
                       className="rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200 hover:bg-white/5"
                       style={{
                         background: midiBars === bars ? 'rgba(127, 215, 255, 0.12)' : 'rgba(255,255,255,0.04)',
                         border: `1px solid ${midiBars === bars ? 'rgba(127, 215, 255, 0.24)' : 'rgba(255,255,255,0.1)'}`,
                         color: midiBars === bars ? '#7FD7FF' : 'rgba(255,255,255,0.68)',
+                        ...lockedExportStyle,
                       }}
                     >
                       {bars} Bars
@@ -1194,6 +1273,10 @@ export default function OrbitSidebar({
                 </div>
                 <button
                   onClick={() => {
+                    if (exportLocked) {
+                      promptLockedExport();
+                      return;
+                    }
                     onExportMidi({ bars: midiBars });
                     setExportNotice(`Orbit merged MIDI exported for ${midiBars} bars.`);
                   }}
@@ -1202,9 +1285,10 @@ export default function OrbitSidebar({
                     background: 'rgba(127, 215, 255, 0.08)',
                     border: '1px solid rgba(127, 215, 255, 0.2)',
                     color: '#7FD7FF',
+                    ...lockedExportStyle,
                   }}
                 >
-                  Export MIDI
+                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
                 </button>
               </div>
 
@@ -1322,45 +1406,27 @@ export default function OrbitSidebar({
                 )}
               </div>
 
-              <div
-                className="rounded-[1.25rem] border p-3.5"
-                style={{
-                  background: 'rgba(255,255,255,0.025)',
-                  borderColor: 'rgba(255,90,120,0.12)',
-                }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                      Reset Everything
-                    </div>
-                    <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                      Restore defaults.
-                    </div>
-                  </div>
-                  <button
-                    onClick={onHardReset}
-                    className="shrink-0 px-3 py-2 rounded-lg text-[10px] font-mono transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-                    style={{
-                      background: 'rgba(255,70,110,0.08)',
-                      border: '1px solid rgba(255,70,110,0.16)',
-                      color: 'rgba(255,160,180,0.92)',
-                    }}
-                  >
-                    <RotateCcw size={13} />
-                    Hard Refresh
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
           {/* SOUND TAB */}
           {activeTab === 'sound' && (
-            <div className="space-y-4">
+            <div
+              className="space-y-4"
+              onClickCapture={(event) => {
+                if (!soundLocked) return;
+                event.preventDefault();
+                event.stopPropagation();
+                promptLockedSound();
+              }}
+              style={lockedSoundStyle}
+            >
               <div className="space-y-1">
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
-                  Sound
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={sectionTitleStyle}>
+                    Sound
+                  </div>
+                  {soundLocked ? <Lock size={13} style={{ color: 'rgba(255,255,255,0.46)' }} /> : null}
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
                   Original keeps the raw sound. In Key keeps notes inside one note family.
@@ -1734,6 +1800,36 @@ export default function OrbitSidebar({
 
             </div>
           )}
+          <div
+            className="rounded-[1.25rem] border p-3.5"
+            style={{
+              background: 'rgba(255,255,255,0.025)',
+              borderColor: 'rgba(255,90,120,0.12)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
+                  Reset Everything
+                </div>
+                <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Restore defaults.
+                </div>
+              </div>
+              <button
+                onClick={onHardReset}
+                className="shrink-0 px-3 py-2 rounded-lg text-[10px] font-mono transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
+                style={{
+                  background: 'rgba(255,70,110,0.08)',
+                  border: '1px solid rgba(255,70,110,0.16)',
+                  color: 'rgba(255,160,180,0.92)',
+                }}
+              >
+                <RotateCcw size={13} />
+                Hard Refresh
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

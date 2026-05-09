@@ -19,6 +19,7 @@ interface FlowCanvasProps {
   className?: string;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   playbackDriver?: boolean;
+  audioEnabled?: boolean;
 }
 
 interface FlowParticle {
@@ -639,7 +640,7 @@ function drawStillHint(ctx: CanvasRenderingContext2D, width: number, height: num
 }
 
 const FlowCanvas = forwardRef<HTMLCanvasElement, FlowCanvasProps>(
-  ({ flow, restartToken, className = '', externalCanvasRef, playbackDriver = true }, ref) => {
+  ({ flow, restartToken, className = '', externalCanvasRef, playbackDriver = true, audioEnabled = true }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const flowRef = useRef(flow);
     const elapsedRef = useRef(0);
@@ -648,9 +649,11 @@ const FlowCanvas = forwardRef<HTMLCanvasElement, FlowCanvasProps>(
     const particlesRef = useRef<FlowParticle[]>([]);
     const fullClearRef = useRef(true);
     const playbackDriverRef = useRef(playbackDriver);
+    const audioEnabledRef = useRef(audioEnabled);
 
     flowRef.current = flow;
     playbackDriverRef.current = playbackDriver;
+    audioEnabledRef.current = audioEnabled;
 
     useImperativeHandle(ref, () => canvasRef.current as HTMLCanvasElement);
 
@@ -705,7 +708,7 @@ const FlowCanvas = forwardRef<HTMLCanvasElement, FlowCanvasProps>(
         }
         updateFlowPad({
           soundId: currentFlow.soundId,
-          enabled: currentFlow.playing && currentFlow.soundEnabled && playbackDriverRef.current,
+          enabled: audioEnabledRef.current && currentFlow.playing && currentFlow.soundEnabled && playbackDriverRef.current,
           intensity:
             currentFlow.motionLevel === 'calm'
               ? 0.72
@@ -761,7 +764,7 @@ const FlowCanvas = forwardRef<HTMLCanvasElement, FlowCanvasProps>(
               if (particlesRef.current.length > 72) {
                 particlesRef.current.splice(0, particlesRef.current.length - 72);
               }
-              if (currentFlow.soundEnabled && playbackDriverRef.current) {
+              if (audioEnabledRef.current && currentFlow.soundEnabled && playbackDriverRef.current) {
                 resumeFlowAudio();
                 triggerFlowImpact({
                   midi: getMidiForCycle(currentFlow, cycle),
