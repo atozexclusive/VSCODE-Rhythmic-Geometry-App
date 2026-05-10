@@ -90,6 +90,7 @@ interface TransportBarProps {
     colorEditing?: boolean;
     extraOrbits?: boolean;
   };
+  onLockedFeature?: (feature: 'remix' | 'random-plus' | 'sound-editing' | 'canvas-options' | 'color-editing' | 'extra-orbits') => void;
   onAddOrbit: () => void;
   onDeleteOrbit: (orbitId: string) => void;
   onReset: () => void;
@@ -144,6 +145,7 @@ export default function TransportBar({
   onCanvasDisplayChange,
   activeGuideTarget = null,
   lockedFeatures = {},
+  onLockedFeature,
   onAddOrbit,
   onDeleteOrbit,
   onReset,
@@ -429,6 +431,7 @@ export default function TransportBar({
     onToggle,
     children,
     locked = false,
+    lockedFeature,
   }: {
     label: string;
     descriptor: string;
@@ -439,11 +442,18 @@ export default function TransportBar({
     onToggle: () => void;
     children: ReactNode;
     locked?: boolean;
+    lockedFeature?: 'sound-editing' | 'canvas-options';
   }) => (
     <div className="rounded-2xl border" style={getStandardUtilitySectionStyle(active, color, locked)}>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => {
+          if (locked && lockedFeature) {
+            onLockedFeature?.(lockedFeature);
+            return;
+          }
+          onToggle();
+        }}
         className="relative flex w-full items-center justify-center px-12 py-2.5 text-center"
         title={title}
       >
@@ -474,7 +484,7 @@ export default function TransportBar({
           {active ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
-      {active ? (
+      {active && !locked ? (
         <div className="space-y-2 border-t border-white/8 px-2.5 pb-2.5 pt-2">
           <div className="flex items-start justify-between gap-3 px-0.5">
             <div className="min-w-0">
@@ -635,7 +645,13 @@ export default function TransportBar({
                   Markers
                 </button>
                 <button
-                  onClick={onToggleMute}
+                  onClick={() => {
+                    if (lockedFeatures.soundEditing) {
+                      onLockedFeature?.('sound-editing');
+                      return;
+                    }
+                    onToggleMute();
+                  }}
                   className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={getLockedStyle({
                     background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
@@ -763,7 +779,13 @@ export default function TransportBar({
             <span>Trace</span>
           </button>
           <button
-            onClick={onToggleMute}
+            onClick={() => {
+              if (lockedFeatures.soundEditing) {
+                onLockedFeature?.('sound-editing');
+                return;
+              }
+              onToggleMute();
+            }}
             className={`${desktopDockButtonStyle} relative overflow-hidden`}
             style={getLockedStyle({
               background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
@@ -1305,6 +1327,7 @@ export default function TransportBar({
                     title: 'Open canvas controls',
                     info: 'Canvas settings only affect the visual environment: contrast, atmosphere, glow, grid, and axes. They do not change timing or sound.',
                     locked: lockedFeatures.canvasOptions,
+                    lockedFeature: 'canvas-options',
                     onToggle: () => toggleDesktopUtilitySection('canvas'),
                     children: (
                       <>
@@ -1429,6 +1452,7 @@ export default function TransportBar({
                     title: 'Open sound controls',
                     info: 'Original keeps the orbit tones direct. In Key maps them into the selected root and note family so complex motion feels more harmonic.',
                     locked: lockedFeatures.soundEditing,
+                    lockedFeature: 'sound-editing',
                     onToggle: () => toggleDesktopUtilitySection('audio'),
                     children: (
                       <>
@@ -1655,7 +1679,13 @@ export default function TransportBar({
                 CLEAR
               </button>
               <button
-                onClick={onToggleMute}
+                onClick={() => {
+                  if (lockedFeatures.soundEditing) {
+                    onLockedFeature?.('sound-editing');
+                    return;
+                  }
+                  onToggleMute();
+                }}
                 className="relative overflow-hidden px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
                 style={getLockedStyle({
                   background: muted ? 'rgba(255, 51, 102, 0.18)' : 'rgba(255, 255, 255, 0.05)',
@@ -1848,7 +1878,13 @@ export default function TransportBar({
         <div className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
           <button
             data-guide="desktop-audio"
-            onClick={onToggleMute}
+            onClick={() => {
+              if (lockedFeatures.soundEditing) {
+                onLockedFeature?.('sound-editing');
+                return;
+              }
+              onToggleMute();
+            }}
             className={`${desktopUtilityButtonStyle} relative overflow-hidden`}
             style={getLockedStyle({
               background: muted ? 'rgba(255,255,255,0.04)' : 'rgba(127,215,255,0.14)',

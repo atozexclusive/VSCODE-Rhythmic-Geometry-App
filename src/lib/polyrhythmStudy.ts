@@ -608,21 +608,22 @@ function createSharedCycleStudy(options: {
   showStepLabels?: boolean;
 }): PolyrhythmStudy {
   const cycleSteps = normalizeBeatCount(options.cycleSteps);
+  const layerCounts = options.activeCounts.map((count) => normalizeBeatCount(count));
   const rotationStepOffsets = options.rotationStepOffsets ?? [];
-  const colors = options.colors ?? getStudyColors(options.activeCounts.length);
+  const colors = options.colors ?? getStudyColors(layerCounts.length);
   const displayStyle = options.displayStyle ?? 'shared';
   return {
     id: options.id,
     name: options.name,
     description: options.description,
     displayStyle,
-    layers: options.activeCounts.map((activeCount, index) =>
-      createPolyrhythmLayer(cycleSteps, {
-        radius: getStudyLayerRadius(index, options.activeCounts.length, displayStyle),
+    layers: layerCounts.map((layerCount, index) =>
+      createPolyrhythmLayer(layerCount, {
+        radius: getStudyLayerRadius(index, layerCounts.length, displayStyle),
         color: colors[index % colors.length],
-        activeSteps: createEvenPulseMask(cycleSteps, activeCount),
-        rotationOffset: stepOffsetToDegrees(cycleSteps, rotationStepOffsets[index] ?? 0),
-        pitchHz: getLayerPitch(index, options.activeCounts.length),
+        activeSteps: createEvenPulseMask(layerCount, layerCount),
+        rotationOffset: stepOffsetToDegrees(layerCount, rotationStepOffsets[index] ?? 0),
+        pitchHz: getLayerPitch(index, layerCounts.length),
         gain: getLayerGain(index),
       }),
     ),
@@ -630,7 +631,7 @@ function createSharedCycleStudy(options: {
     bpm: options.bpm,
     soundEnabled: true,
     showInactiveSteps: true,
-    showStepLabels: options.showStepLabels ?? (cycleSteps <= 16 && options.activeCounts.length <= 2),
+    showStepLabels: options.showStepLabels ?? (cycleSteps <= 16 && layerCounts.length <= 2),
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
   };
 }
@@ -983,7 +984,7 @@ const RUMBA_CLAVE_STUDY = createSingleLayerStudy({
 const TWO_THREE_STUDY = createSharedCycleStudy({
   id: 'two-three',
   name: '2:3',
-  description: 'Two against three on one shared 12-step cycle.',
+  description: 'Two nodes against three nodes.',
   cycleSteps: 12,
   activeCounts: [2, 3],
   bpm: 88,
@@ -998,7 +999,7 @@ const TWO_THREE_STUDY = createSharedCycleStudy({
 const THREE_FOUR_STUDY = createSharedCycleStudy({
   id: 'three-four',
   name: '3:4',
-  description: 'Three against four on one shared 12-step frame.',
+  description: 'Three nodes against four nodes.',
   cycleSteps: 12,
   activeCounts: [3, 4],
   bpm: 92,
@@ -1046,7 +1047,7 @@ const THREE_FIVE_STUDY: PolyrhythmStudy = {
 const FOUR_FIVE_STUDY = createSharedCycleStudy({
   id: 'four-five',
   name: '4:5',
-  description: 'Four against five on one shared 20-step frame.',
+  description: 'Four nodes against five nodes.',
   cycleSteps: 20,
   activeCounts: [4, 5],
   bpm: 94,
@@ -1061,7 +1062,7 @@ const FOUR_FIVE_STUDY = createSharedCycleStudy({
 const FIVE_SIX_STUDY = createSharedCycleStudy({
   id: 'five-six',
   name: '5:6',
-  description: 'Five and six sharing the same 30-step cycle.',
+  description: 'Five nodes against six nodes.',
   cycleSteps: 30,
   activeCounts: [5, 6],
   bpm: 98,
@@ -1078,7 +1079,7 @@ const FIVE_SIX_STUDY = createSharedCycleStudy({
 const FIVE_EIGHT_STUDY = createSharedCycleStudy({
   id: 'five-eight',
   name: '5:8',
-  description: 'Five against eight on one wider 40-step cycle.',
+  description: 'Five nodes against eight nodes.',
   cycleSteps: 40,
   activeCounts: [5, 8],
   bpm: 96,
@@ -1095,7 +1096,7 @@ const FIVE_EIGHT_STUDY = createSharedCycleStudy({
 const SEVEN_EIGHT_STUDY = createSharedCycleStudy({
   id: 'seven-eight',
   name: '7:8',
-  description: 'Seven against eight on a wider shared cycle.',
+  description: 'Seven nodes against eight nodes.',
   cycleSteps: 56,
   activeCounts: [7, 8],
   bpm: 92,
@@ -1112,7 +1113,7 @@ const SEVEN_EIGHT_STUDY = createSharedCycleStudy({
 const TRIPLE_GRID_STUDY = createSharedCycleStudy({
   id: 'triple-grid',
   name: '3·4·6 Grid',
-  description: 'Three pulse families sharing one 12-step cycle.',
+  description: 'Three, four, and six nodes on the same shared grid.',
   cycleSteps: 12,
   activeCounts: [3, 4, 6],
   bpm: 88,
@@ -1129,7 +1130,7 @@ const TRIPLE_GRID_STUDY = createSharedCycleStudy({
 const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
   id: 'three-five-six',
   name: '3·5·6 Cycle',
-  description: 'Three overlapping layers on one readable 30-step frame.',
+  description: 'Three, five, and six nodes resolving together.',
   cycleSteps: 30,
   activeCounts: [3, 5, 6],
   bpm: 90,
@@ -1148,7 +1149,7 @@ const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
 const FOUR_FIVE_TEN_STUDY = createSharedCycleStudy({
   id: 'four-five-ten',
   name: '4·5·10 Mesh',
-  description: 'Four, five, and ten stacked on one shared 20-step cycle.',
+  description: 'Four, five, and ten nodes resolving together.',
   cycleSteps: 20,
   activeCounts: [4, 5, 10],
   bpm: 94,
@@ -1184,7 +1185,7 @@ const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
 const COUNTER_MESH_STUDY = createSharedCycleStudy({
   id: 'counter-mesh',
   name: '5·8·10 Mesh',
-  description: 'Three related layers on a wider 40-step frame.',
+  description: 'Five, eight, and ten nodes resolving together.',
   cycleSteps: 40,
   activeCounts: [5, 8, 10],
   bpm: 92,
@@ -1297,70 +1298,70 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
   {
     id: 'two-three',
     name: '2:3',
-    description: 'Two against three on one shared 12-step cycle.',
+    description: 'Two nodes against three nodes.',
     group: 'two-layer',
     study: TWO_THREE_STUDY,
   },
   {
     id: 'three-four',
     name: '3:4',
-    description: 'Three against four on one shared cycle.',
+    description: 'Three nodes against four nodes.',
     group: 'two-layer',
     study: THREE_FOUR_STUDY,
   },
   {
     id: 'three-five',
     name: '3:5',
-    description: 'Three against five on one shared 15-step cycle.',
+    description: 'Three nodes against five nodes.',
     group: 'two-layer',
     study: THREE_FIVE_STUDY,
   },
   {
     id: 'four-five',
     name: '4:5',
-    description: 'Four against five on one shared 20-step frame.',
+    description: 'Four nodes against five nodes.',
     group: 'two-layer',
     study: FOUR_FIVE_STUDY,
   },
   {
     id: 'five-six',
     name: '5:6',
-    description: 'Five and six sharing the same 30-step cycle.',
+    description: 'Five nodes against six nodes.',
     group: 'two-layer',
     study: FIVE_SIX_STUDY,
   },
   {
     id: 'five-eight',
     name: '5:8',
-    description: 'Five against eight on one wider shared cycle.',
+    description: 'Five nodes against eight nodes.',
     group: 'two-layer',
     study: FIVE_EIGHT_STUDY,
   },
   {
     id: 'seven-eight',
     name: '7:8',
-    description: 'Seven against eight on a wider shared cycle.',
+    description: 'Seven nodes against eight nodes.',
     group: 'two-layer',
     study: SEVEN_EIGHT_STUDY,
   },
   {
     id: 'triple-grid',
     name: '3·4·6 Grid',
-    description: 'Three pulse families sharing one 12-step cycle.',
+    description: 'Three, four, and six nodes on one grid.',
     group: 'advanced',
     study: TRIPLE_GRID_STUDY,
   },
   {
     id: 'three-five-six',
     name: '3·5·6 Cycle',
-    description: 'Three overlapping layers on one readable 30-step frame.',
+    description: 'Three, five, and six nodes resolving together.',
     group: 'advanced',
     study: THREE_FIVE_SIX_STUDY,
   },
   {
     id: 'four-five-ten',
     name: '4·5·10 Mesh',
-    description: 'Four, five, and ten sharing one 20-step frame.',
+    description: 'Four, five, and ten nodes resolving together.',
     group: 'advanced',
     study: FOUR_FIVE_TEN_STUDY,
   },
@@ -1374,7 +1375,7 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
   {
     id: 'counter-mesh',
     name: '5·8·10 Mesh',
-    description: 'Three related layers on a wider 40-step frame.',
+    description: 'Five, eight, and ten nodes resolving together.',
     group: 'advanced',
     study: COUNTER_MESH_STUDY,
   },
