@@ -4961,6 +4961,12 @@ function OrbitalPolymeter() {
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
   const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
+  const openOnlyOrbitMobileMenu = (menu: null | 'edit' | 'scenes' | 'sound' | 'canvas') => {
+    setMobileCustomizeOpen(menu === 'edit');
+    setMobileScenesOpen(menu === 'scenes');
+    setMobileSoundOpen(menu === 'sound');
+    setMobileCanvasOpen(menu === 'canvas');
+  };
   const [activeMobileSliderId, setActiveMobileSliderId] = useState<string | null>(null);
   const [mobileSceneTab, setMobileSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [mobileOrbitSceneMode, setMobileOrbitSceneMode] = useState<GeometryMode>('standard-trace');
@@ -5029,7 +5035,7 @@ function OrbitalPolymeter() {
   const [riffMobileEditorOpen, setRiffMobileEditorOpen] = useState(false);
   const [riffMobileLaneBarsPerPage, setRiffMobileLaneBarsPerPage] = useState<
     1 | 2 | 4 | 'pattern' | 'free' | 'none'
-  >(2);
+  >('none');
   const [riffMobileLanePage, setRiffMobileLanePage] = useState(0);
   const [riffDesktopLaneView, setRiffDesktopLaneView] = useState<1 | 2 | 4 | 'pattern'>(4);
   const [helpStepIndex, setHelpStepIndex] = useState(0);
@@ -5404,6 +5410,7 @@ function OrbitalPolymeter() {
       setMobileScenesOpen(false);
       setMobileCustomizeOpen(false);
       setMobileSoundOpen(false);
+      setMobileCanvasOpen(false);
       setRadialMenu(null);
       setProPrompt(null);
       stopAllAudio();
@@ -7257,14 +7264,14 @@ function OrbitalPolymeter() {
     }
 
     if (currentGuideStep.target === 'mobile-scenes') {
-      setMobileScenesOpen(true);
+      openOnlyOrbitMobileMenu('scenes');
     }
     if (
       currentGuideStep.target === 'mobile-customize' ||
       currentGuideStep.target === 'mobile-layers' ||
       currentGuideStep.target === 'mobile-direction'
     ) {
-      setMobileCustomizeOpen(true);
+      openOnlyOrbitMobileMenu('edit');
     }
   }, [currentGuideStep, helpOpen, isMobile]);
 
@@ -8261,6 +8268,7 @@ function OrbitalPolymeter() {
     setMobileScenesOpen(false);
     setMobileCustomizeOpen(false);
     setMobileSoundOpen(false);
+    setMobileCanvasOpen(false);
     setHelpStepIndex(0);
     setRadialMenu(null);
     applySceneSnapshot(
@@ -10037,13 +10045,13 @@ function OrbitalPolymeter() {
         return;
       case 'orbit-open-scenes':
         if (isMobile) {
-          setMobileScenesOpen(true);
+          openOnlyOrbitMobileMenu('scenes');
         } else {
           setSidebarOpen(true);
         }
         return;
       case 'orbit-open-customize':
-        setMobileCustomizeOpen(true);
+        openOnlyOrbitMobileMenu('edit');
         return;
       case 'flow-toggle-play':
         handleToggleFlowPlayback();
@@ -10130,8 +10138,6 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setRiffMobileSection('edit');
           setRiffMobileEditTab('phrase');
-          setRiffMobileLaneBarsPerPage(4);
-          setRiffMobileLanePage(0);
         } else {
           setRiffDesktopQuickCollapsed(false);
           setRiffQuickPanel('phrase');
@@ -10154,8 +10160,6 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setRiffMobileSection('edit');
           setRiffMobileEditTab('phrase');
-          setRiffMobileLaneBarsPerPage(4);
-          setRiffMobileLanePage(0);
           handleSetRiffEditMode('phrase');
         } else {
           openRiffDesktopFocusEditor('phrase');
@@ -13245,11 +13249,14 @@ function OrbitalPolymeter() {
             study={polyrhythmStudy}
             currentSurface={appSurface}
             activePresetId={activePolyrhythmPresetId}
+            activeSavedSceneId={activePolyrhythmSavedSceneId}
+            savedScenes={savedPolyrhythmScenes}
             selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
             selectedStep={selectedPolyrhythmStep}
             onClose={() => setSidebarOpen(false)}
             onSurfaceChange={handleAppSurfaceChange}
             onLoadPreset={handleLoadPolyrhythmPreset}
+            onLoadSavedScene={handleLoadSavedPolyrhythmScene}
             onResetStudy={handleResetPolyrhythmStudy}
             onTogglePlay={handleTogglePolyrhythmPlayback}
             onBpmChange={handlePolyrhythmBpmChange}
@@ -15090,11 +15097,14 @@ function OrbitalPolymeter() {
           study={polyrhythmStudy}
           currentSurface={appSurface}
           activePresetId={activePolyrhythmPresetId}
+          activeSavedSceneId={activePolyrhythmSavedSceneId}
+          savedScenes={savedPolyrhythmScenes}
           selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
           selectedStep={selectedPolyrhythmStep}
           onClose={() => setSidebarOpen(false)}
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadPolyrhythmPreset}
+          onLoadSavedScene={handleLoadSavedPolyrhythmScene}
           onResetStudy={handleResetPolyrhythmStudy}
           onTogglePlay={handleTogglePolyrhythmPlayback}
           onBpmChange={handlePolyrhythmBpmChange}
@@ -15497,8 +15507,6 @@ function OrbitalPolymeter() {
                           handleSetRiffEditMode('phrase');
                           setRiffMobileEditTab('phrase');
                           setRiffMobileSection('edit');
-                          setRiffMobileLaneBarsPerPage(4);
-                          setRiffMobileLanePage(0);
                           recordTutorialEvent('riff-open-edit');
                           recordTutorialEvent('riff-select-riff');
                         }}
@@ -17536,10 +17544,13 @@ function OrbitalPolymeter() {
           study={riffCycleStudy}
           currentSurface={appSurface}
           activePresetId={activeRiffCyclePresetId}
+          activeSavedSceneId={activeRiffCycleSavedSceneId}
+          savedScenes={savedRiffCycleScenes}
           selectedStep={selectedRiffCycleStep}
           onClose={() => setSidebarOpen(false)}
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
+          onLoadSavedScene={handleLoadSavedRiffCycleScene}
             onResetStudy={handleResetRiffCycleStudy}
             onToggleSound={handleToggleRiffCycleSound}
             onToggleReferenceSound={handleToggleRiffReferenceSound}
@@ -20387,10 +20398,13 @@ function OrbitalPolymeter() {
           study={riffCycleStudy}
           currentSurface={appSurface}
           activePresetId={activeRiffCyclePresetId}
+          activeSavedSceneId={activeRiffCycleSavedSceneId}
+          savedScenes={savedRiffCycleScenes}
           selectedStep={selectedRiffCycleStep}
           onClose={() => setSidebarOpen(false)}
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
+          onLoadSavedScene={handleLoadSavedRiffCycleScene}
           onResetStudy={handleResetRiffCycleStudy}
           onToggleSound={handleToggleRiffCycleSound}
           onToggleReferenceSound={handleToggleRiffReferenceSound}
@@ -20699,13 +20713,13 @@ function OrbitalPolymeter() {
                   background: mobileCustomizeOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
                   boxShadow: mobileCustomizeOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
                 }}
-                onClick={() => setMobileCustomizeOpen((open) => !open)}
+                onClick={() => openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit')}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setMobileCustomizeOpen((open) => !open);
+                    openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit');
                   }
                 }}
               >
@@ -20747,7 +20761,7 @@ function OrbitalPolymeter() {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setMobileCustomizeOpen((open) => !open);
+                      openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit');
                     }}
                     className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
                     style={{
@@ -21056,13 +21070,13 @@ function OrbitalPolymeter() {
                   background: mobileScenesOpen ? 'linear-gradient(180deg, rgba(51,136,255,0.09), rgba(255,255,255,0))' : 'transparent',
                   boxShadow: mobileScenesOpen ? 'inset 0 1px 0 rgba(51,136,255,0.08)' : 'none',
                 }}
-                onClick={() => setMobileScenesOpen((open) => !open)}
+                onClick={() => openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes')}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    setMobileScenesOpen((open) => !open);
+                    openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes');
                   }
                 }}
               >
@@ -21128,7 +21142,7 @@ function OrbitalPolymeter() {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setMobileScenesOpen((open) => !open);
+                      openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes');
                     }}
                     className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
                     style={{
@@ -21394,7 +21408,7 @@ function OrbitalPolymeter() {
                     openProPrompt('canvas-options');
                     return;
                   }
-                  setMobileCanvasOpen((open) => !open);
+                  openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
                 }}
                 role="button"
                 tabIndex={0}
@@ -21405,7 +21419,7 @@ function OrbitalPolymeter() {
                       openProPrompt('canvas-options');
                       return;
                     }
-                    setMobileCanvasOpen((open) => !open);
+                    openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
                   }
                 }}
               >
@@ -21424,7 +21438,7 @@ function OrbitalPolymeter() {
                       openProPrompt('canvas-options');
                       return;
                     }
-                    setMobileCanvasOpen((open) => !open);
+                    openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
                   }}
                   className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
                   style={{
@@ -21476,7 +21490,7 @@ function OrbitalPolymeter() {
                     openProPrompt('sound-editing');
                     return;
                   }
-                  setMobileSoundOpen((open) => !open);
+                  openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
                 }}
                 role="button"
                 tabIndex={0}
@@ -21486,7 +21500,7 @@ function OrbitalPolymeter() {
                     if (soundEditingLocked) {
                       openProPrompt('sound-editing');
                     } else {
-                      setMobileSoundOpen((open) => !open);
+                      openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
                     }
                   }
                 }}
@@ -21550,7 +21564,7 @@ function OrbitalPolymeter() {
                         openProPrompt('sound-editing');
                         return;
                       }
-                      setMobileSoundOpen((open) => !open);
+                      openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
                     }}
                     className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
                     style={{

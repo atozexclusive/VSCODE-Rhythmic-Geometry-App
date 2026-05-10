@@ -32,11 +32,19 @@ interface PolyrhythmSidebarProps {
   study: PolyrhythmStudy;
   currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   activePresetId: string | null;
+  activeSavedSceneId?: string | null;
+  savedScenes?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    study: PolyrhythmStudy;
+  }>;
   selectedLayerId: string | null;
   selectedStep: PolyrhythmStepSelection | null;
   onClose: () => void;
   onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onLoadPreset: (presetId: string) => void;
+  onLoadSavedScene?: (sceneId: string) => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
   onBpmChange: (bpm: number) => void;
@@ -68,10 +76,11 @@ interface PolyrhythmSidebarProps {
     soundEditing?: boolean;
     proScenes?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'pro-scenes') => void;
 }
 
 type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export' | 'account';
+type PolyrhythmSidebarSceneTab = 'standard' | 'saved' | 'pro';
 
 const POLYRHYTHM_SOUND_PALETTES: Array<{
   id: PolyrhythmSoundSettings['palette'];
@@ -220,11 +229,14 @@ export default function PolyrhythmSidebar({
   study,
   currentSurface,
   activePresetId,
+  activeSavedSceneId = null,
+  savedScenes = [],
   selectedLayerId,
   selectedStep,
   onClose,
   onSurfaceChange,
   onLoadPreset,
+  onLoadSavedScene,
   onResetStudy,
   onTogglePlay,
   onBpmChange,
@@ -252,6 +264,7 @@ export default function PolyrhythmSidebar({
 }: PolyrhythmSidebarProps) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
+  const [sceneTab, setSceneTab] = useState<PolyrhythmSidebarSceneTab>('standard');
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
@@ -564,7 +577,29 @@ export default function PolyrhythmSidebar({
                 </button>
               </div>
 
-              {groupedPresets.map(({ group, presets }) => (
+              <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.09)' }}>
+                {([
+                  { key: 'standard' as const, label: 'Standard', color: '#88CCFF' },
+                  { key: 'saved' as const, label: 'Saved', color: '#72F1B8' },
+                  { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
+                ]).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setSceneTab(tab.key)}
+                    className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
+                      border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
+                      color: sceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {sceneTab === 'standard' ? groupedPresets.map(({ group, presets }) => (
                 <div key={group} className="space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
                     <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobileSubTitleStyle}>
@@ -625,7 +660,75 @@ export default function PolyrhythmSidebar({
                     );
                   })}
                 </div>
-              ))}
+              )) : null}
+
+              {sceneTab === 'saved' ? (
+                savedScenes.length > 0 ? (
+                  <div className="space-y-3">
+                    {savedScenes.map((scene) => {
+                      const active = scene.id === activeSavedSceneId;
+                      const presetForThumbnail: PolyrhythmStudyPreset = {
+                        id: scene.id,
+                        name: scene.name,
+                        description: scene.description,
+                        group: 'two-layer',
+                        study: scene.study,
+                      };
+                      return (
+                        <button
+                          key={scene.id}
+                          type="button"
+                          onClick={() => onLoadSavedScene?.(scene.id)}
+                          className="w-full rounded-xl border p-3 text-left"
+                          style={{
+                            background: active
+                              ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
+                              : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
+                            borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <PolyrhythmSceneThumbnail preset={presetForThumbnail} />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-mono uppercase tracking-[0.16em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}>
+                                {scene.name}
+                              </div>
+                              <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
+                                {scene.study.layers.map((layer) => layer.beatCount).join(' · ')}
+                              </div>
+                              <div className="mt-2 text-[11px] leading-relaxed text-white/46">
+                                {scene.description}
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)', color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)' }}>
+                              {active ? 'Loaded' : 'Load'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.025] px-4 py-4 text-center">
+                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/56">No Saved Scenes Yet</div>
+                    <div className="mt-2 text-[11px] text-white/42">Saved studies will appear here.</div>
+                  </div>
+                )
+              ) : null}
+
+              {sceneTab === 'pro' ? (
+                <button
+                  type="button"
+                  onClick={() => lockedFeatures.proScenes ? onLockedFeature?.('pro-scenes') : undefined}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-4 text-center"
+                  style={{ filter: lockedFeatures.proScenes ? 'grayscale(0.45)' : undefined }}
+                >
+                  <div className="inline-flex items-center justify-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] text-white/56">
+                    {lockedFeatures.proScenes ? <Lock size={11} /> : null} Pro Packs
+                  </div>
+                  <div className="mt-2 text-[11px] text-white/42">More Study scene packs are coming.</div>
+                </button>
+              ) : null}
             </section>
           ) : null}
 
