@@ -61,7 +61,6 @@ interface PolyrhythmSidebarProps {
   }) => void;
   onExportMidi: (mode: PolyrhythmMidiExportMode) => void;
   onExportScene: () => void;
-  onSaveScene: () => void;
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
@@ -247,7 +246,6 @@ export default function PolyrhythmSidebar({
   onExportPng,
   onExportMidi,
   onExportScene,
-  onSaveScene,
   onHardRefresh,
   lockedFeatures = {},
   onLockedFeature,
@@ -1555,37 +1553,11 @@ export default function PolyrhythmSidebar({
                 </button>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
-                <div>
-                  <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
-                    Saved Scene
-                  </div>
-                  <div className="mt-1 text-[11px] text-white/52">
-                    Save the current study into the Saved scene bank.
-                  </div>
+              {exportNotice ? (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em] text-white/42">
+                  {exportNotice}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSaveScene();
-                    setExportNotice('Study saved to Saved.');
-                  }}
-                  className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
-                  style={{
-                    background: 'rgba(0,255,170,0.1)',
-                    borderColor: 'rgba(0,255,170,0.22)',
-                    color: '#00FFAA',
-                  }}
-                >
-                  Save Scene
-                </button>
-                {exportNotice ? (
-                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-white/42">
-                    {exportNotice}
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
             </section>
           ) : null}
 

@@ -3,7 +3,7 @@
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
-import { X, Plus, Trash2, ChevronDown, RotateCcw, Lock } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, Lock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_ORBIT_COUNT_MODE,
@@ -93,7 +93,6 @@ interface OrbitSidebarProps {
   onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
   onExportMidi: (options: { bars: 4 | 8 | 16 }) => void;
   isRecordingVideo: boolean;
-  onHardReset: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
@@ -156,7 +155,6 @@ export default function OrbitSidebar({
   onExportVideo,
   onExportMidi,
   isRecordingVideo,
-  onHardReset,
   lockedFeatures = {},
   onLockedFeature,
 }: OrbitSidebarProps) {
@@ -462,9 +460,9 @@ export default function OrbitSidebar({
         ) : null}
 
         {/* Tabs */}
-        <div className={`${isMobile ? 'overflow-x-auto px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
+        <div className={`${isMobile ? 'px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
           <div
-            className={`${isMobile ? 'flex min-w-max gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.35rem] border`}
+            className={`${isMobile ? 'grid grid-cols-3 gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.35rem] border`}
             style={{
               background: 'rgba(255,255,255,0.028)',
               borderColor: 'rgba(255,255,255,0.08)',
@@ -474,7 +472,7 @@ export default function OrbitSidebar({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-xl border text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'px-3 py-2.5' : 'px-3 py-2.5'}`}
+              className={`rounded-xl border text-center text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'min-w-0 px-2 py-2.5' : 'shrink-0 px-3 py-2.5'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
@@ -1800,36 +1798,6 @@ export default function OrbitSidebar({
 
             </div>
           )}
-          <div
-            className="rounded-[1.25rem] border p-3.5"
-            style={{
-              background: 'rgba(255,255,255,0.025)',
-              borderColor: 'rgba(255,90,120,0.12)',
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: 'rgba(255, 255, 255, 0.45)' }}>
-                  Reset Everything
-                </div>
-                <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Restore defaults.
-                </div>
-              </div>
-              <button
-                onClick={onHardReset}
-                className="shrink-0 px-3 py-2 rounded-lg text-[10px] font-mono transition-all duration-200 hover:bg-white/5 flex items-center justify-center gap-1.5"
-                style={{
-                  background: 'rgba(255,70,110,0.08)',
-                  border: '1px solid rgba(255,70,110,0.16)',
-                  color: 'rgba(255,160,180,0.92)',
-                }}
-              >
-                <RotateCcw size={13} />
-                Hard Refresh
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

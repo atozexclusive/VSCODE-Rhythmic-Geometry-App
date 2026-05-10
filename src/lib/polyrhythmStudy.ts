@@ -111,7 +111,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function normalizeBeatCount(beatCount: number): number {
-  return clamp(Math.round(beatCount || 0), 3, 64);
+  return clamp(Math.round(beatCount || 0), 2, 64);
 }
 
 function normalizeRotationOffset(rotationOffset: number): number {
@@ -352,6 +352,35 @@ export function getActiveStepIndices(layer: PolyrhythmLayer): number[] {
 
 export function countActiveSteps(layer: PolyrhythmLayer): number {
   return layer.activeSteps.reduce((count, step) => count + (step ? 1 : 0), 0);
+}
+
+function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+  return x || 1;
+}
+
+function lcm(a: number, b: number): number {
+  const x = Math.max(1, Math.abs(Math.round(a)));
+  const y = Math.max(1, Math.abs(Math.round(b)));
+  return Math.min(10000, Math.floor((x / gcd(x, y)) * y));
+}
+
+export function getSharedCycleStepCount(layers: readonly Pick<PolyrhythmLayer, 'beatCount'>[]): number {
+  const counts = layers
+    .map((layer) => normalizeBeatCount(layer.beatCount))
+    .filter((count) => count > 0);
+
+  if (counts.length === 0) {
+    return 1;
+  }
+
+  return counts.reduce((sharedCount, count) => lcm(sharedCount, count), counts[0] ?? 1);
 }
 
 export function toggleLayerStep(layer: PolyrhythmLayer, index: number): PolyrhythmLayer {
@@ -981,20 +1010,38 @@ const THREE_FOUR_STUDY = createSharedCycleStudy({
   },
 });
 
-const THREE_FIVE_STUDY = createSharedCycleStudy({
+const THREE_FIVE_STUDY: PolyrhythmStudy = {
   id: 'three-five',
   name: '3:5',
-  description: 'Three against five on one shared 15-step cycle.',
-  cycleSteps: 15,
-  activeCounts: [3, 5],
+  description: 'Three nodes against five nodes.',
+  displayStyle: 'shared',
+  layers: [
+    createPolyrhythmLayer(3, {
+      radius: getStudyLayerRadius(0, 2, 'shared'),
+      color: '#72F1B8',
+      activeSteps: createEvenPulseMask(3, 3),
+      pitchHz: getLayerPitch(0, 2),
+      gain: getLayerGain(0),
+    }),
+    createPolyrhythmLayer(5, {
+      radius: getStudyLayerRadius(1, 2, 'shared'),
+      color: '#7FD7FF',
+      activeSteps: createEvenPulseMask(5, 5),
+      pitchHz: getLayerPitch(1, 2),
+      gain: getLayerGain(1),
+    }),
+  ],
+  playing: true,
   bpm: 90,
-  colors: ['#72F1B8', '#7FD7FF'],
-  soundSettings: {
+  soundEnabled: true,
+  showInactiveSteps: false,
+  showStepLabels: false,
+  soundSettings: createPolyrhythmSoundSettings({
     palette: 'study-pulse',
     pitchMode: 'free',
     register: 'tight',
-  },
-});
+  }),
+};
 
 const FOUR_FIVE_STUDY = createSharedCycleStudy({
   id: 'four-five',

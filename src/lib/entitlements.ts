@@ -14,7 +14,9 @@ export type ProFeature =
   | 'canvas-options'
   | 'study-layers'
   | 'study-extended-steps'
+  | 'study-pattern-tools'
   | 'riff-extended-patterns'
+  | 'riff-pattern-tools'
   | 'pro-scenes';
 
 export const FREE_SCENE_SAVE_LIMIT = 0;

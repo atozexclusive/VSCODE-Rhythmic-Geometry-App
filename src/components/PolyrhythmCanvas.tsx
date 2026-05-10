@@ -18,6 +18,7 @@ import {
   getActiveStepIndices,
   getLayerStepPoints,
   getPlaybackStepIndex,
+  getSharedCycleStepCount,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 
@@ -35,6 +36,10 @@ function getPolyrhythmLabelStride(beatCount: number): number {
     return 3;
   }
   return 4;
+}
+
+function clampCanvasValue(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 interface PolyrhythmCanvasSelection {
@@ -223,6 +228,7 @@ export default function PolyrhythmCanvas({
     const sharedDisplay = displayStudy.displayStyle === 'shared' && !soloLayerDisplayRef.current;
     const sharedCycleRadius =
       Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
+    const sharedCycleStepCount = getSharedCycleStepCount(displayStudy.layers);
     const orderedLayers = displayStudy.layers
       .slice()
       .sort((layerA, layerB) => {
@@ -269,6 +275,48 @@ export default function PolyrhythmCanvas({
     );
     ctx.stroke();
     ctx.restore();
+
+    if (
+      sharedDisplay &&
+      displayStudy.layers.length > 1 &&
+      sharedCycleStepCount <= 192 &&
+      sharedCycleStepCount > Math.max(1, ...displayStudy.layers.map((layer) => layer.beatCount)) &&
+      (currentStudy.showInactiveSteps || currentStudy.showStepLabels)
+    ) {
+      const gridRadius = sharedCycleRadius + (isMobileRef.current ? 13 : 18);
+      ctx.save();
+      for (let index = 0; index < sharedCycleStepCount; index += 1) {
+        const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
+        const x = metrics.centerX + Math.cos(angle) * gridRadius;
+        const y = metrics.centerY + Math.sin(angle) * gridRadius;
+        const onLayerBoundary = displayStudy.layers.some(
+          (layer) => index % Math.max(1, sharedCycleStepCount / layer.beatCount) === 0,
+        );
+        const pointRadius = onLayerBoundary ? 2.05 : 1.35;
+        ctx.globalAlpha = (onLayerBoundary ? 0.34 : 0.18) * inactiveAlpha;
+        ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
+        ctx.beginPath();
+        ctx.arc(x, y, pointRadius, 0, TAU);
+        ctx.fill();
+
+        if (currentStudy.showStepLabels) {
+          const denseGrid = sharedCycleStepCount > 48;
+          const labelRadius = gridRadius + (denseGrid ? 9 : 13);
+          const labelX = metrics.centerX + Math.cos(angle) * labelRadius;
+          const labelY = metrics.centerY + Math.sin(angle) * labelRadius;
+          ctx.globalAlpha = onLayerBoundary ? 0.42 : 0.24;
+          ctx.font = `${denseGrid ? 7 : 9}px "SF Mono", "Fira Code", monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(
+            String(index + 1),
+            clampCanvasValue(labelX, 10, metrics.width - 10),
+            clampCanvasValue(labelY, 10, metrics.height - 10),
+          );
+        }
+      }
+      ctx.restore();
+    }
 
     if (currentStudy.playing) {
       ctx.save();
@@ -591,6 +639,7 @@ export default function PolyrhythmCanvas({
           if (
             currentStudy.showStepLabels &&
             !isReferenceLayer &&
+            (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
             shouldDrawLabel &&
             (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
           ) {

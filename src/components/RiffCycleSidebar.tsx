@@ -43,7 +43,6 @@ interface RiffCycleSidebarProps {
   onSelectStep: (stepIndex: number | null) => void;
   onRotateRiff: (stepOffset: number) => void;
   onInvertRiff: () => void;
-  onClearRiff: () => void;
   onToggleViewMode: () => void;
   onToggleAlignmentMarkers: () => void;
   onToggleStepLabels: () => void;
@@ -64,15 +63,15 @@ interface RiffCycleSidebarProps {
   }) => void;
   onExportMidi: (mode: RiffMidiExportMode) => void;
   onExportScene: () => void;
-  onSaveScene: () => void;
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
     soundEditing?: boolean;
     proScenes?: boolean;
+    riffPatternTools?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'riff-pattern-tools') => void;
 }
 
 type RiffCycleSidebarTab =
@@ -278,7 +277,6 @@ export default function RiffCycleSidebar({
   onToggleAccent,
   onRotateRiff,
   onInvertRiff,
-  onClearRiff,
   onSetEditMode,
   onSetSoundFocus,
   onToggleLandingEdit,
@@ -291,7 +289,6 @@ export default function RiffCycleSidebar({
   onExportPng,
   onExportMidi,
   onExportScene,
-  onSaveScene,
   onHardRefresh,
   lockedFeatures = {},
   onLockedFeature,
@@ -309,6 +306,10 @@ export default function RiffCycleSidebar({
   };
   const promptLockedSound = () => {
     onLockedFeature?.('sound-editing');
+  };
+  const riffPatternToolsLocked = Boolean(lockedFeatures.riffPatternTools);
+  const promptLockedPatternTools = () => {
+    onLockedFeature?.('riff-pattern-tools');
   };
   const lockedExportStyle = exportLocked
     ? {
@@ -734,21 +735,33 @@ export default function RiffCycleSidebar({
                 Pattern Tools
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => onRotateRiff(-1)} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                <RotateCcw size={14} />
-                Back 1
-              </button>
-              <button type="button" onClick={() => onRotateRiff(1)} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                <RotateCw size={14} />
-                Forward 1
-              </button>
-              <button type="button" onClick={onInvertRiff} className="rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                Invert
-              </button>
-              <button type="button" onClick={onClearRiff} className="rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66">
-                Clear Pattern
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => (riffPatternToolsLocked ? promptLockedPatternTools() : onRotateRiff(-1))}
+                  className="relative flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66"
+                >
+                  <RotateCcw size={14} />
+                  Back 1
+                  {riffPatternToolsLocked ? <Lock className="absolute right-2 top-2 text-white/42" size={10} strokeWidth={2.4} /> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (riffPatternToolsLocked ? promptLockedPatternTools() : onRotateRiff(1))}
+                  className="relative flex h-11 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66"
+                >
+                  <RotateCw size={14} />
+                  Forward 1
+                  {riffPatternToolsLocked ? <Lock className="absolute right-2 top-2 text-white/42" size={10} strokeWidth={2.4} /> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (riffPatternToolsLocked ? promptLockedPatternTools() : onInvertRiff())}
+                  className="relative col-span-2 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3 text-[10px] font-mono uppercase tracking-[0.16em] text-white/66"
+                >
+                  Invert
+                  {riffPatternToolsLocked ? <Lock className="absolute right-2 top-2 text-white/42" size={10} strokeWidth={2.4} /> : null}
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-5 gap-2">
@@ -966,18 +979,6 @@ export default function RiffCycleSidebar({
                 Strong Last 2
               </button>
             </div>
-            <button
-              type="button"
-              onClick={onClearLanding}
-              className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                borderColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.66)',
-              }}
-            >
-              Clear Ending
-            </button>
           </section>
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
             <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#FFD166]">Return</div>
@@ -1186,7 +1187,7 @@ export default function RiffCycleSidebar({
               </div>
               <div className="text-[11px] leading-relaxed text-white/52">
                 {exportMidiMode === 'cycle'
-                  ? 'Cycle includes bar timing, riff restarts, and ending slots.'
+                  ? 'Cycle includes bar timing, riff restart, and ending slots.'
                   : 'Pattern exports the riff steps only, without restart or ending behavior.'}
               </div>
               <button
@@ -1212,36 +1213,6 @@ export default function RiffCycleSidebar({
                 }}
               >
                 {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
-              </button>
-            </div>
-
-            <div
-              className="rounded-lg border p-3 space-y-3"
-              style={{
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
-                borderColor: 'rgba(255, 170, 0, 0.12)',
-              }}
-            >
-              <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
-                Saved Scene
-              </div>
-              <div className="text-[11px] leading-relaxed text-white/46">
-                Save this Riff Cycle into the Saved scene bank.
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onSaveScene();
-                  setExportNotice('Riff scene saved to Saved.');
-                }}
-                className="w-full rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200"
-                style={{
-                  background: 'rgba(0, 255, 170, 0.08)',
-                  border: '1px solid rgba(0, 255, 170, 0.2)',
-                  color: '#00FFAA',
-                }}
-              >
-                Save Scene
               </button>
             </div>
 
