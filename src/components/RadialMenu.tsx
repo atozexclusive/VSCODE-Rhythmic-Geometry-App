@@ -22,7 +22,9 @@ interface RadialMenuProps {
   orbitColor: string;
   orbitDegree?: number;
   orbitRegister?: -1 | 0 | 1;
+  orbitOptions?: Array<{ id: string; label: string; color: string }>;
   harmonySettings: HarmonySettings;
+  onSelectOrbit?: (orbitId: string) => void;
   onChangeColor: (orbitId: string, color: string) => void;
   onChangeHarmony: (updates: Partial<HarmonySettings>) => void;
   onChangeOrbitRole: (
@@ -47,7 +49,9 @@ export default function RadialMenu({
   orbitColor,
   orbitDegree,
   orbitRegister,
+  orbitOptions = [],
   harmonySettings,
+  onSelectOrbit,
   onChangeColor,
   onChangeHarmony,
   onChangeOrbitRole,
@@ -57,6 +61,18 @@ export default function RadialMenu({
   const isMobile = useIsMobile();
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
+  const selectedOrbitLabel =
+    orbitOptions.find((orbit) => orbit.id === orbitId)?.label ?? 'Orbit';
+  const mobileSectionStyle = {
+    borderColor: 'rgba(255,255,255,0.08)',
+    background:
+      'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025))',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+  };
+  const mobileSectionTitleStyle = {
+    color: 'rgba(244,250,255,0.78)',
+    textShadow: '0 0 14px rgba(255,255,255,0.14)',
+  };
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -85,10 +101,10 @@ export default function RadialMenu({
   return (
     <div
       ref={menuRef}
-      className={`fixed z-[100] rounded-2xl border ${
+      className={`fixed z-[100] border ${
         isMobile
-          ? 'left-3 right-3 bottom-[max(92px,calc(env(safe-area-inset-bottom)+84px))] max-h-[68vh] overflow-y-auto px-4 py-4'
-          : 'w-72 p-3'
+          ? 'left-3 right-3 bottom-[max(92px,calc(env(safe-area-inset-bottom)+84px))] max-h-[68vh] overflow-y-auto rounded-[28px] px-4 py-4'
+          : 'w-72 rounded-2xl p-3'
       }`}
       style={{
         left: isMobile ? undefined : x,
@@ -96,10 +112,20 @@ export default function RadialMenu({
         top: isMobile ? undefined : y,
         bottom: isMobile ? undefined : undefined,
         transform: isMobile ? 'none' : 'translate(-50%, -50%)',
-        background: 'rgba(17, 17, 22, 0.92)',
-        backdropFilter: 'blur(16px)',
-        borderColor: 'rgba(255,255,255,0.1)',
-        boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
+        background: isMobile
+          ? `
+            radial-gradient(circle at 12% 0%, ${orbitColor}20, transparent 34%),
+            linear-gradient(180deg, rgba(18,19,28,0.76), rgba(9,10,16,0.66))
+          `
+          : `
+            radial-gradient(circle at 12% 0%, ${orbitColor}18, transparent 34%),
+            linear-gradient(180deg, rgba(17,17,22,0.88), rgba(12,12,18,0.84))
+          `,
+        backdropFilter: isMobile ? 'blur(28px) saturate(1.18)' : 'blur(18px) saturate(1.08)',
+        borderColor: isMobile ? `${orbitColor}22` : 'rgba(255,255,255,0.1)',
+        boxShadow: isMobile
+          ? `0 -24px 80px rgba(0,0,0,0.56), 0 0 42px ${orbitColor}14, inset 0 1px 0 rgba(255,255,255,0.08)`
+          : '0 18px 40px rgba(0,0,0,0.35)',
       }}
     >
       {isMobile && (
@@ -121,6 +147,11 @@ export default function RadialMenu({
             <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
               Edit Orbit
             </div>
+            {isMobile ? (
+              <div className="mt-0.5 text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: orbitColor }}>
+                {selectedOrbitLabel}
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -156,42 +187,83 @@ export default function RadialMenu({
         </div>
       </div>
 
-      <div className="mt-3">
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+      {orbitOptions.length > 1 ? (
+        <div
+          className={`${isMobile ? 'mt-4 rounded-2xl p-3' : 'mt-3 rounded-xl p-2'} border`}
+          style={isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}
+        >
+          <div
+            className="mb-2 text-[10px] font-mono uppercase tracking-[0.2em]"
+            style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.58)' }}
+          >
+            Layer
+          </div>
+          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-2'} gap-2`}>
+            {orbitOptions.map((orbit) => {
+              const active = orbit.id === orbitId;
+              return (
+                <button
+                  key={orbit.id}
+                  type="button"
+                  onClick={() => onSelectOrbit?.(orbit.id)}
+                  className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.13em] transition-all active:scale-[0.98]"
+                  style={{
+                    background: active ? `${orbit.color}18` : 'rgba(255,255,255,0.035)',
+                    borderColor: active ? `${orbit.color}44` : 'rgba(255,255,255,0.08)',
+                    color: active ? orbit.color : 'rgba(255,255,255,0.58)',
+                    boxShadow: active ? `0 0 0 1px ${orbit.color}18 inset, 0 0 20px ${orbit.color}10` : 'none',
+                  }}
+                >
+                  {orbit.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={isMobile ? 'mt-3 rounded-2xl border p-3' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
+        <div
+          className="text-[10px] font-mono uppercase tracking-[0.2em]"
+          style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
+        >
           Color
         </div>
-      </div>
-      <div className={`grid grid-cols-4 ${isMobile ? 'gap-2 mt-4' : 'gap-1.5 mt-3'}`}>
-        {QUICK_COLORS.map((color) => {
-          const isActive = color === orbitColor;
-          const isHovered = color === hoveredColor;
+        <div className={`grid grid-cols-4 ${isMobile ? 'gap-2 mt-3' : 'gap-1.5 mt-3'}`}>
+          {QUICK_COLORS.map((color) => {
+            const isActive = color === orbitColor;
+            const isHovered = color === hoveredColor;
 
-          return (
-            <button
-              key={color}
-              onClick={() => {
-                onChangeColor(orbitId, color);
-                onClose();
-              }}
-              onMouseEnter={() => setHoveredColor(color)}
-              onMouseLeave={() => setHoveredColor(null)}
-              onTouchStart={() => setHoveredColor(color)}
-              onTouchEnd={() => setHoveredColor(null)}
-              className={`${isMobile ? 'h-9' : 'h-8'} rounded-lg transition-all`}
-              style={{
-                backgroundColor: color,
-                boxShadow: isActive ? `0 0 16px ${color}AA` : isHovered ? `0 0 12px ${color}66` : `0 0 8px ${color}44`,
-                border: isActive ? '2px solid white' : '1px solid rgba(255,255,255,0.14)',
-                transform: `scale(${isActive || isHovered ? 1.05 : 1})`,
-              }}
-              title={`Set orbit color to ${color}`}
-            />
-          );
-        })}
+            return (
+              <button
+                key={color}
+                onClick={() => {
+                  onChangeColor(orbitId, color);
+                  if (!isMobile) onClose();
+                }}
+                onMouseEnter={() => setHoveredColor(color)}
+                onMouseLeave={() => setHoveredColor(null)}
+                onTouchStart={() => setHoveredColor(color)}
+                onTouchEnd={() => setHoveredColor(null)}
+                className={`${isMobile ? 'h-9' : 'h-8'} rounded-lg transition-all`}
+                style={{
+                  backgroundColor: color,
+                  boxShadow: isActive ? `0 0 16px ${color}AA` : isHovered ? `0 0 12px ${color}66` : `0 0 8px ${color}44`,
+                  border: isActive ? '2px solid white' : '1px solid rgba(255,255,255,0.14)',
+                  transform: `scale(${isActive || isHovered ? 1.05 : 1})`,
+                }}
+                title={`Set orbit color to ${color}`}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+      <div className={`${isMobile ? 'mt-3 rounded-2xl border p-3' : 'mt-4 pt-3 border-t'}`} style={isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)' }}>
+        <div
+          className="text-[10px] font-mono uppercase tracking-[0.2em]"
+          style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
+        >
           Key & Note Family
         </div>
         <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-[72px,1fr]'} gap-2 mt-3`}>
@@ -225,9 +297,12 @@ export default function RadialMenu({
         </p>
       </div>
 
-      <div className="mt-4 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+      <div className={`${isMobile ? 'mt-3 rounded-2xl border p-3' : 'mt-4 pt-3 border-t'}`} style={isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="flex items-center justify-between">
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <div
+            className="text-[10px] font-mono uppercase tracking-[0.2em]"
+            style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
+          >
             Orbit Role
           </div>
           <button

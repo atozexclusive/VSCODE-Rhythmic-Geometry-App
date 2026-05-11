@@ -187,11 +187,11 @@ export const CANVAS_ATMOSPHERE_OPTIONS: Array<{
   summary: string;
 }> = [
   { id: 'none', label: 'None', summary: 'clean background' },
-  { id: 'stars', label: 'Stars', summary: 'sparse starfield' },
-  { id: 'dust', label: 'Dust', summary: 'soft floating specks' },
-  { id: 'nebula-haze', label: 'Haze', summary: 'soft color clouds' },
-  { id: 'orbital-grid', label: 'Grid', summary: 'faint depth rings' },
-  { id: 'deep-field', label: 'Field', summary: 'stars and depth arcs' },
+  { id: 'stars', label: 'Stars', summary: 'sharp night points' },
+  { id: 'dust', label: 'Dust', summary: 'soft grain bands' },
+  { id: 'nebula-haze', label: 'Haze', summary: 'color cloud wash' },
+  { id: 'orbital-grid', label: 'Grid', summary: 'faint construction rings' },
+  { id: 'deep-field', label: 'Field', summary: 'depth arcs and glints' },
 ];
 
 export const CANVAS_GLOW_OPTIONS: Array<{
@@ -233,8 +233,18 @@ function getParticles(
   const particles = Array.from({ length: count }, () => ({
     x: random() * width,
     y: random() * height,
-    radius: 0.45 + random() * (atmosphere === 'dust' ? 1.6 : 1.05),
-    alpha: 0.16 + random() * (atmosphere === 'dust' ? 0.18 : 0.5),
+    radius:
+      atmosphere === 'dust'
+        ? 1.8 + random() * 5.2
+        : atmosphere === 'deep-field'
+          ? 0.25 + random() * 1.35
+          : 0.42 + random() * 0.95,
+    alpha:
+      atmosphere === 'dust'
+        ? 0.045 + random() * 0.12
+        : atmosphere === 'deep-field'
+          ? 0.12 + random() * 0.42
+          : 0.18 + random() * 0.58,
     hue: random(),
   }));
 
@@ -339,21 +349,74 @@ export function drawCanvasDisplayBackground(
     const hazeA = ctx.createRadialGradient(width * 0.22, height * 0.78, 0, width * 0.22, height * 0.78, radius * 0.46);
     hazeA.addColorStop(0, theme.gradient[1]);
     hazeA.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = presentationMode ? 0.62 : 0.38;
+    ctx.globalAlpha =
+      atmosphere === 'nebula-haze'
+        ? presentationMode ? 0.74 : 0.48
+        : presentationMode ? 0.44 : 0.24;
     ctx.fillStyle = hazeA;
     ctx.fillRect(0, 0, width, height);
 
     const hazeB = ctx.createRadialGradient(width * 0.76, height * 0.7, 0, width * 0.76, height * 0.7, radius * 0.38);
     hazeB.addColorStop(0, theme.gradient[0]);
     hazeB.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = presentationMode ? 0.46 : 0.28;
+    ctx.globalAlpha =
+      atmosphere === 'nebula-haze'
+        ? presentationMode ? 0.58 : 0.36
+        : presentationMode ? 0.32 : 0.16;
     ctx.fillStyle = hazeB;
     ctx.fillRect(0, 0, width, height);
   }
 
+  if (atmosphere === 'nebula-haze') {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(42, radius * 0.045);
+    ctx.globalAlpha = presentationMode ? 0.12 : 0.075;
+    ctx.strokeStyle = theme.swatch[1];
+    ctx.beginPath();
+    ctx.moveTo(width * -0.08, height * 0.68);
+    ctx.bezierCurveTo(width * 0.22, height * 0.42, width * 0.52, height * 0.88, width * 1.08, height * 0.34);
+    ctx.stroke();
+    ctx.globalAlpha = presentationMode ? 0.1 : 0.06;
+    ctx.strokeStyle = theme.swatch[2];
+    ctx.beginPath();
+    ctx.moveTo(width * 0.08, height * 0.28);
+    ctx.bezierCurveTo(width * 0.36, height * 0.08, width * 0.66, height * 0.48, width * 1.02, height * 0.18);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (atmosphere === 'dust') {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineCap = 'round';
+    for (let index = 0; index < 4; index += 1) {
+      const y = height * (0.2 + index * 0.18);
+      const band = ctx.createLinearGradient(width * 0.08, y, width * 0.92, y + height * 0.18);
+      band.addColorStop(0, 'rgba(255,255,255,0)');
+      band.addColorStop(0.42, theme.gradient[index % 2]);
+      band.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.globalAlpha = presentationMode ? 0.11 : 0.07;
+      ctx.strokeStyle = band;
+      ctx.lineWidth = Math.max(18, radius * 0.018);
+      ctx.beginPath();
+      ctx.moveTo(width * -0.1, y + height * 0.08);
+      ctx.bezierCurveTo(width * 0.24, y - height * 0.04, width * 0.58, y + height * 0.18, width * 1.1, y + height * 0.02);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   if (atmosphere === 'orbital-grid' || atmosphere === 'deep-field') {
-    ctx.globalAlpha = presentationMode ? 0.42 : 0.28;
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.globalAlpha =
+      atmosphere === 'orbital-grid'
+        ? presentationMode ? 0.5 : 0.34
+        : presentationMode ? 0.22 : 0.14;
+    ctx.strokeStyle =
+      atmosphere === 'orbital-grid'
+        ? 'rgba(180,220,255,0.12)'
+        : 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     for (let index = 0; index < 7; index += 1) {
       const arcRadius = radius * (0.18 + index * 0.075);
@@ -361,7 +424,10 @@ export function drawCanvasDisplayBackground(
       ctx.arc(centerX, centerY, arcRadius, Math.PI * 0.12, Math.PI * 1.88);
       ctx.stroke();
     }
-    ctx.globalAlpha = presentationMode ? 0.2 : 0.12;
+    ctx.globalAlpha =
+      atmosphere === 'orbital-grid'
+        ? presentationMode ? 0.24 : 0.16
+        : presentationMode ? 0.14 : 0.08;
     for (let index = 0; index < 10; index += 1) {
       const angle = (index / 10) * Math.PI * 2 - Math.PI / 2;
       ctx.beginPath();
@@ -371,26 +437,77 @@ export function drawCanvasDisplayBackground(
     }
   }
 
+  if (atmosphere === 'deep-field') {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineWidth = 1;
+    for (let index = 0; index < 9; index += 1) {
+      const arcRadius = radius * (0.16 + index * 0.062);
+      const start = Math.PI * (0.08 + index * 0.11);
+      const end = start + Math.PI * (0.24 + (index % 3) * 0.08);
+      ctx.globalAlpha = presentationMode ? 0.18 : 0.11;
+      ctx.strokeStyle = index % 2 === 0 ? theme.swatch[1] : theme.swatch[2];
+      ctx.beginPath();
+      ctx.arc(width * 0.5, height * 0.48, arcRadius, start, end);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   if (atmosphere === 'stars' || atmosphere === 'dust' || atmosphere === 'deep-field') {
     const count =
       atmosphere === 'dust'
-        ? 64
+        ? 48
         : atmosphere === 'deep-field'
-          ? 96
-          : 72;
+          ? 70
+          : 56;
     const particles = getParticles(width, height, atmosphere, seed, presentationMode ? count + 18 : count);
     particles.forEach((particle) => {
-      const alpha = particle.alpha * (presentationMode ? 1.08 : 0.76);
+      const alpha = particle.alpha * (presentationMode ? 1.08 : 0.74);
       ctx.globalAlpha = alpha;
       ctx.fillStyle =
         atmosphere === 'dust'
-          ? 'rgba(255,255,255,0.42)'
+          ? particle.hue > 0.58
+            ? 'rgba(255,235,190,0.32)'
+            : 'rgba(210,230,255,0.22)'
           : particle.hue > 0.78
             ? theme.swatch[2]
             : 'rgba(255,255,255,0.72)';
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      if (atmosphere === 'dust') {
+        ctx.ellipse(
+          particle.x,
+          particle.y,
+          particle.radius * 1.8,
+          particle.radius * 0.62,
+          -0.45,
+          0,
+          Math.PI * 2,
+        );
+      } else {
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      }
       ctx.fill();
+      if (atmosphere === 'stars' && particle.hue > 0.9) {
+        ctx.globalAlpha = alpha * 0.46;
+        ctx.strokeStyle = theme.swatch[2];
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(particle.x - particle.radius * 2.2, particle.y);
+        ctx.lineTo(particle.x + particle.radius * 2.2, particle.y);
+        ctx.moveTo(particle.x, particle.y - particle.radius * 2.2);
+        ctx.lineTo(particle.x, particle.y + particle.radius * 2.2);
+        ctx.stroke();
+      }
+      if (atmosphere === 'deep-field' && particle.hue > 0.86) {
+        ctx.globalAlpha = alpha * 0.34;
+        ctx.strokeStyle = theme.swatch[1];
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(particle.x - particle.radius * 3.2, particle.y + particle.radius * 1.4);
+        ctx.lineTo(particle.x + particle.radius * 3.2, particle.y - particle.radius * 1.4);
+        ctx.stroke();
+      }
     });
   }
 

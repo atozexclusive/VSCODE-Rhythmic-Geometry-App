@@ -17,6 +17,7 @@ export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
 export type RiffBarMarkerInterval = 'none' | 'pattern' | 1 | 2 | 4 | 8;
+export type RiffBackbeatBarInterval = 1 | 2 | 4;
 export type RiffPhraseResetMode =
   | 'free'
   | 'per-bar'
@@ -43,6 +44,8 @@ export interface ReferenceMeter {
   barCountForDisplay: number;
   showBackbeat: boolean;
   backbeatBeat: number | null;
+  backbeatBeats: number[];
+  backbeatBarInterval: RiffBackbeatBarInterval;
   showDownbeats: boolean;
 }
 
@@ -93,6 +96,7 @@ export interface RiffCyclePreset {
   id: string;
   name: string;
   description: string;
+  pro?: boolean;
   study: RiffCycleStudy;
 }
 
@@ -163,6 +167,26 @@ function normalizePitch(value: number): number {
 
 function normalizeBars(value: number): number {
   return clamp(Math.round(value || 0), 1, 16);
+}
+
+function normalizeBackbeatBarInterval(value: number | undefined): RiffBackbeatBarInterval {
+  return value === 2 || value === 4 ? value : 1;
+}
+
+function normalizeBackbeatBeats(
+  beats: number[] | undefined,
+  numerator: number,
+  fallbackBeat: number | null | undefined,
+): number[] {
+  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, 11);
+  const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
+  return Array.from(
+    new Set(
+      source
+        .map((beat) => clamp(Math.round(beat || 0), 1, normalizedNumerator))
+        .filter((beat) => Number.isFinite(beat)),
+    ),
+  ).sort((a, b) => a - b);
 }
 
 function normalizeTailLength(value: number, stepCount: number): number {
@@ -366,14 +390,22 @@ export function createEvenMask(stepCount: number, activeCount: number, offset = 
 export function createReferenceMeter(
   overrides: Partial<ReferenceMeter> = {},
 ): ReferenceMeter {
+  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 11);
+  const backbeatBeats = normalizeBackbeatBeats(
+    overrides.backbeatBeats,
+    numerator,
+    overrides.backbeatBeat ?? 3,
+  );
   return {
-    numerator: clamp(Math.round(overrides.numerator ?? 4), 2, 11),
+    numerator,
     denominator: overrides.denominator === 8 ? 8 : 4,
     subdivision: normalizeSubdivision(overrides.subdivision ?? 16),
     bpm: normalizeBpm(overrides.bpm ?? 112),
     barCountForDisplay: normalizeBars(overrides.barCountForDisplay ?? 4),
     showBackbeat: overrides.showBackbeat ?? true,
-    backbeatBeat: overrides.backbeatBeat ?? 3,
+    backbeatBeat: backbeatBeats[0] ?? null,
+    backbeatBeats,
+    backbeatBarInterval: normalizeBackbeatBarInterval(overrides.backbeatBarInterval),
     showDownbeats: overrides.showDownbeats ?? true,
   };
 }
@@ -576,12 +608,23 @@ export function isBackbeatStep(
   study: RiffCycleStudy,
   referenceStep: number,
 ): boolean {
-  if (!study.reference.showBackbeat || !study.reference.backbeatBeat) {
+  const backbeatBeats = normalizeBackbeatBeats(
+    study.reference.backbeatBeats,
+    study.reference.numerator,
+    study.reference.backbeatBeat,
+  );
+  if (!study.reference.showBackbeat || backbeatBeats.length === 0) {
+    return false;
+  }
+  const stepsPerBar = getReferenceStepsPerBar(study.reference);
+  const barIndex = Math.floor(Math.max(0, referenceStep) / stepsPerBar);
+  const barInterval = normalizeBackbeatBarInterval(study.reference.backbeatBarInterval);
+  if (barIndex % barInterval !== 0) {
     return false;
   }
   return (
     isReferenceBeatStart(study, referenceStep) &&
-    getBeatIndexWithinBar(study, referenceStep) === study.reference.backbeatBeat - 1
+    backbeatBeats.includes(getBeatIndexWithinBar(study, referenceStep) + 1)
   );
 }
 
@@ -1077,11 +1120,13 @@ function withPhraseMask(
   reference: Partial<ReferenceMeter>,
   riff: Partial<RiffPhrase> & { stepCount: number; activeSteps: boolean[] },
   overrides: Partial<RiffCycleStudy> = {},
+  presetOptions: Pick<RiffCyclePreset, 'pro'> = {},
 ): RiffCyclePreset {
   return {
     id,
     name,
     description,
+    ...presetOptions,
     study: createRiffCycleStudy({
       ...overrides,
       name,
@@ -1093,6 +1138,33 @@ function withPhraseMask(
 }
 
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
+  withPhraseMask(
+    'default-riff',
+    'First Return',
+    'A clear 7-step starter riff with a readable four-bar return.',
+    { numerator: 4, denominator: 4, subdivision: 16, bpm: 90, barCountForDisplay: 4 },
+    {
+      stepCount: 7,
+      activeSteps: [true, false, true, false, true, true, false],
+      accents: [true, false, false, false, false, false, false],
+      resetMode: 'every-4-bars',
+      resetBars: 4,
+      color: RIFF_CYCLE_COLORS[1],
+      pitchHz: 104,
+      gain: 0.14,
+    },
+    {
+      soundSettings: {
+        palette: 'deep-architectural',
+        pitchMode: 'free',
+        rootNote: 'E',
+        scaleName: 'minorPentatonic',
+        register: 'low',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'analysis',
+    },
+  ),
   withPhraseMask(
     'seventeen-reset-four',
     'Four-Bar Return',
@@ -1227,9 +1299,137 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
       emphasisMode: 'analysis',
     },
   ),
+  withPhraseMask(
+    'eleven-switchback',
+    'Eleven Switchback',
+    'An 11-step phrase that keeps turning across a two-bar return.',
+    { numerator: 4, denominator: 4, subdivision: 16, bpm: 116, barCountForDisplay: 4, backbeatBeat: 3 },
+    {
+      stepCount: 11,
+      activeSteps: [true, false, true, false, true, false, false, true, false, true, false],
+      accents: [true, false, false, false, true, false, false, false, false, true, false],
+      resetMode: 'every-2-bars',
+      resetBars: 2,
+      color: RIFF_CYCLE_COLORS[5],
+      pitchHz: 138,
+      gain: 0.13,
+    },
+    {
+      landingEditEnabled: true,
+      landingLength: 4,
+      landingOverrides: ['inherit', 'rest', 'accent', 'on'],
+      soundSettings: {
+        palette: 'dry-synth',
+        pitchMode: 'keyed',
+        rootNote: 'A',
+        scaleName: 'dorian',
+        register: 'mid-low',
+        accentPush: 'strong',
+      },
+      emphasisMode: 'groove',
+    },
+    { pro: true },
+  ),
+  withPhraseMask(
+    'twenty-three-return',
+    'Twenty-Three Return',
+    'A long 23-step phrase forced back into a four-bar frame.',
+    { numerator: 4, denominator: 4, subdivision: 16, bpm: 108, barCountForDisplay: 4, backbeatBeat: 3 },
+    {
+      stepCount: 23,
+      activeSteps: [true, false, false, true, false, true, false, false, true, false, false, true, false, true, false, false, true, false, true, false, false, true, false],
+      accents: [true, false, false, false, false, true, false, false, false, false, false, true, false, false, false, false, true, false, false, false, false, true, false],
+      resetMode: 'every-4-bars',
+      resetBars: 4,
+      color: RIFF_CYCLE_COLORS[7],
+      pitchHz: 96,
+      gain: 0.15,
+    },
+    {
+      landingEditEnabled: true,
+      landingLength: 5,
+      landingOverrides: ['inherit', 'rest', 'inherit', 'accent', 'rest'],
+      barMarkerInterval: 'pattern',
+      soundSettings: {
+        palette: 'muted-djent',
+        pitchMode: 'free',
+        rootNote: 'F#',
+        scaleName: 'aeolian',
+        register: 'low',
+        accentPush: 'strong',
+      },
+      emphasisMode: 'analysis',
+    },
+    { pro: true },
+  ),
+  withPhraseMask(
+    'nine-five-slip',
+    'Nine-Five Slip',
+    'A compact 9-step phrase inside a 5/4 bar with a clean landing cue.',
+    { numerator: 5, denominator: 4, subdivision: 16, bpm: 102, barCountForDisplay: 4, backbeatBeat: 3 },
+    {
+      stepCount: 9,
+      activeSteps: [true, false, true, false, false, true, false, true, false],
+      accents: [true, false, false, false, false, true, false, false, false],
+      resetMode: 'every-4-bars',
+      resetBars: 4,
+      color: RIFF_CYCLE_COLORS[6],
+      pitchHz: 116,
+      gain: 0.13,
+    },
+    {
+      landingEditEnabled: true,
+      landingLength: 3,
+      landingOverrides: ['rest', 'accent', 'on'],
+      barMarkerInterval: 1,
+      soundSettings: {
+        palette: 'architectural',
+        pitchMode: 'keyed',
+        rootNote: 'D',
+        scaleName: 'minorPentatonic',
+        register: 'wide',
+        accentPush: 'soft',
+      },
+      emphasisMode: 'groove',
+    },
+    { pro: true },
+  ),
+  withPhraseMask(
+    'thirty-one-drift',
+    'Thirty-One Drift',
+    'A sparse 31-step drift that takes longer to feel settled.',
+    { numerator: 4, denominator: 4, subdivision: 20, bpm: 96, barCountForDisplay: 4, backbeatBeat: 3 },
+    {
+      stepCount: 31,
+      activeSteps: [true, false, false, false, true, false, true, false, false, true, false, false, false, true, false, true, false, false, false, true, false, false, true, false, false, false, true, false, true, false, false],
+      accents: [true, false, false, false, false, false, true, false, false, false, false, false, false, true, false, false, false, false, false, true, false, false, false, false, false, false, true, false, false, false, false],
+      resetMode: 'free',
+      resetBars: 8,
+      color: RIFF_CYCLE_COLORS[9],
+      pitchHz: 84,
+      gain: 0.14,
+    },
+    {
+      landingEditEnabled: true,
+      landingLength: 6,
+      landingOverrides: ['inherit', 'rest', 'inherit', 'accent', 'rest', 'on'],
+      showPhraseBounds: true,
+      barMarkerInterval: 'pattern',
+      soundSettings: {
+        palette: 'low-pulse',
+        pitchMode: 'keyed',
+        rootNote: 'E',
+        scaleName: 'aeolian',
+        register: 'low',
+        accentPush: 'strong',
+      },
+      emphasisMode: 'analysis',
+    },
+    { pro: true },
+  ),
 ];
 
-export const DEFAULT_RIFF_CYCLE_PRESET_ID = 'seventeen-reset-four';
+export const DEFAULT_RIFF_CYCLE_PRESET_ID = 'default-riff';
 
 export function createDefaultRiffCycleStudy(): RiffCycleStudy {
   const preset =

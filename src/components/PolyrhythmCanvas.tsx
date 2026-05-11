@@ -340,7 +340,6 @@ export default function PolyrhythmCanvas({
           metrics.scale,
         );
         const activePoints = points.filter((point) => point.active);
-        const playbackStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
         const smoothLayerAngle = -Math.PI / 2 + playbackState.progress * TAU;
         const smoothLayerX =
           metrics.centerX + Math.cos(smoothLayerAngle) * layer.radius * metrics.scale;
@@ -454,9 +453,6 @@ export default function PolyrhythmCanvas({
             return;
           }
 
-          const isPlaybackStep = point.index === playbackStepIndex;
-          const isActivePlaybackStep =
-            point.active && isPlaybackStep && currentStudy.playing;
           const accented = point.accented;
           const isSelectedStep =
             currentSelectedStep?.layerId === layer.id &&
@@ -474,6 +470,8 @@ export default function PolyrhythmCanvas({
               : 1;
           const pulseStrength = pulse ? 1 - pulseProgress : 0;
           const denseLayer = layer.beatCount > 24;
+          const hitRadiusBoost = point.active && !isReferenceLayer ? pulseStrength * 2.15 : 0;
+          const hitGlowBoost = point.active && !isReferenceLayer ? pulseStrength * 12 : 0;
           const pointRadius = isReferenceLayer
             ? 2.6
             : point.active
@@ -481,10 +479,8 @@ export default function PolyrhythmCanvas({
               ? soloLayerDisplayRef.current ? (accented ? 10.1 : 9.2) : (accented ? 9 : 8.2)
               : isHoveredStep
                 ? soloLayerDisplayRef.current ? (accented ? 8.8 : 8) : (accented ? 7.6 : 6.9)
-              : isActivePlaybackStep
-                ? soloLayerDisplayRef.current ? (accented ? 7.6 : 6.8) : (accented ? 6.8 : 6)
-                : isHoveredLayer
-                  ? soloLayerDisplayRef.current ? (accented ? 6.8 : 6.1) : (accented ? 6.1 : 5.4)
+              : isHoveredLayer
+                ? soloLayerDisplayRef.current ? (accented ? 6.8 : 6.1) : (accented ? 6.1 : 5.4)
                 : soloLayerDisplayRef.current ? (accented ? 5.9 : 5.2) : (accented ? 5.1 : 4.5)
             : isSelectedStep
               ? soloLayerDisplayRef.current ? 6.8 : 6
@@ -534,17 +530,17 @@ export default function PolyrhythmCanvas({
             ctx.shadowBlur = (8 + 6 * easedPulse) * glowMultiplier;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 3 + (1 - easedPulse) * 8, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 3 + (1 - easedPulse) * 8 + hitRadiusBoost, 0, TAU);
             ctx.stroke();
             ctx.restore();
 
             ctx.save();
-            ctx.globalAlpha = 0.055 * easedPulse;
+            ctx.globalAlpha = 0.07 * easedPulse;
             ctx.fillStyle = layer.color;
-            ctx.shadowBlur = 8 * glowMultiplier;
+            ctx.shadowBlur = (8 + hitGlowBoost) * glowMultiplier;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 5 + (1 - easedPulse) * 4, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 5 + (1 - easedPulse) * 4 + hitRadiusBoost, 0, TAU);
             ctx.fill();
             ctx.restore();
           }
@@ -558,19 +554,17 @@ export default function PolyrhythmCanvas({
                 ? 1
                 : isHoveredStep
                   ? 1
-                : isActivePlaybackStep
-                  ? 1
-                  : isHoveredLayer
+                : isHoveredLayer
                     ? 0.98
                     : sharedDisplay
                       ? 0.94
                     : 0.88;
             ctx.shadowBlur = isReferenceLayer
               ? 0
-              : (isSelectedStep ? 16 : isHoveredStep ? 16 : isActivePlaybackStep ? 14 : isHoveredLayer ? 12 : sharedDisplay ? 10 : 8) * glowMultiplier;
+              : (isSelectedStep ? 16 : isHoveredStep ? 16 : isHoveredLayer ? 12 : sharedDisplay ? 10 : 8) * glowMultiplier + hitGlowBoost;
             ctx.shadowColor = isReferenceLayer ? 'transparent' : layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + hitRadiusBoost, 0, TAU);
             ctx.fill();
             if (accented && !isReferenceLayer) {
               ctx.strokeStyle = 'rgba(255,209,102,0.92)';

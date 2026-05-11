@@ -61,7 +61,7 @@ export function getReferencePolygonVertices(
   study: RiffCycleStudy,
   metrics: Pick<RiffCycleCanvasMetrics, 'circleCenterX' | 'circleCenterY' | 'outerRadius'>,
 ): RiffCyclePoint[] {
-  const vertexCount = Math.max(3, study.reference.numerator);
+  const vertexCount = Math.max(2, study.reference.numerator);
   const startAngle = -Math.PI / 2;
   return Array.from({ length: vertexCount }, (_, index) => {
     const angle = startAngle + (index / vertexCount) * Math.PI * 2;

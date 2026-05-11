@@ -25,8 +25,8 @@ export const SITE_MODE_CARDS: SiteModeCard[] = [
     description:
       'Two cycles rotating in time. As they repeat, their relationship traces a pattern - a geometric memory of the rhythm itself.',
     details: [
-      'Every ratio becomes a path.',
-      'Every cycle leaves a shape.',
+      'Layer simple pulse counts into moving orbits.',
+      'Watch the drawing reveal how the cycles relate.',
     ],
     bestFor: 'Seeing rhythm as motion.',
     firstMove: 'Set a simple ratio and press Play.',
@@ -44,8 +44,8 @@ export const SITE_MODE_CARDS: SiteModeCard[] = [
     description:
       'Break rhythm into shared structure. Visualize how cycles meet, divide, and resolve - revealing the hidden framework behind polyrhythm.',
     details: [
-      'Where do the pulses agree?',
-      'Where do they drift apart?',
+      'Compare rhythm layers on one shared grid.',
+      'See exactly where the pulses line up.',
     ],
     bestFor: 'Seeing how rhythms align.',
     firstMove: 'Start with two layers and watch where they meet.',
@@ -63,8 +63,8 @@ export const SITE_MODE_CARDS: SiteModeCard[] = [
     description:
       'Write and explore patterns through time. Shape grooves, displace accents, and feel how structure evolves when rhythm becomes a system instead of a loop.',
     details: [
-      'Not just what you play -',
-      'but how it cycles.',
+      'Build hits, rests, and accents into a riff.',
+      'See where the phrase returns, shifts, or lands.',
     ],
     bestFor: 'Building rhythm as structure.',
     firstMove: 'Write a pattern, then let it cycle through time.',

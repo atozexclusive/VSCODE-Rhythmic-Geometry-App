@@ -535,9 +535,15 @@ export default function RiffCycleCanvas({
           currentStudy.reference.numerator - Math.abs(beatProgress - index),
         );
         const beatFocus = Math.max(0, 1 - beatDistance);
+        const backbeatBeats =
+          currentStudy.reference.backbeatBeats?.length
+            ? currentStudy.reference.backbeatBeats
+            : currentStudy.reference.backbeatBeat != null
+              ? [currentStudy.reference.backbeatBeat]
+              : [];
         const isBackbeatVertex =
           currentStudy.reference.showBackbeat &&
-          currentStudy.reference.backbeatBeat === index + 1;
+          backbeatBeats.includes(index + 1);
         const vertexRadius = (index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) + beatFocus * 1.9;
 
         ctx.save();

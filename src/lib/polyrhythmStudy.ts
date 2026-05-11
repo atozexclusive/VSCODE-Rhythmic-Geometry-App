@@ -53,6 +53,7 @@ export interface PolyrhythmStudyPreset {
   name: string;
   description: string;
   group: PolyrhythmPresetGroup;
+  pro?: boolean;
   study: PolyrhythmStudy;
 }
 
@@ -299,25 +300,17 @@ function normalizeAccents(accents: boolean[] | undefined, activeSteps: boolean[]
   );
 }
 
-function remapActiveSteps(activeSteps: boolean[], nextBeatCount: number): boolean[] {
-  const currentBeatCount = Math.max(1, activeSteps.length);
-  const currentActive = activeSteps.reduce((count, step) => count + (step ? 1 : 0), 0);
+function resizeActiveSteps(activeSteps: boolean[], nextBeatCount: number): boolean[] {
+  return Array.from({ length: nextBeatCount }, (_, index) =>
+    index < activeSteps.length ? Boolean(activeSteps[index]) : true,
+  );
+}
 
-  if (currentActive === 0) {
-    return Array.from({ length: nextBeatCount }, () => false);
-  }
-
-  const next = Array.from({ length: nextBeatCount }, () => false);
-
-  activeSteps.forEach((step, index) => {
-    if (!step) {
-      return;
-    }
-    const mapped = Math.round((index / currentBeatCount) * nextBeatCount) % nextBeatCount;
-    next[mapped] = true;
-  });
-
-  return next;
+function resizeAccents(accents: boolean[] | undefined, activeSteps: boolean[], nextBeatCount: number): boolean[] {
+  return Array.from(
+    { length: nextBeatCount },
+    (_, index) => index < (accents?.length ?? 0) && Boolean(accents?.[index]) && Boolean(activeSteps[index]),
+  );
 }
 
 export function createPolyrhythmLayer(
@@ -417,13 +410,12 @@ export function updateLayerBeatCount(
   beatCount: number,
 ): PolyrhythmLayer {
   const normalizedBeatCount = normalizeBeatCount(beatCount);
+  const activeSteps = resizeActiveSteps(layer.activeSteps, normalizedBeatCount);
   return {
     ...layer,
     beatCount: normalizedBeatCount,
-    activeSteps: remapActiveSteps(layer.activeSteps, normalizedBeatCount),
-    accents: remapActiveSteps(layer.accents ?? [], normalizedBeatCount).map((accented, index) =>
-      accented && remapActiveSteps(layer.activeSteps, normalizedBeatCount)[index],
-    ),
+    activeSteps,
+    accents: resizeAccents(layer.accents, activeSteps, normalizedBeatCount),
   };
 }
 
@@ -565,6 +557,7 @@ function createSingleLayerStudy(options: {
   description: string;
   beatCount: number;
   activeIndices: number[];
+  accentIndices?: number[];
   color: string;
   bpm: number;
   soundSettings?: Partial<PolyrhythmSoundSettings>;
@@ -581,6 +574,7 @@ function createSingleLayerStudy(options: {
         radius: getStudyLayerRadius(0, 1, 'shared'),
         color: options.color,
         activeSteps: createMaskFromIndices(beatCount, options.activeIndices),
+        accents: createMaskFromIndices(beatCount, options.accentIndices ?? []),
         pitchHz: 214,
         gain: 0.13,
       }),
@@ -894,7 +888,8 @@ const CASCARA_STUDY = createSingleLayerStudy({
   name: 'Cascara',
   description: 'The common shell timeline used for a 3-2 cascara feel.',
   beatCount: 16,
-  activeIndices: [0, 3, 6, 7, 10, 12, 14],
+  activeIndices: [0, 2, 3, 5, 7, 8, 10, 12, 13, 15],
+  accentIndices: [0, 3, 5, 8, 10, 13],
   color: '#7FD7FF',
   bpm: 106,
   soundSettings: {
@@ -924,7 +919,8 @@ const BEMBE_STUDY = createSingleLayerStudy({
   name: 'Bembe',
   description: 'The standard 12-pulse bell line on one shared frame.',
   beatCount: 12,
-  activeIndices: [0, 2, 3, 5, 7, 8, 10],
+  activeIndices: [0, 2, 4, 5, 7, 9, 11],
+  accentIndices: [0, 2, 4, 5, 7, 9, 11],
   color: '#FF88C2',
   bpm: 112,
   soundSettings: {
@@ -946,21 +942,6 @@ const BOSSA_STUDY = createSingleLayerStudy({
   bpm: 118,
   soundSettings: {
     palette: 'soft-synth',
-    pitchMode: 'free',
-    register: 'tight',
-  },
-});
-
-const SON_CLAVE_STUDY = createSingleLayerStudy({
-  id: 'son-clave',
-  name: 'Son Clave',
-  description: 'The common 3-2 son clave on a two-bar loop.',
-  beatCount: 16,
-  activeIndices: [0, 3, 6, 10, 12],
-  color: '#72F1B8',
-  bpm: 104,
-  soundSettings: {
-    palette: 'study-pulse',
     pitchMode: 'free',
     register: 'tight',
   },
@@ -1245,6 +1226,82 @@ const ROTATING_WEAVE_STUDY: PolyrhythmStudy = {
   }),
 };
 
+const PRIME_MESH_STUDY = createSharedCycleStudy({
+  id: 'prime-mesh',
+  name: '5·7·11 Prime',
+  description: 'Three prime layers that resolve after a long shared cycle.',
+  cycleSteps: 385,
+  activeCounts: [5, 7, 11],
+  bpm: 86,
+  displayStyle: 'shared',
+  colors: ['#72F1B8', '#7FD7FF', '#FF88C2'],
+  soundSettings: {
+    palette: 'soft-synth',
+    pitchMode: 'keyed',
+    rootNote: 'F',
+    scaleName: 'lydian',
+    register: 'wide',
+  },
+  showStepLabels: false,
+});
+
+const EVEN_STACK_STUDY = createSharedCycleStudy({
+  id: 'even-stack',
+  name: '4·6·9·12 Stack',
+  description: 'Four related layers with shared anchors and visible cross-locks.',
+  cycleSteps: 36,
+  activeCounts: [4, 6, 9, 12],
+  bpm: 92,
+  displayStyle: 'nested',
+  colors: ['#72F1B8', '#7FD7FF', '#FFD166', '#FF88C2'],
+  soundSettings: {
+    palette: 'bright-marker',
+    pitchMode: 'keyed',
+    rootNote: 'C',
+    scaleName: 'majorPentatonic',
+    register: 'wide',
+  },
+  showStepLabels: false,
+});
+
+const SEVEN_NINE_TWELVE_STUDY = createSharedCycleStudy({
+  id: 'seven-nine-twelve',
+  name: '7·9·12 Field',
+  description: 'A wider three-layer field where one odd layer keeps pulling the grid forward.',
+  cycleSteps: 252,
+  activeCounts: [7, 9, 12],
+  bpm: 88,
+  displayStyle: 'shared',
+  colors: ['#B6A0FF', '#72F1B8', '#FFD166'],
+  soundSettings: {
+    palette: 'wood',
+    pitchMode: 'keyed',
+    rootNote: 'D',
+    scaleName: 'dorian',
+    register: 'wide',
+  },
+  showStepLabels: false,
+});
+
+const PRIME_TETRA_STUDY = createSharedCycleStudy({
+  id: 'prime-tetra',
+  name: '3·5·7·11 Tetra',
+  description: 'Four prime layers for a dense long-resolution study.',
+  cycleSteps: 1155,
+  activeCounts: [3, 5, 7, 11],
+  bpm: 84,
+  displayStyle: 'nested',
+  colors: ['#72F1B8', '#7FD7FF', '#FF88C2', '#FFD166'],
+  soundSettings: {
+    palette: 'soft-synth',
+    pitchMode: 'keyed',
+    rootNote: 'A',
+    scaleName: 'aeolian',
+    register: 'wide',
+  },
+  showStepLabels: false,
+});
+
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
   {
     id: 'bo-diddley',
@@ -1280,13 +1337,6 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     description: 'A five-stroke bossa line on one shared 16-step loop.',
     group: 'one-layer',
     study: BOSSA_STUDY,
-  },
-  {
-    id: 'son-clave',
-    name: 'Son Clave',
-    description: 'The common 3-2 son clave on a two-bar frame.',
-    group: 'one-layer',
-    study: SON_CLAVE_STUDY,
   },
   {
     id: 'rumba-clave',
@@ -1356,6 +1406,7 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     name: '3·5·6 Cycle',
     description: 'Three, five, and six nodes resolving together.',
     group: 'advanced',
+    pro: true,
     study: THREE_FIVE_SIX_STUDY,
   },
   {
@@ -1363,6 +1414,7 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     name: '4·5·10 Mesh',
     description: 'Four, five, and ten nodes resolving together.',
     group: 'advanced',
+    pro: true,
     study: FOUR_FIVE_TEN_STUDY,
   },
   {
@@ -1370,6 +1422,7 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     name: 'Nested 3:5',
     description: 'The same 3:5 family repeated through denser inner rings.',
     group: 'advanced',
+    pro: true,
     study: NESTED_THREE_FIVE_STUDY,
   },
   {
@@ -1377,6 +1430,7 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     name: '5·8·10 Mesh',
     description: 'Five, eight, and ten nodes resolving together.',
     group: 'advanced',
+    pro: true,
     study: COUNTER_MESH_STUDY,
   },
   {
@@ -1384,7 +1438,40 @@ export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
     name: 'Rotating Weave',
     description: 'Three masks with light offsets for a more advanced layered study.',
     group: 'advanced',
+    pro: true,
     study: ROTATING_WEAVE_STUDY,
+  },
+  {
+    id: 'prime-mesh',
+    name: '5·7·11 Prime',
+    description: 'Three prime layers with a long shared resolution.',
+    group: 'advanced',
+    pro: true,
+    study: PRIME_MESH_STUDY,
+  },
+  {
+    id: 'even-stack',
+    name: '4·6·9·12 Stack',
+    description: 'Four related layers with shared anchors and cross-locks.',
+    group: 'advanced',
+    pro: true,
+    study: EVEN_STACK_STUDY,
+  },
+  {
+    id: 'seven-nine-twelve',
+    name: '7·9·12 Field',
+    description: 'A wider three-layer field with a long odd-cycle pull.',
+    group: 'advanced',
+    pro: true,
+    study: SEVEN_NINE_TWELVE_STUDY,
+  },
+  {
+    id: 'prime-tetra',
+    name: '3·5·7·11 Tetra',
+    description: 'Four prime layers for a dense long-resolution study.',
+    group: 'advanced',
+    pro: true,
+    study: PRIME_TETRA_STUDY,
   },
 ];
 

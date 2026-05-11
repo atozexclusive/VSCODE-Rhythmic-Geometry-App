@@ -294,6 +294,27 @@ export default function OrbitSidebar({
     borderColor: 'rgba(255, 255, 255, 0.085)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 14px 28px rgba(0,0,0,0.12)',
   } as const;
+  const mobileModeCardStyle = {
+    background: `
+      radial-gradient(circle at 14% 10%, rgba(0,255,170,0.16), transparent 42%),
+      linear-gradient(135deg, rgba(0,255,170,0.09), rgba(127,215,255,0.06) 52%, rgba(255,255,255,0.026))
+    `,
+    borderColor: 'rgba(127,215,255,0.14)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 18px 42px rgba(0,0,0,0.18), 0 0 34px rgba(0,255,170,0.06)',
+  } as const;
+  const mobilePrimaryTabShellStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.036), rgba(255,255,255,0.018))',
+    borderColor: 'rgba(255,255,255,0.075)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.045)',
+  } as const;
+  const mobileSceneSubTabShellStyle = {
+    background: 'rgba(255,255,255,0.022)',
+    borderColor: 'rgba(255,255,255,0.065)',
+  } as const;
+  const mobileSceneFilterShellStyle = {
+    background: 'rgba(255,255,255,0.016)',
+    borderColor: 'rgba(255,255,255,0.055)',
+  } as const;
   const mobileSectionTitleClass = 'text-[12px] font-mono uppercase tracking-[0.22em]';
   const mobileSubTitleClass = 'text-[10px] font-mono uppercase tracking-[0.18em]';
   const getCompactDescription = (description: string) => {
@@ -304,9 +325,9 @@ export default function OrbitSidebar({
     scale === 4 ? '4K' : scale === 2 ? '2K' : scale === 1 ? 'HD' : null;
   const tabMeta: Array<{ key: 'account' | 'scenes' | 'geometry' | 'orbits' | 'sound' | 'export'; label: string; activeColor: string }> = isMobile
     ? [
-        { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
+        { key: 'scenes', label: 'Scenes', activeColor: '#7FD7FF' },
         { key: 'export', label: 'Export', activeColor: '#FFAA00' },
-        { key: 'account', label: 'Account', activeColor: '#88CCFF' },
+        { key: 'account', label: 'Account', activeColor: '#C9D4E5' },
       ]
     : [
         { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
@@ -416,10 +437,10 @@ export default function OrbitSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="rounded-[1.35rem] border border-white/8 bg-white/[0.035] px-3 py-3">
+            <div className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
+                  <div className="text-[12px] font-mono uppercase tracking-[0.24em]" style={mobilePrimaryTitleStyle}>
                     Mode
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed text-white/42">
@@ -442,12 +463,12 @@ export default function OrbitSidebar({
                       key={surfaceId}
                       type="button"
                       onClick={() => onSurfaceChange(surfaceId)}
-                      className="flex-1 rounded-full border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                      className="flex-1 rounded-full border px-3 py-2.5 text-[10px] font-mono uppercase tracking-[0.16em]"
                       style={{
-                        background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.03)',
-                        borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
+                        background: active ? 'rgba(114,241,184,0.15)' : 'rgba(255,255,255,0.032)',
+                        borderColor: active ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.085)',
                         color: active ? '#72F1B8' : 'rgba(255,255,255,0.56)',
-                        boxShadow: active ? '0 0 0 1px rgba(114,241,184,0.12) inset, 0 10px 24px rgba(0,0,0,0.18)' : 'none',
+                        boxShadow: active ? '0 0 0 1px rgba(114,241,184,0.16) inset, 0 0 24px rgba(114,241,184,0.08), 0 10px 24px rgba(0,0,0,0.18)' : 'none',
                       }}
                     >
                       {label}
@@ -462,8 +483,8 @@ export default function OrbitSidebar({
         {/* Tabs */}
         <div className={`${isMobile ? 'px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
           <div
-            className={`${isMobile ? 'grid grid-cols-3 gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.35rem] border`}
-            style={{
+            className={`${isMobile ? 'grid grid-cols-3 gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.25rem] border`}
+            style={isMobile ? mobilePrimaryTabShellStyle : {
               background: 'rgba(255,255,255,0.028)',
               borderColor: 'rgba(255,255,255,0.08)',
             }}
@@ -472,12 +493,12 @@ export default function OrbitSidebar({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-xl border text-center text-xs font-mono font-light transition-all duration-200 ${isMobile ? 'min-w-0 px-2 py-2.5' : 'shrink-0 px-3 py-2.5'}`}
+              className={`rounded-xl border text-center font-mono font-light transition-all duration-200 ${isMobile ? 'min-w-0 px-2 py-2 text-[11px]' : 'shrink-0 px-3 py-2.5 text-xs'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
                 background: activeTab === tab.key ? `${tab.activeColor}14` : 'transparent',
-                boxShadow: activeTab === tab.key ? `inset 0 0 0 1px ${tab.activeColor}18` : 'none',
+                boxShadow: activeTab === tab.key ? `inset 0 0 0 1px ${tab.activeColor}18, 0 8px 18px rgba(0,0,0,0.12)` : 'none',
               }}
             >
               {tab.label.toUpperCase()}
@@ -791,20 +812,21 @@ export default function OrbitSidebar({
                 </p>
               </div>
 
-              <div className="rounded-2xl border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+              <div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                 {[
-                  { key: 'built-in' as const, label: 'Scenes', color: '#00FFAA' },
-                  { key: 'saved' as const, label: 'Saved', color: '#88CCFF' },
-                  { key: 'premium' as const, label: 'Pro', color: '#FFAA00' },
+                  { key: 'built-in' as const, label: 'Standard', color: '#FFD166' },
+                  { key: 'saved' as const, label: 'Saved', color: '#7FD7FF' },
+                  { key: 'premium' as const, label: 'Pro', color: '#FF88C2' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveSceneTab(tab.key)}
-                    className="flex-1 px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
+                    className="flex-1 px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em] transition-all duration-200"
                     style={{
                       background: activeSceneTab === tab.key ? `${tab.color}16` : 'transparent',
-                      border: `1px solid ${activeSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                      color: activeSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.46)',
+                      border: `1px solid ${activeSceneTab === tab.key ? `${tab.color}34` : 'transparent'}`,
+                      color: activeSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.42)',
+                      boxShadow: activeSceneTab === tab.key ? `inset 0 0 0 1px ${tab.color}10, 0 0 20px ${tab.color}07` : 'none',
                     }}
                   >
                     {tab.label}
@@ -812,16 +834,16 @@ export default function OrbitSidebar({
                 ))}
               </div>
 
-              <div className="rounded-[1.15rem] border p-1 flex gap-1" style={{ background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
+              <div className="rounded-[1rem] border px-1 py-1 flex gap-1" style={isMobile ? mobileSceneFilterShellStyle : { background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
                 {sceneModeTabs.map((mode) => (
                   <button
                     key={mode.key}
                     onClick={() => setActiveSceneMode(mode.key)}
-                    className="flex-1 px-2.5 py-2 rounded-[0.9rem] text-[9px] font-mono uppercase tracking-[0.13em] transition-all duration-200"
+                    className="flex-1 px-2 py-1.5 rounded-[0.8rem] text-[8px] font-mono uppercase tracking-[0.14em] transition-all duration-200"
                     style={{
-                      background: activeSceneMode === mode.key ? `${mode.color}12` : 'transparent',
-                      border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}32` : 'transparent'}`,
-                      color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.42)',
+                      background: activeSceneMode === mode.key ? `${mode.color}10` : 'transparent',
+                      border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}26` : 'transparent'}`,
+                      color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.38)',
                     }}
                   >
                     {mode.label}
