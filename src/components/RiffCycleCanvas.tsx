@@ -252,10 +252,13 @@ function getEffectiveLaneWindowStartStep(
     if (visibleStepCount >= displayStepCount) {
       return undefined;
     }
+    const currentDisplayReferenceStep =
+      ((currentAbsoluteReferenceStep % displayStepCount) + displayStepCount) %
+      displayStepCount;
     const maxStart = Math.max(0, displayStepCount - visibleStepCount);
     return Math.min(
       maxStart,
-      Math.floor(Math.max(0, currentAbsoluteReferenceStep) / visibleStepCount) * visibleStepCount,
+      Math.floor(currentDisplayReferenceStep / visibleStepCount) * visibleStepCount,
     );
   }
 

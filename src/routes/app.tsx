@@ -884,11 +884,11 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-mobile-ending-lane',
-    title: 'Ending Lane',
+    title: 'Return Window',
     kicker: 'Riff Guide',
-    text: 'Ending Lane shows where the ending happens in time. The blue ending slots appear near the restart point so you can see why the riff turns around there.',
-    doThis: 'Use 2 Bars or 4 Bars when you want to see the ending approach.',
-    notice: 'If the view feels crowded, hide the lane and come back later.',
+    text: 'Return Window shows the whole restart cycle in a small view. The final slots are where the ending plays before the riff comes back to beat 1.',
+    doThis: 'Watch the End marker while the riff plays, then change one Final Slot above it.',
+    notice: 'This replaces the big lane view so the ending is easier to understand on mobile.',
   },
   {
     target: 'riff-mobile-scenes',
@@ -2966,21 +2966,27 @@ function RiffEndingReturnWindowPanel({
   landingEditableSlots,
   stepsPerBar,
   landingWindowSteps,
+  landingOverrides,
   playing,
   playbackStateRef,
+  className = '',
 }: {
   landingWindowBars: number;
   landingEditableSlots: number;
   stepsPerBar: number;
   landingWindowSteps: number;
+  landingOverrides: RiffCycleStudy['landingOverrides'];
   playing: boolean;
   playbackStateRef: React.MutableRefObject<RiffCyclePlaybackState>;
+  className?: string;
 }) {
   const [activeBarIndex, setActiveBarIndex] = useState<number | null>(null);
+  const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!playing) {
       setActiveBarIndex(null);
+      setActiveStepIndex(null);
       return;
     }
 
@@ -2994,6 +3000,9 @@ function RiffEndingReturnWindowPanel({
         Math.floor(normalizedReferenceStep / stepsPerBar),
       );
       setActiveBarIndex((current) => (current === nextBarIndex ? current : nextBarIndex));
+      const nextStepIndex =
+        ((normalizedReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+      setActiveStepIndex((current) => (current === nextStepIndex ? current : nextStepIndex));
       frame = window.requestAnimationFrame(update);
     };
 
@@ -3001,64 +3010,168 @@ function RiffEndingReturnWindowPanel({
     return () => window.cancelAnimationFrame(frame);
   }, [landingWindowBars, landingWindowSteps, playbackStateRef, playing, stepsPerBar]);
 
+  const visibleBarIndexes =
+    landingWindowBars <= 8
+      ? Array.from({ length: landingWindowBars }, (_, index) => index)
+      : [0, 1, -1, landingWindowBars - 2, landingWindowBars - 1];
+  const endingStartStep = Math.max(0, stepsPerBar - landingEditableSlots);
+
   return (
-    <StudyShellPremiumPanel accent="#7FD7FF" className="space-y-3">
+    <StudyShellPremiumPanel accent="#7FD7FF" className={`space-y-3 ${className}`}>
       <StudyShellPanel className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
             Return Window
           </div>
           <div className="rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/10 px-2.5 py-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#7FD7FF]">
-            {landingWindowBars} Bars · Last {landingEditableSlots} Slots
+            {landingWindowBars} {landingWindowBars === 1 ? 'Bar' : 'Bars'} Restart
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-          <span>Playback moves through these bars</span>
-          <span>Final bar holds the ending tail</span>
+        <div className="rounded-xl border border-[#7FD7FF]/16 bg-[#7FD7FF]/8 px-3 py-2 text-[11px] leading-relaxed text-white/58">
+          The ending only happens at the end of the return cycle. These final slots play right before the riff comes back to beat 1.
         </div>
+
         <div className="space-y-2">
-          {Array.from({ length: landingWindowBars }, (_, barIndex) => {
-            const isEndingBar = barIndex === landingWindowBars - 1;
-            const isActiveBar = activeBarIndex === barIndex;
-            return (
-              <div
-                key={`ending-bar-${barIndex}`}
-                className="rounded-xl border px-3 py-2 text-left transition-all"
-                style={{
-                  borderColor: isActiveBar
-                    ? 'rgba(127,215,255,0.46)'
-                    : isEndingBar
-                      ? 'rgba(127,215,255,0.3)'
-                      : 'rgba(255,255,255,0.08)',
-                  background: isActiveBar
-                    ? 'rgba(127,215,255,0.18)'
-                    : isEndingBar
-                      ? 'rgba(127,215,255,0.1)'
-                      : 'rgba(255,255,255,0.03)',
-                  boxShadow: isActiveBar
-                    ? '0 0 0 1px rgba(127,215,255,0.14) inset, 0 0 24px rgba(127,215,255,0.08)'
-                    : isEndingBar
-                      ? '0 0 0 1px rgba(127,215,255,0.08) inset'
-                      : 'none',
-                }}
-              >
+          <div className="flex items-center gap-1.5">
+            {visibleBarIndexes.map((barIndex, index) => {
+              if (barIndex === -1) {
+                return (
+                  <div
+                    key="ending-window-ellipsis"
+                    className="flex h-9 w-7 items-center justify-center text-[12px] font-mono tracking-[0.16em] text-white/24"
+                  >
+                    ...
+                  </div>
+                );
+              }
+              const isEndingBar = barIndex === landingWindowBars - 1;
+              const isActiveBar = activeBarIndex === barIndex;
+              return (
                 <div
-                  className="text-[8px] font-mono uppercase tracking-[0.14em]"
+                  key={`ending-window-bar-${barIndex}-${index}`}
+                  className="flex h-9 min-w-0 flex-1 items-center justify-center rounded-xl border px-2 text-[9px] font-mono uppercase tracking-[0.14em] transition-all"
                   style={{
-                    color: isActiveBar || isEndingBar
-                      ? '#7FD7FF'
-                      : 'rgba(255,255,255,0.46)',
+                    borderColor: isActiveBar
+                      ? 'rgba(127,215,255,0.52)'
+                      : isEndingBar
+                        ? 'rgba(127,215,255,0.36)'
+                        : 'rgba(255,255,255,0.08)',
+                    background: isActiveBar
+                      ? 'rgba(127,215,255,0.18)'
+                      : isEndingBar
+                        ? 'rgba(127,215,255,0.11)'
+                        : 'rgba(255,255,255,0.035)',
+                    color: isEndingBar ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    boxShadow: isActiveBar
+                      ? '0 0 20px rgba(127,215,255,0.12)'
+                      : isEndingBar
+                        ? 'inset 0 0 0 1px rgba(127,215,255,0.08)'
+                        : 'none',
                   }}
                 >
-                  Bar {barIndex + 1}
+                  {isEndingBar ? 'End' : `Bar ${barIndex + 1}`}
                 </div>
-                <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.14em] text-white/74">
-                  {isEndingBar ? 'Ending Tail' : 'Phrase Carry'}
+              );
+            })}
+          </div>
+
+          <div className="flex items-stretch gap-1.5">
+            {visibleBarIndexes.map((barIndex, index) => {
+              if (barIndex === -1) {
+                return (
+                  <div
+                    key="ending-window-step-ellipsis"
+                    className="flex h-9 w-7 items-center justify-center text-[12px] font-mono tracking-[0.16em] text-white/18"
+                  >
+                    ...
+                  </div>
+                );
+              }
+              const isEndingBar = barIndex === landingWindowBars - 1;
+              const isActiveBar = activeBarIndex === barIndex;
+              const beatDivision = stepsPerBar % 4 === 0 ? Math.max(1, stepsPerBar / 4) : 1;
+              return (
+                <div
+                  key={`ending-window-step-bar-${barIndex}-${index}`}
+                  className="min-w-0 flex-1 rounded-xl border p-1"
+                  style={{
+                    borderColor: isActiveBar
+                      ? 'rgba(127,215,255,0.34)'
+                      : isEndingBar
+                        ? 'rgba(127,215,255,0.24)'
+                        : 'rgba(255,255,255,0.06)',
+                    background: isActiveBar
+                      ? 'rgba(127,215,255,0.08)'
+                      : isEndingBar
+                        ? 'rgba(127,215,255,0.055)'
+                        : 'rgba(255,255,255,0.018)',
+                  }}
+                >
+                  <div
+                    className="grid h-7 gap-[2px]"
+                    style={{ gridTemplateColumns: `repeat(${stepsPerBar}, minmax(0, 1fr))` }}
+                  >
+                    {Array.from({ length: stepsPerBar }, (_, stepIndex) => {
+                      const isEndingSlot = isEndingBar && stepIndex >= endingStartStep;
+                      const slotIndex = stepIndex - endingStartStep;
+                      const overrideState = isEndingSlot ? landingOverrides[slotIndex] : null;
+                      const isFilled = overrideState === 'on' || overrideState === 'accent';
+                      const isAccent = overrideState === 'accent';
+                      const isBeatStart = stepIndex % beatDivision === 0;
+                      const isTrackerSlot = isActiveBar && activeStepIndex === stepIndex;
+                      return (
+                        <div
+                          key={`ending-window-step-${barIndex}-${stepIndex}`}
+                          className="relative min-w-0 rounded-[3px] border"
+                          title={
+                            isEndingSlot
+                              ? `Ending slot ${slotIndex + 1}${isAccent ? ' accent' : isFilled ? ' hit' : ''}`
+                              : `Bar ${barIndex + 1}, slot ${stepIndex + 1}`
+                          }
+                          style={{
+                            borderColor: isEndingSlot
+                              ? 'rgba(127,215,255,0.48)'
+                              : isBeatStart
+                                ? 'rgba(255,255,255,0.13)'
+                                : 'rgba(255,255,255,0.055)',
+                            background: isEndingSlot
+                              ? isFilled
+                                ? 'rgba(127,215,255,0.72)'
+                                : 'rgba(127,215,255,0.22)'
+                              : isBeatStart
+                                ? 'rgba(255,255,255,0.08)'
+                                : 'rgba(255,255,255,0.035)',
+                            boxShadow: isTrackerSlot
+                              ? '0 0 0 1px rgba(255,255,255,0.9), 0 0 14px rgba(255,255,255,0.34)'
+                              : isEndingSlot
+                                ? isFilled
+                                  ? '0 0 12px rgba(127,215,255,0.36)'
+                                  : '0 0 8px rgba(127,215,255,0.16)'
+                                : 'none',
+                          }}
+                        >
+                          {isTrackerSlot ? (
+                            <span
+                              className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                              style={{
+                                boxShadow: '0 0 10px rgba(255,255,255,0.75)',
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+            <span>Each bar shows subdivision slots</span>
+            <span className="text-[#7FD7FF]/70">Final slots to Beat 1</span>
+          </div>
         </div>
       </StudyShellPanel>
     </StudyShellPremiumPanel>
@@ -5381,8 +5494,6 @@ function OrbitalPolymeter() {
   const [polyrhythmDesktopUtilityCollapsed, setPolyrhythmDesktopUtilityCollapsed] = useState(true);
   const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
   const [selectedRiffLandingSlot, setSelectedRiffLandingSlot] = useState<number | null>(null);
-  const [riffMobileEndingBarsShown, setRiffMobileEndingBarsShown] = useState<1 | 2 | 4 | 'pattern'>(1);
-  const [riffMobileEndingLaneVisible, setRiffMobileEndingLaneVisible] = useState(true);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
   const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
@@ -10683,8 +10794,6 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setRiffMobileSection('edit');
           setRiffMobileEditTab('return');
-          setRiffMobileEndingLaneVisible(true);
-          setRiffMobileEndingBarsShown(1);
         } else {
           setRiffDesktopQuickCollapsed(false);
           setRiffQuickPanel('return');
@@ -10706,8 +10815,6 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setRiffMobileSection('edit');
           setRiffMobileEditTab('return');
-          setRiffMobileEndingLaneVisible(true);
-          setRiffMobileEndingBarsShown(1);
           setRiffMobileLanePage(Math.max(0, riffMobileLanePageCount - 1));
           handleSetRiffEditMode('landing');
         } else {
@@ -15891,29 +15998,9 @@ function OrbitalPolymeter() {
         riffMobileSection === 'edit' && riffMobileEditTab === 'bar';
       const riffMobilePhrasePanelActive =
         riffMobileSection === 'edit' && riffMobileEditTab === 'phrase';
-      const riffMobileEndingPanelActive =
-        riffMobileSection === 'edit' && riffMobileEditTab === 'return';
       const riffMobileMainLaneActive =
         (riffMobileBarPanelActive || riffMobilePhrasePanelActive) && !riffMobileLaneHidden;
-      const riffMobileEndingLaneActive =
-        riffMobileEndingPanelActive && riffMobileEndingLaneVisible;
-      const riffMobileLanePanelActive =
-        riffMobileMainLaneActive || riffMobileEndingLaneActive;
-      const riffMobileEndingVisibleBars =
-        riffMobileEndingBarsShown === 'pattern'
-          ? riffLandingWindowBars
-          : Math.max(
-              1,
-              Math.min(riffLandingWindowBars, riffMobileEndingBarsShown),
-            );
-      const riffMobileEndingLaneStartStep =
-        riffMobileEndingBarsShown === 'pattern'
-          ? 0
-          : Math.max(0, riffLandingWindowSteps - riffMobileEndingVisibleBars * riffDesktopStepsPerBar);
-      const riffMobileEndingLaneStepCount =
-        riffMobileEndingBarsShown === 'pattern'
-          ? riffLandingWindowSteps
-          : riffMobileEndingVisibleBars * riffDesktopStepsPerBar;
+      const riffMobileLanePanelActive = riffMobileMainLaneActive;
       const riffMobileRiffResolveHint =
         riffCycleStudy.riff.resetMode === 'free'
           ? getFreeRiffResolutionCopy(riffCycleStudy)
@@ -15965,24 +16052,15 @@ function OrbitalPolymeter() {
                 study={riffCycleStudy}
                 viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : riffCycleStudy.viewMode}
                 laneWindowStartStep={
-                  riffMobileEndingLaneActive
-                    ? riffMobileEndingLaneStartStep
-                    : riffMobileMainLaneActive
-                      ? riffMobileLaneShouldFollowPlayback
-                        ? undefined
-                        : riffMobileLaneStartStep
-                      : undefined
+                  riffMobileMainLaneActive
+                    ? riffMobileLaneShouldFollowPlayback
+                      ? undefined
+                      : riffMobileLaneStartStep
+                    : undefined
                 }
                 laneWindowStepCount={
-                  riffMobileEndingLaneActive
-                    ? riffMobileEndingLaneStepCount
-                    : riffMobileMainLaneActive
-                      ? riffMobileLaneStepCount
-                      : undefined
-                }
-                endingCycleGuideBarCount={
-                  riffMobileEndingLaneActive && riffMobileEndingVisibleBars > 1
-                    ? riffLandingWindowBars
+                  riffMobileMainLaneActive
+                    ? riffMobileLaneStepCount
                     : undefined
                 }
                 landingReferenceOverlayMode="auto"
@@ -16240,8 +16318,6 @@ function OrbitalPolymeter() {
                           handleSetRiffEditMode('landing');
                           setRiffMobileEditTab('return');
                           setRiffMobileSection('edit');
-                          setRiffMobileEndingLaneVisible(true);
-                          setRiffMobileEndingBarsShown(1);
                           recordTutorialEvent('riff-open-edit');
                         }}
                         className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
@@ -17026,60 +17102,16 @@ function OrbitalPolymeter() {
                           </div>
                         </div>
 
-                        <div data-guide="riff-mobile-ending-lane" className="rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <InlineInfoLabel
-                              infoId="riff_lane_settings"
-                              label="Lane Settings"
-                              labelClassName={mobileRiffMenuSectionTitleClass}
-                              labelStyle={mobileRiffAmberTitleStyle}
-                            />
-                            <div className="rounded-lg border border-[#7FD7FF]/18 bg-[#7FD7FF]/8 px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-[#BFEAFF]/70">
-                              {riffMobileEndingLaneVisible ? 'Lane On' : 'Lane Off'}
-                            </div>
-                          </div>
-                          <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
-                            Lane View
-                          </div>
-                          <div className="mt-2 grid grid-cols-2 gap-2">
-                              <StudyShellButton
-                                size="compact"
-                                tone="blue"
-                                highlighted={riffMobileEndingLaneVisible}
-                                onClick={() => setRiffMobileEndingLaneVisible(true)}
-                                className="min-w-0 px-2 text-[9px] tracking-[0.1em]"
-                              >
-                                Show Lane
-                              </StudyShellButton>
-                              <StudyShellButton
-                                size="compact"
-                                highlighted={!riffMobileEndingLaneVisible}
-                                onClick={() => setRiffMobileEndingLaneVisible(false)}
-                                className="min-w-0 px-2 text-[9px] tracking-[0.1em]"
-                              >
-                                Hide Lane
-                              </StudyShellButton>
-                          </div>
-                          <div className="mt-3 grid grid-cols-4 gap-2">
-                            {([1, 2, 4, 'pattern'] as const).map((barCount) => (
-                              <StudyShellButton
-                                key={`riff-ending-bars-${barCount}`}
-                                size="compact"
-                                tone="blue"
-                                highlighted={riffMobileEndingBarsShown === barCount}
-                                disabled={
-                                  !riffMobileEndingLaneVisible ||
-                                  (barCount !== 'pattern' && barCount > riffLandingWindowBars)
-                                }
-                                onClick={() => setRiffMobileEndingBarsShown(barCount)}
-                                className="min-w-0 px-2 text-[9px] tracking-[0.1em]"
-                              >
-                                {barCount === 'pattern'
-                                  ? 'Pattern'
-                                  : `${barCount} ${barCount === 1 ? 'Bar' : 'Bars'}`}
-                              </StudyShellButton>
-                            ))}
-                          </div>
+                        <div data-guide="riff-mobile-ending-lane">
+                          <RiffEndingReturnWindowPanel
+                            landingWindowBars={riffLandingWindowBars}
+                            landingEditableSlots={riffEndingEditableSlots}
+                            stepsPerBar={riffDesktopStepsPerBar}
+                            landingWindowSteps={riffLandingWindowSteps}
+                            landingOverrides={riffCycleStudy.landingOverrides}
+                            playing={riffCycleStudy.playing}
+                            playbackStateRef={riffCyclePlaybackStateRef}
+                          />
                         </div>
 
                       </div>
@@ -20480,6 +20512,7 @@ function OrbitalPolymeter() {
                   landingEditableSlots={riffEndingEditableSlots}
                   stepsPerBar={riffDesktopStepsPerBar}
                   landingWindowSteps={riffLandingWindowSteps}
+                  landingOverrides={riffCycleStudy.landingOverrides}
                   playing={riffCycleStudy.playing}
                   playbackStateRef={riffCyclePlaybackStateRef}
                 />

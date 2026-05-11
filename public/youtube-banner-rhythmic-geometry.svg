@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 1152" width="2048" height="1152" role="img" aria-labelledby="title desc">
+  <title id="title">Rhythmic Geometry YouTube Banner</title>
+  <desc id="desc">Dark neon banner with Rhythmic Geometry wordmark and orbital rhythm visualization.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="70%" cy="45%" r="62%">
+      <stop offset="0%" stop-color="#123249" stop-opacity="0.72"/>
+      <stop offset="42%" stop-color="#0b1627" stop-opacity="0.86"/>
+      <stop offset="100%" stop-color="#05070d" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="leftGlow" cx="27%" cy="52%" r="42%">
+      <stop offset="0%" stop-color="#00ffaa" stop-opacity="0.14"/>
+      <stop offset="60%" stop-color="#0a121d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0.28  0 0 1 0 0.18  0 0 0 0.95 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="cyanGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.20  0 0 0 0 0.82  0 0 0 0 1  0 0 0 0.9 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="amberGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.18  0 1 0 0 0.56  0 0 1 0 0.05  0 0 0 0.95 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <pattern id="grid" width="96" height="96" patternUnits="userSpaceOnUse">
+      <path d="M 96 0 L 0 0 0 96" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+    <pattern id="fineGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#7fd7ff" stroke-opacity="0.018" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="wordGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f4faff"/>
+      <stop offset="48%" stop-color="#7fd7ff"/>
+      <stop offset="100%" stop-color="#ffd166"/>
+    </linearGradient>
+    <linearGradient id="lineBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#72f1b8"/>
+      <stop offset="55%" stop-color="#7fd7ff"/>
+      <stop offset="100%" stop-color="#ff88c2"/>
+    </linearGradient>
+    <linearGradient id="safeShade" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#05070d" stop-opacity="0.54"/>
+      <stop offset="72%" stop-color="#05070d" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#05070d" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="2048" height="1152" fill="url(#bgGlow)"/>
+  <rect width="2048" height="1152" fill="url(#leftGlow)"/>
+  <rect width="2048" height="1152" fill="url(#grid)"/>
+  <rect width="2048" height="1152" fill="url(#fineGrid)"/>
+  <rect width="1180" height="1152" fill="url(#safeShade)"/>
+
+  <g opacity="0.62">
+    <circle cx="114" cy="198" r="2.4" fill="#7fd7ff"/>
+    <circle cx="276" cy="842" r="3.1" fill="#72f1b8"/>
+    <circle cx="496" cy="286" r="2" fill="#ffd166"/>
+    <circle cx="770" cy="906" r="2.7" fill="#ff88c2"/>
+    <circle cx="1010" cy="214" r="2.2" fill="#72f1b8"/>
+    <circle cx="1298" cy="880" r="3" fill="#7fd7ff"/>
+    <circle cx="1514" cy="188" r="2.2" fill="#ffd166"/>
+    <circle cx="1782" cy="734" r="2.6" fill="#ff88c2"/>
+    <circle cx="1930" cy="418" r="2" fill="#72f1b8"/>
+    <circle cx="181" cy="602" r="1.8" fill="#ffffff"/>
+    <circle cx="604" cy="732" r="1.8" fill="#ffffff"/>
+    <circle cx="1186" cy="318" r="1.8" fill="#ffffff"/>
+    <circle cx="1708" cy="944" r="1.8" fill="#ffffff"/>
+  </g>
+
+  <!-- Safe-area wordmark -->
+  <g transform="translate(410 434)">
+    <g filter="url(#softGlow)">
+      <circle cx="26" cy="28" r="8" fill="#72f1b8"/>
+      <circle cx="66" cy="28" r="5" fill="#7fd7ff" opacity="0.78"/>
+      <circle cx="46" cy="62" r="5" fill="#ffd166" opacity="0.92"/>
+      <path d="M26 28 L66 28 L46 62 Z" fill="none" stroke="#72f1b8" stroke-opacity="0.7" stroke-width="2"/>
+      <circle cx="46" cy="39" r="35" fill="none" stroke="#7fd7ff" stroke-opacity="0.22" stroke-width="1.4"/>
+    </g>
+    <text x="104" y="45"
+      font-family="'Avenir Next', 'Montserrat', 'Helvetica Neue', Arial, sans-serif"
+      font-size="48"
+      font-weight="500"
+      letter-spacing="15"
+      fill="url(#wordGradient)">
+      RHYTHMIC GEOMETRY
+    </text>
+    <text x="108" y="92"
+      font-family="'Avenir Next', 'Helvetica Neue', Arial, sans-serif"
+      font-size="19"
+      font-weight="300"
+      letter-spacing="8"
+      fill="#dce8f2"
+      opacity="0.58">
+      LIVING STRUCTURE FROM RHYTHM
+    </text>
+    <line x1="104" y1="128" x2="655" y2="128" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="108" y="170"
+      font-family="'Avenir Next', 'Helvetica Neue', Arial, sans-serif"
+      font-size="22"
+      font-weight="400"
+      fill="#f4faff"
+      opacity="0.74">
+      See rhythm as motion, shape, and return.
+    </text>
+  </g>
+
+  <!-- Main geometry visualization -->
+  <g transform="translate(1424 574)">
+    <circle r="382" fill="#0e1826" opacity="0.26"/>
+    <circle r="338" fill="none" stroke="#7fd7ff" stroke-opacity="0.13" stroke-width="2"/>
+    <circle r="260" fill="none" stroke="#ffd166" stroke-opacity="0.14" stroke-width="2"/>
+    <circle r="178" fill="none" stroke="#72f1b8" stroke-opacity="0.13" stroke-width="2"/>
+    <line x1="-440" y1="0" x2="440" y2="0" stroke="#ffffff" stroke-opacity="0.055"/>
+    <line x1="0" y1="-440" x2="0" y2="440" stroke="#ffffff" stroke-opacity="0.055"/>
+    <g opacity="0.44">
+      <path d="M0,-338 L293,-169 L293,169 L0,338 L-293,169 L-293,-169 Z" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
+      <path d="M0,-260 L247,80 L-153,210 L-153,-210 L247,-80 Z" fill="none" stroke="#ffd166" stroke-opacity="0.22" stroke-width="2"/>
+    </g>
+    <path d="M0,-260 L247,-80 L153,210 L-247,80 L-153,-210 Z"
+      fill="#ffd166"
+      fill-opacity="0.10"
+      stroke="#ffd166"
+      stroke-width="5"
+      stroke-linejoin="round"
+      filter="url(#amberGlow)"/>
+    <path d="M0,-338 L293,169 L-293,169 Z"
+      fill="#7fd7ff"
+      fill-opacity="0.07"
+      stroke="#7fd7ff"
+      stroke-width="4"
+      stroke-linejoin="round"
+      filter="url(#cyanGlow)"/>
+    <path d="M-293,-169 L293,-169 L0,338 Z"
+      fill="#72f1b8"
+      fill-opacity="0.045"
+      stroke="#72f1b8"
+      stroke-width="3"
+      stroke-opacity="0.65"/>
+
+    <g filter="url(#cyanGlow)">
+      <circle cx="0" cy="-338" r="14" fill="#7fd7ff"/>
+      <circle cx="293" cy="169" r="12" fill="#7fd7ff"/>
+      <circle cx="-293" cy="169" r="12" fill="#7fd7ff"/>
+    </g>
+    <g filter="url(#amberGlow)">
+      <circle cx="0" cy="-260" r="13" fill="#ffd166"/>
+      <circle cx="247" cy="-80" r="12" fill="#ffd166"/>
+      <circle cx="153" cy="210" r="12" fill="#ffd166"/>
+      <circle cx="-247" cy="80" r="12" fill="#ffd166"/>
+      <circle cx="-153" cy="-210" r="12" fill="#ffd166"/>
+    </g>
+    <g opacity="0.72">
+      <circle cx="293" cy="-169" r="8" fill="#ff88c2"/>
+      <circle cx="-293" cy="-169" r="8" fill="#ff88c2"/>
+      <circle cx="0" cy="338" r="9" fill="#ff88c2"/>
+    </g>
+
+    <g opacity="0.42">
+      <circle cx="0" cy="-382" r="5" fill="#ffffff"/>
+      <circle cx="331" cy="-191" r="4" fill="#ffffff"/>
+      <circle cx="331" cy="191" r="4" fill="#ffffff"/>
+      <circle cx="0" cy="382" r="5" fill="#ffffff"/>
+      <circle cx="-331" cy="191" r="4" fill="#ffffff"/>
+      <circle cx="-331" cy="-191" r="4" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <!-- Mobile crop edge atmosphere -->
+  <g opacity="0.18" stroke="#7fd7ff" stroke-width="1">
+    <path d="M-80 822 C240 700 310 1020 610 874" fill="none"/>
+    <path d="M1540 142 C1790 246 1874 410 2128 318" fill="none"/>
+    <path d="M1180 1060 C1484 964 1724 1116 2110 972" fill="none"/>
+  </g>
+</svg>
