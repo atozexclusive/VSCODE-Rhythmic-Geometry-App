@@ -904,7 +904,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const now = timestamp;
           const state = engineRef.current;
-          const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
+          const exportTraceBoost = exportVideoSize ? 2.2 : 1;
+          const exportTraceOpacityBoost = exportVideoSize ? 1.85 : 1;
+          const pointScale = exportVideoSize ? SHORTS_EXPORT_POINT_SCALE : 1;
           if (state.elapsedBeats < previousElapsedBeatsRef.current) {
             previousElapsedBeatsRef.current = state.elapsedBeats;
           }
@@ -1321,9 +1323,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                     traceCtx.save();
                     traceCtx.lineCap = 'round';
                     traceCtx.lineJoin = 'round';
-                    traceCtx.globalAlpha = 0.72;
+                    traceCtx.globalAlpha = Math.min(1, 0.72 * exportTraceOpacityBoost);
                     traceCtx.strokeStyle = derivedSweepColor;
-                    traceCtx.lineWidth = 1;
+                    traceCtx.lineWidth = 1 * exportTraceBoost;
                     traceCtx.beginPath();
                     traceCtx.moveTo(previousSample.x, previousSample.y);
                     traceCtx.lineTo(currentSample.x, currentSample.y);
@@ -1351,7 +1353,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   ...activeInterferenceOrbits.map((orbit) => orbit.color),
                 );
                 const substeps = getAdaptiveTraceSteps(activeInterferenceOrbits, deltaBeats);
-                const traceOpacityBudget = state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY;
+                const traceOpacityBudget =
+                  (state.playing ? INTERFERENCE_PLAYBACK_OPACITY : INTERFERENCE_STEP_OPACITY) *
+                  exportTraceOpacityBoost;
                 const previousOrbitPoints = activeInterferenceOrbits.map((orbit) =>
                   scalePointFromCenter(
                     resonancePositionAtBeats(orbit, previousElapsedBeats, cx, cy),
@@ -1389,9 +1393,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   traceCtx.save();
                   traceCtx.lineCap = 'round';
                   traceCtx.lineJoin = 'round';
-                  traceCtx.globalAlpha = traceOpacityBudget / substeps;
+                  traceCtx.globalAlpha = Math.min(1, traceOpacityBudget / substeps);
                   traceCtx.strokeStyle = derivedInterferenceColor;
-                  traceCtx.lineWidth = 1;
+                  traceCtx.lineWidth = 1 * exportTraceBoost;
                   traceCtx.beginPath();
                   traceCtx.moveTo(previousPoint.x, previousPoint.y);
                   traceCtx.lineTo(interferencePoint.x, interferencePoint.y);
@@ -1410,7 +1414,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
               if (resPoints.length >= 2) {
                 const substeps = getAdaptiveTraceSteps(state.orbits, deltaBeats);
-                const traceOpacityBudget = state.playing ? TRACE_PLAYBACK_OPACITY : TRACE_STEP_OPACITY;
+                const traceOpacityBudget =
+                  (state.playing ? TRACE_PLAYBACK_OPACITY : TRACE_STEP_OPACITY) *
+                  exportTraceOpacityBoost;
 
                 for (let step = 1; step <= substeps; step++) {
                   const t = step / substeps;
@@ -1436,9 +1442,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                     for (let j = i + 1; j < samplePoints.length; j++) {
                       traceCtx.save();
                       traceCtx.lineCap = 'round';
-                      traceCtx.globalAlpha = traceOpacityBudget / substeps;
+                      traceCtx.globalAlpha = Math.min(1, traceOpacityBudget / substeps);
                       traceCtx.strokeStyle = samplePoints[i].color;
-                      traceCtx.lineWidth = 0.6;
+                      traceCtx.lineWidth = 0.6 * exportTraceBoost;
                       traceCtx.beginPath();
                       traceCtx.moveTo(samplePoints[i].x, samplePoints[i].y);
                       traceCtx.lineTo(samplePoints[j].x, samplePoints[j].y);

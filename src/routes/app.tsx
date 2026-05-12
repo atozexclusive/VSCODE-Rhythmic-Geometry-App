@@ -693,16 +693,8 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'mobile-menu',
     title: 'Menu',
     kicker: 'Orbit Guide',
-    text: 'Menu is for scenes, export, account, and project actions.',
-    doThis: 'Open Menu when you want to save, export, or manage your account.',
-    notice: 'You can skip Menu while learning the main Orbit controls.',
-  },
-  {
-    target: 'mobile-mode-switcher',
-    title: 'Switch Modes',
-    kicker: 'Orbit Guide',
-    text: 'Riff is one way to use Rhythmic Geometry. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
-    doThis: 'Open Menu, then use the Mode buttons at the top to switch when you want a different kind of rhythm view.',
+    text: 'Menu is for scenes, export, account, project actions, and switching modes. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
+    doThis: 'Open Menu when you want to save, export, manage your account, or switch to a different rhythm view.',
     notice: 'When the guide ends, you will return to the canvas.',
   },
 ];
@@ -950,16 +942,8 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-menu',
     title: 'Menu',
     kicker: 'Riff Guide',
-    text: 'Menu is for account, saving, export, and other project actions.',
-    doThis: 'Skip it while learning. Use Scenes, Play, and Edit first.',
-    notice: 'Menu is not required for a first riff.',
-  },
-  {
-    target: 'riff-mobile-mode-switcher',
-    title: 'Switch Modes',
-    kicker: 'Riff Guide',
-    text: 'Riff is one way to use Rhythmic Geometry. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
-    doThis: 'Open Menu, then use the Mode buttons at the top to switch when you want a different kind of rhythm view.',
+    text: 'Menu is for account, saving, export, project actions, and switching modes. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
+    doThis: 'Skip it while learning. Use Scenes, Play, and Edit first; open Menu later when you want another mode.',
     notice: 'When the guide ends, you will return to the canvas.',
   },
 ];
@@ -1248,16 +1232,8 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-menu',
     title: 'Menu',
     kicker: 'Study Guide',
-    text: 'The menu holds Scenes, Export, and Account. Use it when you want to load ideas, manage Pro, or export work.',
-    doThis: 'Open the menu and look through Scenes.',
-    notice: 'You do not need the menu for your first edit.',
-  },
-  {
-    target: 'study-mobile-mode-switcher',
-    title: 'Switch Modes',
-    kicker: 'Study Guide',
-    text: 'Riff is one way to use Rhythmic Geometry. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
-    doThis: 'Open Menu, then use the Mode buttons at the top to switch when you want a different kind of rhythm view.',
+    text: 'The menu holds Scenes, Export, Account, and mode switching. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
+    doThis: 'Open the menu when you want scenes, export, account tools, or another rhythm view.',
     notice: 'When the guide ends, you will return to the canvas.',
   },
 ];
@@ -5584,6 +5560,7 @@ function OrbitalPolymeter() {
   const riffPatternToolsLocked = !canUseProFeature(effectivePlan, 'riff-pattern-tools');
   const riffEndingLengthLocked = !canUseProFeature(effectivePlan, 'riff-ending-length');
   const riffAdvancedTimingLocked = !canUseProFeature(effectivePlan, 'riff-advanced-timing');
+  const riffExtendedPatternsLocked = !canUseProFeature(effectivePlan, 'riff-extended-patterns');
   const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
@@ -5718,6 +5695,14 @@ function OrbitalPolymeter() {
 
     return true;
   }, [activeRiffCyclePresetId, effectivePlan]);
+  const requireEditableRiffCycleStep = useCallback(() => {
+    if (riffExtendedPatternsLocked && !canUseFreeRiffStepCount(riffCycleStudy.riff.stepCount)) {
+      showProPrompt('riff-extended-patterns');
+      return false;
+    }
+
+    return true;
+  }, [riffCycleStudy.riff.stepCount, riffExtendedPatternsLocked]);
   const riffMobileLaneHidden = riffMobileLaneBarsPerPage === 'none';
   const riffMobileFreeResolutionBars = getFreeRiffResolutionBars(riffCycleStudy);
   const riffMobileLaneCycleBars =
@@ -6872,19 +6857,25 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (!requireEditableRiffCycleStep()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? toggleRiffStep(current, stepIndex) : current,
     );
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStep, requireEditableRiffCycleStudy]);
 
   const handleSetRiffCycleStepActive = useCallback((stepIndex: number, active: boolean) => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (!requireEditableRiffCycleStep()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? setRiffStepActive(current, stepIndex, active) : current,
     );
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStep, requireEditableRiffCycleStudy]);
 
   const handleSelectRiffCycleStep = useCallback((stepIndex: number | null) => {
     setSelectedRiffCycleStep(stepIndex);
@@ -6894,10 +6885,13 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (!requireEditableRiffCycleStep()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? toggleRiffAccent(current, stepIndex) : current,
     );
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStep, requireEditableRiffCycleStudy]);
 
   const handleRotateRiffCycle = useCallback((stepOffset: number) => {
     if (!requireEditableRiffCycleStudy()) {
@@ -6925,8 +6919,11 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (!requireEditableRiffCycleStep()) {
+      return;
+    }
     setRiffCycleStudy((current) => clearRiffSteps(current));
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStep, requireEditableRiffCycleStudy]);
 
   const handleToggleRiffViewMode = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
@@ -18859,7 +18856,14 @@ function OrbitalPolymeter() {
             onExportScene={handleExportRiffCycleScene}
             isRecordingVideo={recordingVideo}
             onHardRefresh={handleHardRefreshApp}
-            lockedFeatures={{ colorEditing: colorEditingLocked, export: exportLocked, soundEditing: soundEditingLocked, proScenes: proScenesLocked, riffPatternTools: riffPatternToolsLocked }}
+            lockedFeatures={{
+              colorEditing: colorEditingLocked,
+              export: exportLocked,
+              soundEditing: soundEditingLocked,
+              proScenes: proScenesLocked,
+              riffPatternTools: riffPatternToolsLocked,
+              riffExtendedPatterns: riffExtendedPatternsLocked,
+            }}
             onLockedFeature={openProPrompt}
           />
           {proPromptOverlay}
@@ -21786,7 +21790,14 @@ function OrbitalPolymeter() {
           onExportScene={handleExportRiffCycleScene}
           isRecordingVideo={recordingVideo}
           onHardRefresh={handleHardRefreshApp}
-          lockedFeatures={{ colorEditing: colorEditingLocked, export: exportLocked, soundEditing: soundEditingLocked, proScenes: proScenesLocked, riffPatternTools: riffPatternToolsLocked }}
+          lockedFeatures={{
+            colorEditing: colorEditingLocked,
+            export: exportLocked,
+            soundEditing: soundEditingLocked,
+            proScenes: proScenesLocked,
+            riffPatternTools: riffPatternToolsLocked,
+            riffExtendedPatterns: riffExtendedPatternsLocked,
+          }}
           onLockedFeature={openProPrompt}
         />
         {proPromptOverlay}

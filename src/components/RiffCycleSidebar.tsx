@@ -81,8 +81,9 @@ interface RiffCycleSidebarProps {
     soundEditing?: boolean;
     proScenes?: boolean;
     riffPatternTools?: boolean;
+    riffExtendedPatterns?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'riff-pattern-tools' | 'pro-scenes') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'riff-pattern-tools' | 'riff-extended-patterns' | 'pro-scenes') => void;
 }
 
 type RiffCycleSidebarTab =
@@ -348,7 +349,9 @@ export default function RiffCycleSidebar({
       }
     : {};
   const landingStepLimit = getReferenceStepsPerBar(study.reference);
-  const selectedStepEditable = selectedStep != null;
+  const riffStepEditingLocked =
+    Boolean(lockedFeatures.riffExtendedPatterns) && study.riff.stepCount > 12;
+  const selectedStepEditable = selectedStep != null && !riffStepEditingLocked;
   const mobilePrimaryTitleStyle = {
     color: '#FFD166',
     textShadow: '0 0 14px rgba(255,209,102,0.26)',
@@ -624,11 +627,11 @@ export default function RiffCycleSidebar({
 
           {activeTab === 'scenes' ? (
           <section className="space-y-3">
-            <div className="rounded-[1.1rem] border px-4 py-3" style={mobileSceneSubTabShellStyle}>
+            <div className="space-y-1">
               <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
                 Scenes
               </div>
-              <div className="mt-1 text-[11px] leading-relaxed text-white/52">
+              <div className="text-[11px] leading-relaxed text-white/52">
                 Load a starting riff, then edit the pattern and ending from the main controls.
               </div>
             </div>

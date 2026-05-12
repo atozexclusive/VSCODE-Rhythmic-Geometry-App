@@ -591,27 +591,13 @@ export default function PolyrhythmSidebar({
 
           {activeTab === 'scenes' ? (
             <section className="space-y-3">
-              <div className="flex items-center justify-between gap-3 rounded-[1.1rem] border px-4 py-3" style={mobileSceneSubTabShellStyle}>
-                <div>
-                  <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
-                    Scenes
-                  </div>
-                  <div className="mt-1 text-[11px] text-white/52">
-                    Start with one rhythm, then move into shared-cycle studies.
-                  </div>
+              <div className="space-y-1">
+                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
+                  Scenes
                 </div>
-                <button
-                  type="button"
-                  onClick={onResetStudy}
-                  className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.15em]"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    borderColor: 'rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.68)',
-                  }}
-                >
-                  Reset
-                </button>
+                <div className="text-[11px] text-white/52">
+                  Start with one rhythm, then move into shared-cycle studies.
+                </div>
               </div>
 
               <div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>

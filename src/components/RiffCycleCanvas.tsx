@@ -861,16 +861,18 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (currentStudy.showStepLabels && currentStudy.riff.stepCount <= 20) {
+      if (currentStudy.showStepLabels) {
+        const labelScale =
+          currentStudy.riff.stepCount > 28 ? 0.76 : currentStudy.riff.stepCount > 20 ? 0.86 : 1;
         ctx.save();
         ctx.fillStyle = isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.56)';
-        ctx.font = '10px "SF Mono", "Fira Code", monospace';
+        ctx.font = `${Math.max(7.5, 10 * labelScale)}px "SF Mono", "Fira Code", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
           String(point.index + 1),
-          metrics.circleCenterX + Math.cos(point.angle) * (metrics.innerRadius + 18),
-          metrics.circleCenterY + Math.sin(point.angle) * (metrics.innerRadius + 18),
+          metrics.circleCenterX + Math.cos(point.angle) * (metrics.innerRadius + 18 + (1 - labelScale) * 10),
+          metrics.circleCenterY + Math.sin(point.angle) * (metrics.innerRadius + 18 + (1 - labelScale) * 10),
         );
         ctx.restore();
       }
