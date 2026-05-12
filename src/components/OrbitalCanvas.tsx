@@ -16,7 +16,7 @@ import {
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { getAudioRecordingStream, playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
+import { playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
 import {
   normalizeInterferenceSettings,
   type GeometryMode,
@@ -30,7 +30,6 @@ import {
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
-  addAudioToCanvasStream,
   CANVAS_RECORDING_FRAME_RATE,
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
@@ -609,10 +608,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           try {
             await waitForFrame();
 
-            const stream = addAudioToCanvasStream(
-              canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-              getAudioRecordingStream(),
-            );
+            const stream = canvas.captureStream(CANVAS_RECORDING_FRAME_RATE);
             const recorder = new MediaRecorder(stream, {
               mimeType: recordingFormat.mimeType,
               videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,

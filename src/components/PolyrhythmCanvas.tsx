@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
-import { getPolyrhythmAudioRecordingStream, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
+import { triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
@@ -22,7 +22,6 @@ import {
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 import {
-  addAudioToCanvasStream,
   CANVAS_RECORDING_FRAME_RATE,
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
@@ -868,10 +867,7 @@ export default function PolyrhythmCanvas({
 
       const recordingFormat = getCanvasRecordingFormat();
 
-      const stream = addAudioToCanvasStream(
-        canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-        getPolyrhythmAudioRecordingStream(),
-      );
+      const stream = canvas.captureStream(CANVAS_RECORDING_FRAME_RATE);
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,

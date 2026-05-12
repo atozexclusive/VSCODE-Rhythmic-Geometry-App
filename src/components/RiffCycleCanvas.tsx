@@ -49,7 +49,7 @@ import {
   recordMediaRecorderForDuration,
 } from '../lib/videoExport';
 import {
-  getRiffCycleAudioRecordingStream,
+  createRiffCycleExportAudioStream,
   triggerBarMarkerCue,
   triggerBackbeatAccent,
   triggerReferencePulse,
@@ -1669,7 +1669,7 @@ export default function RiffCycleCanvas({
 
       const stream = addAudioToCanvasStream(
         canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-        getRiffCycleAudioRecordingStream(),
+        createRiffCycleExportAudioStream(studyRef.current, durationSeconds),
       );
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,

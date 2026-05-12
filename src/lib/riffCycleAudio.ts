@@ -1,5 +1,14 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
-import type { RiffCycleSoundSettings } from './riffCycleStudy';
+import {
+  getEffectiveRiffStepStateAtReferenceStep,
+  getReferenceStepsPerBar,
+  getResetStepCount,
+  isBackbeatStep,
+  isForcedResetAtReferenceStep,
+  isReferenceBeatStart,
+  type RiffCycleSoundSettings,
+  type RiffCycleStudy,
+} from './riffCycleStudy';
 
 let audioContext: AudioContext | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
@@ -16,6 +25,13 @@ interface VoiceOptions {
   filterType?: FilterType;
   filterQ?: number;
   sweepTo?: number;
+  atTime?: number;
+}
+
+interface VoiceTarget {
+  context: AudioContext;
+  destination?: AudioNode;
+  outputToSpeakers: boolean;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -79,13 +95,13 @@ function mapRiffPitch(
   return midiToFrequency(midi);
 }
 
-function withVoice(options: VoiceOptions): void {
-  const context = getAudioContext();
+function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
+  const context = target?.context ?? getAudioContext();
   if (!context) {
     return;
   }
 
-  const now = context.currentTime;
+  const now = options.atTime ?? context.currentTime;
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
   const filter = context.createBiquadFilter();
@@ -108,7 +124,12 @@ function withVoice(options: VoiceOptions): void {
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  gainNode.connect(context.destination);
+  if (target?.outputToSpeakers ?? true) {
+    gainNode.connect(context.destination);
+  }
+  if (target?.destination) {
+    gainNode.connect(target.destination);
+  }
   if (recordingDestination) {
     gainNode.connect(recordingDestination);
   }
@@ -121,6 +142,8 @@ function triggerArchitecturalRiff(
   gain: number,
   accented: boolean,
   accentPush: RiffCycleSoundSettings['accentPush'],
+  atTime?: number,
+  target?: VoiceTarget,
 ): void {
   withVoice({
     type: accented ? 'sawtooth' : 'triangle',
@@ -129,7 +152,8 @@ function triggerArchitecturalRiff(
     attack: 0.004,
     release: accented ? 0.13 : 0.095,
     filterFrequency: accented ? 1020 : 720,
-  });
+    atTime,
+  }, target);
 
   if (accented) {
     withVoice({
@@ -141,7 +165,8 @@ function triggerArchitecturalRiff(
       filterFrequency: 1800,
       filterType: 'highpass',
       filterQ: 0.8,
-    });
+      atTime,
+    }, target);
   }
 }
 
@@ -151,9 +176,11 @@ function triggerPaletteRiff(
   gain: number,
   accented: boolean,
   accentPush: RiffCycleSoundSettings['accentPush'],
+  atTime?: number,
+  target?: VoiceTarget,
 ): void {
   if (palette === 'architectural') {
-    triggerArchitecturalRiff(frequency, gain, accented, accentPush);
+    triggerArchitecturalRiff(frequency, gain, accented, accentPush, atTime, target);
     return;
   }
 
@@ -165,7 +192,8 @@ function triggerPaletteRiff(
       attack: 0.003,
       release: accented ? 0.14 : 0.11,
       filterFrequency: accented ? 880 : 560,
-    });
+      atTime,
+    }, target);
     withVoice({
       type: 'sine',
       frequency: clamp(frequency * 0.49, 42, 240),
@@ -173,7 +201,8 @@ function triggerPaletteRiff(
       attack: 0.004,
       release: accented ? 0.16 : 0.12,
       filterFrequency: 320,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -187,7 +216,8 @@ function triggerPaletteRiff(
       filterFrequency: accented ? 980 : 440,
       filterQ: accented ? 1.05 : 0.72,
       sweepTo: frequency * (accented ? 0.48 : 0.58),
-    });
+      atTime,
+    }, target);
     withVoice({
       type: 'square',
       frequency: clamp(frequency * (accented ? 4.15 : 2.8), 220, 3600),
@@ -197,7 +227,8 @@ function triggerPaletteRiff(
       filterFrequency: accented ? 2450 : 1350,
       filterType: 'highpass',
       filterQ: accented ? 1.25 : 0.9,
-    });
+      atTime,
+    }, target);
     if (accented) {
       withVoice({
         type: 'triangle',
@@ -207,7 +238,8 @@ function triggerPaletteRiff(
         release: 0.075,
         filterFrequency: 360,
         filterQ: 0.68,
-      });
+        atTime,
+      }, target);
     }
     return;
   }
@@ -221,7 +253,8 @@ function triggerPaletteRiff(
       release: accented ? 0.11 : 0.08,
       filterFrequency: accented ? 1300 : 980,
       filterQ: 0.72,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -235,7 +268,8 @@ function triggerPaletteRiff(
       filterFrequency: accented ? 2400 : 1800,
       filterType: 'highpass',
       filterQ: 0.82,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -246,10 +280,11 @@ function triggerPaletteRiff(
     attack: 0.004,
     release: accented ? 0.16 : 0.12,
     filterFrequency: accented ? 640 : 420,
-  });
+    atTime,
+  }, target);
 }
 
-function triggerReferencePalette(sound: RiffCycleSoundSettings): void {
+function triggerReferencePalette(sound: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   if (sound.palette === 'metal-tick') {
     withVoice({
       type: 'square',
@@ -260,7 +295,8 @@ function triggerReferencePalette(sound: RiffCycleSoundSettings): void {
       filterFrequency: 2600,
       filterType: 'highpass',
       filterQ: 0.8,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -272,14 +308,15 @@ function triggerReferencePalette(sound: RiffCycleSoundSettings): void {
       attack: 0.002,
       release: 0.05,
       filterFrequency: 2200,
-    });
+      atTime,
+    }, target);
     return;
   }
 
-  triggerReferencePulse();
+  triggerReferencePulse(undefined, atTime, target);
 }
 
-function triggerBackbeatPalette(sound: RiffCycleSoundSettings): void {
+function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   if (sound.palette === 'muted-djent') {
     withVoice({
       type: 'square',
@@ -290,7 +327,8 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings): void {
       filterFrequency: 1500,
       filterType: 'highpass',
       filterQ: 0.8,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -304,7 +342,8 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings): void {
       filterFrequency: 1850,
       filterType: 'highpass',
       filterQ: 0.7,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -316,11 +355,12 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings): void {
       attack: 0.002,
       release: 0.13,
       filterFrequency: 1200,
-    });
+      atTime,
+    }, target);
     return;
   }
 
-  triggerBackbeatAccent();
+  triggerBackbeatAccent(undefined, atTime, target);
 }
 
 export function resumeRiffCycleAudio(): void {
@@ -347,9 +387,123 @@ export function getRiffCycleAudioRecordingStream(): MediaStream | null {
   return recordingDestination.stream;
 }
 
-export function triggerReferencePulse(sound?: RiffCycleSoundSettings): void {
+function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+  return x || 1;
+}
+
+function getFreeResolutionStepCount(study: RiffCycleStudy): number {
+  const phraseSteps = Math.max(1, Math.round(study.riff.stepCount || 1));
+  const stepsPerBar = Math.max(1, getReferenceStepsPerBar(study.reference));
+  return Math.max(1, phraseSteps / gcd(phraseSteps, stepsPerBar)) * stepsPerBar;
+}
+
+function isFreeResolutionAtReferenceStep(study: RiffCycleStudy, referenceStep: number): boolean {
+  if (getResetStepCount(study) != null || referenceStep <= 0) {
+    return false;
+  }
+  return referenceStep % getFreeResolutionStepCount(study) === 0;
+}
+
+function isExportBarMarkerCueStep(study: RiffCycleStudy, referenceStep: number): boolean {
+  const markerInterval = study.barMarkerInterval ?? 'pattern';
+  if (markerInterval === 'none') {
+    return false;
+  }
+
+  if (markerInterval === 'pattern') {
+    const riffStepCount = Math.max(1, Math.round(study.riff.stepCount || 1));
+    const resetStepCount = getResetStepCount(study);
+    const stepWithinReturn =
+      resetStepCount == null
+        ? referenceStep
+        : ((referenceStep % resetStepCount) + resetStepCount) % resetStepCount;
+    return stepWithinReturn % riffStepCount === 0;
+  }
+
+  const stepsPerBar = getReferenceStepsPerBar(study.reference);
+  if (stepsPerBar <= 0 || referenceStep % stepsPerBar !== 0) {
+    return false;
+  }
+  const barIndex = Math.floor(referenceStep / stepsPerBar);
+  return barIndex % markerInterval === 0;
+}
+
+export function createRiffCycleExportAudioStream(
+  study: RiffCycleStudy,
+  durationSeconds: number,
+): MediaStream | null {
+  const context = getAudioContext();
+  if (!context || typeof context.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {});
+  }
+
+  const destination = context.createMediaStreamDestination();
+  const target: VoiceTarget = {
+    context,
+    destination,
+    outputToSpeakers: false,
+  };
+  const scheduleStartTime = context.currentTime + 0.12;
+  const stepsPerSecond =
+    (study.reference.bpm / 60) *
+    (study.reference.subdivision / study.reference.denominator);
+  const totalSteps = Math.ceil(Math.max(0, durationSeconds) * stepsPerSecond) + 1;
+
+  for (let referenceStep = 0; referenceStep <= totalSteps; referenceStep += 1) {
+    const atTime = scheduleStartTime + referenceStep / stepsPerSecond;
+    if (study.soundEnabled && study.referenceSoundEnabled && isReferenceBeatStart(study, referenceStep)) {
+      triggerReferencePulse(study.soundSettings, atTime, target);
+    }
+    if (study.soundEnabled && study.backbeatSoundEnabled && isBackbeatStep(study, referenceStep)) {
+      triggerBackbeatAccent(study.soundSettings, atTime, target);
+    }
+    if (
+      study.soundEnabled &&
+      study.showAlignmentMarkers &&
+      isExportBarMarkerCueStep(study, referenceStep)
+    ) {
+      triggerBarMarkerCue(study.soundSettings, atTime, target);
+    }
+
+    const riffStepState = getEffectiveRiffStepStateAtReferenceStep(study, referenceStep);
+    if (study.soundEnabled && study.riff.soundEnabled && riffStepState.active) {
+      triggerRiffPulse({
+        frequency: study.riff.pitchHz,
+        gain: study.riff.gain,
+        accented: riffStepState.accented,
+        phraseIndex: riffStepState.phraseIndex,
+        sound: study.soundSettings,
+        atTime,
+        target,
+      });
+    }
+
+    if (
+      study.soundEnabled &&
+      (isForcedResetAtReferenceStep(study, referenceStep) ||
+        isFreeResolutionAtReferenceStep(study, referenceStep))
+    ) {
+      triggerResetCue(study.soundSettings, atTime, target);
+    }
+  }
+
+  return destination.stream;
+}
+
+export function triggerReferencePulse(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   if (sound && sound.palette !== 'architectural') {
-    triggerReferencePalette(sound);
+    triggerReferencePalette(sound, atTime, target);
     return;
   }
 
@@ -360,12 +514,13 @@ export function triggerReferencePulse(sound?: RiffCycleSoundSettings): void {
     attack: 0.002,
     release: 0.045,
     filterFrequency: 3000,
-  });
+    atTime,
+  }, target);
 }
 
-export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings): void {
+export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   if (sound && sound.palette !== 'architectural') {
-    triggerBackbeatPalette(sound);
+    triggerBackbeatPalette(sound, atTime, target);
     return;
   }
 
@@ -376,10 +531,11 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings): void {
     attack: 0.002,
     release: 0.12,
     filterFrequency: 1760,
-  });
+    atTime,
+  }, target);
 }
 
-export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings): void {
+export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   const softLowPalette = sound?.palette === 'low-pulse' || sound?.palette === 'deep-architectural';
   withVoice({
     type: sound?.palette === 'metal-tick' ? 'triangle' : 'sine',
@@ -390,7 +546,8 @@ export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings): void {
     filterFrequency: softLowPalette ? 820 : 1320,
     filterType: sound?.palette === 'metal-tick' ? 'highpass' : 'bandpass',
     filterQ: 0.72,
-  });
+    atTime,
+  }, target);
 }
 
 export function triggerRiffPulse(options: {
@@ -399,6 +556,8 @@ export function triggerRiffPulse(options: {
   accented: boolean;
   phraseIndex: number;
   sound: RiffCycleSoundSettings;
+  atTime?: number;
+  target?: VoiceTarget;
 }): void {
   const frequency = mapRiffPitch(
     options.frequency,
@@ -412,16 +571,18 @@ export function triggerRiffPulse(options: {
     options.gain,
     options.accented,
     options.sound.accentPush,
+    options.atTime,
+    options.target,
   );
 }
 
-export function triggerResetCue(sound?: RiffCycleSoundSettings): void {
-  const context = getAudioContext();
+export function triggerResetCue(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+  const context = target?.context ?? getAudioContext();
   if (!context) {
     return;
   }
 
-  const now = context.currentTime;
+  const now = atTime ?? context.currentTime;
 
   if (sound?.palette === 'muted-djent' || sound?.palette === 'low-pulse') {
     withVoice({
@@ -431,7 +592,8 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings): void {
       attack: 0.002,
       release: 0.09,
       filterFrequency: sound.palette === 'low-pulse' ? 420 : 780,
-    });
+      atTime: now,
+    }, target);
     return;
   }
 
@@ -442,7 +604,8 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings): void {
     attack: 0.002,
     release: 0.08,
     filterFrequency: 1200,
-  });
+    atTime: now,
+  }, target);
 
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
@@ -460,7 +623,12 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings): void {
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  gainNode.connect(context.destination);
+  if (target?.outputToSpeakers ?? true) {
+    gainNode.connect(context.destination);
+  }
+  if (target?.destination) {
+    gainNode.connect(target.destination);
+  }
   if (recordingDestination) {
     gainNode.connect(recordingDestination);
   }
