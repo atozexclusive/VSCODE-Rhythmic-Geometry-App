@@ -40,8 +40,9 @@ import {
   type RiffCycleStudy,
   type RiffCycleViewMode,
 } from '../lib/riffCycleStudy';
-import { getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
+import { addAudioToCanvasStream, getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
 import {
+  getRiffCycleAudioRecordingStream,
   triggerBarMarkerCue,
   triggerBackbeatAccent,
   triggerReferencePulse,
@@ -1659,7 +1660,7 @@ export default function RiffCycleCanvas({
 
       const recordingFormat = getCanvasRecordingFormat();
 
-      const stream = canvas.captureStream(60);
+      const stream = addAudioToCanvasStream(canvas.captureStream(60), getRiffCycleAudioRecordingStream());
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: 12_000_000,

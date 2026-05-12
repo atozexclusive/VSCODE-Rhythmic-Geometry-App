@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
-import { triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
+import { getPolyrhythmAudioRecordingStream, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
@@ -21,7 +21,7 @@ import {
   getSharedCycleStepCount,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
-import { getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
+import { addAudioToCanvasStream, getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
 
 const TAU = Math.PI * 2;
 const HIT_PULSE_DURATION_MS = 360;
@@ -861,7 +861,7 @@ export default function PolyrhythmCanvas({
 
       const recordingFormat = getCanvasRecordingFormat();
 
-      const stream = canvas.captureStream(60);
+      const stream = addAudioToCanvasStream(canvas.captureStream(60), getPolyrhythmAudioRecordingStream());
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: 12_000_000,

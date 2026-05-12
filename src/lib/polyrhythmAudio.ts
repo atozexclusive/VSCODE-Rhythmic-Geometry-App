@@ -2,6 +2,7 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import type { PolyrhythmSoundSettings } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
+let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 
 interface VoiceOptions {
   type: OscillatorType;
@@ -64,6 +65,9 @@ function withVoice(options: VoiceOptions): void {
   oscillator.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(context.destination);
+  if (recordingDestination) {
+    gainNode.connect(recordingDestination);
+  }
 
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.04);
@@ -170,6 +174,23 @@ export function resumePolyrhythmAudio(): void {
   if (context && context.state === 'suspended') {
     void context.resume().catch(() => {});
   }
+}
+
+export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
+  const context = getAudioContext();
+  if (!context || typeof context.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (!recordingDestination) {
+    recordingDestination = context.createMediaStreamDestination();
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {});
+  }
+
+  return recordingDestination.stream;
 }
 
 export function triggerPolyrhythmPulse(options: {

@@ -7,6 +7,7 @@
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let outputLimiter: DynamicsCompressorNode | null = null;
+let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 let triggerCount = 0;
 let triggerWindowStart = 0;
 let currentTriggerRate = 0; // triggers per second
@@ -95,6 +96,9 @@ function getAudioContext(): AudioContext {
     outputLimiter.release.value = 0.12;
     masterGain.connect(outputLimiter);
     outputLimiter.connect(audioCtx.destination);
+    if (recordingDestination) {
+      outputLimiter.connect(recordingDestination);
+    }
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
@@ -325,6 +329,26 @@ export function resumeAudio(): void {
   getAudioContext();
 }
 
+export function getAudioRecordingStream(): MediaStream | null {
+  const ctx = getAudioContext();
+  if (typeof ctx.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (!recordingDestination) {
+    recordingDestination = ctx.createMediaStreamDestination();
+    if (outputLimiter) {
+      outputLimiter.connect(recordingDestination);
+    }
+  }
+
+  if (ctx.state === 'suspended') {
+    void ctx.resume().catch(() => {});
+  }
+
+  return recordingDestination.stream;
+}
+
 export function toggleAudioMute(): boolean {
   muted = !muted;
   return muted;
@@ -343,6 +367,7 @@ export function stopAllAudio(): void {
     audioCtx = null;
     masterGain = null;
     outputLimiter = null;
+    recordingDestination = null;
   }
   triggerCount = 0;
   triggerWindowStart = 0;

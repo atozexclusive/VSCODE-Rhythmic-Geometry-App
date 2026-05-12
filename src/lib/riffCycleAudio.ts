@@ -2,6 +2,7 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import type { RiffCycleSoundSettings } from './riffCycleStudy';
 
 let audioContext: AudioContext | null = null;
+let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 
 type FilterType = 'lowpass' | 'highpass' | 'bandpass';
 
@@ -108,6 +109,9 @@ function withVoice(options: VoiceOptions): void {
   oscillator.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(context.destination);
+  if (recordingDestination) {
+    gainNode.connect(recordingDestination);
+  }
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.06);
 }
@@ -326,6 +330,23 @@ export function resumeRiffCycleAudio(): void {
   }
 }
 
+export function getRiffCycleAudioRecordingStream(): MediaStream | null {
+  const context = getAudioContext();
+  if (!context || typeof context.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (!recordingDestination) {
+    recordingDestination = context.createMediaStreamDestination();
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {});
+  }
+
+  return recordingDestination.stream;
+}
+
 export function triggerReferencePulse(sound?: RiffCycleSoundSettings): void {
   if (sound && sound.palette !== 'architectural') {
     triggerReferencePalette(sound);
@@ -440,6 +461,9 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings): void {
   oscillator.connect(filter);
   filter.connect(gainNode);
   gainNode.connect(context.destination);
+  if (recordingDestination) {
+    gainNode.connect(recordingDestination);
+  }
   oscillator.start(now);
   oscillator.stop(now + 0.11);
 }

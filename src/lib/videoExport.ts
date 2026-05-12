@@ -26,6 +26,21 @@ export function getCanvasRecordingFormat(): CanvasRecordingFormat {
   return supportedFormat ?? { mimeType: 'video/webm', extension: 'webm' };
 }
 
+export function addAudioToCanvasStream(
+  canvasStream: MediaStream,
+  audioStream: MediaStream | null | undefined,
+): MediaStream {
+  if (!audioStream) {
+    return canvasStream;
+  }
+
+  audioStream.getAudioTracks().forEach((track) => {
+    canvasStream.addTrack(track.clone());
+  });
+
+  return canvasStream;
+}
+
 async function toBlobUrl(url: string, mimeType: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -53,12 +68,21 @@ async function convertWebmBlobToMp4(blob: Blob): Promise<Blob> {
     await ffmpeg.exec([
       '-i',
       'input.webm',
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a:0?',
       '-c:v',
       'libx264',
       '-pix_fmt',
       'yuv420p',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
       '-movflags',
       'faststart',
+      '-shortest',
       'output.mp4',
     ]);
     const data = await ffmpeg.readFile('output.mp4');

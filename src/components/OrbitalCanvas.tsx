@@ -16,7 +16,7 @@ import {
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
+import { getAudioRecordingStream, playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
 import {
   normalizeInterferenceSettings,
   type GeometryMode,
@@ -29,7 +29,7 @@ import {
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
-import { getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
+import { addAudioToCanvasStream, getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
 
 const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
@@ -602,7 +602,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           try {
             await waitForFrame();
 
-            const stream = canvas.captureStream(60);
+            const stream = addAudioToCanvasStream(canvas.captureStream(60), getAudioRecordingStream());
             const recorder = new MediaRecorder(stream, {
               mimeType: recordingFormat.mimeType,
               videoBitsPerSecond: 12_000_000,

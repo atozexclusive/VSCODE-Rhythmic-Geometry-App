@@ -6557,12 +6557,8 @@ function OrbitalPolymeter() {
     if (!preset) {
       return;
     }
-    if (
-      !preset.pro &&
-      !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
-      !canUseFreeRiffStepCount(preset.study.riff.stepCount)
-    ) {
-      showProPrompt('riff-extended-patterns');
+    if (preset.pro && !canUseProFeature(effectivePlan, 'pro-scenes')) {
+      showProPrompt('pro-scenes');
       return;
     }
     setRiffCycleStudy({
@@ -6577,7 +6573,7 @@ function OrbitalPolymeter() {
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.viewMode]);
 
   const handleResetRiffCycleStudy = useCallback(() => {
     setRiffMobileLanePage(0);
@@ -7396,6 +7392,7 @@ function OrbitalPolymeter() {
 
       try {
         setRecordingVideo(true);
+        resumeRiffCycleAudio();
         riffCyclePlaybackStateRef.current.referenceProgress = 0;
         riffCyclePlaybackStateRef.current.lastTimestamp = null;
         riffCyclePlaybackStateRef.current.previousReferenceStep = -1;
@@ -7463,6 +7460,7 @@ function OrbitalPolymeter() {
 
       try {
         setRecordingVideo(true);
+        resumePolyrhythmAudio();
         polyrhythmPlaybackStateRef.current.progress = 0;
         polyrhythmPlaybackStateRef.current.lastTimestamp = null;
         polyrhythmPlaybackStateRef.current.previousPlaybackSteps.clear();
