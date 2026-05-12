@@ -2,7 +2,11 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
+let masterGain: GainNode | null = null;
+let outputLimiter: DynamicsCompressorNode | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
+
+const MASTER_GAIN_CEILING = 0.5;
 
 interface VoiceOptions {
   type: OscillatorType;
@@ -43,6 +47,28 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function getMasterOutput(context: AudioContext): AudioNode {
+  if (!masterGain || !outputLimiter) {
+    masterGain = context.createGain();
+    masterGain.gain.value = MASTER_GAIN_CEILING;
+
+    outputLimiter = context.createDynamicsCompressor();
+    outputLimiter.threshold.value = -20;
+    outputLimiter.knee.value = 18;
+    outputLimiter.ratio.value = 14;
+    outputLimiter.attack.value = 0.003;
+    outputLimiter.release.value = 0.14;
+
+    masterGain.connect(outputLimiter);
+    outputLimiter.connect(context.destination);
+    if (recordingDestination) {
+      outputLimiter.connect(recordingDestination);
+    }
+  }
+
+  return masterGain;
+}
+
 function midiToFrequency(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
@@ -72,12 +98,12 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   oscillator.connect(filter);
   filter.connect(gainNode);
   if (target?.outputToSpeakers ?? true) {
-    gainNode.connect(context.destination);
+    gainNode.connect(getMasterOutput(context));
   }
   if (target?.destination) {
     gainNode.connect(target.destination);
   }
-  if (recordingDestination) {
+  if (recordingDestination && !(target?.outputToSpeakers ?? true)) {
     gainNode.connect(recordingDestination);
   }
 
@@ -205,6 +231,9 @@ export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
 
   if (!recordingDestination) {
     recordingDestination = context.createMediaStreamDestination();
+    if (outputLimiter) {
+      outputLimiter.connect(recordingDestination);
+    }
   }
 
   if (context.state === 'suspended') {
@@ -230,7 +259,7 @@ export function triggerPolyrhythmPulse(options: {
     options.layerIndex,
     options.beatCount,
   );
-  const peakGain = Math.max(0.01, Math.min(0.28, options.gain * (options.accented ? 1.34 : 1)));
+  const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
   triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, options.target);
   if (options.accented) {
     triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, options.target);

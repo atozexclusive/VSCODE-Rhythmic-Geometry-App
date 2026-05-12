@@ -64,6 +64,7 @@ import {
 
 const TAU = Math.PI * 2;
 const BAR_MARKER_FLASH_DURATION = 520;
+const REFERENCE_BEAT_FLASH_DURATION = 280;
 
 interface RiffCyclePlaybackState {
   referenceProgress: number;
@@ -315,6 +316,9 @@ export default function RiffCycleCanvas({
     wasPlaying: study.playing,
   });
   const resetFlashUntilRef = useRef(0);
+  const referenceBeatFlashUntilRef = useRef(0);
+  const referenceBeatFlashStepRef = useRef<number | null>(null);
+  const referenceBeatFlashBeatRef = useRef<number | null>(null);
   const barMarkerFlashUntilRef = useRef(0);
   const barMarkerFlashStepRef = useRef<number | null>(null);
   const riffAttackUntilRef = useRef<number[]>([]);
@@ -439,7 +443,6 @@ export default function RiffCycleCanvas({
     const currentLaneReferenceStep =
       shouldUseAbsoluteLaneWindow(currentStudy) ? currentAbsoluteReferenceStep : currentReferenceStep;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
-    const beatProgress = stepWithinBar / stepsPerBeat;
     const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
     const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, referenceProgress);
     const phraseAngle =
@@ -553,11 +556,6 @@ export default function RiffCycleCanvas({
       ctx.restore();
 
       metrics.referenceVertices.forEach((vertex, index) => {
-        const beatDistance = Math.min(
-          Math.abs(beatProgress - index),
-          currentStudy.reference.numerator - Math.abs(beatProgress - index),
-        );
-        const beatFocus = Math.max(0, 1 - beatDistance);
         const backbeatBeats =
           currentStudy.reference.backbeatBeats?.length
             ? currentStudy.reference.backbeatBeats
@@ -567,7 +565,13 @@ export default function RiffCycleCanvas({
         const isBackbeatVertex =
           currentStudy.reference.showBackbeat &&
           backbeatBeats.includes(index + 1);
-        const vertexRadius = (index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) + beatFocus * 1.9;
+        const beatFlashStrength =
+          referenceBeatFlashBeatRef.current === index
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            : 0;
+        const vertexRadius =
+          (index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) +
+          beatFlashStrength * (isBackbeatVertex ? 3.4 : 3);
 
         ctx.save();
         ctx.strokeStyle =
@@ -587,7 +591,7 @@ export default function RiffCycleCanvas({
           : index === 0
             ? 'rgba(255,255,255,0.9)'
             : 'rgba(255,255,255,0.52)';
-        ctx.shadowBlur = (8 + beatFocus * 10) * glowMultiplier;
+        ctx.shadowBlur = (8 + beatFlashStrength * 18) * glowMultiplier;
         ctx.shadowColor = isBackbeatVertex
           ? 'rgba(255,136,194,0.48)'
           : 'rgba(255,255,255,0.24)';
@@ -595,6 +599,19 @@ export default function RiffCycleCanvas({
         ctx.arc(vertex.x, vertex.y, vertexRadius, 0, TAU);
         ctx.fill();
         ctx.restore();
+
+        if (beatFlashStrength > 0) {
+          ctx.save();
+          ctx.strokeStyle = isBackbeatVertex ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
+          ctx.lineWidth = isBackbeatVertex ? 2.25 : 1.55;
+          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
+          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier;
+          ctx.shadowColor = isBackbeatVertex ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
+          ctx.beginPath();
+          ctx.arc(vertex.x, vertex.y, vertexRadius + 6 + beatFlashStrength * 4, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         ctx.save();
         ctx.fillStyle =
@@ -614,14 +631,13 @@ export default function RiffCycleCanvas({
         const isDownbeat = currentStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(currentStudy, index);
         const isBackbeat = isBackbeatStep(currentStudy, index);
-        const pointDistance = Math.min(
-          Math.abs(stepWithinBar - index),
-          stepsPerBar - Math.abs(stepWithinBar - index),
-        );
-        const pointFocus = Math.max(0, 1 - pointDistance);
+        const beatFlashStrength =
+          referenceBeatFlashStepRef.current === index
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            : 0;
         const pointRadius =
           (isDownbeat ? 5.8 : isBackbeat ? 5.1 : isBeat ? 4.2 : 2.4) +
-          pointFocus * (isBeat ? 1.4 : 0.8);
+          beatFlashStrength * (isBackbeat ? 3.4 : isBeat ? 3 : 2.2);
 
         ctx.save();
         ctx.fillStyle = isBackbeat
@@ -631,7 +647,7 @@ export default function RiffCycleCanvas({
             : isBeat
               ? 'rgba(255,255,255,0.56)'
               : 'rgba(255,255,255,0.16)';
-        ctx.shadowBlur = (isBeat ? 6 + pointFocus * 8 : pointFocus * 5) * glowMultiplier;
+        ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier;
         ctx.shadowColor = isBackbeat
           ? 'rgba(255,136,194,0.42)'
           : 'rgba(255,255,255,0.22)';
@@ -639,6 +655,19 @@ export default function RiffCycleCanvas({
         ctx.arc(point.x, point.y, pointRadius, 0, TAU);
         ctx.fill();
         ctx.restore();
+
+        if (beatFlashStrength > 0) {
+          ctx.save();
+          ctx.strokeStyle = isBackbeat ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
+          ctx.lineWidth = isBackbeat ? 2.25 : 1.55;
+          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
+          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier;
+          ctx.shadowColor = isBackbeat ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, pointRadius + 6 + beatFlashStrength * 4, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
       });
 
       if (flashActive) {
@@ -1531,6 +1560,16 @@ export default function RiffCycleCanvas({
       ) {
         const referenceBeatStart = isReferenceBeatStart(currentStudy, currentAbsoluteReferenceStep);
         const backbeatStep = isBackbeatStep(currentStudy, currentAbsoluteReferenceStep);
+        if (referenceBeatStart) {
+          const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
+          referenceBeatFlashStepRef.current =
+            ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+          referenceBeatFlashBeatRef.current = Math.floor(
+            referenceBeatFlashStepRef.current / getReferenceStepsPerBeat(currentStudy.reference),
+          );
+          referenceBeatFlashUntilRef.current = now + REFERENCE_BEAT_FLASH_DURATION;
+        }
         if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
           triggerReferencePulse(currentStudy.soundSettings);
         }
@@ -1685,6 +1724,9 @@ export default function RiffCycleCanvas({
         playbackState.previousReferenceStep = -1;
         playbackState.wasPlaying = false;
         resetFlashUntilRef.current = 0;
+        referenceBeatFlashUntilRef.current = 0;
+        referenceBeatFlashStepRef.current = null;
+        referenceBeatFlashBeatRef.current = null;
         barMarkerFlashUntilRef.current = 0;
         barMarkerFlashStepRef.current = null;
         riffAttackUntilRef.current = [];
