@@ -21,7 +21,13 @@ import {
   getSharedCycleStepCount,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
-import { addAudioToCanvasStream, getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
+import {
+  addAudioToCanvasStream,
+  CANVAS_RECORDING_FRAME_RATE,
+  CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
+  getCanvasRecordingFormat,
+  prepareCanvasRecordingDownload,
+} from '../lib/videoExport';
 
 const TAU = Math.PI * 2;
 const HIT_PULSE_DURATION_MS = 360;
@@ -861,10 +867,13 @@ export default function PolyrhythmCanvas({
 
       const recordingFormat = getCanvasRecordingFormat();
 
-      const stream = addAudioToCanvasStream(canvas.captureStream(60), getPolyrhythmAudioRecordingStream());
+      const stream = addAudioToCanvasStream(
+        canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
+        getPolyrhythmAudioRecordingStream(),
+      );
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
-        videoBitsPerSecond: 12_000_000,
+        videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
       });
       const chunks: BlobPart[] = [];
 

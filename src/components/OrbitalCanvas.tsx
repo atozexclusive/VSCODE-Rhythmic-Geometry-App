@@ -29,7 +29,13 @@ import {
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
-import { addAudioToCanvasStream, getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
+import {
+  addAudioToCanvasStream,
+  CANVAS_RECORDING_FRAME_RATE,
+  CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
+  getCanvasRecordingFormat,
+  prepareCanvasRecordingDownload,
+} from '../lib/videoExport';
 
 const TAU = 2.0 * Math.PI;
 const TRACE_SAMPLE_ARC_PX = 8;
@@ -602,10 +608,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           try {
             await waitForFrame();
 
-            const stream = addAudioToCanvasStream(canvas.captureStream(60), getAudioRecordingStream());
+            const stream = addAudioToCanvasStream(
+              canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
+              getAudioRecordingStream(),
+            );
             const recorder = new MediaRecorder(stream, {
               mimeType: recordingFormat.mimeType,
-              videoBitsPerSecond: 12_000_000,
+              videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
             });
             const chunks: BlobPart[] = [];
 
