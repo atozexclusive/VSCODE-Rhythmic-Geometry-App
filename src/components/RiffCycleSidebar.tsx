@@ -69,8 +69,10 @@ interface RiffCycleSidebarProps {
     aspect: 'landscape' | 'square' | 'portrait' | 'story';
     scale: 1 | 2 | 4;
   }) => void;
+  onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
   onExportMidi: (mode: RiffMidiExportMode) => void;
   onExportScene: () => void;
+  isRecordingVideo: boolean;
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
@@ -299,17 +301,21 @@ export default function RiffCycleSidebar({
   onAccentLastLandingHit,
   onAccentLastTwoLandingHits,
   onExportPng,
+  onExportVideo,
   onExportMidi,
   onExportScene,
+  isRecordingVideo,
   onHardRefresh,
   lockedFeatures = {},
   onLockedFeature,
 }: RiffCycleSidebarProps) {
   const isMobile = useIsMobile();
+  const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
+  const [videoDuration, setVideoDuration] = useState<8 | 12>(8);
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const exportLocked = Boolean(lockedFeatures.export);
@@ -502,7 +508,7 @@ export default function RiffCycleSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
+            <div data-guide="riff-mobile-mode-switcher" className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[12px] font-mono uppercase tracking-[0.24em]" style={mobilePrimaryTitleStyle}>
@@ -1287,6 +1293,60 @@ export default function RiffCycleSidebar({
               >
                 {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export PNG'}
               </button>
+            </div>
+
+            <div
+              className="rounded-[1.25rem] border p-3.5 space-y-3"
+              style={exportCardStyle}
+            >
+              <div className="flex items-center gap-2">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                  Motion Export
+                </div>
+                <InfoTip text="Records the Riff canvas as a short WebM loop. PNG is more reliable on iPhone." />
+              </div>
+              <div className="grid grid-cols-[1fr,auto] gap-2">
+                <select
+                  value={String(videoDuration)}
+                  onChange={(event) => {
+                    if (exportLocked) {
+                      promptLockedExport();
+                      return;
+                    }
+                    setVideoDuration(Number(event.target.value) as 8 | 12);
+                  }}
+                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                  style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                >
+                  <option value="8" style={{ background: '#181820' }}>8s loop</option>
+                  <option value="12" style={{ background: '#181820' }}>12s clip</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (exportLocked) {
+                      promptLockedExport();
+                      return;
+                    }
+                    void onExportVideo({ durationSeconds: videoDuration });
+                    setExportNotice(
+                      isIOS
+                        ? 'WebM may not save cleanly on iPhone. PNG is more reliable there.'
+                        : 'WebM recording started from reset.',
+                    );
+                  }}
+                  disabled={isRecordingVideo}
+                  className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                  style={{
+                    background: 'rgba(51, 136, 255, 0.08)',
+                    border: '1px solid rgba(51, 136, 255, 0.2)',
+                    color: '#88CCFF',
+                    ...lockedExportStyle,
+                  }}
+                >
+                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Record WebM'}
+                </button>
+              </div>
             </div>
 
             <div

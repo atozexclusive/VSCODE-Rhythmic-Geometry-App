@@ -1607,8 +1607,59 @@ export default function RiffCycleCanvas({
       document.body.removeChild(link);
     };
 
+    (canvas as any).__exportVideo = async ({
+      durationSeconds = 8,
+    }: {
+      durationSeconds?: 8 | 12;
+    } = {}) => {
+      if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
+        throw new Error('Video export is not supported in this browser.');
+      }
+
+      const mimeType =
+        MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+            ? 'video/webm;codecs=vp8'
+            : 'video/webm';
+
+      const stream = canvas.captureStream(60);
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 12_000_000,
+      });
+      const chunks: BlobPart[] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      await new Promise<void>((resolve, reject) => {
+        recorder.onerror = () => reject(new Error('Recording failed.'));
+        recorder.onstop = () => resolve();
+        recorder.start();
+        window.setTimeout(() => recorder.stop(), durationSeconds * 1000);
+      });
+
+      stream.getTracks().forEach((track) => track.stop());
+
+      const blob = new Blob(chunks, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `riff-cycle-${durationSeconds}s-${timestamp}.webm`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
     return () => {
       delete (canvas as any).__exportPng;
+      delete (canvas as any).__exportVideo;
     };
   }, []);
 

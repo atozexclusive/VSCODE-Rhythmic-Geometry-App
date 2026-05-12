@@ -437,7 +437,7 @@ export default function OrbitSidebar({
 
         {isMobile ? (
           <div className="border-b border-white/8 px-4 py-3">
-            <div className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
+            <div data-guide="mobile-mode-switcher" className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[12px] font-mono uppercase tracking-[0.24em]" style={mobilePrimaryTitleStyle}>
