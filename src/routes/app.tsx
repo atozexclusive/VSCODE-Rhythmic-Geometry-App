@@ -7398,9 +7398,10 @@ function OrbitalPolymeter() {
         riffCyclePlaybackStateRef.current.previousReferenceStep = -1;
         riffCyclePlaybackStateRef.current.wasPlaying = false;
         setRiffCycleRestartToken((value) => value + 1);
-        setRiffCycleStudy((current) => ({ ...current, playing: true }));
+        setRiffCycleStudy((current) => ({ ...current, playing: false }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         await (canvasEl as any).__exportVideo(options);
+        setRiffCycleStudy((current) => ({ ...current, playing: true }));
         toast.success('Riff video exported.');
       } catch (error) {
         console.error(error);

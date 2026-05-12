@@ -1667,16 +1667,22 @@ export default function RiffCycleCanvas({
       }
 
       const playbackState = playbackStateHandleRef.current.current;
-      const wasPlaying = studyRef.current.playing;
       playbackState.referenceProgress = 0;
       playbackState.lastTimestamp = null;
       playbackState.previousReferenceStep = -1;
       playbackState.wasPlaying = false;
+      resetFlashUntilRef.current = 0;
+      barMarkerFlashUntilRef.current = 0;
+      barMarkerFlashStepRef.current = null;
+      riffAttackUntilRef.current = [];
+      laneAttackUntilRef.current = 0;
+      laneAttackReferenceStepRef.current = null;
       studyRef.current = {
         ...studyRef.current,
         playing: false,
       };
       draw();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       const recordingFormat = getCanvasRecordingFormat();
 
@@ -1707,7 +1713,7 @@ export default function RiffCycleCanvas({
         playbackState.wasPlaying = false;
         studyRef.current = {
           ...studyRef.current,
-          playing: wasPlaying,
+          playing: true,
         };
       }, RIFF_EXPORT_PREROLL_SECONDS * 1000);
       await recordingPromise;
