@@ -4,6 +4,8 @@
 // from discrete beeps to sustained chord tones.
 // ============================================================
 
+import { computeOrbitRotations, getOrbitCyclePulseCount, type EngineState, type OrbitCountMode } from './orbitalEngine';
+
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let outputLimiter: DynamicsCompressorNode | null = null;
@@ -347,6 +349,143 @@ export function getAudioRecordingStream(): MediaStream | null {
   }
 
   return recordingDestination.stream;
+}
+
+interface ExportAudioTarget {
+  context: AudioContext;
+  destination: AudioNode;
+}
+
+function scheduleResonanceBeep(
+  voice: ResonanceVoice,
+  harmony: HarmonySettings,
+  volume: number,
+  speedMultiplier: number,
+  atTime: number,
+  target: ExportAudioTarget,
+): void {
+  const ctx = target.context;
+  const freq = voiceToFrequency(voice, harmony);
+  const safeVolume = Math.min(volume, 0.12);
+
+  if (speedMultiplier > 6.0) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, atTime);
+
+    const gain = ctx.createGain();
+    const speedFactor = Math.max(speedMultiplier / 6, 1);
+    const chordVol = Math.max(0.003, safeVolume * 0.3 / Math.sqrt(speedFactor));
+    gain.gain.setValueAtTime(0, atTime);
+    gain.gain.linearRampToValueAtTime(chordVol, atTime + 0.01);
+    gain.gain.setValueAtTime(chordVol, atTime + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.4);
+
+    osc.connect(gain);
+    gain.connect(target.destination);
+    osc.start(atTime);
+    osc.stop(atTime + 0.42);
+    return;
+  }
+
+  if (speedMultiplier > 3.0) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, atTime);
+
+    const gain = ctx.createGain();
+    const speedFactor = Math.max(speedMultiplier / 3, 1);
+    const fastVol = safeVolume / speedFactor;
+    const duration = Math.max(0.018, 0.08 / speedFactor);
+    gain.gain.setValueAtTime(0, atTime);
+    gain.gain.linearRampToValueAtTime(fastVol, atTime + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.001, atTime + duration);
+
+    osc.connect(gain);
+    gain.connect(target.destination);
+    osc.start(atTime);
+    osc.stop(atTime + duration + 0.01);
+    return;
+  }
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, atTime);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, atTime);
+  gain.gain.linearRampToValueAtTime(safeVolume, atTime + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.08);
+
+  osc.connect(gain);
+  gain.connect(target.destination);
+  osc.start(atTime);
+  osc.stop(atTime + 0.1);
+}
+
+export function createOrbitExportAudioStream(
+  state: EngineState,
+  harmony: HarmonySettings,
+  durationSeconds: number,
+  prerollSeconds = 0,
+  countMode?: OrbitCountMode,
+): MediaStream | null {
+  const ctx = getAudioContext();
+  if (typeof ctx.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (ctx.state === 'suspended') {
+    void ctx.resume().catch(() => {});
+  }
+
+  const destination = ctx.createMediaStreamDestination();
+  const target = {
+    context: ctx,
+    destination,
+  };
+  const startTime = ctx.currentTime + 0.12 + Math.max(0, prerollSeconds);
+  const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
+  const beatsPerSecond = (state.baseBPM / 60.0) * state.speedMultiplier;
+  const cyclePulseCount = getOrbitCyclePulseCount(state.orbits);
+
+  if (beatsPerSecond <= 0) {
+    return destination.stream;
+  }
+
+  state.orbits.forEach((orbit, orbitIndex) => {
+    let rotationIndex = 0;
+    while (true) {
+      const triggerBeat =
+        countMode === 'turns-per-cycle'
+          ? (rotationIndex * cyclePulseCount) / Math.max(1, orbit.pulseCount)
+          : rotationIndex * Math.max(1, orbit.pulseCount);
+      const seconds = triggerBeat / beatsPerSecond;
+      if (seconds > audibleDuration) {
+        break;
+      }
+      if (computeOrbitRotations(triggerBeat, orbit.pulseCount, countMode, cyclePulseCount) >= rotationIndex) {
+        scheduleResonanceBeep(
+          {
+            orbitIndex,
+            pulseCount: orbit.pulseCount,
+            radius: orbit.radius,
+            color: orbit.color,
+            harmonyDegree: orbit.harmonyDegree,
+            harmonyRegister: orbit.harmonyRegister,
+          },
+          harmony,
+          0.12,
+          state.speedMultiplier,
+          startTime + seconds,
+          target,
+        );
+      }
+      rotationIndex += 1;
+    }
+  });
+
+  return destination.stream;
 }
 
 export function toggleAudioMute(): boolean {

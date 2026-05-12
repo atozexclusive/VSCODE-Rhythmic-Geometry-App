@@ -20,6 +20,7 @@ import {
   type RiffPhrase,
 } from '../lib/riffCycleStudy';
 import type { RiffMidiExportMode } from '../lib/riffCycleMidi';
+import { VIDEO_EXPORT_DURATIONS, type VideoExportDuration } from '../lib/videoExport';
 
 interface RiffCycleSidebarProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ interface RiffCycleSidebarProps {
     aspect: 'landscape' | 'square' | 'portrait' | 'story';
     scale: 1 | 2 | 4;
   }) => void;
-  onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
+  onExportVideo: (options: { durationSeconds: VideoExportDuration }) => Promise<void> | void;
   onExportMidi: (mode: RiffMidiExportMode) => void;
   onExportScene: () => void;
   isRecordingVideo: boolean;
@@ -315,7 +316,7 @@ export default function RiffCycleSidebar({
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
-  const [videoDuration, setVideoDuration] = useState<8 | 12>(8);
+  const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const exportLocked = Boolean(lockedFeatures.export);
@@ -1313,13 +1314,16 @@ export default function RiffCycleSidebar({
                       promptLockedExport();
                       return;
                     }
-                    setVideoDuration(Number(event.target.value) as 8 | 12);
+                    setVideoDuration(Number(event.target.value) as VideoExportDuration);
                   }}
                   className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
                   style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
                 >
-                  <option value="8" style={{ background: '#181820' }}>8s loop</option>
-                  <option value="12" style={{ background: '#181820' }}>12s clip</option>
+                  {VIDEO_EXPORT_DURATIONS.map((duration) => (
+                    <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
+                      {duration.label}
+                    </option>
+                  ))}
                 </select>
                 <button
                   type="button"

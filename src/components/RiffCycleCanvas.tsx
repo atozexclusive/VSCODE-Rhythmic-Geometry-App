@@ -47,7 +47,8 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
-  RIFF_EXPORT_PREROLL_SECONDS,
+  CANVAS_EXPORT_PREROLL_SECONDS,
+  type VideoExportDuration,
 } from '../lib/videoExport';
 import {
   createRiffCycleExportAudioStream,
@@ -1660,7 +1661,7 @@ export default function RiffCycleCanvas({
     (canvas as any).__exportVideo = async ({
       durationSeconds = 8,
     }: {
-      durationSeconds?: 8 | 12;
+      durationSeconds?: VideoExportDuration;
     } = {}) => {
       if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
         throw new Error('Video export is not supported in this browser.');
@@ -1691,7 +1692,7 @@ export default function RiffCycleCanvas({
         createRiffCycleExportAudioStream(
           studyRef.current,
           durationSeconds,
-          RIFF_EXPORT_PREROLL_SECONDS,
+          CANVAS_EXPORT_PREROLL_SECONDS,
         ),
       );
       const recorder = new MediaRecorder(stream, {
@@ -1715,7 +1716,7 @@ export default function RiffCycleCanvas({
           ...studyRef.current,
           playing: true,
         };
-      }, RIFF_EXPORT_PREROLL_SECONDS * 1000);
+      }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
       await recordingPromise;
 
       stream.getTracks().forEach((track) => track.stop());

@@ -26,6 +26,7 @@ import {
 } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode, type InterferenceSettings } from '../lib/geometry';
+import { VIDEO_EXPORT_DURATIONS, type VideoExportDuration } from '../lib/videoExport';
 
 interface OrbitSidebarProps {
   orbits: Orbit[];
@@ -90,7 +91,7 @@ interface OrbitSidebarProps {
   onExportScene: (sceneId: string) => void;
   onImportScene: (file: File) => void;
   onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
-  onExportVideo: (options: { durationSeconds: 8 | 12 }) => Promise<void> | void;
+  onExportVideo: (options: { durationSeconds: VideoExportDuration }) => Promise<void> | void;
   onExportMidi: (options: { bars: 4 | 8 | 16 }) => void;
   isRecordingVideo: boolean;
   lockedFeatures?: {
@@ -167,7 +168,7 @@ export default function OrbitSidebar({
   const [sceneName, setSceneName] = useState('');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
-  const [videoDuration, setVideoDuration] = useState<8 | 12>(8);
+  const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [midiBars, setMidiBars] = useState<4 | 8 | 16>(8);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -1219,13 +1220,16 @@ export default function OrbitSidebar({
                         promptLockedExport();
                         return;
                       }
-                      setVideoDuration(Number(e.target.value) as 8 | 12);
+                      setVideoDuration(Number(e.target.value) as VideoExportDuration);
                     }}
                     className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
                     style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
                   >
-                    <option value="8" style={{ background: '#181820' }}>8s loop</option>
-                    <option value="12" style={{ background: '#181820' }}>12s clip</option>
+                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
+                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
+                        {duration.label}
+                      </option>
+                    ))}
                   </select>
                   <button
                     onClick={() => {

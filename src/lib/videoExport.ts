@@ -3,9 +3,21 @@ export interface CanvasRecordingFormat {
   extension: 'mp4' | 'webm';
 }
 
+export type VideoExportDuration = 8 | 15 | 30 | 60;
+
+export const VIDEO_EXPORT_DURATIONS: Array<{
+  value: VideoExportDuration;
+  label: string;
+}> = [
+  { value: 8, label: '8s loop' },
+  { value: 15, label: '15s clip' },
+  { value: 30, label: '30s clip' },
+  { value: 60, label: '1 min clip' },
+];
+
 export const CANVAS_RECORDING_FRAME_RATE = 60;
 export const CANVAS_RECORDING_VIDEO_BITS_PER_SECOND = 24_000_000;
-export const RIFF_EXPORT_PREROLL_SECONDS = 1;
+export const CANVAS_EXPORT_PREROLL_SECONDS = 1;
 
 interface CanvasRecordingDownload {
   blob: Blob;

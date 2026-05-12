@@ -12,11 +12,12 @@ import {
   DEFAULT_ORBIT_COUNT_MODE,
   computeOrbitRotations,
   getOrbitCyclePulseCount,
+  resetEngine,
   tick,
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
+import { createOrbitExportAudioStream, playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
 import {
   normalizeInterferenceSettings,
   type GeometryMode,
@@ -30,11 +31,14 @@ import {
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
+  addAudioToCanvasStream,
+  CANVAS_EXPORT_PREROLL_SECONDS,
   CANVAS_RECORDING_FRAME_RATE,
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  type VideoExportDuration,
 } from '../lib/videoExport';
 
 const TAU = 2.0 * Math.PI;
@@ -591,7 +595,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         (canvas as any).__exportVideo = async ({
           durationSeconds = 8,
         }: {
-          durationSeconds?: 8 | 12;
+          durationSeconds?: VideoExportDuration;
         } = {}) => {
           if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
             throw new Error('Video export is not supported in this browser.');
@@ -606,9 +610,29 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           hudVisibleRef.current = false;
           forceUpdate((value) => value + 1);
           try {
+            const state = engineRef.current;
+            const activeCountMode =
+              geometryModeRef.current === 'standard-trace'
+                ? standardTimingModeRef.current
+                : DEFAULT_ORBIT_COUNT_MODE;
+            state.playing = false;
+            resetEngine(state);
+            bloomsRef.current = [];
+            clearTraces();
+            forceUpdate((value) => value + 1);
+            await waitForFrame();
             await waitForFrame();
 
-            const stream = canvas.captureStream(CANVAS_RECORDING_FRAME_RATE);
+            const stream = addAudioToCanvasStream(
+              canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
+              createOrbitExportAudioStream(
+                state,
+                harmonySettingsRef.current,
+                durationSeconds,
+                CANVAS_EXPORT_PREROLL_SECONDS,
+                activeCountMode,
+              ),
+            );
             const recorder = new MediaRecorder(stream, {
               mimeType: recordingFormat.mimeType,
               videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
@@ -621,7 +645,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               }
             };
 
-            await recordMediaRecorderForDuration(recorder, durationSeconds);
+            const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
+            window.setTimeout(() => {
+              state.playing = true;
+              state.lastTimestamp = -1;
+              forceUpdate((value) => value + 1);
+            }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
+            await recordingPromise;
 
             stream.getTracks().forEach((track) => track.stop());
 

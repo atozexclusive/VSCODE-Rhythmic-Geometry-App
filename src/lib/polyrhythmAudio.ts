@@ -1,5 +1,5 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
-import type { PolyrhythmSoundSettings } from './polyrhythmStudy';
+import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
@@ -13,6 +13,13 @@ interface VoiceOptions {
   filterFrequency: number;
   filterType?: BiquadFilterType;
   filterQ?: number;
+  atTime?: number;
+}
+
+interface VoiceTarget {
+  context: AudioContext;
+  destination?: AudioNode;
+  outputToSpeakers: boolean;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -40,13 +47,13 @@ function midiToFrequency(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-function withVoice(options: VoiceOptions): void {
-  const context = getAudioContext();
+function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
+  const context = target?.context ?? getAudioContext();
   if (!context) {
     return;
   }
 
-  const now = context.currentTime;
+  const now = options.atTime ?? context.currentTime;
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
   const filter = context.createBiquadFilter();
@@ -64,7 +71,12 @@ function withVoice(options: VoiceOptions): void {
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  gainNode.connect(context.destination);
+  if (target?.outputToSpeakers ?? true) {
+    gainNode.connect(context.destination);
+  }
+  if (target?.destination) {
+    gainNode.connect(target.destination);
+  }
   if (recordingDestination) {
     gainNode.connect(recordingDestination);
   }
@@ -100,6 +112,8 @@ function triggerPalettePulse(
   palette: PolyrhythmSoundSettings['palette'],
   frequency: number,
   gain: number,
+  atTime?: number,
+  target?: VoiceTarget,
 ): void {
   if (palette === 'study-pulse') {
     withVoice({
@@ -109,7 +123,8 @@ function triggerPalettePulse(
       attack: 0.01,
       release: 0.18,
       filterFrequency: 1800,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -122,7 +137,8 @@ function triggerPalettePulse(
       release: 0.13,
       filterFrequency: 980,
       filterQ: 0.6,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -134,7 +150,8 @@ function triggerPalettePulse(
       attack: 0.012,
       release: 0.2,
       filterFrequency: 1500,
-    });
+      atTime,
+    }, target);
     return;
   }
 
@@ -147,13 +164,16 @@ function triggerPalettePulse(
     filterFrequency: 2600,
     filterType: 'highpass',
     filterQ: 0.82,
-  });
+    atTime,
+  }, target);
 }
 
 function triggerAccentLayer(
   palette: PolyrhythmSoundSettings['palette'],
   frequency: number,
   gain: number,
+  atTime?: number,
+  target?: VoiceTarget,
 ): void {
   const brightPalette = palette === 'bright-marker';
   const woodPalette = palette === 'wood';
@@ -166,7 +186,8 @@ function triggerAccentLayer(
     filterFrequency: brightPalette ? 4200 : 3100,
     filterType: brightPalette ? 'highpass' : 'bandpass',
     filterQ: brightPalette ? 1.05 : 1.55,
-  });
+    atTime,
+  }, target);
 }
 
 export function resumePolyrhythmAudio(): void {
@@ -200,6 +221,8 @@ export function triggerPolyrhythmPulse(options: {
   layerIndex: number;
   beatCount: number;
   accented?: boolean;
+  atTime?: number;
+  target?: VoiceTarget;
 }): void {
   const frequency = mapLayerPitch(
     options.frequency,
@@ -208,8 +231,66 @@ export function triggerPolyrhythmPulse(options: {
     options.beatCount,
   );
   const peakGain = Math.max(0.01, Math.min(0.28, options.gain * (options.accented ? 1.34 : 1)));
-  triggerPalettePulse(options.sound.palette, frequency, peakGain);
+  triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, options.target);
   if (options.accented) {
-    triggerAccentLayer(options.sound.palette, frequency, peakGain);
+    triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, options.target);
   }
+}
+
+export function createPolyrhythmExportAudioStream(
+  study: PolyrhythmStudy,
+  durationSeconds: number,
+  prerollSeconds = 0,
+): MediaStream | null {
+  const context = getAudioContext();
+  if (!context || typeof context.createMediaStreamDestination !== 'function') {
+    return null;
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {});
+  }
+
+  const destination = context.createMediaStreamDestination();
+  const target: VoiceTarget = {
+    context,
+    destination,
+    outputToSpeakers: false,
+  };
+  const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
+  const cyclesPerSecond = study.bpm / 60 / 4;
+  const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
+
+  study.layers.forEach((layer, layerIndex) => {
+    if (!study.soundEnabled || !layer.soundEnabled || cyclesPerSecond <= 0) {
+      return;
+    }
+    const beatCount = Math.max(1, Math.round(layer.beatCount || 1));
+    const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond) + 1;
+    for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
+      for (let stepIndex = 0; stepIndex < beatCount; stepIndex += 1) {
+        const progress = stepIndex / beatCount;
+        const playbackStep = getPlaybackStepIndex(layer, progress);
+        if (!layer.activeSteps[playbackStep]) {
+          continue;
+        }
+        const seconds = (cycleIndex + progress) / cyclesPerSecond;
+        if (seconds > audibleDuration) {
+          continue;
+        }
+        triggerPolyrhythmPulse({
+          frequency: layer.pitchHz,
+          gain: layer.gain,
+          sound: study.soundSettings,
+          layerIndex,
+          beatCount,
+          accented: Boolean(layer.accents?.[playbackStep]),
+          atTime: startTime + seconds,
+          target,
+        });
+      }
+    }
+  });
+
+  return destination.stream;
 }

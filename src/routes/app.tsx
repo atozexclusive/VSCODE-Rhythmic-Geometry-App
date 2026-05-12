@@ -165,6 +165,7 @@ import { buildRiffCycleMidiFile, type RiffMidiExportMode } from '../lib/riffCycl
 import { buildPolyrhythmMidiFile, type PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import { buildOrbitMidiFile } from '../lib/orbitMidi';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
+import type { VideoExportDuration } from '../lib/videoExport';
 import {
   CANVAS_ATMOSPHERE_OPTIONS,
   CANVAS_DISPLAY_THEME_OPTIONS,
@@ -7379,7 +7380,7 @@ function OrbitalPolymeter() {
     [effectivePlan],
   );
   const handleExportRiffCycleVideo = useCallback(
-    async (options: { durationSeconds: 8 | 12 }) => {
+    async (options: { durationSeconds: VideoExportDuration }) => {
       if (!canUseProFeature(effectivePlan, 'export')) {
         showProPrompt('export');
         return;
@@ -7448,7 +7449,7 @@ function OrbitalPolymeter() {
     [effectivePlan],
   );
   const handleExportPolyrhythmVideo = useCallback(
-    async (options: { durationSeconds: 8 | 12 }) => {
+    async (options: { durationSeconds: VideoExportDuration }) => {
       if (!canUseProFeature(effectivePlan, 'export')) {
         showProPrompt('export');
         return;
@@ -7467,9 +7468,10 @@ function OrbitalPolymeter() {
         polyrhythmPlaybackStateRef.current.previousPlaybackSteps.clear();
         polyrhythmPlaybackStateRef.current.wasPlaying = false;
         setPolyrhythmRestartToken((value) => value + 1);
-        setPolyrhythmStudy((current) => ({ ...current, playing: true }));
+        setPolyrhythmStudy((current) => ({ ...current, playing: false }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         await (canvasEl as any).__exportVideo(options);
+        setPolyrhythmStudy((current) => ({ ...current, playing: true }));
         toast.success('Study video exported.');
       } catch (error) {
         console.error(error);
@@ -10202,7 +10204,7 @@ function OrbitalPolymeter() {
   }, [buildCurrentSceneSnapshot, effectivePlan, openProPrompt, recordExportForAccount]);
 
   const handleExportVideo = useCallback(
-    async (options: { durationSeconds: 8 | 12 }) => {
+    async (options: { durationSeconds: VideoExportDuration }) => {
       if (!canUseProFeature(effectivePlan, 'export')) {
         openProPrompt('export');
         return;
@@ -10218,11 +10220,14 @@ function OrbitalPolymeter() {
         resetEngine(engineState);
         handleClearTraces();
         resumeAudio();
-        engineState.playing = true;
+        engineState.playing = false;
         engineState.lastTimestamp = -1;
         rerender();
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         await (canvasEl as any).__exportVideo(options);
+        engineState.playing = true;
+        engineState.lastTimestamp = -1;
+        rerender();
         await recordExportForAccount({
           type: 'mp4',
           sceneName: 'Current Scene',

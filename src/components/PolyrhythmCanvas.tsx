@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
-import { triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
+import { createPolyrhythmExportAudioStream, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
@@ -22,11 +22,14 @@ import {
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 import {
+  addAudioToCanvasStream,
+  CANVAS_EXPORT_PREROLL_SECONDS,
   CANVAS_RECORDING_FRAME_RATE,
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  type VideoExportDuration,
 } from '../lib/videoExport';
 
 const TAU = Math.PI * 2;
@@ -859,15 +862,35 @@ export default function PolyrhythmCanvas({
     (canvas as any).__exportVideo = async ({
       durationSeconds = 8,
     }: {
-      durationSeconds?: 8 | 12;
+      durationSeconds?: VideoExportDuration;
     } = {}) => {
       if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
         throw new Error('Video export is not supported in this browser.');
       }
 
+      const playbackState = playbackStateHandleRef.current.current;
+      playbackState.progress = 0;
+      playbackState.lastTimestamp = null;
+      playbackState.previousPlaybackSteps.clear();
+      playbackState.wasPlaying = false;
+      hitPulsesRef.current = [];
+      studyRef.current = {
+        ...studyRef.current,
+        playing: false,
+      };
+      draw();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
       const recordingFormat = getCanvasRecordingFormat();
 
-      const stream = canvas.captureStream(CANVAS_RECORDING_FRAME_RATE);
+      const stream = addAudioToCanvasStream(
+        canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
+        createPolyrhythmExportAudioStream(
+          studyRef.current,
+          durationSeconds,
+          CANVAS_EXPORT_PREROLL_SECONDS,
+        ),
+      );
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
@@ -880,7 +903,17 @@ export default function PolyrhythmCanvas({
         }
       };
 
-      await recordMediaRecorderForDuration(recorder, durationSeconds);
+      const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
+      window.setTimeout(() => {
+        playbackState.lastTimestamp = null;
+        playbackState.previousPlaybackSteps.clear();
+        playbackState.wasPlaying = false;
+        studyRef.current = {
+          ...studyRef.current,
+          playing: true,
+        };
+      }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
+      await recordingPromise;
 
       stream.getTracks().forEach((track) => track.stop());
 
