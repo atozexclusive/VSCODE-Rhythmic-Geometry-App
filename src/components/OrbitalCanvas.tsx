@@ -38,6 +38,7 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
   type VideoExportDuration,
@@ -903,6 +904,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const now = timestamp;
           const state = engineRef.current;
+          const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
           if (state.elapsedBeats < previousElapsedBeatsRef.current) {
             previousElapsedBeatsRef.current = state.elapsedBeats;
           }
@@ -1606,7 +1608,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           if (isHoveredOrbit) {
             ctx.save();
-            const hoverGlowRadius = 18 * orbitGlowMultiplier;
+            const hoverGlowRadius = 18 * orbitGlowMultiplier * pointScale;
             const hoverGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, hoverGlowRadius);
             hoverGlow.addColorStop(0, orbit.color + 'CC');
             hoverGlow.addColorStop(0.4, orbit.color + '44');
@@ -1616,7 +1618,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.arc(pos.x, pos.y, hoverGlowRadius, 0, TAU);
             ctx.fill();
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 5, 0, TAU);
+            ctx.arc(pos.x, pos.y, 5 * pointScale, 0, TAU);
             ctx.fillStyle = orbit.color;
             ctx.globalAlpha = 0.95;
             ctx.fill();
@@ -1626,7 +1628,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           if (showPlanetsRef.current) {
             // Soft glow around resonance point
             ctx.save();
-            const planetGlowRadius = 12 * orbitGlowMultiplier;
+            const planetGlowRadius = 12 * orbitGlowMultiplier * pointScale;
             const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, planetGlowRadius);
             grad.addColorStop(0, orbit.color + 'AA');
             grad.addColorStop(0.5, orbit.color + '33');
@@ -1640,7 +1642,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             // Core dot
             ctx.save();
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 3, 0, TAU);
+            ctx.arc(pos.x, pos.y, 3 * pointScale, 0, TAU);
             ctx.fillStyle = orbit.color;
             ctx.globalAlpha = 1;
             ctx.fill();
@@ -1746,14 +1748,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const age = (now - bloom.birth) / BLOOM_DURATION;
           const eased = 1 - Math.pow(1 - age, 3);
           const maxRadius = 50;
-          const currentRadius = eased * maxRadius;
+          const currentRadius = eased * maxRadius * pointScale;
           const alpha = (1 - age) * 0.5;
 
           // Radial burst lines
           ctx.save();
           ctx.globalAlpha = alpha;
           ctx.strokeStyle = bloom.color;
-          ctx.lineWidth = 1.2 * (1 - age);
+          ctx.lineWidth = 1.2 * (1 - age) * pointScale;
           const numRays = 12;
           for (let i = 0; i < numRays; i++) {
             const angle = (i / numRays) * TAU;
@@ -1776,7 +1778,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.save();
           ctx.globalAlpha = alpha * 0.4;
           ctx.strokeStyle = bloom.color;
-          ctx.lineWidth = 1.5 * (1 - age);
+          ctx.lineWidth = 1.5 * (1 - age) * pointScale;
           ctx.beginPath();
           ctx.arc(bloom.x, bloom.y, currentRadius, 0, TAU);
           ctx.stroke();

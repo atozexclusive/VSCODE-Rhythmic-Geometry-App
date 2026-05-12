@@ -48,6 +48,7 @@ import {
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
   CANVAS_EXPORT_PREROLL_SECONDS,
+  SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
   type VideoExportDuration,
@@ -396,6 +397,7 @@ export default function RiffCycleCanvas({
     const currentStudy = studyRef.current;
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
+    const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -727,22 +729,23 @@ export default function RiffCycleCanvas({
           (effectiveAccented ? 320 : 220),
       );
       const radius =
-        (isSelected ? 8.4 : isHovered ? (effectiveActive ? 7 : 5.4) : effectiveActive ? 5.4 : 3) +
-        attackRemaining * (effectiveAccented ? 3 : 1.8);
+        ((isSelected ? 8.4 : isHovered ? (effectiveActive ? 7 : 5.4) : effectiveActive ? 5.4 : 3) +
+          attackRemaining * (effectiveAccented ? 3 : 1.8)) *
+        pointScale;
 
       if (isHovered) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-        ctx.lineWidth = 1.65;
-        ctx.shadowBlur = 15 * glowMultiplier;
+        ctx.lineWidth = 1.65 * pointScale;
+        ctx.shadowBlur = 15 * glowMultiplier * pointScale;
         ctx.shadowColor = currentStudy.riff.color;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + 5.6, 0, TAU);
+        ctx.arc(point.x, point.y, radius + 5.6 * pointScale, 0, TAU);
         ctx.stroke();
         ctx.globalAlpha = 0.16;
         ctx.fillStyle = currentStudy.riff.color;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + 8.5, 0, TAU);
+        ctx.arc(point.x, point.y, radius + 8.5 * pointScale, 0, TAU);
         ctx.fill();
         ctx.restore();
       }
@@ -750,9 +753,9 @@ export default function RiffCycleCanvas({
       if (isSelected) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.88)';
-        ctx.lineWidth = 1.45;
+        ctx.lineWidth = 1.45 * pointScale;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + 4.5, 0, TAU);
+        ctx.arc(point.x, point.y, radius + 4.5 * pointScale, 0, TAU);
         ctx.stroke();
         ctx.restore();
       }
@@ -765,9 +768,9 @@ export default function RiffCycleCanvas({
         ? Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
         : (isHovered ? 0.48 : 0.26) * inactiveAlpha;
       ctx.shadowBlur = effectiveActive
-        ? ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier
+        ? ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * pointScale
         : isHovered
-          ? 10 * glowMultiplier
+          ? 10 * glowMultiplier * pointScale
           : 0;
       ctx.shadowColor = effectiveActive || isHovered ? currentStudy.riff.color : 'transparent';
       ctx.beginPath();
@@ -780,10 +783,10 @@ export default function RiffCycleCanvas({
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.95)'
           : `${currentStudy.riff.color}CC`;
-        ctx.lineWidth = effectiveAccented ? 2.25 : 1.55;
+        ctx.lineWidth = (effectiveAccented ? 2.25 : 1.55) * pointScale;
         ctx.globalAlpha = Math.min(1, attackRemaining + 0.15);
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + 6 + attackRemaining * 4, 0, TAU);
+        ctx.arc(point.x, point.y, radius + 6 * pointScale + attackRemaining * 4 * pointScale, 0, TAU);
         ctx.stroke();
         ctx.restore();
       }
@@ -793,9 +796,9 @@ export default function RiffCycleCanvas({
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.88)'
           : 'rgba(255,255,255,0.46)';
-        ctx.lineWidth = effectiveAccented ? 1.9 : 1.2;
+        ctx.lineWidth = (effectiveAccented ? 1.9 : 1.2) * pointScale;
         ctx.beginPath();
-        ctx.arc(point.x, point.y, radius + (effectiveAccented ? 3.6 : 2.8), 0, TAU);
+        ctx.arc(point.x, point.y, radius + (effectiveAccented ? 3.6 : 2.8) * pointScale, 0, TAU);
         ctx.stroke();
         ctx.restore();
       }
@@ -804,12 +807,12 @@ export default function RiffCycleCanvas({
         ctx.save();
         ctx.fillStyle = 'rgba(255,209,102,0.96)';
         ctx.strokeStyle = 'rgba(17,17,22,0.72)';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = pointScale;
         drawDiamondMarker(
           ctx,
           point.x,
           point.y,
-          Math.max(2.8, radius * 0.42),
+          Math.max(2.8 * pointScale, radius * 0.42),
         );
         ctx.fill();
         ctx.stroke();

@@ -32,6 +32,7 @@ export const VIDEO_EXPORT_DURATIONS: Array<{
 export const CANVAS_RECORDING_FRAME_RATE = 60;
 export const CANVAS_RECORDING_VIDEO_BITS_PER_SECOND = 24_000_000;
 export const CANVAS_EXPORT_PREROLL_SECONDS = 1;
+export const SHORTS_EXPORT_POINT_SCALE = 1.45;
 
 interface CanvasRecordingDownload {
   blob: Blob;

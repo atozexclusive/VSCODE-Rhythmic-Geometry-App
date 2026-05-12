@@ -29,6 +29,7 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
   type VideoExportDuration,
@@ -199,6 +200,7 @@ export default function PolyrhythmCanvas({
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const currentStudy = studyRef.current;
+    const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
     const currentDisplaySettings = displaySettingsRef.current;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
@@ -484,9 +486,9 @@ export default function PolyrhythmCanvas({
               : 1;
           const pulseStrength = pulse ? 1 - pulseProgress : 0;
           const denseLayer = layer.beatCount > 24;
-          const hitRadiusBoost = point.active && !isReferenceLayer ? pulseStrength * 2.15 : 0;
-          const hitGlowBoost = point.active && !isReferenceLayer ? pulseStrength * 12 : 0;
-          const pointRadius = isReferenceLayer
+          const hitRadiusBoost = point.active && !isReferenceLayer ? pulseStrength * 2.15 * pointScale : 0;
+          const hitGlowBoost = point.active && !isReferenceLayer ? pulseStrength * 12 * pointScale : 0;
+          const pointRadius = (isReferenceLayer
             ? 2.6
             : point.active
             ? isSelectedStep
@@ -504,21 +506,21 @@ export default function PolyrhythmCanvas({
                 ? soloLayerDisplayRef.current ? 4.1 : 3.6
                 : denseLayer
                   ? soloLayerDisplayRef.current ? 3.6 : 3.2
-                  : soloLayerDisplayRef.current ? 2.8 : 2.4;
+                  : soloLayerDisplayRef.current ? 2.8 : 2.4) * pointScale;
 
           if (isHoveredStep && !isReferenceLayer) {
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.lineWidth = 1.7;
-            ctx.shadowBlur = 14 * glowMultiplier;
+            ctx.lineWidth = 1.7 * pointScale;
+            ctx.shadowBlur = 14 * glowMultiplier * pointScale;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 5.4, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 5.4 * pointScale, 0, TAU);
             ctx.stroke();
             ctx.globalAlpha = 0.16;
             ctx.fillStyle = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 8.5, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 8.5 * pointScale, 0, TAU);
             ctx.fill();
             ctx.restore();
           }
@@ -526,11 +528,11 @@ export default function PolyrhythmCanvas({
           if (isSelectedStep) {
             ctx.save();
             ctx.strokeStyle = 'rgba(255,255,255,0.78)';
-            ctx.lineWidth = 1.6;
-            ctx.shadowBlur = 10 * glowMultiplier;
+            ctx.lineWidth = 1.6 * pointScale;
+            ctx.shadowBlur = 10 * glowMultiplier * pointScale;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 4, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 4 * pointScale, 0, TAU);
             ctx.stroke();
             ctx.restore();
           }
@@ -540,21 +542,21 @@ export default function PolyrhythmCanvas({
             ctx.save();
             ctx.globalAlpha = (0.18 * easedPulse) * lineAlpha;
             ctx.strokeStyle = layer.color;
-            ctx.lineWidth = 0.9 + 0.9 * easedPulse;
-            ctx.shadowBlur = (8 + 6 * easedPulse) * glowMultiplier;
+            ctx.lineWidth = (0.9 + 0.9 * easedPulse) * pointScale;
+            ctx.shadowBlur = (8 + 6 * easedPulse) * glowMultiplier * pointScale;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 3 + (1 - easedPulse) * 8 + hitRadiusBoost, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 3 * pointScale + (1 - easedPulse) * 8 * pointScale + hitRadiusBoost, 0, TAU);
             ctx.stroke();
             ctx.restore();
 
             ctx.save();
             ctx.globalAlpha = 0.07 * easedPulse;
             ctx.fillStyle = layer.color;
-            ctx.shadowBlur = (8 + hitGlowBoost) * glowMultiplier;
+            ctx.shadowBlur = (8 * pointScale + hitGlowBoost) * glowMultiplier;
             ctx.shadowColor = layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 5 + (1 - easedPulse) * 4 + hitRadiusBoost, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + 5 * pointScale + (1 - easedPulse) * 4 * pointScale + hitRadiusBoost, 0, TAU);
             ctx.fill();
             ctx.restore();
           }
@@ -575,23 +577,23 @@ export default function PolyrhythmCanvas({
                     : 0.88;
             ctx.shadowBlur = isReferenceLayer
               ? 0
-              : (isSelectedStep ? 16 : isHoveredStep ? 16 : isHoveredLayer ? 12 : sharedDisplay ? 10 : 8) * glowMultiplier + hitGlowBoost;
+              : (isSelectedStep ? 16 : isHoveredStep ? 16 : isHoveredLayer ? 12 : sharedDisplay ? 10 : 8) * glowMultiplier * pointScale + hitGlowBoost;
             ctx.shadowColor = isReferenceLayer ? 'transparent' : layer.color;
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius + hitRadiusBoost, 0, TAU);
             ctx.fill();
             if (accented && !isReferenceLayer) {
               ctx.strokeStyle = 'rgba(255,209,102,0.92)';
-              ctx.lineWidth = isSelectedStep ? 2 : 1.45;
-              ctx.shadowBlur = (isSelectedStep ? 18 : 11) * glowMultiplier;
+              ctx.lineWidth = (isSelectedStep ? 2 : 1.45) * pointScale;
+              ctx.shadowBlur = (isSelectedStep ? 18 : 11) * glowMultiplier * pointScale;
               ctx.shadowColor = 'rgba(255,209,102,0.7)';
               ctx.beginPath();
-              ctx.arc(point.x, point.y, pointRadius + 2.1, 0, TAU);
+              ctx.arc(point.x, point.y, pointRadius + 2.1 * pointScale, 0, TAU);
               ctx.stroke();
               ctx.fillStyle = 'rgba(255,209,102,0.96)';
-              ctx.shadowBlur = 8 * glowMultiplier;
+              ctx.shadowBlur = 8 * glowMultiplier * pointScale;
               ctx.beginPath();
-              ctx.arc(point.x, point.y, Math.max(1.5, pointRadius * 0.28), 0, TAU);
+              ctx.arc(point.x, point.y, Math.max(1.5 * pointScale, pointRadius * 0.28), 0, TAU);
               ctx.fill();
             }
           } else {
