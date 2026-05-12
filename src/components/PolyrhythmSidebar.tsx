@@ -1695,7 +1695,7 @@ export default function PolyrhythmSidebar({
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
                     Motion Export
                   </div>
-                  <InfoTip text="Records the Study canvas as a short WebM loop. PNG is more reliable on iPhone." />
+                  <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
                 </div>
                 <div className="grid grid-cols-[1fr,auto] gap-2">
                   <select
@@ -1723,8 +1723,8 @@ export default function PolyrhythmSidebar({
                       void onExportVideo({ durationSeconds: videoDuration });
                       setExportNotice(
                         isIOS
-                          ? 'WebM may not save cleanly on iPhone. PNG is more reliable there.'
-                          : 'WebM recording started from reset.',
+                          ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'
+                          : 'Video recording started from reset.',
                       );
                     }}
                     disabled={isRecordingVideo}
@@ -1736,7 +1736,7 @@ export default function PolyrhythmSidebar({
                       ...lockedExportStyle,
                     }}
                   >
-                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Record WebM'}
+                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Export Video'}
                   </button>
                 </div>
               </div>

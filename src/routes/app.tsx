@@ -208,6 +208,17 @@ const FREE_STUDY_LAYER_LIMIT = 2;
 const FREE_STUDY_STEP_LIMIT = 12;
 const STANDARD_STUDY_LAYER_COUNTS = [3, 4, 5, 2, 6, 7, 9] as const;
 const FREE_RIFF_STEP_LIMIT = 12;
+const FREE_RIFF_ENDING_SLOT_LIMIT = 4;
+const FREE_RIFF_METERS = [3, 4] as const;
+const FREE_RIFF_SUBDIVISIONS = [8, 12, 16] as const;
+
+function canUseFreeRiffMeter(numerator: number): boolean {
+  return FREE_RIFF_METERS.includes(Math.round(numerator) as (typeof FREE_RIFF_METERS)[number]);
+}
+
+function canUseFreeRiffSubdivision(subdivision: number): boolean {
+  return FREE_RIFF_SUBDIVISIONS.includes(Math.round(subdivision) as (typeof FREE_RIFF_SUBDIVISIONS)[number]);
+}
 
 function normalizeRiffBackbeatBeats(
   beats: number[] | undefined,
@@ -2990,6 +3001,7 @@ function RiffEndingReturnWindowPanel({
   stepsPerBar,
   landingWindowSteps,
   landingOverrides,
+  freeRestartMode = false,
   playing,
   playbackStateRef,
   className = '',
@@ -2999,6 +3011,7 @@ function RiffEndingReturnWindowPanel({
   stepsPerBar: number;
   landingWindowSteps: number;
   landingOverrides: RiffCycleStudy['landingOverrides'];
+  freeRestartMode?: boolean;
   playing: boolean;
   playbackStateRef: React.MutableRefObject<RiffCyclePlaybackState>;
   className?: string;
@@ -3053,6 +3066,9 @@ function RiffEndingReturnWindowPanel({
 
         <div className="rounded-xl border border-[#7FD7FF]/16 bg-[#7FD7FF]/8 px-3 py-2 text-[11px] leading-relaxed text-white/58">
           The ending only happens at the end of the return cycle. These final slots play right before the riff comes back to beat 1.
+          {freeRestartMode
+            ? ' In Free restart, the blue ending dots follow the moving return point, so they show where the ending is now instead of one fixed bar.'
+            : ''}
         </div>
 
         <div className="space-y-2">
@@ -5566,6 +5582,7 @@ function OrbitalPolymeter() {
   const studyPatternToolsLocked = !canUseProFeature(effectivePlan, 'study-pattern-tools');
   const riffPatternToolsLocked = !canUseProFeature(effectivePlan, 'riff-pattern-tools');
   const riffEndingLengthLocked = !canUseProFeature(effectivePlan, 'riff-ending-length');
+  const riffAdvancedTimingLocked = !canUseProFeature(effectivePlan, 'riff-advanced-timing');
   const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
@@ -5645,6 +5662,11 @@ function OrbitalPolymeter() {
         title: 'Longer Endings Need Pro',
         body: 'Free lets you edit the current ending slots. Pro unlocks longer endings so you can rewrite more of the landing before the riff returns.',
       },
+      'riff-advanced-timing': {
+        feature: 'riff-advanced-timing',
+        title: 'Advanced Riff Timing Needs Pro',
+        body: 'Free Riff keeps timing focused on 3/4, 4/4, eighths, triplets, and sixteenths. Pro unlocks other meters, quintuplets, and 32nd-note grids.',
+      },
       'riff-pattern-tools': {
         feature: 'riff-pattern-tools',
         title: 'Advanced Pattern Tools Need Pro',
@@ -5658,6 +5680,17 @@ function OrbitalPolymeter() {
     };
     setProPrompt(featureCopy[feature]);
   }
+  const requireEditablePolyrhythmStudy = useCallback(() => {
+    if (
+      !canUseProFeature(effectivePlan, 'study-layers') &&
+      polyrhythmStudy.layers.length > FREE_STUDY_LAYER_LIMIT
+    ) {
+      showProPrompt('study-layers');
+      return false;
+    }
+
+    return true;
+  }, [effectivePlan, polyrhythmStudy.layers.length]);
   const requireUnlockedRiffStepCount = useCallback(
     (stepCount: number) => {
       const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
@@ -5673,6 +5706,17 @@ function OrbitalPolymeter() {
     },
     [effectivePlan],
   );
+  const requireEditableRiffCycleStudy = useCallback(() => {
+    const activePreset = activeRiffCyclePresetId
+      ? RIFF_CYCLE_PRESETS.find((preset) => preset.id === activeRiffCyclePresetId)
+      : null;
+    if (activePreset?.pro && !canUseProFeature(effectivePlan, 'pro-scenes')) {
+      showProPrompt('pro-scenes');
+      return false;
+    }
+
+    return true;
+  }, [activeRiffCyclePresetId, effectivePlan]);
   const riffMobileLaneHidden = riffMobileLaneBarsPerPage === 'none';
   const riffMobileFreeResolutionBars = getFreeRiffResolutionBars(riffCycleStudy);
   const riffMobileLaneCycleBars =
@@ -6144,6 +6188,9 @@ function OrbitalPolymeter() {
   const handleAddPolyrhythmLayer = useCallback(() => {
     let nextLayerId: string | null = null;
     let hitLayerLimit = false;
+    if (!requireEditablePolyrhythmStudy()) {
+      return;
+    }
     if (
       !canUseProFeature(effectivePlan, 'study-layers') &&
       polyrhythmStudy.layers.length >= FREE_STUDY_LAYER_LIMIT
@@ -6196,9 +6243,12 @@ function OrbitalPolymeter() {
       setSelectedPolyrhythmLayerId(nextLayerId);
       setSelectedPolyrhythmStep(null);
     }
-  }, [effectivePlan, polyrhythmStudy.layers.length]);
+  }, [effectivePlan, polyrhythmStudy.layers.length, requireEditablePolyrhythmStudy]);
 
   const handleRemovePolyrhythmLayer = useCallback((layerId: string) => {
+    if (!requireEditablePolyrhythmStudy()) {
+      return;
+    }
     setPolyrhythmStudy((current) => {
       if (current.layers.length <= 1) {
         return current;
@@ -6210,10 +6260,13 @@ function OrbitalPolymeter() {
       };
     });
     setSelectedPolyrhythmStep((current) => (current?.layerId === layerId ? null : current));
-  }, []);
+  }, [requireEditablePolyrhythmStudy]);
 
   const handleUpdatePolyrhythmLayer = useCallback(
     (layerId: string, updates: Partial<PolyrhythmLayer>) => {
+      if (!requireEditablePolyrhythmStudy()) {
+        return;
+      }
       if (
         typeof updates.color === 'string' &&
         !canUseProFeature(effectivePlan, 'color-editing')
@@ -6260,7 +6313,7 @@ function OrbitalPolymeter() {
         }),
       }));
     },
-    [effectivePlan],
+    [effectivePlan, requireEditablePolyrhythmStudy],
   );
 
   const handleSetPolyrhythmLayerColor = useCallback(
@@ -6274,6 +6327,9 @@ function OrbitalPolymeter() {
 
   const handleSetPolyrhythmLayerBeatCount = useCallback(
     (layerId: string, beatCount: number) => {
+      if (!requireEditablePolyrhythmStudy()) {
+        return;
+      }
       const nextBeatCount = Math.max(2, Math.min(64, Math.round(beatCount || 0)));
       if (
         !canUseProFeature(effectivePlan, 'study-extended-steps') &&
@@ -6295,11 +6351,14 @@ function OrbitalPolymeter() {
         return null;
       });
     },
-    [effectivePlan],
+    [effectivePlan, requireEditablePolyrhythmStudy],
   );
 
   const handleTogglePolyrhythmLayerStep = useCallback(
     (layerId: string, stepIndex: number) => {
+      if (!requireEditablePolyrhythmStudy()) {
+        return;
+      }
       setPolyrhythmStudy((current) => ({
         ...current,
         layers: current.layers.map((layer) =>
@@ -6307,11 +6366,14 @@ function OrbitalPolymeter() {
         ),
       }));
     },
-    [],
+    [requireEditablePolyrhythmStudy],
   );
 
   const handleTogglePolyrhythmLayerAccent = useCallback(
     (layerId: string, stepIndex: number) => {
+      if (!requireEditablePolyrhythmStudy()) {
+        return;
+      }
       setPolyrhythmStudy((current) => ({
         ...current,
         layers: current.layers.map((layer) =>
@@ -6319,7 +6381,7 @@ function OrbitalPolymeter() {
         ),
       }));
     },
-    [],
+    [requireEditablePolyrhythmStudy],
   );
 
   const retargetPolyrhythmSoloLayer = useCallback(
@@ -6378,6 +6440,9 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleRotatePolyrhythmLayer = useCallback((layerId: string, stepOffset: number) => {
+    if (!requireEditablePolyrhythmStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'study-pattern-tools')) {
       showProPrompt('study-pattern-tools');
       return;
@@ -6388,9 +6453,12 @@ function OrbitalPolymeter() {
         layer.id === layerId ? rotateLayer(layer, stepOffset) : layer,
       ),
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditablePolyrhythmStudy]);
 
   const handleInvertPolyrhythmLayerSteps = useCallback((layerId: string) => {
+    if (!requireEditablePolyrhythmStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'study-pattern-tools')) {
       showProPrompt('study-pattern-tools');
       return;
@@ -6401,9 +6469,12 @@ function OrbitalPolymeter() {
         layer.id === layerId ? invertLayerSteps(layer) : layer,
       ),
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditablePolyrhythmStudy]);
 
   const handleClearPolyrhythmLayer = useCallback((layerId: string) => {
+    if (!requireEditablePolyrhythmStudy()) {
+      return;
+    }
     setPolyrhythmStudy((current) => ({
       ...current,
       layers: current.layers.map((layer) =>
@@ -6417,7 +6488,7 @@ function OrbitalPolymeter() {
       ),
     }));
     setSelectedPolyrhythmStep((current) => (current?.layerId === layerId ? null : current));
-  }, []);
+  }, [requireEditablePolyrhythmStudy]);
 
   const handleRandomPolyrhythmStudy = useCallback(() => {
     const generatedStudy = createRandomPolyrhythmStudy();
@@ -6486,11 +6557,8 @@ function OrbitalPolymeter() {
     if (!preset) {
       return;
     }
-    if (preset.pro && !canUseProFeature(effectivePlan, 'pro-scenes')) {
-      showProPrompt('pro-scenes');
-      return;
-    }
     if (
+      !preset.pro &&
       !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
       !canUseFreeRiffStepCount(preset.study.riff.stepCount)
     ) {
@@ -6536,6 +6604,9 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleToggleRiffReferenceSound = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'sound-editing')) {
       showProPrompt('sound-editing');
       return;
@@ -6545,9 +6616,12 @@ function OrbitalPolymeter() {
       ...current,
       referenceSoundEnabled: !current.referenceSoundEnabled,
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleToggleRiffBackbeatSound = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'sound-editing')) {
       showProPrompt('sound-editing');
       return;
@@ -6557,10 +6631,13 @@ function OrbitalPolymeter() {
       ...current,
       backbeatSoundEnabled: !current.backbeatSoundEnabled,
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleUpdateRiffSoundSettings = useCallback(
     (updates: Partial<RiffCycleSoundSettings>) => {
+      if (!requireEditableRiffCycleStudy()) {
+        return;
+      }
       if (!canUseProFeature(effectivePlan, 'sound-editing')) {
         showProPrompt('sound-editing');
         return;
@@ -6574,10 +6651,13 @@ function OrbitalPolymeter() {
         },
       }));
     },
-    [effectivePlan],
+    [effectivePlan, requireEditableRiffCycleStudy],
   );
 
   const handleUpdateRiffDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'canvas-options')) {
       showProPrompt('canvas-options');
       return;
@@ -6592,14 +6672,39 @@ function OrbitalPolymeter() {
         DEFAULT_RIFF_DISPLAY_SETTINGS,
       ),
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleUpdateRiffReference = useCallback((updates: Partial<ReferenceMeter>) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => {
       const nextNumerator =
         updates.numerator == null
           ? current.reference.numerator
           : Math.max(2, Math.min(11, Math.round(updates.numerator)));
+      if (
+        updates.numerator != null &&
+        !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
+        !canUseFreeRiffMeter(nextNumerator)
+      ) {
+        showProPrompt('riff-advanced-timing');
+        return current;
+      }
+      const requestedSubdivision =
+        updates.subdivision == null
+          ? current.reference.subdivision
+          : ([8, 12, 16, 20, 32] as const).includes(updates.subdivision as 8 | 12 | 16 | 20 | 32)
+            ? (updates.subdivision as 8 | 12 | 16 | 20 | 32)
+            : current.reference.subdivision;
+      if (
+        updates.subdivision != null &&
+        !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
+        !canUseFreeRiffSubdivision(requestedSubdivision)
+      ) {
+        showProPrompt('riff-advanced-timing');
+        return current;
+      }
       const nextBackbeatBeats = normalizeRiffBackbeatBeats(
         updates.backbeatBeats ?? (updates.backbeatBeat != null ? [updates.backbeatBeat] : current.reference.backbeatBeats),
         nextNumerator,
@@ -6620,9 +6725,7 @@ function OrbitalPolymeter() {
           subdivision:
             updates.subdivision == null
               ? current.reference.subdivision
-              : ([8, 12, 16, 20, 32] as const).includes(updates.subdivision as 8 | 12 | 16 | 20 | 32)
-                ? (updates.subdivision as 8 | 12 | 16 | 20 | 32)
-                : current.reference.subdivision,
+              : requestedSubdivision,
           bpm:
             updates.bpm == null
               ? current.reference.bpm
@@ -6643,9 +6746,12 @@ function OrbitalPolymeter() {
       };
       return setLandingLength(nextStudy, nextStudy.landingLength);
     });
-  }, []);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleToggleRiffBackbeatBeat = useCallback((beat: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => {
       const currentBeats = normalizeRiffBackbeatBeats(
         current.reference.backbeatBeats,
@@ -6670,9 +6776,12 @@ function OrbitalPolymeter() {
         },
       };
     });
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffBackbeatBeats = useCallback((beats: number[]) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => {
       const normalizedBeats = normalizeRiffBackbeatBeats(
         beats,
@@ -6689,13 +6798,16 @@ function OrbitalPolymeter() {
         },
       };
     });
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffBackbeatBarInterval = useCallback((interval: RiffBackbeatBarInterval) => {
     handleUpdateRiffReference({ backbeatBarInterval: interval });
   }, [handleUpdateRiffReference]);
 
   const handleUpdateRiffPhrase = useCallback((updates: Partial<RiffPhrase>) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (
       typeof updates.color === 'string' &&
       !canUseProFeature(effectivePlan, 'color-editing')
@@ -6735,7 +6847,7 @@ function OrbitalPolymeter() {
             : Math.max(1, Math.min(16, Math.round(updates.resetBars))),
       },
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleSetRiffPhraseColor = useCallback(
     (color: string) => {
@@ -6745,6 +6857,9 @@ function OrbitalPolymeter() {
   );
 
   const handleSetRiffPhraseStepCount = useCallback((stepCount: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (requireUnlockedRiffStepCount(stepCount)) {
       return;
     }
@@ -6754,107 +6869,149 @@ function OrbitalPolymeter() {
         ? null
         : current,
     );
-  }, [requireUnlockedRiffStepCount]);
+  }, [requireEditableRiffCycleStudy, requireUnlockedRiffStepCount]);
 
   const handleToggleRiffCycleStep = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? toggleRiffStep(current, stepIndex) : current,
     );
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffCycleStepActive = useCallback((stepIndex: number, active: boolean) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? setRiffStepActive(current, stepIndex, active) : current,
     );
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSelectRiffCycleStep = useCallback((stepIndex: number | null) => {
     setSelectedRiffCycleStep(stepIndex);
   }, []);
 
   const handleToggleRiffCycleAccent = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       canEditRiffStep(current, stepIndex) ? toggleRiffAccent(current, stepIndex) : current,
     );
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleRotateRiffCycle = useCallback((stepOffset: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'riff-pattern-tools')) {
       showProPrompt('riff-pattern-tools');
       return;
     }
     setRiffCycleStudy((current) => rotateRiffSteps(current, stepOffset));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleInvertRiffCycle = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'riff-pattern-tools')) {
       showProPrompt('riff-pattern-tools');
       return;
     }
     setRiffCycleStudy((current) => invertRiffSteps(current));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleClearRiffCycle = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => clearRiffSteps(current));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffViewMode = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       viewMode: current.viewMode === 'unwrapped' ? 'circular' : 'unwrapped',
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffAlignmentMarkers = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       showAlignmentMarkers: !current.showAlignmentMarkers,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffBarMarkerInterval = useCallback((barMarkerInterval: RiffBarMarkerInterval) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       showAlignmentMarkers: barMarkerInterval !== 'none',
       barMarkerInterval,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffStepLabels = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       showStepLabels: !current.showStepLabels,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffPhraseBounds = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       showPhraseBounds: !current.showPhraseBounds,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffPhraseBody = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       showPhraseRing: !current.showPhraseRing,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffEmphasisMode = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       emphasisMode: current.emphasisMode === 'analysis' ? 'groove' : 'analysis',
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffLandingEdit = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       landingEditEnabled: !current.landingEditEnabled,
       tailEditEnabled: false,
     }));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffEditMode = useCallback((mode: RiffEditMode) => {
     setRiffCycleStudy((current) => ({
@@ -6865,8 +7022,12 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleSetRiffLandingLength = useCallback((landingLength: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     const normalizedLandingLength = Math.max(1, Math.round(landingLength || 1));
     if (
+      normalizedLandingLength > FREE_RIFF_ENDING_SLOT_LIMIT &&
       normalizedLandingLength > riffCycleStudy.landingLength &&
       !canUseProFeature(effectivePlan, 'riff-ending-length')
     ) {
@@ -6875,27 +7036,42 @@ function OrbitalPolymeter() {
     }
 
     setRiffCycleStudy((current) => setLandingLength(current, normalizedLandingLength));
-  }, [effectivePlan, riffCycleStudy.landingLength]);
+  }, [effectivePlan, requireEditableRiffCycleStudy, riffCycleStudy.landingLength]);
 
   const handleClearRiffLanding = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => clearLandingOverrides(current));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleMuteLastLandingSteps = useCallback((count: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => applyLandingStateToLastSlots(current, count, 'rest'));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleAccentLastLandingSteps = useCallback((count: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => applyLandingStateToLastSlots(current, count, 'accent'));
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffLandingStepActive = useCallback((slotIndex: number, active: boolean) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       setLandingOverride(current, slotIndex, active ? 'on' : 'rest'),
     );
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffLandingAccent = useCallback((slotIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) =>
       setLandingOverride(
         current,
@@ -6903,9 +7079,12 @@ function OrbitalPolymeter() {
         current.landingOverrides[slotIndex] === 'accent' ? 'on' : 'accent',
       ),
     );
-  }, []);
+  }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffSoundFocus = useCallback((focus: 'bar' | 'riff' | 'full') => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     if (!canUseProFeature(effectivePlan, 'sound-editing')) {
       showProPrompt('sound-editing');
       return;
@@ -6921,7 +7100,7 @@ function OrbitalPolymeter() {
         soundEnabled: focus !== 'bar',
       },
     }));
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleHardRefreshApp = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -7225,7 +7404,7 @@ function OrbitalPolymeter() {
         setRiffCycleStudy((current) => ({ ...current, playing: true }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         await (canvasEl as any).__exportVideo(options);
-        toast.success('Riff Cycle WebM exported.');
+        toast.success('Riff video exported.');
       } catch (error) {
         console.error(error);
         toast.error('Could not record Riff Cycle video.');
@@ -7292,7 +7471,7 @@ function OrbitalPolymeter() {
         setPolyrhythmStudy((current) => ({ ...current, playing: true }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         await (canvasEl as any).__exportVideo(options);
-        toast.success('Study WebM exported.');
+        toast.success('Study video exported.');
       } catch (error) {
         console.error(error);
         toast.error('Could not record Study video.');
@@ -10046,7 +10225,7 @@ function OrbitalPolymeter() {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         await (canvasEl as any).__exportVideo(options);
         await recordExportForAccount({
-          type: 'webm',
+          type: 'mp4',
           sceneName: 'Current Scene',
           snapshot: buildCurrentSceneSnapshot(),
           durationSeconds: options.durationSeconds,
@@ -10568,6 +10747,10 @@ function OrbitalPolymeter() {
       setPolyrhythmLayerStepDraft('');
       return;
     }
+    if (!requireEditablePolyrhythmStudy()) {
+      setPolyrhythmLayerStepDraft(String(selectedPolyrhythmLayer.beatCount));
+      return;
+    }
     const parsed = parseInt(polyrhythmLayerStepDraft, 10);
     if (!Number.isFinite(parsed)) {
       setPolyrhythmLayerStepDraft(String(selectedPolyrhythmLayer.beatCount));
@@ -10584,7 +10767,7 @@ function OrbitalPolymeter() {
     }
     handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, nextBeatCount);
     setPolyrhythmLayerStepDraft(String(nextBeatCount));
-  }, [effectivePlan, handleSetPolyrhythmLayerBeatCount, polyrhythmLayerStepDraft, selectedPolyrhythmLayer]);
+  }, [effectivePlan, handleSetPolyrhythmLayerBeatCount, polyrhythmLayerStepDraft, requireEditablePolyrhythmStudy, selectedPolyrhythmLayer]);
   const commitRiffPhraseStepDraft = useCallback(() => {
     const parsed = parseInt(riffPhraseStepDraft, 10);
     if (!Number.isFinite(parsed)) {
@@ -16524,6 +16707,11 @@ function OrbitalPolymeter() {
                             <div className="flex items-center gap-2">
                               <StudyShellButton
                                 size="square"
+                                locked={
+                                  riffAdvancedTimingLocked &&
+                                  !canUseFreeRiffMeter(Math.max(2, riffCycleStudy.reference.numerator - 1))
+                                }
+                                onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                 onClick={() =>
                                   handleUpdateRiffReference({
                                     numerator: Math.max(2, riffCycleStudy.reference.numerator - 1),
@@ -16545,6 +16733,11 @@ function OrbitalPolymeter() {
                               </div>
                               <StudyShellButton
                                 size="square"
+                                locked={
+                                  riffAdvancedTimingLocked &&
+                                  !canUseFreeRiffMeter(Math.min(11, riffCycleStudy.reference.numerator + 1))
+                                }
+                                onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                 onClick={() =>
                                   handleUpdateRiffReference({
                                     numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
@@ -16596,7 +16789,11 @@ function OrbitalPolymeter() {
 	                                key={value}
 	                                size="compact"
 	                                tone="blue"
-	                                highlighted={riffCycleStudy.reference.subdivision === value}
+	                                highlighted={riffCycleStudy.reference.subdivision === value && !(
+                                      riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
+                                    )}
+                                    locked={riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)}
+                                    onLockedClick={() => openProPrompt('riff-advanced-timing')}
 	                                onClick={() =>
 	                                  handleUpdateRiffReference({
 	                                    subdivision: value as ReferenceMeter['subdivision'],
@@ -17208,7 +17405,10 @@ function OrbitalPolymeter() {
                                 <StudyShellButton
                                   size="square"
                                   tone="blue"
-                                  locked={riffEndingLengthLocked}
+                                  locked={
+                                    riffEndingLengthLocked &&
+                                    riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
+                                  }
                                   onLockedClick={() => openProPrompt('riff-ending-length')}
                                   onClick={() =>
                                     handleSetRiffLandingLength(
@@ -17230,6 +17430,7 @@ function OrbitalPolymeter() {
                             stepsPerBar={riffDesktopStepsPerBar}
                             landingWindowSteps={riffLandingWindowSteps}
                             landingOverrides={riffCycleStudy.landingOverrides}
+                            freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
                             playing={riffCycleStudy.playing}
                             playbackStateRef={riffCyclePlaybackStateRef}
                           />
@@ -17820,13 +18021,7 @@ function OrbitalPolymeter() {
                               <button
                                 key={preset.id}
                                 type="button"
-                                onClick={() => {
-                                  if (locked) {
-                                    openProPrompt('pro-scenes');
-                                    return;
-                                  }
-                                  handleLoadRiffCyclePreset(preset.id);
-                                }}
+	                                onClick={() => handleLoadRiffCyclePreset(preset.id)}
                                 className="relative min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border p-3 text-left"
                                 style={{
                                   background: active
@@ -18565,7 +18760,10 @@ function OrbitalPolymeter() {
                             <StudyShellButton
                               size="square"
                               tone="blue"
-                              locked={riffEndingLengthLocked}
+                              locked={
+                                riffEndingLengthLocked &&
+                                riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
+                              }
                               onLockedClick={() => openProPrompt('riff-ending-length')}
                               onClick={() =>
                                 handleSetRiffLandingLength(
@@ -20218,13 +20416,7 @@ function OrbitalPolymeter() {
                             <button
                               key={preset.id}
                               type="button"
-                              onClick={() => {
-                                if (locked) {
-                                  openProPrompt('pro-scenes');
-                                  return;
-                                }
-                                handleLoadRiffCyclePreset(preset.id);
-                              }}
+                              onClick={() => handleLoadRiffCyclePreset(preset.id)}
                               className={`${utilitySceneRowClass} relative`}
                               style={{
                                 background: active ? `${preset.study.riff.color}12` : 'rgba(255,170,0,0.04)',
@@ -20613,7 +20805,10 @@ function OrbitalPolymeter() {
                       </div>
                       <StudyShellButton
                         size="square"
-                        locked={riffEndingLengthLocked}
+                        locked={
+                          riffEndingLengthLocked &&
+                          riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
+                        }
                         onLockedClick={() => openProPrompt('riff-ending-length')}
                         onClick={() =>
                           handleSetRiffLandingLength(
@@ -20640,6 +20835,7 @@ function OrbitalPolymeter() {
                   stepsPerBar={riffDesktopStepsPerBar}
                   landingWindowSteps={riffLandingWindowSteps}
                   landingOverrides={riffCycleStudy.landingOverrides}
+                  freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
                   playing={riffCycleStudy.playing}
                   playbackStateRef={riffCyclePlaybackStateRef}
                 />

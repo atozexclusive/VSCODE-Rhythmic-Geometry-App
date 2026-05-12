@@ -40,6 +40,7 @@ import {
   type RiffCycleStudy,
   type RiffCycleViewMode,
 } from '../lib/riffCycleStudy';
+import { getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
 import {
   triggerBarMarkerCue,
   triggerBackbeatAccent,
@@ -457,6 +458,8 @@ export default function RiffCycleCanvas({
       currentStudy,
       currentAbsoluteReferenceStep,
     );
+    const currentRiffPoint = riffPoints[currentRiffStep] ?? null;
+    const isFreeRestartMode = getResetStepCount(currentStudy) == null;
     const landingWindowLength = getLandingWindowLength(currentStudy);
     const normalizedStepWithinLandingWindow =
       ((currentAbsoluteReferenceStep % landingWindowLength) + landingWindowLength) %
@@ -464,6 +467,7 @@ export default function RiffCycleCanvas({
     const finalBarStartStep = Math.max(0, landingWindowLength - stepsPerBar);
     const landingReferenceOverlayVisible =
       currentStudy.landingEditEnabled &&
+      !isFreeRestartMode &&
       (landingReferenceOverlayMode === 'always' ||
         (landingReferenceOverlayMode === 'auto' &&
           normalizedStepWithinLandingWindow >= finalBarStartStep));
@@ -861,6 +865,43 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
     });
+
+    if (
+      isFreeRestartMode &&
+      currentStudy.landingEditEnabled &&
+      currentRiffStepState.landingSlot != null &&
+      currentRiffPoint
+    ) {
+      const landingPulseRemaining = Math.max(
+        0,
+        ((riffAttackUntilRef.current[currentRiffStep] ?? 0) - now) /
+          (currentRiffStepState.accented ? 360 : 260),
+      );
+      const pulseStrength =
+        landingPulseRemaining <= 0
+          ? 0.45
+          : landingPulseRemaining * landingPulseRemaining * (3 - 2 * landingPulseRemaining);
+      const markerRadius = currentRiffStepState.accented ? 7.2 : 6.2;
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, 0.45 + pulseStrength * 0.55);
+      ctx.fillStyle = '#7FD7FF';
+      ctx.shadowBlur = (18 + pulseStrength * 22) * glowMultiplier;
+      ctx.shadowColor = 'rgba(127,215,255,0.78)';
+      ctx.beginPath();
+      ctx.arc(currentRiffPoint.x, currentRiffPoint.y, markerRadius + pulseStrength * 3.2, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, 0.5 + pulseStrength * 0.45);
+      ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+      ctx.lineWidth = 1.35;
+      ctx.beginPath();
+      ctx.arc(currentRiffPoint.x, currentRiffPoint.y, markerRadius + 4 + pulseStrength * 8, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (selectedPoint && !isMobileRef.current) {
       ctx.save();
@@ -1616,16 +1657,11 @@ export default function RiffCycleCanvas({
         throw new Error('Video export is not supported in this browser.');
       }
 
-      const mimeType =
-        MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-            ? 'video/webm;codecs=vp8'
-            : 'video/webm';
+      const recordingFormat = getCanvasRecordingFormat();
 
       const stream = canvas.captureStream(60);
       const recorder = new MediaRecorder(stream, {
-        mimeType,
+        mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: 12_000_000,
       });
       const chunks: BlobPart[] = [];
@@ -1645,12 +1681,13 @@ export default function RiffCycleCanvas({
 
       stream.getTracks().forEach((track) => track.stop());
 
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob(chunks, { type: recordingFormat.mimeType });
+      const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
+      const url = URL.createObjectURL(download.blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const link = document.createElement('a');
       link.href = url;
-      link.download = `riff-cycle-${durationSeconds}s-${timestamp}.webm`;
+      link.download = `riff-cycle-${durationSeconds}s-${timestamp}.${download.extension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

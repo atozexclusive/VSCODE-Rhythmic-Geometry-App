@@ -21,6 +21,7 @@ import {
   getSharedCycleStepCount,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
+import { getCanvasRecordingFormat, prepareCanvasRecordingDownload } from '../lib/videoExport';
 
 const TAU = Math.PI * 2;
 const HIT_PULSE_DURATION_MS = 360;
@@ -858,16 +859,11 @@ export default function PolyrhythmCanvas({
         throw new Error('Video export is not supported in this browser.');
       }
 
-      const mimeType =
-        MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-            ? 'video/webm;codecs=vp8'
-            : 'video/webm';
+      const recordingFormat = getCanvasRecordingFormat();
 
       const stream = canvas.captureStream(60);
       const recorder = new MediaRecorder(stream, {
-        mimeType,
+        mimeType: recordingFormat.mimeType,
         videoBitsPerSecond: 12_000_000,
       });
       const chunks: BlobPart[] = [];
@@ -887,12 +883,13 @@ export default function PolyrhythmCanvas({
 
       stream.getTracks().forEach((track) => track.stop());
 
-      const blob = new Blob(chunks, { type: mimeType });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob(chunks, { type: recordingFormat.mimeType });
+      const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
+      const url = URL.createObjectURL(download.blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const link = document.createElement('a');
       link.href = url;
-      link.download = `polyrhythm-study-${durationSeconds}s-${timestamp}.webm`;
+      link.download = `polyrhythm-study-${durationSeconds}s-${timestamp}.${download.extension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

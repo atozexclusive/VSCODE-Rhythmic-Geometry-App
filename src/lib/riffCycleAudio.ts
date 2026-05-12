@@ -175,24 +175,36 @@ function triggerPaletteRiff(
 
   if (palette === 'muted-djent') {
     withVoice({
-      type: 'triangle',
+      type: accented ? 'sawtooth' : 'triangle',
       frequency: frequency * 0.86,
-      gain: clamp(gain + (accented ? 0.05 : 0.025), 0.024, 0.24),
+      gain: clamp(gain + (accented ? 0.075 : 0.025), 0.024, 0.28),
       attack: 0.0018,
-      release: accented ? 0.105 : 0.08,
-      filterFrequency: accented ? 740 : 440,
-      sweepTo: frequency * 0.58,
+      release: accented ? 0.13 : 0.08,
+      filterFrequency: accented ? 980 : 440,
+      filterQ: accented ? 1.05 : 0.72,
+      sweepTo: frequency * (accented ? 0.48 : 0.58),
     });
     withVoice({
       type: 'square',
-      frequency: clamp(frequency * 2.8, 220, 2200),
-      gain: clamp(gain * (accented ? 0.3 : 0.18), 0.01, 0.055),
+      frequency: clamp(frequency * (accented ? 4.15 : 2.8), 220, 3600),
+      gain: clamp(gain * (accented ? 0.52 : 0.18), 0.01, 0.085),
       attack: 0.001,
-      release: 0.028,
-      filterFrequency: 1350,
+      release: accented ? 0.045 : 0.028,
+      filterFrequency: accented ? 2450 : 1350,
       filterType: 'highpass',
-      filterQ: 0.9,
+      filterQ: accented ? 1.25 : 0.9,
     });
+    if (accented) {
+      withVoice({
+        type: 'triangle',
+        frequency: clamp(frequency * 0.43, 55, 190),
+        gain: clamp(gain * (accentPush === 'strong' ? 0.48 : 0.36), 0.015, 0.07),
+        attack: 0.002,
+        release: 0.075,
+        filterFrequency: 360,
+        filterQ: 0.68,
+      });
+    }
     return;
   }
 

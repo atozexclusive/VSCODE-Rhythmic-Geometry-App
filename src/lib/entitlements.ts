@@ -17,6 +17,7 @@ export type ProFeature =
   | 'study-pattern-tools'
   | 'riff-extended-patterns'
   | 'riff-ending-length'
+  | 'riff-advanced-timing'
   | 'riff-pattern-tools'
   | 'pro-scenes';
 

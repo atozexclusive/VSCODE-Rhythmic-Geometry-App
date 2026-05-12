@@ -1209,7 +1209,7 @@ export default function OrbitSidebar({
                   <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
                     Motion Export
                   </div>
-                  <InfoTip text="Records the canvas motion as a short WebM loop from the start of the cycle. PNG is more reliable on iPhone." />
+                  <InfoTip text="Exports the canvas motion as a short MP4 from the start of the cycle. If the browser records WebM first, the app converts it before download." />
                 </div>
                 <div className="grid grid-cols-[1fr,auto] gap-2">
                   <select
@@ -1236,8 +1236,8 @@ export default function OrbitSidebar({
                       void onExportVideo({ durationSeconds: videoDuration });
                       setExportNotice(
                         isIOS
-                          ? 'WebM may not save cleanly on iPhone. PNG is more reliable there.'
-                          : 'WebM recording started from reset.',
+                          ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'
+                          : 'Video recording started from reset.',
                       );
                     }}
                     disabled={isRecordingVideo}
@@ -1249,7 +1249,7 @@ export default function OrbitSidebar({
                     ...lockedExportStyle,
                   }}
                 >
-                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Record WebM'}
+                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Export Video'}
                   </button>
                 </div>
               </div>

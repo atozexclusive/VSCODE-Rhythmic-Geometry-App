@@ -186,12 +186,11 @@ export const CANVAS_ATMOSPHERE_OPTIONS: Array<{
   label: string;
   summary: string;
 }> = [
-  { id: 'none', label: 'None', summary: 'clean background' },
+  { id: 'none', label: 'Void', summary: 'clean black depth' },
   { id: 'stars', label: 'Stars', summary: 'sharp night points' },
-  { id: 'dust', label: 'Dust', summary: 'soft grain bands' },
-  { id: 'nebula-haze', label: 'Haze', summary: 'color cloud wash' },
-  { id: 'orbital-grid', label: 'Grid', summary: 'faint construction rings' },
-  { id: 'deep-field', label: 'Field', summary: 'depth arcs and glints' },
+  { id: 'deep-field', label: 'Deep Field', summary: 'distant arcs and glints' },
+  { id: 'dust', label: 'Fine Dust', summary: 'quiet suspended grain' },
+  { id: 'nebula-haze', label: 'Nebula Veil', summary: 'soft layered color fog' },
 ];
 
 export const CANVAS_GLOW_OPTIONS: Array<{
@@ -235,13 +234,13 @@ function getParticles(
     y: random() * height,
     radius:
       atmosphere === 'dust'
-        ? 1.8 + random() * 5.2
+        ? 0.34 + random() * 1.35
         : atmosphere === 'deep-field'
           ? 0.25 + random() * 1.35
           : 0.42 + random() * 0.95,
     alpha:
       atmosphere === 'dust'
-        ? 0.045 + random() * 0.12
+        ? 0.05 + random() * 0.18
         : atmosphere === 'deep-field'
           ? 0.12 + random() * 0.42
           : 0.18 + random() * 0.58,
@@ -370,41 +369,39 @@ export function drawCanvasDisplayBackground(
   if (atmosphere === 'nebula-haze') {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(42, radius * 0.045);
-    ctx.globalAlpha = presentationMode ? 0.12 : 0.075;
-    ctx.strokeStyle = theme.swatch[1];
+    const veilA = ctx.createLinearGradient(width * 0.08, height * 0.18, width * 0.94, height * 0.84);
+    veilA.addColorStop(0, 'rgba(255,255,255,0)');
+    veilA.addColorStop(0.35, theme.gradient[1]);
+    veilA.addColorStop(0.62, theme.gradient[0]);
+    veilA.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = presentationMode ? 0.2 : 0.12;
+    ctx.fillStyle = veilA;
     ctx.beginPath();
-    ctx.moveTo(width * -0.08, height * 0.68);
-    ctx.bezierCurveTo(width * 0.22, height * 0.42, width * 0.52, height * 0.88, width * 1.08, height * 0.34);
-    ctx.stroke();
-    ctx.globalAlpha = presentationMode ? 0.1 : 0.06;
-    ctx.strokeStyle = theme.swatch[2];
+    ctx.ellipse(width * 0.48, height * 0.56, radius * 0.44, radius * 0.19, -0.42, 0, Math.PI * 2);
+    ctx.fill();
+
+    const veilB = ctx.createLinearGradient(width * 0.2, height * 0.86, width * 0.86, height * 0.2);
+    veilB.addColorStop(0, 'rgba(255,255,255,0)');
+    veilB.addColorStop(0.45, theme.gradient[2]);
+    veilB.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = presentationMode ? 0.16 : 0.095;
+    ctx.fillStyle = veilB;
     ctx.beginPath();
-    ctx.moveTo(width * 0.08, height * 0.28);
-    ctx.bezierCurveTo(width * 0.36, height * 0.08, width * 0.66, height * 0.48, width * 1.02, height * 0.18);
-    ctx.stroke();
+    ctx.ellipse(width * 0.58, height * 0.42, radius * 0.36, radius * 0.15, 0.28, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
   if (atmosphere === 'dust') {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.lineCap = 'round';
-    for (let index = 0; index < 4; index += 1) {
-      const y = height * (0.2 + index * 0.18);
-      const band = ctx.createLinearGradient(width * 0.08, y, width * 0.92, y + height * 0.18);
-      band.addColorStop(0, 'rgba(255,255,255,0)');
-      band.addColorStop(0.42, theme.gradient[index % 2]);
-      band.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.globalAlpha = presentationMode ? 0.11 : 0.07;
-      ctx.strokeStyle = band;
-      ctx.lineWidth = Math.max(18, radius * 0.018);
-      ctx.beginPath();
-      ctx.moveTo(width * -0.1, y + height * 0.08);
-      ctx.bezierCurveTo(width * 0.24, y - height * 0.04, width * 0.58, y + height * 0.18, width * 1.1, y + height * 0.02);
-      ctx.stroke();
-    }
+    const dustGlow = ctx.createRadialGradient(width * 0.5, height * 0.46, 0, width * 0.5, height * 0.46, radius * 0.52);
+    dustGlow.addColorStop(0, 'rgba(255,235,190,0.08)');
+    dustGlow.addColorStop(0.46, 'rgba(170,205,255,0.035)');
+    dustGlow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalAlpha = presentationMode ? 0.64 : 0.42;
+    ctx.fillStyle = dustGlow;
+    ctx.fillRect(0, 0, width, height);
     ctx.restore();
   }
 
@@ -457,7 +454,7 @@ export function drawCanvasDisplayBackground(
   if (atmosphere === 'stars' || atmosphere === 'dust' || atmosphere === 'deep-field') {
     const count =
       atmosphere === 'dust'
-        ? 48
+        ? 96
         : atmosphere === 'deep-field'
           ? 70
           : 56;
@@ -475,15 +472,7 @@ export function drawCanvasDisplayBackground(
             : 'rgba(255,255,255,0.72)';
       ctx.beginPath();
       if (atmosphere === 'dust') {
-        ctx.ellipse(
-          particle.x,
-          particle.y,
-          particle.radius * 1.8,
-          particle.radius * 0.62,
-          -0.45,
-          0,
-          Math.PI * 2,
-        );
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       } else {
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       }
