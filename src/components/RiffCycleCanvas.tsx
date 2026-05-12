@@ -46,6 +46,7 @@ import {
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
+  recordMediaRecorderForDuration,
 } from '../lib/videoExport';
 import {
   getRiffCycleAudioRecordingStream,
@@ -1682,12 +1683,7 @@ export default function RiffCycleCanvas({
         }
       };
 
-      await new Promise<void>((resolve, reject) => {
-        recorder.onerror = () => reject(new Error('Recording failed.'));
-        recorder.onstop = () => resolve();
-        recorder.start();
-        window.setTimeout(() => recorder.stop(), durationSeconds * 1000);
-      });
+      await recordMediaRecorderForDuration(recorder, durationSeconds);
 
       stream.getTracks().forEach((track) => track.stop());
 

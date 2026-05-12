@@ -13,12 +13,12 @@ interface CanvasRecordingDownload {
 }
 
 const RECORDING_FORMATS: CanvasRecordingFormat[] = [
-  { mimeType: 'video/webm;codecs=vp9', extension: 'webm' },
-  { mimeType: 'video/webm;codecs=vp8', extension: 'webm' },
-  { mimeType: 'video/webm', extension: 'webm' },
   { mimeType: 'video/mp4;codecs=avc1.42E01E', extension: 'mp4' },
   { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' },
   { mimeType: 'video/mp4', extension: 'mp4' },
+  { mimeType: 'video/webm;codecs=vp9', extension: 'webm' },
+  { mimeType: 'video/webm;codecs=vp8', extension: 'webm' },
+  { mimeType: 'video/webm', extension: 'webm' },
 ];
 
 export function getCanvasRecordingFormat(): CanvasRecordingFormat {
@@ -42,6 +42,43 @@ export function addAudioToCanvasStream(
   });
 
   return canvasStream;
+}
+
+export function recordMediaRecorderForDuration(
+  recorder: MediaRecorder,
+  durationSeconds: number,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const stopDelayMs = durationSeconds * 1000;
+    const failSafeDelayMs = stopDelayMs + 5000;
+
+    const settle = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(stopTimer);
+      window.clearTimeout(failSafeTimer);
+      callback();
+    };
+
+    const stopTimer = window.setTimeout(() => {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    }, stopDelayMs);
+    const failSafeTimer = window.setTimeout(() => {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+      settle(() => resolve());
+    }, failSafeDelayMs);
+
+    recorder.onerror = () => settle(() => reject(new Error('Recording failed.')));
+    recorder.onstop = () => settle(() => resolve());
+    recorder.start(1000);
+  });
 }
 
 async function toBlobUrl(url: string, mimeType: string): Promise<string> {
