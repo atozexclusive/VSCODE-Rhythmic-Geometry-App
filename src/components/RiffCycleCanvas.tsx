@@ -47,6 +47,7 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  RIFF_EXPORT_PREROLL_SECONDS,
 } from '../lib/videoExport';
 import {
   createRiffCycleExportAudioStream,
@@ -1665,11 +1666,27 @@ export default function RiffCycleCanvas({
         throw new Error('Video export is not supported in this browser.');
       }
 
+      const playbackState = playbackStateHandleRef.current.current;
+      const wasPlaying = studyRef.current.playing;
+      playbackState.referenceProgress = 0;
+      playbackState.lastTimestamp = null;
+      playbackState.previousReferenceStep = -1;
+      playbackState.wasPlaying = false;
+      studyRef.current = {
+        ...studyRef.current,
+        playing: false,
+      };
+      draw();
+
       const recordingFormat = getCanvasRecordingFormat();
 
       const stream = addAudioToCanvasStream(
         canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-        createRiffCycleExportAudioStream(studyRef.current, durationSeconds),
+        createRiffCycleExportAudioStream(
+          studyRef.current,
+          durationSeconds,
+          RIFF_EXPORT_PREROLL_SECONDS,
+        ),
       );
       const recorder = new MediaRecorder(stream, {
         mimeType: recordingFormat.mimeType,
@@ -1683,7 +1700,17 @@ export default function RiffCycleCanvas({
         }
       };
 
-      await recordMediaRecorderForDuration(recorder, durationSeconds);
+      const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
+      window.setTimeout(() => {
+        playbackState.lastTimestamp = null;
+        playbackState.previousReferenceStep = -1;
+        playbackState.wasPlaying = false;
+        studyRef.current = {
+          ...studyRef.current,
+          playing: wasPlaying,
+        };
+      }, RIFF_EXPORT_PREROLL_SECONDS * 1000);
+      await recordingPromise;
 
       stream.getTracks().forEach((track) => track.stop());
 

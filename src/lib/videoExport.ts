@@ -3,8 +3,9 @@ export interface CanvasRecordingFormat {
   extension: 'mp4' | 'webm';
 }
 
-export const CANVAS_RECORDING_FRAME_RATE = 30;
-export const CANVAS_RECORDING_VIDEO_BITS_PER_SECOND = 8_000_000;
+export const CANVAS_RECORDING_FRAME_RATE = 60;
+export const CANVAS_RECORDING_VIDEO_BITS_PER_SECOND = 16_000_000;
+export const RIFF_EXPORT_PREROLL_SECONDS = 1;
 
 interface CanvasRecordingDownload {
   blob: Blob;

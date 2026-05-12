@@ -438,6 +438,7 @@ function isExportBarMarkerCueStep(study: RiffCycleStudy, referenceStep: number):
 export function createRiffCycleExportAudioStream(
   study: RiffCycleStudy,
   durationSeconds: number,
+  prerollSeconds = 0,
 ): MediaStream | null {
   const context = getAudioContext();
   if (!context || typeof context.createMediaStreamDestination !== 'function') {
@@ -454,11 +455,11 @@ export function createRiffCycleExportAudioStream(
     destination,
     outputToSpeakers: false,
   };
-  const scheduleStartTime = context.currentTime + 0.12;
+  const scheduleStartTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const stepsPerSecond =
     (study.reference.bpm / 60) *
     (study.reference.subdivision / study.reference.denominator);
-  const totalSteps = Math.ceil(Math.max(0, durationSeconds) * stepsPerSecond) + 1;
+  const totalSteps = Math.ceil(Math.max(0, durationSeconds - Math.max(0, prerollSeconds)) * stepsPerSecond) + 1;
 
   for (let referenceStep = 0; referenceStep <= totalSteps; referenceStep += 1) {
     const atTime = scheduleStartTime + referenceStep / stepsPerSecond;
