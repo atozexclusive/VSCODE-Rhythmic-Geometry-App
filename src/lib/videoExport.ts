@@ -4,6 +4,20 @@ export interface CanvasRecordingFormat {
 }
 
 export type VideoExportDuration = 8 | 15 | 30 | 60;
+export type VideoExportAspect = 'canvas' | 'shorts';
+
+export const VIDEO_EXPORT_ASPECTS: Array<{
+  value: VideoExportAspect;
+  label: string;
+}> = [
+  { value: 'canvas', label: 'Canvas' },
+  { value: 'shorts', label: 'Shorts 9:16' },
+];
+
+export const VIDEO_EXPORT_SIZES: Record<VideoExportAspect, { width: number; height: number } | null> = {
+  canvas: null,
+  shorts: { width: 1080, height: 1920 },
+};
 
 export const VIDEO_EXPORT_DURATIONS: Array<{
   value: VideoExportDuration;

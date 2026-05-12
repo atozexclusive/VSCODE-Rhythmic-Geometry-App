@@ -38,6 +38,8 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  VIDEO_EXPORT_SIZES,
+  type VideoExportAspect,
   type VideoExportDuration,
 } from '../lib/videoExport';
 
@@ -172,6 +174,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const interferenceSettingsRef = useRef(interferenceSettings);
     const displaySettingsRef = useRef(displaySettings);
     const presentationModeRef = useRef(presentationMode);
+    const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
     const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
     const hoverOrbitIdRef = useRef<string | null>(null);
@@ -594,8 +597,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         (canvas as any).__exportVideo = async ({
           durationSeconds = 8,
+          aspect = 'canvas',
         }: {
           durationSeconds?: VideoExportDuration;
+          aspect?: VideoExportAspect;
         } = {}) => {
           if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
             throw new Error('Video export is not supported in this browser.');
@@ -608,7 +613,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const previousHudVisible = hudVisibleRef.current;
           hudVisibleRef.current = false;
+          exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
           forceUpdate((value) => value + 1);
+          let stream: MediaStream | null = null;
           try {
             const state = engineRef.current;
             const activeCountMode =
@@ -623,7 +630,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             await waitForFrame();
             await waitForFrame();
 
-            const stream = addAudioToCanvasStream(
+            stream = addAudioToCanvasStream(
               canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
               createOrbitExportAudioStream(
                 state,
@@ -653,20 +660,20 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
             await recordingPromise;
 
-            stream.getTracks().forEach((track) => track.stop());
-
             const blob = new Blob(chunks, { type: recordingFormat.mimeType });
             const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
             const url = URL.createObjectURL(download.blob);
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const link = document.createElement('a');
             link.href = url;
-            link.download = `rhythmic-geometry-${durationSeconds}s-${timestamp}.${download.extension}`;
+            link.download = `rhythmic-geometry-${aspect}-${durationSeconds}s-${timestamp}.${download.extension}`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
           } finally {
+            stream?.getTracks().forEach((track) => track.stop());
+            exportVideoSizeRef.current = null;
             hudVisibleRef.current = previousHudVisible;
             forceUpdate((value) => value + 1);
           }
@@ -845,11 +852,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         // leave the canvas stuck at the old viewport after a desktop resize.
         canvas.style.width = '';
         canvas.style.height = '';
-        const bounds = canvas.getBoundingClientRect();
+        const exportVideoSize = exportVideoSizeRef.current;
+        const bounds = exportVideoSize ?? canvas.getBoundingClientRect();
         const w = Math.max(1, Math.round(bounds.width || window.innerWidth));
         const h = Math.max(1, Math.round(bounds.height || window.innerHeight));
-        const nextCanvasWidth = Math.round(w * dpr);
-        const nextCanvasHeight = Math.round(h * dpr);
+        const effectiveDpr = exportVideoSize ? 1 : dpr;
+        const nextCanvasWidth = Math.round(w * effectiveDpr);
+        const nextCanvasHeight = Math.round(h * effectiveDpr);
 
         if (
           canvas.width === nextCanvasWidth &&
@@ -862,11 +871,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         canvas.width = nextCanvasWidth;
         canvas.height = nextCanvasHeight;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.setTransform(effectiveDpr, 0, 0, effectiveDpr, 0, 0);
 
         traceCanvas.width = nextCanvasWidth;
         traceCanvas.height = nextCanvasHeight;
-        traceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        traceCtx.setTransform(effectiveDpr, 0, 0, effectiveDpr, 0, 0);
         clearTraces();
       };
 
@@ -883,10 +892,12 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
       const renderFrame = (timestamp: number) => {
         try {
-          const bounds = canvas.getBoundingClientRect();
+          const exportVideoSize = exportVideoSizeRef.current;
+          const bounds = exportVideoSize ?? canvas.getBoundingClientRect();
           const displayWidth = Math.max(1, Math.round(bounds.width || window.innerWidth));
           const displayHeight = Math.max(1, Math.round(bounds.height || window.innerHeight));
-          if (canvas.width !== Math.round(displayWidth * dpr) || canvas.height !== Math.round(displayHeight * dpr)) {
+          const effectiveDpr = exportVideoSize ? 1 : dpr;
+          if (canvas.width !== Math.round(displayWidth * effectiveDpr) || canvas.height !== Math.round(displayHeight * effectiveDpr)) {
             resize();
           }
 
@@ -896,8 +907,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             previousElapsedBeatsRef.current = state.elapsedBeats;
           }
           const previousElapsedBeats = previousElapsedBeatsRef.current;
-          const w = canvas.width / dpr;
-          const h = canvas.height / dpr;
+          const w = canvas.width / effectiveDpr;
+          const h = canvas.height / effectiveDpr;
           const {
             cx,
             cy,

@@ -29,6 +29,8 @@ import {
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
+  VIDEO_EXPORT_SIZES,
+  type VideoExportAspect,
   type VideoExportDuration,
 } from '../lib/videoExport';
 
@@ -137,6 +139,7 @@ export default function PolyrhythmCanvas({
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
+  const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
   const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
   const animationTimestampRef = useRef(0);
   const pointerStepHitRef = useRef<{
@@ -174,12 +177,13 @@ export default function PolyrhythmCanvas({
       return;
     }
 
-    const rect = canvas.getBoundingClientRect();
+    const exportVideoSize = exportVideoSizeRef.current;
+    const rect = exportVideoSize ?? canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
       return;
     }
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = exportVideoSize ? 1 : window.devicePixelRatio || 1;
     const nextWidth = Math.round(rect.width * dpr);
     const nextHeight = Math.round(rect.height * dpr);
 
@@ -861,73 +865,81 @@ export default function PolyrhythmCanvas({
 
     (canvas as any).__exportVideo = async ({
       durationSeconds = 8,
+      aspect = 'canvas',
     }: {
       durationSeconds?: VideoExportDuration;
+      aspect?: VideoExportAspect;
     } = {}) => {
       if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
         throw new Error('Video export is not supported in this browser.');
       }
 
-      const playbackState = playbackStateHandleRef.current.current;
-      playbackState.progress = 0;
-      playbackState.lastTimestamp = null;
-      playbackState.previousPlaybackSteps.clear();
-      playbackState.wasPlaying = false;
-      hitPulsesRef.current = [];
-      studyRef.current = {
-        ...studyRef.current,
-        playing: false,
-      };
-      draw();
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-      const recordingFormat = getCanvasRecordingFormat();
-
-      const stream = addAudioToCanvasStream(
-        canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-        createPolyrhythmExportAudioStream(
-          studyRef.current,
-          durationSeconds,
-          CANVAS_EXPORT_PREROLL_SECONDS,
-        ),
-      );
-      const recorder = new MediaRecorder(stream, {
-        mimeType: recordingFormat.mimeType,
-        videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
-      });
-      const chunks: BlobPart[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
-      window.setTimeout(() => {
+      exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
+      let stream: MediaStream | null = null;
+      try {
+        const playbackState = playbackStateHandleRef.current.current;
+        playbackState.progress = 0;
         playbackState.lastTimestamp = null;
         playbackState.previousPlaybackSteps.clear();
         playbackState.wasPlaying = false;
+        hitPulsesRef.current = [];
         studyRef.current = {
           ...studyRef.current,
-          playing: true,
+          playing: false,
         };
-      }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
-      await recordingPromise;
+        draw();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      stream.getTracks().forEach((track) => track.stop());
+        const recordingFormat = getCanvasRecordingFormat();
 
-      const blob = new Blob(chunks, { type: recordingFormat.mimeType });
-      const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
-      const url = URL.createObjectURL(download.blob);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `polyrhythm-study-${durationSeconds}s-${timestamp}.${download.extension}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+        stream = addAudioToCanvasStream(
+          canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
+          createPolyrhythmExportAudioStream(
+            studyRef.current,
+            durationSeconds,
+            CANVAS_EXPORT_PREROLL_SECONDS,
+          ),
+        );
+        const recorder = new MediaRecorder(stream, {
+          mimeType: recordingFormat.mimeType,
+          videoBitsPerSecond: CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
+        });
+        const chunks: BlobPart[] = [];
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        };
+
+        const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
+        window.setTimeout(() => {
+          playbackState.lastTimestamp = null;
+          playbackState.previousPlaybackSteps.clear();
+          playbackState.wasPlaying = false;
+          studyRef.current = {
+            ...studyRef.current,
+            playing: true,
+          };
+        }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
+        await recordingPromise;
+
+        const blob = new Blob(chunks, { type: recordingFormat.mimeType });
+        const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
+        const url = URL.createObjectURL(download.blob);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `polyrhythm-study-${aspect}-${durationSeconds}s-${timestamp}.${download.extension}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } finally {
+        stream?.getTracks().forEach((track) => track.stop());
+        exportVideoSizeRef.current = null;
+        draw();
+      }
     };
 
     return () => {

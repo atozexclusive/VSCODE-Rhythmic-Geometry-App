@@ -22,7 +22,7 @@ import {
   type PolyrhythmStudy,
   type PolyrhythmStudyPreset,
 } from '../lib/polyrhythmStudy';
-import { VIDEO_EXPORT_DURATIONS, type VideoExportDuration } from '../lib/videoExport';
+import { VIDEO_EXPORT_ASPECTS, VIDEO_EXPORT_DURATIONS, type VideoExportAspect, type VideoExportDuration } from '../lib/videoExport';
 
 interface PolyrhythmStepSelection {
   layerId: string;
@@ -69,7 +69,7 @@ interface PolyrhythmSidebarProps {
     aspect: 'landscape' | 'square' | 'portrait' | 'story';
     scale: 1 | 2 | 4;
   }) => void;
-  onExportVideo: (options: { durationSeconds: VideoExportDuration }) => Promise<void> | void;
+  onExportVideo: (options: { durationSeconds: VideoExportDuration; aspect: VideoExportAspect }) => Promise<void> | void;
   onExportMidi: (mode: PolyrhythmMidiExportMode) => void;
   onExportScene: () => void;
   isRecordingVideo: boolean;
@@ -281,6 +281,7 @@ export default function PolyrhythmSidebar({
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
+  const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('canvas');
   const [exportMidiMode, setExportMidiMode] = useState<PolyrhythmMidiExportMode>('per-layer');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const exportLocked = Boolean(lockedFeatures.export);
@@ -1698,7 +1699,7 @@ export default function PolyrhythmSidebar({
                   </div>
                   <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
                 </div>
-                <div className="grid grid-cols-[1fr,auto] gap-2">
+                <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
                   <select
                     value={String(videoDuration)}
                     onChange={(event) => {
@@ -1717,6 +1718,24 @@ export default function PolyrhythmSidebar({
                       </option>
                     ))}
                   </select>
+                  <select
+                    value={videoAspect}
+                    onChange={(event) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoAspect(event.target.value as VideoExportAspect);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
+                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
+                        {aspect.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={() => {
@@ -1724,7 +1743,7 @@ export default function PolyrhythmSidebar({
                         promptLockedExport();
                         return;
                       }
-                      void onExportVideo({ durationSeconds: videoDuration });
+                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
                       setExportNotice(
                         isIOS
                           ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'

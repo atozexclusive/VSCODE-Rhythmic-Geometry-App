@@ -26,7 +26,7 @@ import {
 } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode, type InterferenceSettings } from '../lib/geometry';
-import { VIDEO_EXPORT_DURATIONS, type VideoExportDuration } from '../lib/videoExport';
+import { VIDEO_EXPORT_ASPECTS, VIDEO_EXPORT_DURATIONS, type VideoExportAspect, type VideoExportDuration } from '../lib/videoExport';
 
 interface OrbitSidebarProps {
   orbits: Orbit[];
@@ -91,7 +91,7 @@ interface OrbitSidebarProps {
   onExportScene: (sceneId: string) => void;
   onImportScene: (file: File) => void;
   onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
-  onExportVideo: (options: { durationSeconds: VideoExportDuration }) => Promise<void> | void;
+  onExportVideo: (options: { durationSeconds: VideoExportDuration; aspect: VideoExportAspect }) => Promise<void> | void;
   onExportMidi: (options: { bars: 4 | 8 | 16 }) => void;
   isRecordingVideo: boolean;
   lockedFeatures?: {
@@ -169,6 +169,7 @@ export default function OrbitSidebar({
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
+  const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('canvas');
   const [midiBars, setMidiBars] = useState<4 | 8 | 16>(8);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -1212,7 +1213,7 @@ export default function OrbitSidebar({
                   </div>
                   <InfoTip text="Exports the canvas motion as a short MP4 from the start of the cycle. If the browser records WebM first, the app converts it before download." />
                 </div>
-                <div className="grid grid-cols-[1fr,auto] gap-2">
+                <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
                   <select
                     value={String(videoDuration)}
                     onChange={(e) => {
@@ -1231,13 +1232,31 @@ export default function OrbitSidebar({
                       </option>
                     ))}
                   </select>
+                  <select
+                    value={videoAspect}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoAspect(e.target.value as VideoExportAspect);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
+                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
+                        {aspect.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => {
                       if (exportLocked) {
                         promptLockedExport();
                         return;
                       }
-                      void onExportVideo({ durationSeconds: videoDuration });
+                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
                       setExportNotice(
                         isIOS
                           ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'
