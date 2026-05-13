@@ -41,7 +41,8 @@ interface CanvasRecordingDownload {
 }
 
 const RECORDING_FORMATS: CanvasRecordingFormat[] = [
-  { mimeType: 'video/mp4;codecs=avc1.42E01E', extension: 'mp4' },
+  { mimeType: 'video/mp4;codecs=avc1.64002A', extension: 'mp4' },
+  { mimeType: 'video/mp4;codecs=avc1.4D402A', extension: 'mp4' },
   { mimeType: 'video/mp4;codecs=h264', extension: 'mp4' },
   { mimeType: 'video/mp4', extension: 'mp4' },
   { mimeType: 'video/webm;codecs=vp9', extension: 'webm' },

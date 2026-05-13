@@ -402,9 +402,9 @@ export default function RiffCycleCanvas({
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const exportLayoutMode = Boolean(exportVideoSize);
-    const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE : 1;
-    const shellScale = exportLayoutMode ? 1.28 : 1;
-    const exportLabelScale = exportLayoutMode ? 1.34 : 1;
+    const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE * 1.16 : 1;
+    const shellScale = exportLayoutMode ? 1.45 : 1;
+    const exportLabelScale = exportLayoutMode ? 1.55 : 1;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
