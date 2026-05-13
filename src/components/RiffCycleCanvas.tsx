@@ -401,7 +401,10 @@ export default function RiffCycleCanvas({
     const currentStudy = studyRef.current;
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
-    const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
+    const exportLayoutMode = Boolean(exportVideoSize);
+    const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE : 1;
+    const shellScale = exportLayoutMode ? 1.28 : 1;
+    const exportLabelScale = exportLayoutMode ? 1.34 : 1;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -430,7 +433,7 @@ export default function RiffCycleCanvas({
       currentStudy,
       rect.width,
       rect.height,
-      isMobileRef.current,
+      isMobileRef.current || exportLayoutMode,
       layoutTopInsetRef.current,
       layoutBottomInsetRef.current,
       effectiveLaneWindowStartStep,
@@ -547,7 +550,7 @@ export default function RiffCycleCanvas({
       ctx.strokeStyle = flashActive
         ? 'rgba(255,209,102,0.56)'
         : `rgba(255,255,255,${0.16 * lineAlpha})`;
-      ctx.lineWidth = flashActive ? 2.3 : 1.45;
+      ctx.lineWidth = (flashActive ? 2.3 : 1.45) * shellScale;
       if (flashActive || currentStudy.emphasisMode === 'groove') {
         ctx.fillStyle = flashActive ? 'rgba(255,209,102,0.055)' : 'rgba(255,255,255,0.022)';
         ctx.fill();
@@ -570,15 +573,16 @@ export default function RiffCycleCanvas({
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
             : 0;
         const vertexRadius =
-          (index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) +
-          beatFlashStrength * (isBackbeatVertex ? 3.4 : 3);
+          ((index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) +
+            beatFlashStrength * (isBackbeatVertex ? 3.4 : 3)) *
+          shellScale;
 
         ctx.save();
         ctx.strokeStyle =
           isBackbeatVertex
             ? 'rgba(255,136,194,0.24)'
             : 'rgba(255,255,255,0.05)';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 * shellScale;
         ctx.beginPath();
         ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
         ctx.lineTo(vertex.x, vertex.y);
@@ -591,7 +595,7 @@ export default function RiffCycleCanvas({
           : index === 0
             ? 'rgba(255,255,255,0.9)'
             : 'rgba(255,255,255,0.52)';
-        ctx.shadowBlur = (8 + beatFlashStrength * 18) * glowMultiplier;
+        ctx.shadowBlur = (8 + beatFlashStrength * 18) * glowMultiplier * shellScale;
         ctx.shadowColor = isBackbeatVertex
           ? 'rgba(255,136,194,0.48)'
           : 'rgba(255,255,255,0.24)';
@@ -603,12 +607,12 @@ export default function RiffCycleCanvas({
         if (beatFlashStrength > 0) {
           ctx.save();
           ctx.strokeStyle = isBackbeatVertex ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
-          ctx.lineWidth = isBackbeatVertex ? 2.25 : 1.55;
+          ctx.lineWidth = (isBackbeatVertex ? 2.25 : 1.55) * shellScale;
           ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
-          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier;
+          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier * shellScale;
           ctx.shadowColor = isBackbeatVertex ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
           ctx.beginPath();
-          ctx.arc(vertex.x, vertex.y, vertexRadius + 6 + beatFlashStrength * 4, 0, TAU);
+          ctx.arc(vertex.x, vertex.y, vertexRadius + (6 + beatFlashStrength * 4) * shellScale, 0, TAU);
           ctx.stroke();
           ctx.restore();
         }
@@ -620,10 +624,10 @@ export default function RiffCycleCanvas({
             : index === 0
               ? 'rgba(255,255,255,0.82)'
               : 'rgba(255,255,255,0.66)';
-        ctx.font = '11px "SF Mono", "Fira Code", monospace';
+        ctx.font = `${11 * shellScale * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${index + 1}`, vertex.x, vertex.y - 18);
+        ctx.fillText(`${index + 1}`, vertex.x, vertex.y - 19 * shellScale * exportLabelScale);
         ctx.restore();
       });
 
@@ -636,8 +640,9 @@ export default function RiffCycleCanvas({
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
             : 0;
         const pointRadius =
-          (isDownbeat ? 5.8 : isBackbeat ? 5.1 : isBeat ? 4.2 : 2.4) +
-          beatFlashStrength * (isBackbeat ? 3.4 : isBeat ? 3 : 2.2);
+          ((isDownbeat ? 5.8 : isBackbeat ? 5.1 : isBeat ? 4.2 : 2.4) +
+            beatFlashStrength * (isBackbeat ? 3.4 : isBeat ? 3 : 2.2)) *
+          shellScale;
 
         ctx.save();
         ctx.fillStyle = isBackbeat
@@ -647,7 +652,7 @@ export default function RiffCycleCanvas({
             : isBeat
               ? 'rgba(255,255,255,0.56)'
               : 'rgba(255,255,255,0.16)';
-        ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier;
+        ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier * shellScale;
         ctx.shadowColor = isBackbeat
           ? 'rgba(255,136,194,0.42)'
           : 'rgba(255,255,255,0.22)';
@@ -659,12 +664,12 @@ export default function RiffCycleCanvas({
         if (beatFlashStrength > 0) {
           ctx.save();
           ctx.strokeStyle = isBackbeat ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
-          ctx.lineWidth = isBackbeat ? 2.25 : 1.55;
+          ctx.lineWidth = (isBackbeat ? 2.25 : 1.55) * shellScale;
           ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
-          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier;
+          ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier * shellScale;
           ctx.shadowColor = isBackbeat ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
           ctx.beginPath();
-          ctx.arc(point.x, point.y, pointRadius + 6 + beatFlashStrength * 4, 0, TAU);
+          ctx.arc(point.x, point.y, pointRadius + (6 + beatFlashStrength * 4) * shellScale, 0, TAU);
           ctx.stroke();
           ctx.restore();
         }
@@ -862,8 +867,9 @@ export default function RiffCycleCanvas({
       }
 
       if (currentStudy.showStepLabels) {
-        const labelScale =
+        const densityLabelScale =
           currentStudy.riff.stepCount > 28 ? 0.76 : currentStudy.riff.stepCount > 20 ? 0.86 : 1;
+        const labelScale = densityLabelScale * exportLabelScale;
         ctx.save();
         ctx.fillStyle = isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.56)';
         ctx.font = `${Math.max(7.5, 10 * labelScale)}px "SF Mono", "Fira Code", monospace`;
@@ -871,8 +877,12 @@ export default function RiffCycleCanvas({
         ctx.textBaseline = 'middle';
         ctx.fillText(
           String(point.index + 1),
-          metrics.circleCenterX + Math.cos(point.angle) * (metrics.innerRadius + 18 + (1 - labelScale) * 10),
-          metrics.circleCenterY + Math.sin(point.angle) * (metrics.innerRadius + 18 + (1 - labelScale) * 10),
+          metrics.circleCenterX +
+            Math.cos(point.angle) *
+              (metrics.innerRadius + 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0)),
+          metrics.circleCenterY +
+            Math.sin(point.angle) *
+              (metrics.innerRadius + 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0)),
         );
         ctx.restore();
       }
