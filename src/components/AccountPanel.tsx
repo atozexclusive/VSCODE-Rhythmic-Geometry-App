@@ -11,8 +11,6 @@ export default function AccountPanel() {
     user,
     account,
     effectivePlan,
-    planOverride,
-    setPlanOverride,
     signInWithPassword,
     signUpWithPassword,
     sendPasswordReset,
@@ -345,31 +343,18 @@ export default function AccountPanel() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => void signOut()}
-              className="w-full rounded-xl px-3 py-2 text-[11px] font-mono uppercase tracking-[0.14em] flex items-center justify-center gap-2"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.74)',
-              }}
-            >
-              <LogOut size={14} />
-              Sign Out
-            </button>
-            <button
-              onClick={() => setPlanOverride(planOverride === 'pro' ? null : 'pro')}
-              className="w-full rounded-xl px-3 py-2 text-[11px] font-mono uppercase tracking-[0.14em]"
-              style={{
-                background: planOverride ? 'rgba(255,209,102,0.08)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${planOverride ? 'rgba(255,209,102,0.16)' : 'rgba(255,255,255,0.08)'}`,
-                color: planOverride ? '#FFD166' : 'rgba(255,255,255,0.58)',
-              }}
-            >
-              Preview {planOverride ? 'On' : 'Off'}
-            </button>
-          </div>
+          <button
+            onClick={() => void signOut()}
+            className="w-full rounded-xl px-3 py-2 text-[11px] font-mono uppercase tracking-[0.14em] flex items-center justify-center gap-2"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.74)',
+            }}
+          >
+            <LogOut size={14} />
+            Sign Out
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -442,36 +427,6 @@ export default function AccountPanel() {
                   Forgot password?
                 </button>
               ) : null}
-            </div>
-          </div>
-
-          <div
-            className="rounded-2xl border px-3 py-2.5"
-            style={{
-              background: 'rgba(255,255,255,0.02)',
-              borderColor: planOverride ? 'rgba(255,209,102,0.16)' : 'rgba(255,255,255,0.06)',
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.46)' }}>
-                  Pro Preview
-                </div>
-                <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                  Temporary testing switch.
-                </div>
-              </div>
-              <button
-                onClick={() => setPlanOverride(planOverride === 'pro' ? 'free' : 'pro')}
-                className="rounded-full px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
-                style={{
-                  background: planOverride ? 'rgba(255,209,102,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${planOverride ? 'rgba(255,209,102,0.16)' : 'rgba(255,255,255,0.08)'}`,
-                  color: planOverride ? '#FFD166' : 'rgba(255,255,255,0.58)',
-                }}
-              >
-                {planOverride === 'pro' ? 'On' : 'Off'}
-              </button>
             </div>
           </div>
         </div>
