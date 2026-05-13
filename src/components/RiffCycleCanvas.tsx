@@ -405,6 +405,7 @@ export default function RiffCycleCanvas({
     const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE * 1.16 : 1;
     const shellScale = exportLayoutMode ? 1.45 : 1;
     const exportLabelScale = exportLayoutMode ? 1.55 : 1;
+    const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -438,6 +439,7 @@ export default function RiffCycleCanvas({
       layoutBottomInsetRef.current,
       effectiveLaneWindowStartStep,
       laneWindowStepCountRef.current,
+      { sidePadding: exportSidePadding },
     );
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
     const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
