@@ -47,6 +47,11 @@ function getAudioContext(): AudioContext | null {
     return null;
   }
 
+  if (audioContext?.state === 'closed') {
+    audioContext = null;
+    recordingDestination = null;
+  }
+
   if (!audioContext) {
     audioContext = new AudioContextCtor();
   }
@@ -365,7 +370,7 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, 
 
 export function resumeRiffCycleAudio(): void {
   const context = getAudioContext();
-  if (context && context.state === 'suspended') {
+  if (context && context.state !== 'running' && context.state !== 'closed') {
     void context.resume().catch(() => {});
   }
 }

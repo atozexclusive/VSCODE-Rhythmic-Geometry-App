@@ -3,7 +3,7 @@
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
-import { X, Plus, Trash2, ChevronDown, Lock } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, Lock, MoreHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_ORBIT_COUNT_MODE,
@@ -87,6 +87,7 @@ interface OrbitSidebarProps {
   onImportLocalScenes: () => void;
   onLoadScene: (sceneId: string) => void;
   onLoadBuiltInScene: (sceneId: string) => void;
+  onEditScene: (sceneId: string) => void;
   onDeleteScene: (sceneId: string) => void;
   onExportScene: (sceneId: string) => void;
   onImportScene: (file: File) => void;
@@ -149,6 +150,7 @@ export default function OrbitSidebar({
   onImportLocalScenes,
   onLoadScene,
   onLoadBuiltInScene,
+  onEditScene,
   onDeleteScene,
   onExportScene,
   onImportScene,
@@ -1000,6 +1002,15 @@ export default function OrbitSidebar({
                             </div>
                           </div>
                           <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                            <button
+                              onClick={() => onEditScene(scene.id)}
+                              className="rounded-lg p-2 transition-colors hover:bg-white/10"
+                              style={{ color: 'rgba(255,255,255,0.72)' }}
+                              title="Edit scene title"
+                              aria-label="Edit scene title"
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
                             <button
                               onClick={() => onDeleteScene(scene.id)}
                               className="rounded-lg p-2 transition-colors hover:bg-red-500/10"

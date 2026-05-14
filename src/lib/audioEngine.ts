@@ -86,6 +86,13 @@ export const DEFAULT_HARMONY_SETTINGS: HarmonySettings = {
 };
 
 function getAudioContext(): AudioContext {
+  if (audioCtx?.state === 'closed') {
+    audioCtx = null;
+    masterGain = null;
+    outputLimiter = null;
+    recordingDestination = null;
+  }
+
   if (!audioCtx) {
     audioCtx = new AudioContext();
     masterGain = audioCtx.createGain();
@@ -102,8 +109,8 @@ function getAudioContext(): AudioContext {
       outputLimiter.connect(recordingDestination);
     }
   }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+  if (audioCtx.state !== 'running' && audioCtx.state !== 'closed') {
+    void audioCtx.resume().catch(() => {});
   }
   return audioCtx;
 }

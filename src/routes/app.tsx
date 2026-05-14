@@ -6,7 +6,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Lock, Maximize2, Menu, Minimize2, Minus, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -5545,6 +5545,39 @@ function OrbitalPolymeter() {
     startClip: number;
     fullHeight: number;
   } | null>(null);
+
+  const recoverAudioAfterPageReturn = useCallback(() => {
+    resumeAudio();
+    resumePolyrhythmAudio();
+    resumeRiffCycleAudio();
+    resumeFlowAudio();
+  }, []);
+
+  useEffect(() => {
+    const recoverIfVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+      recoverAudioAfterPageReturn();
+    };
+
+    document.addEventListener('visibilitychange', recoverIfVisible);
+    window.addEventListener('pageshow', recoverIfVisible);
+    window.addEventListener('focus', recoverIfVisible);
+    window.addEventListener('pointerdown', recoverIfVisible, { capture: true });
+    window.addEventListener('touchstart', recoverIfVisible, { capture: true });
+    window.addEventListener('click', recoverIfVisible, { capture: true });
+
+    return () => {
+      document.removeEventListener('visibilitychange', recoverIfVisible);
+      window.removeEventListener('pageshow', recoverIfVisible);
+      window.removeEventListener('focus', recoverIfVisible);
+      window.removeEventListener('pointerdown', recoverIfVisible, { capture: true });
+      window.removeEventListener('touchstart', recoverIfVisible, { capture: true });
+      window.removeEventListener('click', recoverIfVisible, { capture: true });
+    };
+  }, [recoverAudioAfterPageReturn]);
+
   const isSignedIn = Boolean(authEnabled && user);
   const hasProAccess = isProPlan(effectivePlan);
   const remixLocked = !canUseProFeature(effectivePlan, 'remix');
@@ -7563,6 +7596,60 @@ function OrbitalPolymeter() {
     },
     [polyrhythmStudy.playing, savedPolyrhythmScenes],
   );
+
+  const handleEditSavedPolyrhythmScene = useCallback(
+    (sceneId: string) => {
+      const scene = savedPolyrhythmScenes.find((entry) => entry.id === sceneId);
+      if (!scene) {
+        return;
+      }
+
+      const nextName = window.prompt('Scene title', scene.name);
+      if (nextName == null) {
+        return;
+      }
+      const trimmedName = nextName.trim();
+      if (!trimmedName) {
+        toast.error('Scene title cannot be empty.');
+        return;
+      }
+
+      const nextDescription = window.prompt('Scene description', scene.description);
+      if (nextDescription == null) {
+        return;
+      }
+
+      const updatedAt = new Date().toISOString();
+      const description = nextDescription.trim();
+      setSavedPolyrhythmScenes((current) =>
+        upsertSavedStudyScene(
+          current,
+          {
+            ...scene,
+            name: trimmedName,
+            description,
+            updatedAt,
+            study: {
+              ...cloneStudy(scene.study),
+              name: trimmedName,
+              description,
+              playing: false,
+            },
+          },
+        ),
+      );
+      if (activePolyrhythmSavedSceneId === sceneId) {
+        setPolyrhythmStudy((current) => ({
+          ...current,
+          name: trimmedName,
+          description,
+        }));
+      }
+      toast.success('Scene details updated.');
+    },
+    [activePolyrhythmSavedSceneId, savedPolyrhythmScenes],
+  );
+
   const handleSaveRiffCycleScene = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'save-scenes')) {
       showProPrompt('save-scenes');
@@ -7626,6 +7713,60 @@ function OrbitalPolymeter() {
     },
     [effectivePlan, riffCycleStudy.playing, riffCycleStudy.viewMode, savedRiffCycleScenes],
   );
+
+  const handleEditSavedRiffCycleScene = useCallback(
+    (sceneId: string) => {
+      const scene = savedRiffCycleScenes.find((entry) => entry.id === sceneId);
+      if (!scene) {
+        return;
+      }
+
+      const nextName = window.prompt('Scene title', scene.name);
+      if (nextName == null) {
+        return;
+      }
+      const trimmedName = nextName.trim();
+      if (!trimmedName) {
+        toast.error('Scene title cannot be empty.');
+        return;
+      }
+
+      const nextDescription = window.prompt('Scene description', scene.description);
+      if (nextDescription == null) {
+        return;
+      }
+
+      const updatedAt = new Date().toISOString();
+      const description = nextDescription.trim();
+      setSavedRiffCycleScenes((current) =>
+        upsertSavedStudyScene(
+          current,
+          {
+            ...scene,
+            name: trimmedName,
+            description,
+            updatedAt,
+            study: {
+              ...cloneRiffCycleStudy(scene.study),
+              name: trimmedName,
+              description,
+              playing: false,
+            },
+          },
+        ),
+      );
+      if (activeRiffCycleSavedSceneId === sceneId) {
+        setRiffCycleStudy((current) => ({
+          ...current,
+          name: trimmedName,
+          description,
+        }));
+      }
+      toast.success('Scene details updated.');
+    },
+    [activeRiffCycleSavedSceneId, savedRiffCycleScenes],
+  );
+
   const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
   const guideCalloutHeight = Math.min(
@@ -10181,6 +10322,59 @@ function OrbitalPolymeter() {
 
     void run();
   }, [isSignedIn, user?.id]);
+
+  const handleEditScene = useCallback((sceneId: string) => {
+    const scene = savedScenes.find((entry) => entry.id === sceneId);
+    if (!scene) {
+      return;
+    }
+
+    const nextName = window.prompt('Scene title', scene.name);
+    if (nextName == null) {
+      return;
+    }
+    const trimmedName = nextName.trim();
+    if (!trimmedName) {
+      toast.error('Scene title cannot be empty.');
+      return;
+    }
+
+    const updatedScene: SavedScene = {
+      ...scene,
+      name: trimmedName,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const run = async () => {
+      if (isSignedIn && user?.id) {
+        try {
+          const stored = await upsertSavedSceneRecord(user.id, {
+            id: updatedScene.id,
+            name: updatedScene.name,
+            snapshot: updatedScene.snapshot,
+            thumbnail_data_url: updatedScene.thumbnailDataUrl ?? null,
+            updated_at: updatedScene.updatedAt,
+          });
+          const mapped = mapStoredSceneRecord(stored) ?? updatedScene;
+          setSavedScenes((current) => upsertSavedScene(current, mapped));
+          toast.success('Scene title updated.');
+        } catch (error) {
+          console.error(error);
+          toast.error('Could not update account scene.');
+        }
+        return;
+      }
+
+      setLocalSavedScenes((current) => {
+        const next = upsertSavedScene(current, updatedScene);
+        setSavedScenes(next);
+        return next;
+      });
+      toast.success('Scene title updated.');
+    };
+
+    void run();
+  }, [isSignedIn, savedScenes, user?.id]);
 
   const handleExportPng = useCallback((options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
     if (!canUseProFeature(effectivePlan, 'export')) {
@@ -13647,11 +13841,10 @@ function OrbitalPolymeter() {
                                 study: scene.study,
                               };
                               return (
-                                <button
+                                <div
                                   key={scene.id}
-                                  type="button"
                                   onClick={() => handleLoadSavedPolyrhythmScene(scene.id)}
-                                  className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border p-3 text-left"
+                                  className="relative min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border p-3 text-left"
                                   style={{
                                     background: active
                                       ? 'linear-gradient(180deg, rgba(0,255,170,0.09), rgba(255,255,255,0.03))'
@@ -13659,6 +13852,19 @@ function OrbitalPolymeter() {
                                     borderColor: active ? 'rgba(0,255,170,0.24)' : 'rgba(255,255,255,0.1)',
                                   }}
                                 >
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleEditSavedPolyrhythmScene(scene.id);
+                                    }}
+                                    className="absolute right-2 top-2 z-10 rounded-lg border p-1.5"
+                                    style={{ background: 'rgba(0,0,0,0.38)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)' }}
+                                    aria-label="Edit scene details"
+                                    title="Edit scene details"
+                                  >
+                                    <MoreHorizontal size={13} />
+                                  </button>
                                   <div className="flex items-center gap-3">
                                     <PolyrhythmSceneThumbnail preset={presetForThumbnail} className="h-16 w-16 shrink-0" />
                                     <div className="min-w-0 flex-1">
@@ -13686,7 +13892,7 @@ function OrbitalPolymeter() {
                                       </span>
                                     ) : null}
                                   </div>
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -14327,6 +14533,7 @@ function OrbitalPolymeter() {
             onSurfaceChange={handleAppSurfaceChange}
             onLoadPreset={handleLoadPolyrhythmPreset}
             onLoadSavedScene={handleLoadSavedPolyrhythmScene}
+            onEditSavedScene={handleEditSavedPolyrhythmScene}
             onResetStudy={handleResetPolyrhythmStudy}
             onTogglePlay={handleTogglePolyrhythmPlayback}
             onBpmChange={handlePolyrhythmBpmChange}
@@ -16221,6 +16428,7 @@ function OrbitalPolymeter() {
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadPolyrhythmPreset}
           onLoadSavedScene={handleLoadSavedPolyrhythmScene}
+          onEditSavedScene={handleEditSavedPolyrhythmScene}
           onResetStudy={handleResetPolyrhythmStudy}
           onTogglePlay={handleTogglePolyrhythmPlayback}
           onBpmChange={handlePolyrhythmBpmChange}
@@ -17958,11 +18166,10 @@ function OrbitalPolymeter() {
                                 study: scene.study,
                               };
                               return (
-                                <button
+                                <div
                                   key={scene.id}
-                                  type="button"
                                   onClick={() => handleLoadSavedRiffCycleScene(scene.id)}
-                                  className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border p-3 text-left"
+                                  className="relative min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border p-3 text-left"
                                   style={{
                                     background: active
                                       ? 'linear-gradient(180deg, rgba(0,255,170,0.09), rgba(255,255,255,0.03))'
@@ -17970,6 +18177,19 @@ function OrbitalPolymeter() {
                                     borderColor: active ? 'rgba(0,255,170,0.24)' : 'rgba(255,255,255,0.1)',
                                   }}
                                 >
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleEditSavedRiffCycleScene(scene.id);
+                                    }}
+                                    className="absolute right-2 top-2 z-10 rounded-lg border p-1.5"
+                                    style={{ background: 'rgba(0,0,0,0.38)', borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)' }}
+                                    aria-label="Edit scene details"
+                                    title="Edit scene details"
+                                  >
+                                    <MoreHorizontal size={13} />
+                                  </button>
                                   <div className="flex items-center gap-3">
                                     <RiffSceneThumbnail preset={presetForThumbnail} className="h-16 w-16 shrink-0" />
                                     <div className="min-w-0 flex-1">
@@ -17997,7 +18217,7 @@ function OrbitalPolymeter() {
                                       </span>
                                     ) : null}
                                   </div>
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -18823,6 +19043,7 @@ function OrbitalPolymeter() {
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
           onLoadSavedScene={handleLoadSavedRiffCycleScene}
+            onEditSavedScene={handleEditSavedRiffCycleScene}
             onResetStudy={handleResetRiffCycleStudy}
             onToggleSound={handleToggleRiffCycleSound}
             onToggleReferenceSound={handleToggleRiffReferenceSound}
@@ -21757,6 +21978,7 @@ function OrbitalPolymeter() {
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
           onLoadSavedScene={handleLoadSavedRiffCycleScene}
+          onEditSavedScene={handleEditSavedRiffCycleScene}
           onResetStudy={handleResetRiffCycleStudy}
           onToggleSound={handleToggleRiffCycleSound}
           onToggleReferenceSound={handleToggleRiffReferenceSound}
@@ -22618,8 +22840,20 @@ function OrbitalPolymeter() {
                               />
                             </div>
                             <div className="space-y-1 px-4 py-4">
-                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                                {scene.name}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
+                                  {scene.name}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditScene(scene.id)}
+                                  className="shrink-0 rounded-lg border p-1.5"
+                                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                                  aria-label="Edit scene title"
+                                  title="Edit scene title"
+                                >
+                                  <MoreHorizontal size={13} />
+                                </button>
                               </div>
                               <div className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
                                 {getOrbitSceneRatio(scene.snapshot)}
@@ -23048,6 +23282,7 @@ function OrbitalPolymeter() {
           onImportLocalScenes={handleImportLocalScenes}
           onLoadScene={handleLoadScene}
           onLoadBuiltInScene={handleLoadBuiltInScene}
+          onEditScene={handleEditScene}
           onDeleteScene={handleDeleteScene}
           onExportScene={handleExportScene}
           onImportScene={handleImportScene}
@@ -23506,6 +23741,7 @@ function OrbitalPolymeter() {
         onImportLocalScenes={handleImportLocalScenes}
         onLoadScene={handleLoadScene}
         onLoadBuiltInScene={handleLoadBuiltInScene}
+        onEditScene={handleEditScene}
         onDeleteScene={handleDeleteScene}
         onExportScene={handleExportScene}
         onImportScene={handleImportScene}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Lock,
+  MoreHorizontal,
   RotateCcw,
   RotateCw,
   X,
@@ -47,6 +48,7 @@ interface PolyrhythmSidebarProps {
   onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onLoadPreset: (presetId: string) => void;
   onLoadSavedScene?: (sceneId: string) => void;
+  onEditSavedScene?: (sceneId: string) => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
   onBpmChange: (bpm: number) => void;
@@ -241,6 +243,7 @@ export default function PolyrhythmSidebar({
   onSurfaceChange,
   onLoadPreset,
   onLoadSavedScene,
+  onEditSavedScene,
   onResetStudy,
   onTogglePlay,
   onBpmChange,
@@ -748,11 +751,10 @@ export default function PolyrhythmSidebar({
                         study: scene.study,
                       };
                       return (
-                        <button
+                        <div
                           key={scene.id}
-                          type="button"
                           onClick={() => onLoadSavedScene?.(scene.id)}
-                          className="w-full rounded-xl border p-3 text-left"
+                          className="relative w-full rounded-xl border p-3 text-left"
                           style={{
                             background: active
                               ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
@@ -760,6 +762,23 @@ export default function PolyrhythmSidebar({
                             borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
                           }}
                         >
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onEditSavedScene?.(scene.id);
+                            }}
+                            className="absolute right-2 top-2 z-10 rounded-lg border p-1.5"
+                            style={{
+                              background: 'rgba(0,0,0,0.36)',
+                              borderColor: 'rgba(255,255,255,0.1)',
+                              color: 'rgba(255,255,255,0.7)',
+                            }}
+                            title="Edit scene details"
+                            aria-label="Edit scene details"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
                           <div className="flex items-center gap-3">
                             <PolyrhythmSceneThumbnail preset={presetForThumbnail} />
                             <div className="min-w-0 flex-1">
@@ -777,7 +796,7 @@ export default function PolyrhythmSidebar({
                               {active ? 'Loaded' : 'Load'}
                             </span>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

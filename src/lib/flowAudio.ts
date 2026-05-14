@@ -66,6 +66,12 @@ function getAudioContext(): AudioContext | null {
     return null;
   }
 
+  if (graph?.context.state === 'closed') {
+    graph = null;
+    padVoices = [];
+    currentPadKey = null;
+  }
+
   if (!graph) {
     const context = new AudioContextCtor();
     graph = createGraph(context);
@@ -322,7 +328,7 @@ function triggerVoice(options: {
 
 export function resumeFlowAudio(): void {
   const context = getAudioContext();
-  if (context && context.state === 'suspended') {
+  if (context && context.state !== 'running' && context.state !== 'closed') {
     void context.resume().catch(() => {});
   }
 }
