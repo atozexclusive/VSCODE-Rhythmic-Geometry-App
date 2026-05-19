@@ -3,7 +3,7 @@ export interface CanvasRecordingFormat {
   extension: 'mp4' | 'webm';
 }
 
-export type VideoExportDuration = 8 | 15 | 30 | 60;
+export type VideoExportDuration = 8 | 15 | 30 | 60 | 120;
 export type VideoExportAspect = 'canvas' | 'shorts';
 
 export const VIDEO_EXPORT_ASPECTS: Array<{
@@ -27,6 +27,7 @@ export const VIDEO_EXPORT_DURATIONS: Array<{
   { value: 15, label: '15s clip' },
   { value: 30, label: '30s clip' },
   { value: 60, label: '1 min clip' },
+  { value: 120, label: '2 min clip' },
 ];
 
 export const CANVAS_RECORDING_FRAME_RATE = 60;
