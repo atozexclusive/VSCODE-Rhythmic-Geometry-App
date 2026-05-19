@@ -32,7 +32,10 @@ import {
   getReferenceStepsPerBeat,
   getResetBarCount,
   getResetStepCount,
+  getRiffSequenceStateAtReferenceStep,
+  getRiffSequenceTimeline,
   getRiffStepIndexAtReferenceStep,
+  getVisibleRiffPhraseAtReferenceStep,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
   isPhraseRestartAtReferenceStep,
@@ -408,6 +411,8 @@ export default function RiffCycleCanvas({
     const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
+    const circularPhraseBoundsActive =
+      currentStudy.showPhraseBounds && currentStudy.viewMode === 'circular';
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
@@ -450,25 +455,36 @@ export default function RiffCycleCanvas({
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
     const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, referenceProgress);
+    const visibleRiff = getVisibleRiffPhraseAtReferenceStep(
+      currentStudy,
+      currentAbsoluteReferenceStep,
+    );
+    const sequenceState = getRiffSequenceStateAtReferenceStep(
+      currentStudy,
+      currentAbsoluteReferenceStep,
+    );
+    const sequenceTimeline = currentStudy.riffSequenceEnabled
+      ? getRiffSequenceTimeline(currentStudy)
+      : null;
     const phraseAngle =
       -Math.PI / 2 +
       ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
-      (phraseProgress / currentStudy.riff.stepCount) * TAU;
+      (phraseProgress / visibleRiff.stepCount) * TAU;
     const phraseCursorPoint = {
       x: metrics.circleCenterX + Math.cos(phraseAngle) * metrics.innerRadius,
       y: metrics.circleCenterY + Math.sin(phraseAngle) * metrics.innerRadius,
     };
-    const riffPoints = currentStudy.riff.activeSteps.map((active, index) => {
+    const riffPoints = visibleRiff.activeSteps.map((active, index) => {
       const angle =
         -Math.PI / 2 +
         ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
-        (index / currentStudy.riff.stepCount) * TAU;
+        (index / visibleRiff.stepCount) * TAU;
 
       return {
         index,
         angle,
         active,
-        accented: currentStudy.riff.accents[index] ?? false,
+        accented: visibleRiff.accents[index] ?? false,
         x: metrics.circleCenterX + Math.cos(angle) * metrics.innerRadius,
         y: metrics.circleCenterY + Math.sin(angle) * metrics.innerRadius,
       };
@@ -527,7 +543,7 @@ export default function RiffCycleCanvas({
     const nextLandingStep =
       phraseRestartSteps.find((step) => step > currentReferenceStep) ?? phraseRestartSteps[0] ?? 0;
 
-    riffAttackUntilRef.current.length = currentStudy.riff.stepCount;
+    riffAttackUntilRef.current.length = visibleRiff.stepCount;
 
     ctx.save();
     ctx.strokeStyle = `rgba(255,255,255,${0.035 * lineAlpha})`;
@@ -537,6 +553,49 @@ export default function RiffCycleCanvas({
     ctx.lineTo(metrics.circleCenterX, metrics.circleCenterY + metrics.outerRadius + 16);
     ctx.stroke();
     ctx.restore();
+
+    if (sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
+      const visibleEntries = sequenceTimeline.entries.slice(0, 12);
+      const chipWidth = exportLayoutMode ? 31 : 27;
+      const chipHeight = exportLayoutMode ? 18 : 16;
+      const gap = 4;
+      const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
+      const startX = metrics.circleCenterX - totalWidth / 2;
+      const stripY = Math.max(20, metrics.circleCenterY - metrics.outerRadius - (exportLayoutMode ? 34 : 28));
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${exportLayoutMode ? 10 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      visibleEntries.forEach((entry, index) => {
+        const active = entry.sequenceIndex === sequenceState.sequenceIndex;
+        const x = startX + index * (chipWidth + gap);
+        drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, 7);
+        ctx.fillStyle = active ? `${currentStudy.riff.color}24` : 'rgba(255,255,255,0.045)';
+        ctx.fill();
+        ctx.strokeStyle = active ? `${currentStudy.riff.color}A8` : 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = active ? 1.25 : 0.8;
+        ctx.stroke();
+        ctx.fillStyle = active ? currentStudy.riff.color : 'rgba(255,255,255,0.48)';
+        ctx.shadowBlur = active ? 8 * glowMultiplier : 0;
+        ctx.shadowColor = active ? `${currentStudy.riff.color}88` : 'transparent';
+        ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
+      });
+      if (sequenceTimeline.entries.length > visibleEntries.length) {
+        ctx.fillStyle = 'rgba(255,255,255,0.34)';
+        ctx.shadowBlur = 0;
+        ctx.fillText('...', startX + totalWidth + 13, stripY + chipHeight / 2);
+      }
+      ctx.font = `${exportLayoutMode ? 8.5 : 7.5}px "SF Mono", "Fira Code", monospace`;
+      ctx.fillStyle = 'rgba(255,255,255,0.42)';
+      ctx.shadowBlur = 0;
+      ctx.fillText(
+        `CELL ${sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
+        metrics.circleCenterX,
+        stripY + chipHeight + (exportLayoutMode ? 12 : 10),
+      );
+      ctx.restore();
+    }
 
     if (currentStudy.showReferenceRing) {
       ctx.save();
@@ -752,6 +811,108 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
+    if (circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
+      const activePoints = [...activeRiffPoints].sort((a, b) => a.index - b.index);
+      const groupRadius = metrics.innerRadius;
+      const labelRingRadius =
+        groupRadius +
+        (visibleRiff.stepCount > 24 ? 19 : 16) * pointScale +
+        (exportLayoutMode ? 3 * pointScale : 0);
+      const labelCandidates: Array<{
+        x: number;
+        y: number;
+        label: string;
+        span: number;
+      }> = [];
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      activePoints.forEach((point, index) => {
+        const nextPoint = activePoints[(index + 1) % activePoints.length];
+        const stepSpan =
+          nextPoint.index > point.index
+            ? nextPoint.index - point.index
+            : visibleRiff.stepCount - point.index + nextPoint.index;
+        if (stepSpan <= 0) {
+          return;
+        }
+
+        const startAngle = point.angle;
+        const endAngle =
+          nextPoint.index > point.index ? nextPoint.angle : nextPoint.angle + TAU;
+        const arcSpan = endAngle - startAngle;
+        if (arcSpan <= 0.035) {
+          return;
+        }
+
+        const arcInset = Math.min(0.16, Math.max(0.075, arcSpan * 0.24));
+        const arcStart = startAngle + arcInset;
+        const arcEnd = endAngle - arcInset;
+        const midAngle = startAngle + arcSpan / 2;
+        const labelX = metrics.circleCenterX + Math.cos(midAngle) * labelRingRadius;
+        const labelY = metrics.circleCenterY + Math.sin(midAngle) * labelRingRadius;
+
+        ctx.save();
+        ctx.globalAlpha = 0.72;
+        ctx.strokeStyle = currentStudy.riff.color;
+        ctx.lineWidth = 1.45 * pointScale;
+        ctx.shadowBlur = 10 * glowMultiplier * pointScale;
+        ctx.shadowColor = `${currentStudy.riff.color}88`;
+        ctx.beginPath();
+        ctx.arc(metrics.circleCenterX, metrics.circleCenterY, groupRadius, arcStart, arcEnd);
+        ctx.stroke();
+        ctx.restore();
+
+        if (stepSpan > 1) {
+          labelCandidates.push({
+            x: labelX,
+            y: labelY,
+            label: String(stepSpan),
+            span: stepSpan,
+          });
+        }
+      });
+
+      const placedLabels: Array<{ x: number; y: number; radius: number }> = [];
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${Math.max(8, 10 * pointScale)}px "SF Mono", "Fira Code", monospace`;
+      labelCandidates
+        .sort((a, b) => b.span - a.span)
+        .forEach((candidate) => {
+          const textWidth = ctx.measureText(candidate.label).width;
+          const candidateRadius = Math.max(8 * pointScale, textWidth / 2 + 4 * pointScale);
+          const collides = placedLabels.some(
+            (placed) =>
+              Math.hypot(candidate.x - placed.x, candidate.y - placed.y) <
+              candidateRadius + placed.radius + 2.5 * pointScale,
+          );
+          if (collides) {
+            return;
+          }
+          placedLabels.push({ x: candidate.x, y: candidate.y, radius: candidateRadius });
+
+          ctx.save();
+          ctx.lineWidth = 4 * pointScale;
+          ctx.strokeStyle = 'rgba(8,9,13,0.88)';
+          ctx.shadowBlur = 7 * glowMultiplier * pointScale;
+          ctx.shadowColor = 'rgba(0,0,0,0.82)';
+          ctx.strokeText(candidate.label, candidate.x, candidate.y);
+          ctx.fillStyle = currentStudy.riff.color;
+          ctx.globalAlpha = 0.9;
+          ctx.shadowBlur = 6 * glowMultiplier * pointScale;
+          ctx.shadowColor = `${currentStudy.riff.color}AA`;
+          ctx.fillText(candidate.label, candidate.x, candidate.y);
+          ctx.restore();
+        });
+      ctx.restore();
+
+      ctx.restore();
+    }
+
     riffPoints.forEach((point) => {
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
@@ -765,7 +926,19 @@ export default function RiffCycleCanvas({
           (effectiveAccented ? 320 : 220),
       );
       const radius =
-        ((isSelected ? 8.4 : isHovered ? (effectiveActive ? 7 : 5.4) : effectiveActive ? 5.4 : 3) +
+        ((isSelected
+          ? 8.4
+          : isHovered
+            ? effectiveActive
+              ? 7
+              : 5.4
+            : effectiveActive
+              ? circularPhraseBoundsActive
+                ? 6.15
+                : 5.65
+              : circularPhraseBoundsActive
+                ? 3.8
+                : 3.35) +
           attackRemaining * (effectiveAccented ? 3 : 1.8)) *
         pointScale;
 
@@ -799,20 +972,43 @@ export default function RiffCycleCanvas({
       ctx.save();
       ctx.fillStyle = effectiveActive
         ? currentStudy.riff.color
-        : 'rgba(255,255,255,0.18)';
+        : circularPhraseBoundsActive
+          ? 'rgba(255,255,255,0.38)'
+          : 'rgba(255,255,255,0.24)';
       ctx.globalAlpha = effectiveActive
         ? Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
-        : (isHovered ? 0.48 : 0.26) * inactiveAlpha;
+        : circularPhraseBoundsActive
+          ? isHovered
+            ? 0.62
+            : 0.48
+          : (isHovered ? 0.52 : 0.34) * inactiveAlpha;
       ctx.shadowBlur = effectiveActive
         ? ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * pointScale
         : isHovered
           ? 10 * glowMultiplier * pointScale
-          : 0;
-      ctx.shadowColor = effectiveActive || isHovered ? currentStudy.riff.color : 'transparent';
+          : circularPhraseBoundsActive
+            ? 3 * glowMultiplier * pointScale
+            : 1.4 * glowMultiplier * pointScale;
+      ctx.shadowColor =
+        effectiveActive || isHovered
+          ? currentStudy.riff.color
+          : circularPhraseBoundsActive
+            ? 'rgba(255,255,255,0.16)'
+            : 'rgba(255,255,255,0.08)';
       ctx.beginPath();
       ctx.arc(point.x, point.y, radius, 0, TAU);
       ctx.fill();
       ctx.restore();
+
+      if (circularPhraseBoundsActive && !effectiveActive) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+        ctx.lineWidth = 0.9 * pointScale;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + 1.2 * pointScale, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (attackRemaining > 0 && effectiveActive) {
         ctx.save();
@@ -868,9 +1064,9 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (currentStudy.showStepLabels) {
+      if (currentStudy.showStepLabels && !circularPhraseBoundsActive) {
         const densityLabelScale =
-          currentStudy.riff.stepCount > 28 ? 0.76 : currentStudy.riff.stepCount > 20 ? 0.86 : 1;
+          visibleRiff.stepCount > 28 ? 0.76 : visibleRiff.stepCount > 20 ? 0.86 : 1;
         const labelScale = densityLabelScale * exportLabelScale;
         ctx.save();
         ctx.fillStyle = isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.56)';
@@ -1278,7 +1474,7 @@ export default function RiffCycleCanvas({
           ctx.textBaseline = 'middle';
           ctx.fillStyle = phraseActive ? 'rgba(17,17,22,0.72)' : 'rgba(255,255,255,0.34)';
           ctx.fillText(
-            String((phraseIndex % currentStudy.riff.stepCount) + 1),
+            String((phraseIndex % visibleRiff.stepCount) + 1),
             stepCenterX,
             bottomLaneY + laneHeight * 0.52,
           );

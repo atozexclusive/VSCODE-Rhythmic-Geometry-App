@@ -26,6 +26,7 @@ export type RiffPhraseResetMode =
   | 'every-8-bars'
   | 'every-16-bars'
   | 'custom-cycle';
+export type RiffSequenceCellLabel = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 
 export interface RiffCycleSoundSettings {
   palette: RiffCycleSoundPalette;
@@ -65,12 +66,24 @@ export interface RiffPhrase {
   visible: boolean;
 }
 
+export interface RiffSequenceCell {
+  id: string;
+  label: RiffSequenceCellLabel;
+  groups: number[];
+  stepCount: number;
+  activeSteps: boolean[];
+  accents: boolean[];
+}
+
 export interface RiffCycleStudy {
   id: string;
   name: string;
   description: string;
   reference: ReferenceMeter;
   riff: RiffPhrase;
+  riffSequenceEnabled: boolean;
+  riffCells: RiffSequenceCell[];
+  riffSequence: RiffSequenceCellLabel[];
   playing: boolean;
   soundEnabled: boolean;
   referenceSoundEnabled: boolean;
@@ -109,6 +122,21 @@ export interface RiffPhrasePoint {
   y: number;
 }
 
+export interface RiffSequenceTimelineEntry {
+  cell: RiffSequenceCell;
+  sequenceIndex: number;
+  startStep: number;
+  endStep: number;
+}
+
+export interface RiffSequencePlaybackState extends RiffSequenceTimelineEntry {
+  localStep: number;
+  localProgress: number;
+  sequenceStep: number;
+}
+
+export const RIFF_SEQUENCE_CELL_LABELS: RiffSequenceCellLabel[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
 export const RIFF_CYCLE_COLORS = [
   '#72F1B8',
   '#FFD166',
@@ -145,6 +173,10 @@ function normalizeSubdivision(value: number): RiffCycleSubdivision {
 }
 
 function normalizeBeatCount(value: number): number {
+  return clamp(Math.round(value || 0), 3, 64);
+}
+
+function normalizeCellStepCount(value: number): number {
   return clamp(Math.round(value || 0), 3, 64);
 }
 
@@ -247,6 +279,228 @@ function normalizeSteps(mask: boolean[], stepCount: number): boolean[] {
 function normalizeAccents(mask: boolean[], stepCount: number): boolean[] {
   const normalizedStepCount = normalizeBeatCount(stepCount);
   return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask[index]));
+}
+
+function normalizeCellAccents(mask: boolean[] | undefined, stepCount: number): boolean[] {
+  const normalizedStepCount = normalizeCellStepCount(stepCount);
+  return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask?.[index]));
+}
+
+function normalizeCellActiveSteps(mask: boolean[] | undefined, stepCount: number): boolean[] {
+  const normalizedStepCount = normalizeCellStepCount(stepCount);
+  return Array.from({ length: normalizedStepCount }, (_, index) => Boolean(mask?.[index]));
+}
+
+function normalizeRiffCellGroups(groups: number[] | undefined, fallback: number[]): number[] {
+  const source = groups && groups.length > 0 ? groups : fallback;
+  const next: number[] = [];
+  let total = 0;
+  source.forEach((value) => {
+    if (next.length >= 12 || total >= 64) {
+      return;
+    }
+    const normalized = clamp(Math.round(value || 0), 1, 32);
+    if (total + normalized > 64) {
+      return;
+    }
+    next.push(normalized);
+    total += normalized;
+  });
+  return next.length > 0 ? next : [4, 3, 3, 3];
+}
+
+function deriveGroupsFromMask(activeSteps: boolean[], stepCount: number): number[] {
+  const normalizedStepCount = normalizeBeatCount(stepCount);
+  const activeIndices = activeSteps
+    .map((active, index) => (active ? index : -1))
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b);
+
+  if (activeIndices.length < 2) {
+    return [normalizedStepCount];
+  }
+
+  return activeIndices.map((index, activeIndex) => {
+    const nextIndex = activeIndices[(activeIndex + 1) % activeIndices.length];
+    return nextIndex > index ? nextIndex - index : normalizedStepCount - index + nextIndex;
+  });
+}
+
+export function formatRiffCellGroups(groups: number[]): string {
+  return groups.join('-');
+}
+
+export function parseRiffCellGroups(value: string): number[] | null {
+  const parts = value
+    .trim()
+    .split(/[\s,;|+-]+/)
+    .filter(Boolean);
+  if (parts.length === 0 || parts.length > 12) {
+    return null;
+  }
+  const groups = parts.map((part) => Number.parseInt(part, 10));
+  if (groups.some((group) => !Number.isFinite(group) || group < 1 || group > 32)) {
+    return null;
+  }
+  const total = groups.reduce((sum, group) => sum + group, 0);
+  if (total < 1 || total > 64) {
+    return null;
+  }
+  return groups;
+}
+
+function buildCellMaskFromGroups(groups: number[]): {
+  stepCount: number;
+  activeSteps: boolean[];
+  accents: boolean[];
+} {
+  const normalizedGroups = normalizeRiffCellGroups(groups, [4, 3, 3, 3]);
+  const stepCount = normalizeCellStepCount(
+    normalizedGroups.reduce((sum, group) => sum + group, 0),
+  );
+  const activeSteps = Array.from({ length: stepCount }, () => false);
+  const accents = Array.from({ length: stepCount }, () => false);
+  let cursor = 0;
+  normalizedGroups.forEach((_group, index) => {
+    activeSteps[cursor] = true;
+    accents[cursor] = index === 0;
+    cursor += _group;
+  });
+  return { stepCount, activeSteps, accents };
+}
+
+export function createRiffSequenceCell(
+  label: RiffSequenceCellLabel,
+  groups: number[],
+  overrides: Partial<Omit<RiffSequenceCell, 'id' | 'label' | 'groups' | 'stepCount' | 'activeSteps' | 'accents'>> & {
+    id?: string;
+    activeSteps?: boolean[];
+    accents?: boolean[];
+  } = {},
+): RiffSequenceCell {
+  const normalizedGroups = normalizeRiffCellGroups(groups, [4, 3, 3, 3]);
+  const mask = buildCellMaskFromGroups(normalizedGroups);
+  const activeSteps = normalizeCellActiveSteps(overrides.activeSteps ?? mask.activeSteps, mask.stepCount);
+  const accents = normalizeCellAccents(overrides.accents ?? mask.accents, mask.stepCount);
+  return {
+    id: overrides.id ?? generateId(`riff-cell-${label.toLowerCase()}`),
+    label,
+    groups: deriveGroupsFromMask(activeSteps, mask.stepCount),
+    stepCount: mask.stepCount,
+    activeSteps,
+    accents,
+  };
+}
+
+function createRiffSequenceCellFromState(
+  label: RiffSequenceCellLabel,
+  stepCount: number,
+  activeSteps: boolean[] | undefined,
+  accents: boolean[] | undefined,
+  id?: string,
+): RiffSequenceCell {
+  const normalizedStepCount = normalizeCellStepCount(stepCount);
+  const normalizedActiveSteps = normalizeCellActiveSteps(activeSteps, normalizedStepCount);
+  return {
+    id: id ?? generateId(`riff-cell-${label.toLowerCase()}`),
+    label,
+    groups: deriveGroupsFromMask(normalizedActiveSteps, normalizedStepCount),
+    stepCount: normalizedStepCount,
+    activeSteps: normalizedActiveSteps,
+    accents: normalizeCellAccents(accents, normalizedStepCount),
+  };
+}
+
+function createDefaultRiffSequenceCells(riff: RiffPhrase): RiffSequenceCell[] {
+  return [
+    createRiffSequenceCellFromState('A', riff.stepCount, riff.activeSteps, riff.accents),
+  ];
+}
+
+function normalizeRiffSequenceCells(
+  cells: RiffSequenceCell[] | undefined,
+  riff: RiffPhrase,
+): RiffSequenceCell[] {
+  const fallbackCells = createDefaultRiffSequenceCells(riff);
+  const source = cells && cells.length > 0 ? cells : fallbackCells;
+  const usedLabels = new Set<RiffSequenceCellLabel>();
+  const normalizedCells: RiffSequenceCell[] = [];
+
+  source.forEach((sourceCell, index) => {
+    if (normalizedCells.length >= RIFF_SEQUENCE_CELL_LABELS.length) {
+      return;
+    }
+    const sourceLabel = RIFF_SEQUENCE_CELL_LABELS.includes(sourceCell?.label)
+      ? sourceCell.label
+      : undefined;
+    const fallbackLabel = RIFF_SEQUENCE_CELL_LABELS.find((label) => !usedLabels.has(label));
+    const label = sourceLabel && !usedLabels.has(sourceLabel) ? sourceLabel : fallbackLabel;
+    if (!label) {
+      return;
+    }
+
+    const fallbackCell = fallbackCells[0];
+    const groupStepCount = normalizeRiffCellGroups(sourceCell?.groups, fallbackCell.groups).reduce(
+      (sum, group) => sum + group,
+      0,
+    );
+    const stepCount = normalizeCellStepCount(
+      sourceCell?.stepCount ?? sourceCell?.activeSteps?.length ?? groupStepCount,
+    );
+    const cellFromGroups =
+      sourceCell?.activeSteps && sourceCell.activeSteps.length > 0
+        ? null
+        : buildCellMaskFromGroups(normalizeRiffCellGroups(sourceCell?.groups, fallbackCell.groups));
+    normalizedCells.push(
+      createRiffSequenceCellFromState(
+        label,
+        cellFromGroups?.stepCount ?? stepCount,
+        sourceCell?.activeSteps && sourceCell.activeSteps.length > 0
+          ? sourceCell.activeSteps
+          : cellFromGroups?.activeSteps ?? fallbackCell.activeSteps,
+        sourceCell?.accents && sourceCell.accents.length > 0
+          ? sourceCell.accents
+          : cellFromGroups?.accents ?? fallbackCell.accents,
+        sourceCell?.id,
+      ),
+    );
+    usedLabels.add(label);
+  });
+
+  return normalizedCells.length > 0 ? normalizedCells : fallbackCells;
+}
+
+function normalizeRiffSequenceOrder(
+  sequence: RiffSequenceCellLabel[] | undefined,
+  cells: RiffSequenceCell[],
+): RiffSequenceCellLabel[] {
+  const validLabels = new Set(cells.map((cell) => cell.label));
+  const fallbackLabel = cells[0]?.label ?? 'A';
+  const source = sequence && sequence.length > 0 ? sequence : [fallbackLabel];
+  const next = source
+    .map((label) => label.toUpperCase() as RiffSequenceCellLabel)
+    .filter((label) => validLabels.has(label))
+    .slice(0, 24);
+  return next.length > 0 ? next : [fallbackLabel];
+}
+
+export function parseRiffSequenceOrder(value: string): RiffSequenceCellLabel[] | null {
+  const normalized = value.trim().toUpperCase();
+  const tokens = /[\s,;|>-]/.test(normalized)
+    ? normalized.split(/[\s,;|>-]+/).filter(Boolean)
+    : normalized.split('');
+  if (tokens.length === 0 || tokens.length > 24) {
+    return null;
+  }
+  const labels = tokens.map((token) => token[0] as RiffSequenceCellLabel);
+  if (labels.some((label) => !RIFF_SEQUENCE_CELL_LABELS.includes(label))) {
+    return null;
+  }
+  return labels;
+}
+
+export function formatRiffSequenceOrder(sequence: RiffSequenceCellLabel[]): string {
+  return sequence.join(' ');
 }
 
 function randomInt(min: number, max: number): number {
@@ -443,6 +697,7 @@ export function createRiffCycleStudy(
 ): RiffCycleStudy {
   const riff = createRiffPhrase(overrides.riff?.stepCount ?? 17, overrides.riff);
   const reference = createReferenceMeter(overrides.reference);
+  const riffCells = normalizeRiffSequenceCells(overrides.riffCells, riff);
   const defaultLandingLength = normalizeLandingLength(
     overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(reference) * 2),
     getReferenceStepsPerBar(reference),
@@ -455,6 +710,9 @@ export function createRiffCycleStudy(
       'A reference bar, a displaced phrase, and a controlled realignment.',
     reference,
     riff,
+    riffSequenceEnabled: overrides.riffSequenceEnabled ?? false,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder(overrides.riffSequence, riffCells),
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
@@ -489,6 +747,7 @@ export function createRiffCycleStudy(
 }
 
 export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
   return {
     ...study,
     reference: { ...study.reference },
@@ -497,6 +756,14 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       activeSteps: [...study.riff.activeSteps],
       accents: [...study.riff.accents],
     },
+    riffSequenceEnabled: Boolean(study.riffSequenceEnabled),
+    riffCells: riffCells.map((cell) => ({
+      ...cell,
+      groups: [...cell.groups],
+      activeSteps: [...cell.activeSteps],
+      accents: [...cell.accents],
+    })),
+    riffSequence: normalizeRiffSequenceOrder(study.riffSequence, riffCells),
     soundSettings: { ...study.soundSettings },
     landingOverrides: [...study.landingOverrides],
   };
@@ -543,10 +810,90 @@ export function getResetStepCount(study: RiffCycleStudy): number | null {
   return getReferenceStepsPerBar(study.reference) * resetBars;
 }
 
+export function getRiffSequenceTimeline(study: RiffCycleStudy): {
+  entries: RiffSequenceTimelineEntry[];
+  totalSteps: number;
+} {
+  const cells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, cells);
+  const entries: RiffSequenceTimelineEntry[] = [];
+  let cursor = 0;
+  sequence.forEach((label, sequenceIndex) => {
+    const cell = cells.find((candidate) => candidate.label === label);
+    if (!cell) {
+      return;
+    }
+    const startStep = cursor;
+    const endStep = startStep + cell.stepCount;
+    entries.push({ cell, sequenceIndex, startStep, endStep });
+    cursor = endStep;
+  });
+  return { entries, totalSteps: cursor };
+}
+
+export function getRiffSequenceStateAtReferenceProgress(
+  study: RiffCycleStudy,
+  referenceProgress: number,
+): RiffSequencePlaybackState | null {
+  if (!study.riffSequenceEnabled) {
+    return null;
+  }
+  const { entries, totalSteps } = getRiffSequenceTimeline(study);
+  if (entries.length === 0 || totalSteps <= 0) {
+    return null;
+  }
+  const resetStepCount = getResetStepCount(study);
+  const normalizedProgress = Math.max(0, referenceProgress);
+  const progressWithinReset =
+    resetStepCount == null ? normalizedProgress : normalizedProgress % resetStepCount;
+  const sequenceProgress = ((progressWithinReset % totalSteps) + totalSteps) % totalSteps;
+  const sequenceStep = Math.floor(sequenceProgress);
+  const entry =
+    entries.find((candidate) => sequenceProgress >= candidate.startStep && sequenceProgress < candidate.endStep) ??
+    entries[entries.length - 1];
+  const localProgress = sequenceProgress - entry.startStep;
+  const localStep = Math.max(0, Math.min(entry.cell.stepCount - 1, Math.floor(localProgress)));
+  return {
+    ...entry,
+    localStep,
+    localProgress,
+    sequenceStep,
+  };
+}
+
+export function getRiffSequenceStateAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): RiffSequencePlaybackState | null {
+  return getRiffSequenceStateAtReferenceProgress(study, Math.max(0, Math.floor(referenceStep)));
+}
+
+export function getVisibleRiffPhraseAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): RiffPhrase {
+  const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
+  if (!sequenceState) {
+    return study.riff;
+  }
+  return {
+    ...study.riff,
+    id: sequenceState.cell.id,
+    name: `Cell ${sequenceState.cell.label}`,
+    stepCount: sequenceState.cell.stepCount,
+    activeSteps: sequenceState.cell.activeSteps,
+    accents: sequenceState.cell.accents,
+  };
+}
+
 export function getRiffStepIndexAtReferenceStep(
   study: RiffCycleStudy,
   referenceStep: number,
 ): number {
+  const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
+  if (sequenceState) {
+    return sequenceState.localStep;
+  }
   const resetStepCount = getResetStepCount(study);
   const normalizedStep = Math.max(0, Math.floor(referenceStep));
   const stepWithinReset =
@@ -560,6 +907,10 @@ export function getPhraseProgressAtReferenceProgress(
   study: RiffCycleStudy,
   referenceProgress: number,
 ): number {
+  const sequenceState = getRiffSequenceStateAtReferenceProgress(study, referenceProgress);
+  if (sequenceState) {
+    return sequenceState.localProgress;
+  }
   const resetStepCount = getResetStepCount(study);
   const normalizedProgress = Math.max(0, referenceProgress);
   const progressWithinReset =
@@ -683,6 +1034,7 @@ export function getEffectiveRiffStepStateAtReferenceStep(
   landingSlot: number | null;
   overridden: boolean;
 } {
+  const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
   const phraseIndex = getRiffStepIndexAtReferenceStep(study, referenceStep);
   const landingSlot = study.landingEditEnabled
     ? getLandingSlotAtReferenceStep(study, referenceStep)
@@ -705,8 +1057,8 @@ export function getEffectiveRiffStepStateAtReferenceStep(
   return {
     phraseIndex,
     landingSlot,
-    active: Boolean(study.riff.activeSteps[phraseIndex]),
-    accented: Boolean(study.riff.accents[phraseIndex]),
+    active: Boolean((sequenceState?.cell.activeSteps ?? study.riff.activeSteps)[phraseIndex]),
+    accented: Boolean((sequenceState?.cell.accents ?? study.riff.accents)[phraseIndex]),
     overridden: false,
   };
 }
@@ -867,6 +1219,251 @@ export function updateRiffStepCount(study: RiffCycleStudy, stepCount: number): R
       accents: nextAccents,
     },
     tailLength: normalizeTailLength(study.tailLength, normalizedStepCount),
+  };
+}
+
+export function setRiffSequenceEnabled(
+  study: RiffCycleStudy,
+  enabled: boolean,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  return {
+    ...study,
+    riffSequenceEnabled: enabled,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder(study.riffSequence, riffCells),
+  };
+}
+
+function updateRiffSequenceCell(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  update: (cell: RiffSequenceCell) => RiffSequenceCell,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  if (!riffCells.some((cell) => cell.label === label)) {
+    return study;
+  }
+  const nextCells = riffCells.map((cell) =>
+    cell.label === label ? update(cell) : cell,
+  );
+  return {
+    ...study,
+    riffCells: nextCells,
+    riffSequence: normalizeRiffSequenceOrder(study.riffSequence, nextCells),
+  };
+}
+
+export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const usedLabels = new Set(riffCells.map((cell) => cell.label));
+  const nextLabel = RIFF_SEQUENCE_CELL_LABELS.find((label) => !usedLabels.has(label));
+  if (!nextLabel) {
+    return study;
+  }
+
+  const sourceCell = riffCells[0] ?? createDefaultRiffSequenceCells(study.riff)[0];
+  const nextCell = createRiffSequenceCellFromState(
+    nextLabel,
+    sourceCell.stepCount,
+    sourceCell.activeSteps,
+    sourceCell.accents,
+  );
+  const nextCells = [...riffCells, nextCell];
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  return {
+    ...study,
+    riffSequenceEnabled: true,
+    riffCells: nextCells,
+    riffSequence: normalizeRiffSequenceOrder([...sequence, nextLabel], nextCells),
+  };
+}
+
+export function setRiffCellGroups(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  groups: number[],
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff).map((cell) =>
+    cell.label === label ? createRiffSequenceCell(label, groups, { id: cell.id }) : cell,
+  );
+  return {
+    ...study,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder(study.riffSequence, riffCells),
+  };
+}
+
+export function updateRiffSequenceCellStepCount(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  stepCount: number,
+): RiffCycleStudy {
+  const normalizedStepCount = normalizeCellStepCount(stepCount);
+  return updateRiffSequenceCell(study, label, (cell) =>
+    createRiffSequenceCellFromState(
+      label,
+      normalizedStepCount,
+      normalizeCellActiveSteps(cell.activeSteps, normalizedStepCount),
+      normalizeCellAccents(cell.accents, normalizedStepCount),
+      cell.id,
+    ),
+  );
+}
+
+export function toggleRiffSequenceCellStep(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  stepIndex: number,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => {
+    if (stepIndex < 0 || stepIndex >= cell.stepCount) {
+      return cell;
+    }
+    const nextActiveSteps = cell.activeSteps.map((active, index) =>
+      index === stepIndex ? !active : active,
+    );
+    const nextAccents = cell.accents.map((accent, index) =>
+      index === stepIndex ? (cell.activeSteps[index] ? false : accent) : accent,
+    );
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+  });
+}
+
+export function setRiffSequenceCellStepActive(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  stepIndex: number,
+  active: boolean,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => {
+    if (stepIndex < 0 || stepIndex >= cell.stepCount) {
+      return cell;
+    }
+    const nextActiveSteps = cell.activeSteps.map((currentActive, index) =>
+      index === stepIndex ? active : currentActive,
+    );
+    const nextAccents = cell.accents.map((accent, index) =>
+      index === stepIndex ? (active ? accent : false) : accent,
+    );
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+  });
+}
+
+export function toggleRiffSequenceCellAccent(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  stepIndex: number,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => {
+    if (stepIndex < 0 || stepIndex >= cell.stepCount) {
+      return cell;
+    }
+    const nextAccented = !Boolean(cell.accents[stepIndex]);
+    const nextActiveSteps = cell.activeSteps.map((active, index) =>
+      index === stepIndex ? (nextAccented ? true : active) : active,
+    );
+    const nextAccents = cell.accents.map((accent, index) =>
+      index === stepIndex ? nextAccented : accent,
+    );
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+  });
+}
+
+export function rotateRiffSequenceCellSteps(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  stepOffset: number,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => {
+    const nextSteps = Array.from({ length: cell.stepCount }, () => false);
+    const nextAccents = Array.from({ length: cell.stepCount }, () => false);
+    cell.activeSteps.forEach((active, index) => {
+      const nextIndex = (index + stepOffset + cell.stepCount) % cell.stepCount;
+      nextSteps[nextIndex] = active;
+    });
+    cell.accents.forEach((accented, index) => {
+      const nextIndex = (index + stepOffset + cell.stepCount) % cell.stepCount;
+      nextAccents[nextIndex] = accented;
+    });
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextSteps, nextAccents, cell.id);
+  });
+}
+
+export function invertRiffSequenceCellSteps(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) =>
+    createRiffSequenceCellFromState(
+      label,
+      cell.stepCount,
+      cell.activeSteps.map((active) => !active),
+      cell.accents,
+      cell.id,
+    ),
+  );
+}
+
+export function clearRiffSequenceCellSteps(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) =>
+    createRiffSequenceCellFromState(
+      label,
+      cell.stepCount,
+      cell.activeSteps.map(() => false),
+      cell.accents.map(() => false),
+      cell.id,
+    ),
+  );
+}
+
+export function setRiffSequenceOrder(
+  study: RiffCycleStudy,
+  sequence: RiffSequenceCellLabel[],
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  return {
+    ...study,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder(sequence, riffCells),
+  };
+}
+
+export function appendRiffSequenceOrderCell(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  if (!riffCells.some((cell) => cell.label === label)) {
+    return study;
+  }
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  return {
+    ...study,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder([...sequence, label], riffCells),
+  };
+}
+
+export function removeLastRiffSequenceOrderCell(study: RiffCycleStudy): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  return {
+    ...study,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder(sequence.slice(0, -1), riffCells),
+  };
+}
+
+export function resetRiffSequenceOrder(study: RiffCycleStudy): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  return {
+    ...study,
+    riffCells,
+    riffSequence: normalizeRiffSequenceOrder([riffCells[0]?.label ?? 'A'], riffCells),
   };
 }
 
