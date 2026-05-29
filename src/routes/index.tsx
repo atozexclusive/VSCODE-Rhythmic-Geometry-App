@@ -450,22 +450,24 @@ function OrbitalPolymeterLanding() {
           >
             <div className="flex max-w-2xl flex-col items-center sm:block">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] font-mono uppercase tracking-[0.16em] text-white/62">
-                <Sparkles size={14} className="text-[#00ffaa]" />
-                Watch Rhythm Create Form
+                <Sparkles size={14} className="text-[#7fd7ff]" />
+                See The Structure Inside Rhythm
               </div>
-              <h1 className="mx-auto mt-8 w-fit text-center font-serif text-[2.35rem] font-light tracking-[-0.05em] leading-[0.9] text-white sm:mx-0 sm:mt-14 sm:max-w-2xl sm:w-auto sm:text-left sm:text-[4.65rem] sm:leading-[0.92] lg:text-[5.45rem]">
+              <h1 className="mx-auto mt-8 w-fit text-center font-serif text-[2.15rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:mx-0 sm:mt-14 sm:max-w-2xl sm:w-auto sm:text-left sm:text-[4.25rem] sm:leading-[0.94] lg:text-[5rem]">
                 <span className="inline-flex flex-col items-center sm:hidden">
-                  <span className="block whitespace-nowrap">Watch Rhythm</span>
-                  <span className="mt-[-0.08em] block whitespace-nowrap">Create Form</span>
+                  <span className="block whitespace-nowrap">Rhythm</span>
+                  <span className="mt-[-0.08em] block whitespace-nowrap">Visualized</span>
+                  <span className="mt-[-0.08em] block whitespace-nowrap">Through</span>
+                  <span className="mt-[-0.08em] block whitespace-nowrap">Geometry</span>
                 </span>
                 <span className="hidden sm:inline">
-                  Watch
-                  <br />
                   Rhythm
                   <br />
-                  Create
+                  Visualized
                   <br />
-                  Form
+                  Through
+                  <br />
+                  Geometry
                 </span>
               </h1>
               <p className="mt-6 max-w-lg text-center text-base leading-7 text-white/64 sm:mt-12 sm:max-w-xl sm:text-left sm:text-lg sm:leading-8">
