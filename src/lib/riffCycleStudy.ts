@@ -727,7 +727,7 @@ export function createRiffCycleStudy(
     ),
     showReferenceRing: overrides.showReferenceRing ?? true,
     showPhraseRing: overrides.showPhraseRing ?? true,
-    showStepLabels: overrides.showStepLabels ?? false,
+    showStepLabels: overrides.showStepLabels ?? true,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
     showPhraseBounds: overrides.showPhraseBounds ?? false,
     barMarkerInterval:

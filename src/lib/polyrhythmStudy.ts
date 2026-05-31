@@ -583,7 +583,7 @@ function createSingleLayerStudy(options: {
     bpm: options.bpm,
     soundEnabled: true,
     showInactiveSteps: true,
-    showStepLabels: options.showStepLabels ?? beatCount <= 16,
+    showStepLabels: options.showStepLabels ?? true,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
   };
 }
@@ -625,7 +625,7 @@ function createSharedCycleStudy(options: {
     bpm: options.bpm,
     soundEnabled: true,
     showInactiveSteps: true,
-    showStepLabels: options.showStepLabels ?? (cycleSteps <= 16 && layerCounts.length <= 2),
+    showStepLabels: options.showStepLabels ?? true,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
   };
 }
@@ -780,7 +780,7 @@ function buildRandomFamilyStudy(
     colors,
     rotationStepOffsets: rotationOffsets,
     soundSettings,
-    showStepLabels: family.cycleSteps <= 16 && layerCount <= 2,
+    showStepLabels: true,
   });
 
   if (intensity === 'plus') {
@@ -1017,7 +1017,7 @@ const THREE_FIVE_STUDY: PolyrhythmStudy = {
   bpm: 90,
   soundEnabled: true,
   showInactiveSteps: false,
-  showStepLabels: false,
+  showStepLabels: true,
   soundSettings: createPolyrhythmSoundSettings({
     palette: 'study-pulse',
     pitchMode: 'free',
@@ -1105,7 +1105,7 @@ const TRIPLE_GRID_STUDY = createSharedCycleStudy({
     pitchMode: 'free',
     register: 'tight',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
@@ -1124,7 +1124,7 @@ const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
     scaleName: 'majorPentatonic',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const FOUR_FIVE_TEN_STUDY = createSharedCycleStudy({
@@ -1143,7 +1143,7 @@ const FOUR_FIVE_TEN_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
@@ -1160,7 +1160,7 @@ const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
     pitchMode: 'free',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const COUNTER_MESH_STUDY = createSharedCycleStudy({
@@ -1179,7 +1179,7 @@ const COUNTER_MESH_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const ROTATING_WEAVE_STUDY: PolyrhythmStudy = {
@@ -1216,7 +1216,7 @@ const ROTATING_WEAVE_STUDY: PolyrhythmStudy = {
   bpm: 90,
   soundEnabled: true,
   showInactiveSteps: true,
-  showStepLabels: false,
+  showStepLabels: true,
   soundSettings: createPolyrhythmSoundSettings({
     palette: 'soft-synth',
     pitchMode: 'keyed',
@@ -1242,7 +1242,7 @@ const PRIME_MESH_STUDY = createSharedCycleStudy({
     scaleName: 'lydian',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const EVEN_STACK_STUDY = createSharedCycleStudy({
@@ -1261,7 +1261,7 @@ const EVEN_STACK_STUDY = createSharedCycleStudy({
     scaleName: 'majorPentatonic',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const SEVEN_NINE_TWELVE_STUDY = createSharedCycleStudy({
@@ -1280,7 +1280,7 @@ const SEVEN_NINE_TWELVE_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 const PRIME_TETRA_STUDY = createSharedCycleStudy({
@@ -1299,7 +1299,7 @@ const PRIME_TETRA_STUDY = createSharedCycleStudy({
     scaleName: 'aeolian',
     register: 'wide',
   },
-  showStepLabels: false,
+  showStepLabels: true,
 });
 
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [

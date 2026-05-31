@@ -1666,17 +1666,19 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.restore();
           }
 
-          if (showPlanetsRef.current && !isMobileRef.current) {
+          if (showPlanetsRef.current) {
             // Pulse count label
+            const labelFontSize = (isMobileRef.current ? 8.5 : 10) * pointScale;
+            const labelOffset = (isMobileRef.current ? 14 : 18) * pointScale;
             ctx.save();
             ctx.globalAlpha = 0.35;
             ctx.fillStyle = orbit.color;
-            ctx.font = '10px "SF Mono", "Fira Code", monospace';
+            ctx.font = `${labelFontSize}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(
               `${orbit.pulseCount}`,
-              renderCx + (r + 18) * Math.cos(-Math.PI / 4),
-              renderCy + (r + 18) * Math.sin(-Math.PI / 4),
+              renderCx + (r + labelOffset) * Math.cos(-Math.PI / 4),
+              renderCy + (r + labelOffset) * Math.sin(-Math.PI / 4),
             );
             ctx.restore();
           }
