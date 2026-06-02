@@ -19552,7 +19552,10 @@ function OrbitalPolymeter() {
                   >
                     Rhythmic Geometry
                   </h1>
-                  <div className="mt-1 text-[9px] font-light tracking-[0.14em] text-white/18">
+                  <div
+                    className="mt-1 text-[9px] font-light tracking-[0.14em]"
+                    style={{ color: 'rgba(255, 255, 255, 0.24)' }}
+                  >
                     Living structure from rhythm
                   </div>
                 </div>
