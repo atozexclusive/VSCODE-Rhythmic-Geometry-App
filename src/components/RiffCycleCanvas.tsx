@@ -557,28 +557,36 @@ export default function RiffCycleCanvas({
 
     if (sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
       const visibleEntries = sequenceTimeline.entries.slice(0, 12);
-      const chipWidth = exportLayoutMode ? 31 : 27;
-      const chipHeight = exportLayoutMode ? 18 : 16;
-      const gap = 4;
+      const chipWidth = exportLayoutMode ? 36 : 29;
+      const chipHeight = exportLayoutMode ? 20 : 17;
+      const gap = exportLayoutMode ? 5 : 4;
       const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
       const startX = metrics.circleCenterX - totalWidth / 2;
-      const stripY = Math.max(20, metrics.circleCenterY - metrics.outerRadius - (exportLayoutMode ? 34 : 28));
+      const stripY = Math.max(22, metrics.circleCenterY - metrics.outerRadius - (exportLayoutMode ? 58 : 40));
 
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${exportLayoutMode ? 10 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      ctx.font = `${exportLayoutMode ? 9.5 : 8}px "SF Mono", "Fira Code", monospace`;
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.shadowBlur = 0;
+      ctx.fillText(
+        `CELL ${sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
+        metrics.circleCenterX,
+        stripY - (exportLayoutMode ? 10 : 8),
+      );
+      ctx.font = `${exportLayoutMode ? 11.5 : 9}px "SF Mono", "Fira Code", monospace`;
       visibleEntries.forEach((entry, index) => {
         const active = entry.sequenceIndex === sequenceState.sequenceIndex;
         const x = startX + index * (chipWidth + gap);
         drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, 7);
-        ctx.fillStyle = active ? `${currentStudy.riff.color}24` : 'rgba(255,255,255,0.045)';
+        ctx.fillStyle = active ? `${currentStudy.riff.color}2E` : 'rgba(255,255,255,0.055)';
         ctx.fill();
-        ctx.strokeStyle = active ? `${currentStudy.riff.color}A8` : 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = active ? 1.25 : 0.8;
+        ctx.strokeStyle = active ? `${currentStudy.riff.color}C4` : 'rgba(255,255,255,0.13)';
+        ctx.lineWidth = active ? 1.45 : 0.9;
         ctx.stroke();
         ctx.fillStyle = active ? currentStudy.riff.color : 'rgba(255,255,255,0.48)';
-        ctx.shadowBlur = active ? 8 * glowMultiplier : 0;
+        ctx.shadowBlur = active ? 9 * glowMultiplier : 0;
         ctx.shadowColor = active ? `${currentStudy.riff.color}88` : 'transparent';
         ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
       });
@@ -587,14 +595,6 @@ export default function RiffCycleCanvas({
         ctx.shadowBlur = 0;
         ctx.fillText('...', startX + totalWidth + 13, stripY + chipHeight / 2);
       }
-      ctx.font = `${exportLayoutMode ? 8.5 : 7.5}px "SF Mono", "Fira Code", monospace`;
-      ctx.fillStyle = 'rgba(255,255,255,0.42)';
-      ctx.shadowBlur = 0;
-      ctx.fillText(
-        `CELL ${sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
-        metrics.circleCenterX,
-        stripY + chipHeight + (exportLayoutMode ? 12 : 10),
-      );
       ctx.restore();
     }
 
