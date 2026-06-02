@@ -5718,6 +5718,13 @@ function OrbitalPolymeter() {
   const [flowRestartToken, setFlowRestartToken] = useState(0);
   const [flowMobileSection, setFlowMobileSection] =
     useState<null | 'scenes' | 'sound' | 'motion'>(null);
+  const pendingMobileSliderRef = useRef<{
+    sliderId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    onValueChange: (value: number) => void;
+  } | null>(null);
   const [polyrhythmStudy, setPolyrhythmStudy] = useState<PolyrhythmStudy>(() =>
     createDefaultPolyrhythmStudy(),
   );
@@ -6130,11 +6137,13 @@ function OrbitalPolymeter() {
         return;
       }
 
-      event.preventDefault();
-      const input = event.currentTarget;
-      input.setPointerCapture?.(event.pointerId);
-      setActiveMobileSliderId(sliderId);
-      onValueChange(getRangeValueFromClientX(input, event.clientX));
+      pendingMobileSliderRef.current = {
+        sliderId,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        onValueChange,
+      };
     },
     [isMobile],
   );
@@ -6146,6 +6155,30 @@ function OrbitalPolymeter() {
       onValueChange: (value: number) => void,
     ) => {
       if (activeMobileSliderId !== sliderId) {
+        const pendingSlider = pendingMobileSliderRef.current;
+        if (pendingSlider?.sliderId !== sliderId || pendingSlider.pointerId !== event.pointerId) {
+          return;
+        }
+
+        const deltaX = event.clientX - pendingSlider.startX;
+        const deltaY = event.clientY - pendingSlider.startY;
+        const horizontalIntent = Math.abs(deltaX) >= 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+        const verticalIntent = Math.abs(deltaY) >= 8 && Math.abs(deltaY) > Math.abs(deltaX);
+
+        if (verticalIntent) {
+          pendingMobileSliderRef.current = null;
+          return;
+        }
+
+        if (!horizontalIntent) {
+          return;
+        }
+
+        event.preventDefault();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        pendingMobileSliderRef.current = null;
+        setActiveMobileSliderId(sliderId);
+        pendingSlider.onValueChange(getRangeValueFromClientX(event.currentTarget, event.clientX));
         return;
       }
 
@@ -6156,6 +6189,8 @@ function OrbitalPolymeter() {
   );
 
   const clearActiveMobileSlider = useCallback((sliderId: string) => {
+    pendingMobileSliderRef.current =
+      pendingMobileSliderRef.current?.sliderId === sliderId ? null : pendingMobileSliderRef.current;
     setActiveMobileSliderId((current) => (current === sliderId ? null : current));
   }, []);
 
