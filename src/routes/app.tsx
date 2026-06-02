@@ -19713,12 +19713,20 @@ function OrbitalPolymeter() {
         {!presentationMode ? (
           <div className="fixed left-5 top-4 z-20">
             <Link to="/" className="group inline-block">
-              <h1
-                className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
-                style={{ color: 'rgba(255, 255, 255, 0.25)' }}
-              >
-                Rhythmic Geometry
-              </h1>
+              <div>
+                <h1
+                  className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
+                  style={{ color: 'rgba(255, 255, 255, 0.25)' }}
+                >
+                  Rhythmic Geometry
+                </h1>
+                <div
+                  className="mt-1 text-[9px] font-light tracking-[0.14em]"
+                  style={{ color: 'rgba(255, 255, 255, 0.28)' }}
+                >
+                  Living structure through rhythm
+                </div>
+              </div>
             </Link>
           </div>
         ) : null}
