@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -3602,6 +3602,72 @@ function mutatePulse(value: number, cap: number, spread: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function EditableTempoValue({
+  value,
+  min,
+  max,
+  onCommit,
+  className = 'text-[14px]',
+  ariaLabel = 'Set tempo',
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (value: number) => void;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commitDraft = useCallback(() => {
+    const parsed = Number.parseFloat(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const nextValue = Math.round(clamp(parsed, min, max));
+    setDraft(String(nextValue));
+    if (nextValue !== value) {
+      onCommit(nextValue);
+    }
+  }, [draft, max, min, onCommit, value]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.currentTarget.blur();
+      }
+      if (event.key === 'Escape') {
+        setDraft(String(value));
+        event.currentTarget.blur();
+      }
+    },
+    [value],
+  );
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      step="1"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={commitDraft}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+      className={`w-full border-0 bg-transparent p-0 text-right font-light leading-none text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${className}`}
+      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+    />
+  );
 }
 
 function sortAndSeparate(values: number[], minGap: number, cap: number): number[] {
@@ -13188,12 +13254,14 @@ function OrbitalPolymeter() {
                       aria-label="Set study tempo"
                     />
                     <div className="w-12 shrink-0 text-right">
-                      <div
-                        className="text-[14px] font-light leading-none text-white"
-                        style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                      >
-                        {polyrhythmStudy.bpm}
-                      </div>
+                      <EditableTempoValue
+                        value={polyrhythmStudy.bpm}
+                        min={40}
+                        max={180}
+                        onCommit={handlePolyrhythmBpmChange}
+                        className="text-[14px]"
+                        ariaLabel="Type exact study tempo"
+                      />
                       <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         BPM
                       </div>
@@ -16230,12 +16298,14 @@ function OrbitalPolymeter() {
                   aria-label="Set study tempo"
                 />
                 <div className="w-12 shrink-0 text-right">
-                  <div
-                    className="text-[14px] font-light leading-none text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    {polyrhythmStudy.bpm}
-                  </div>
+                  <EditableTempoValue
+                    value={polyrhythmStudy.bpm}
+                    min={40}
+                    max={180}
+                    onCommit={handlePolyrhythmBpmChange}
+                    className="text-[14px]"
+                    ariaLabel="Type exact study tempo"
+                  />
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                     BPM
                   </div>
@@ -16792,12 +16862,14 @@ function OrbitalPolymeter() {
                     aria-label="Set study tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div
-                      className="text-[18px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {polyrhythmStudy.bpm}
-                    </div>
+                    <EditableTempoValue
+                      value={polyrhythmStudy.bpm}
+                      min={40}
+                      max={180}
+                      onCommit={handlePolyrhythmBpmChange}
+                      className="text-[18px]"
+                      ariaLabel="Type exact study tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       BPM
                     </div>
@@ -17160,12 +17232,14 @@ function OrbitalPolymeter() {
                       aria-label="Set riff cycle tempo"
                     />
                     <div className="w-12 shrink-0 text-right">
-                      <div
-                        className="text-[14px] font-light leading-none text-white"
-                        style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                      >
-                        {riffCycleStudy.reference.bpm}
-                      </div>
+                      <EditableTempoValue
+                        value={riffCycleStudy.reference.bpm}
+                        min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                        max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                        onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                        className="text-[14px]"
+                        ariaLabel="Type exact riff tempo"
+                      />
                       <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         {riffTempoUnitLabel}
                       </div>
@@ -21315,12 +21389,14 @@ function OrbitalPolymeter() {
                   aria-label="Set riff cycle tempo"
                 />
                 <div className="w-12 shrink-0 text-right">
-                  <div
-                    className="text-[14px] font-light leading-none text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    {riffCycleStudy.reference.bpm}
-                  </div>
+                  <EditableTempoValue
+                    value={riffCycleStudy.reference.bpm}
+                    min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                    max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                    onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                    className="text-[14px]"
+                    ariaLabel="Type exact riff tempo"
+                  />
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                     {riffTempoUnitLabel}
                   </div>
@@ -22351,12 +22427,14 @@ function OrbitalPolymeter() {
                     aria-label="Set riff cycle tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div
-                      className="text-[16px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {riffCycleStudy.reference.bpm}
-                    </div>
+                    <EditableTempoValue
+                      value={riffCycleStudy.reference.bpm}
+                      min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                      max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                      onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                      className="text-[16px]"
+                      ariaLabel="Type exact riff tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
                       {riffTempoUnitLabel}
                     </div>
@@ -22753,12 +22831,14 @@ function OrbitalPolymeter() {
                     aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
                   />
                   <div className="w-12 shrink-0 text-right">
-                    <div
-                      className="text-[14px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {orbitTempoDisplayBpm}
-                    </div>
+                    <EditableTempoValue
+                      value={orbitTempoDisplayBpm}
+                      min={ORBIT_TEMPO_MIN_BPM}
+                      max={orbitTempoMaxBpm}
+                      onCommit={handleSpeedChange}
+                      className="text-[14px]"
+                      ariaLabel="Type exact orbit tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       {orbitTempoAnchorLabel}
                     </div>

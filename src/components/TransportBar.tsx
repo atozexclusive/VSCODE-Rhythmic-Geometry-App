@@ -3,7 +3,7 @@
 // Play/Pause, Tempo, Trace Toggle, Reset, Sidebar Menu
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
@@ -95,6 +95,76 @@ interface TransportBarProps {
   onDeleteOrbit: (orbitId: string) => void;
   onReset: () => void;
   onOpenSidebar: () => void;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function EditableTempoValue({
+  value,
+  min,
+  max,
+  onCommit,
+  className = 'text-[14px]',
+  ariaLabel = 'Set tempo',
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (value: number) => void;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commitDraft = useCallback(() => {
+    const parsed = Number.parseFloat(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const nextValue = Math.round(clamp(parsed, min, max));
+    setDraft(String(nextValue));
+    if (nextValue !== value) {
+      onCommit(nextValue);
+    }
+  }, [draft, max, min, onCommit, value]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.currentTarget.blur();
+      }
+      if (event.key === 'Escape') {
+        setDraft(String(value));
+        event.currentTarget.blur();
+      }
+    },
+    [value],
+  );
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      step="1"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={commitDraft}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+      className={`w-full border-0 bg-transparent p-0 text-right font-light leading-none text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${className}`}
+      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+    />
+  );
 }
 
 export default function TransportBar({
@@ -607,12 +677,14 @@ export default function TransportBar({
                     aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
                   />
                   <div className="w-12 shrink-0 text-right">
-                    <div
-                      className="text-[14px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {anchorTempoBpm}
-                    </div>
+                    <EditableTempoValue
+                      value={anchorTempoBpm}
+                      min={ORBIT_TEMPO_MIN_BPM}
+                      max={anchorTempoMaxBpm}
+                      onCommit={onSpeedChange}
+                      className="text-[14px]"
+                      ariaLabel="Type exact orbit tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       {anchorLabel}
                     </div>
@@ -751,12 +823,14 @@ export default function TransportBar({
                   aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
                 />
                 <div className="w-[52px] shrink-0 text-right">
-                  <div
-                    className="text-[18px] font-light leading-none text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    {anchorTempoBpm}
-                  </div>
+                  <EditableTempoValue
+                    value={anchorTempoBpm}
+                    min={ORBIT_TEMPO_MIN_BPM}
+                    max={anchorTempoMaxBpm}
+                    onCommit={onSpeedChange}
+                    className="text-[18px]"
+                    ariaLabel="Type exact orbit tempo"
+                  />
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                     {anchorLabel}
                   </div>
@@ -1616,15 +1690,19 @@ export default function TransportBar({
                     Tempo
                   </span>
                 </div>
-                <span
-                  className="text-[10px] font-mono"
-                  style={{
-                    color: '#ffffff',
-                    textShadow: '0 0 12px rgba(255,255,255,0.38)',
-                  }}
-                >
-                  {anchorTempoBpm} BPM · {anchorLabel}
-                </span>
+                <div className="flex items-center gap-1 text-[10px] font-mono text-white">
+                  <div className="w-9">
+                    <EditableTempoValue
+                      value={anchorTempoBpm}
+                      min={ORBIT_TEMPO_MIN_BPM}
+                      max={anchorTempoMaxBpm}
+                      onCommit={onSpeedChange}
+                      className="text-[10px] font-mono"
+                      ariaLabel="Type exact orbit tempo"
+                    />
+                  </div>
+                  <span>BPM · {anchorLabel}</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -1860,14 +1938,14 @@ export default function TransportBar({
             title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
           />
           <div className="w-[52px] shrink-0 text-right">
-            <div
-              className="text-[18px] font-light leading-none text-white"
-              style={{
-                textShadow: '0 0 12px rgba(255,255,255,0.38)',
-              }}
-            >
-              {anchorTempoBpm}
-            </div>
+            <EditableTempoValue
+              value={anchorTempoBpm}
+              min={ORBIT_TEMPO_MIN_BPM}
+              max={anchorTempoMaxBpm}
+              onCommit={onSpeedChange}
+              className="text-[18px]"
+              ariaLabel="Type exact orbit tempo"
+            />
             <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
               BPM
             </div>
