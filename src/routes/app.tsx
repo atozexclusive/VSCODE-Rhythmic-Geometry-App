@@ -127,6 +127,8 @@ import {
 import { resumeFlowAudio, stopFlowAudio } from '../lib/flowAudio';
 import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
+  RIFF_REFERENCE_TEMPO_MAX_BPM,
+  RIFF_REFERENCE_TEMPO_MIN_BPM,
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
   RIFF_SEQUENCE_CELL_LABELS,
@@ -203,7 +205,9 @@ const CANVAS_DISPLAY_STORAGE_VERSION = 5;
 const MOBILE_GUIDES_AVAILABLE = true;
 const MOBILE_GUIDES_AUTO_OPEN = false;
 const MOBILE_GUIDE_INTRO_CARD_ENABLED = false;
-const RIFF_CELL_SEQUENCE_FEATURE_ENABLED = false;
+const CREATOR_TOOLS_ENABLED =
+  import.meta.env.VITE_CREATOR_TOOLS === 'true' || __CREATOR_LAB_BRANCH__;
+const RIFF_CELL_SEQUENCE_FEATURE_ENABLED = CREATOR_TOOLS_ENABLED;
 const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   theme: 'deep-space',
   atmosphere: 'stars',
@@ -7008,7 +7012,10 @@ function OrbitalPolymeter() {
           bpm:
             updates.bpm == null
               ? current.reference.bpm
-              : Math.max(45, Math.min(220, Math.round(updates.bpm))),
+              : Math.max(
+                  RIFF_REFERENCE_TEMPO_MIN_BPM,
+                  Math.min(RIFF_REFERENCE_TEMPO_MAX_BPM, Math.round(updates.bpm)),
+                ),
           barCountForDisplay:
             updates.barCountForDisplay == null
               ? current.reference.barCountForDisplay
@@ -11423,6 +11430,7 @@ function OrbitalPolymeter() {
       : !riffCycleStudy.referenceSoundEnabled && !riffCycleStudy.backbeatSoundEnabled && riffCycleStudy.riff.soundEnabled
         ? 'riff'
         : 'full';
+  const riffTempoUnitLabel = riffCycleStudy.reference.denominator === 8 ? 'QTR BPM' : 'BPM';
   const riffQuickFocusLabel =
     riffQuickPanel === 'bar'
       ? 'Bar'
@@ -17089,8 +17097,8 @@ function OrbitalPolymeter() {
                     </div>
                     <input
                       type="range"
-                      min="45"
-                      max="220"
+                      min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                      max={RIFF_REFERENCE_TEMPO_MAX_BPM}
                       step="1"
                       value={riffCycleStudy.reference.bpm}
                       onChange={(event) =>
@@ -17124,7 +17132,7 @@ function OrbitalPolymeter() {
                         {riffCycleStudy.reference.bpm}
                       </div>
                       <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                        BPM
+                        {riffTempoUnitLabel}
                       </div>
                     </div>
                   </div>
@@ -21258,8 +21266,8 @@ function OrbitalPolymeter() {
                 </div>
                 <input
                   type="range"
-                  min="45"
-                  max="220"
+                  min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                  max={RIFF_REFERENCE_TEMPO_MAX_BPM}
                   step="1"
                   value={riffCycleStudy.reference.bpm}
                   onChange={(event) =>
@@ -21279,7 +21287,7 @@ function OrbitalPolymeter() {
                     {riffCycleStudy.reference.bpm}
                   </div>
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                    BPM
+                    {riffTempoUnitLabel}
                   </div>
                 </div>
               </div>
@@ -22280,8 +22288,8 @@ function OrbitalPolymeter() {
                   </div>
                   <input
                     type="range"
-                    min="45"
-                    max="220"
+                    min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                    max={RIFF_REFERENCE_TEMPO_MAX_BPM}
                     step="1"
                     value={riffCycleStudy.reference.bpm}
                     onChange={(event) =>
@@ -22315,7 +22323,7 @@ function OrbitalPolymeter() {
                       {riffCycleStudy.reference.bpm}
                     </div>
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
-                      BPM
+                      {riffTempoUnitLabel}
                     </div>
                   </div>
                   {!isMobile ? (

@@ -1,6 +1,8 @@
 import type { RootNote, ScaleName } from './audioEngine';
 
 const TAU = Math.PI * 2;
+export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
+export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
@@ -186,7 +188,11 @@ function normalizeRotationOffset(value: number): number {
 }
 
 function normalizeBpm(value: number): number {
-  return clamp(Math.round(value || 0), 45, 220);
+  return clamp(
+    Math.round(value || 0),
+    RIFF_REFERENCE_TEMPO_MIN_BPM,
+    RIFF_REFERENCE_TEMPO_MAX_BPM,
+  );
 }
 
 function normalizeGain(value: number): number {
@@ -771,6 +777,11 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
 
 export function getReferenceStepsPerBeat(reference: ReferenceMeter): number {
   return Math.max(1, Math.round(reference.subdivision / reference.denominator));
+}
+
+export function getReferenceStepsPerSecond(reference: ReferenceMeter): number {
+  const tempoDenominator = reference.denominator === 8 ? 4 : reference.denominator;
+  return Math.max(0.01, (reference.bpm / 60) * (reference.subdivision / tempoDenominator));
 }
 
 export function getReferenceStepsPerBar(reference: ReferenceMeter): number {
@@ -1666,7 +1677,7 @@ export function remixRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
     description: 'A variation that keeps the bar relationship while changing phrase shape and return.',
     reference: {
       ...remapped.reference,
-      bpm: clamp(remapped.reference.bpm + randomInt(-6, 6), 45, 220),
+      bpm: normalizeBpm(remapped.reference.bpm + randomInt(-6, 6)),
     },
     riff: {
       ...remapped.riff,

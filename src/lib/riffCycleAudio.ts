@@ -2,6 +2,7 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
   getEffectiveRiffStepStateAtReferenceStep,
   getReferenceStepsPerBar,
+  getReferenceStepsPerSecond,
   getResetStepCount,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
@@ -461,9 +462,7 @@ export function createRiffCycleExportAudioStream(
     outputToSpeakers: false,
   };
   const scheduleStartTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
-  const stepsPerSecond =
-    (study.reference.bpm / 60) *
-    (study.reference.subdivision / study.reference.denominator);
+  const stepsPerSecond = getReferenceStepsPerSecond(study.reference);
   const totalSteps = Math.ceil(Math.max(0, durationSeconds - Math.max(0, prerollSeconds)) * stepsPerSecond) + 1;
 
   for (let referenceStep = 0; referenceStep <= totalSteps; referenceStep += 1) {

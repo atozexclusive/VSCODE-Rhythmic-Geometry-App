@@ -30,6 +30,7 @@ import {
   getPhraseProgressAtReferenceProgress,
   getReferenceStepsPerBar,
   getReferenceStepsPerBeat,
+  getReferenceStepsPerSecond,
   getResetBarCount,
   getResetStepCount,
   getRiffSequenceStateAtReferenceStep,
@@ -1731,9 +1732,7 @@ export default function RiffCycleCanvas({
     const render = (timestamp: number) => {
       const currentStudy = studyRef.current;
       const playbackState = playbackStateHandleRef.current.current;
-      const stepsPerSecond =
-        (currentStudy.reference.bpm / 60) *
-        (currentStudy.reference.subdivision / currentStudy.reference.denominator);
+      const stepsPerSecond = getReferenceStepsPerSecond(currentStudy.reference);
       const displaySteps = getDisplayStepCount(currentStudy);
 
       if (playbackDriverRef.current && currentStudy.playing) {

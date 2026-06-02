@@ -5,7 +5,12 @@ import { defineConfig } from "vite";
 import { shipperIdsPlugin } from "./plugins/vite-plugin-shipper-ids";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 
+const isCreatorLabBranch = process.env.VERCEL_GIT_COMMIT_REF === "creator-lab";
+
 export default defineConfig({
+  define: {
+    __CREATOR_LAB_BRANCH__: JSON.stringify(isCreatorLabBranch),
+  },
   plugins: [
     tanstackRouter({
       target: "react",
