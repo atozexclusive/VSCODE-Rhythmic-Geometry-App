@@ -12097,7 +12097,7 @@ function OrbitalPolymeter() {
             : null
       : null;
   const mobileCanvasTapHint = mobileCanvasTapHintText ? (
-    <div className="pointer-events-none absolute left-3 top-3 z-20">
+    <div className="pointer-events-none absolute right-3 top-3 z-20">
       <div
         className="rounded-full border px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.11em]"
         style={{
