@@ -4,9 +4,6 @@ export const Route = createFileRoute('/riff')({
   beforeLoad: () => {
     throw redirect({
       to: '/app',
-      search: {
-        mode: 'riff-cycle-study',
-      },
     });
   },
 });

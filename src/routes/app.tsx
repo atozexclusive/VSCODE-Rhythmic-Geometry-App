@@ -1957,7 +1957,7 @@ function loadAppSurface(preferredSurface?: string | null): AppSurface {
     return normalizedPreferredSurface;
   }
 
-  return 'orbital';
+  return 'riff-cycle-study';
 }
 
 function canUseFreeRiffStepCount(stepCount: number): boolean {
