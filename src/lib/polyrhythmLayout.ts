@@ -3,6 +3,7 @@ import { getLayerStepPoints, type PolyrhythmStudy } from './polyrhythmStudy';
 export interface PolyrhythmCanvasMetrics {
   width: number;
   height: number;
+  isMobile: boolean;
   sidePadding: number;
   topPadding: number;
   bottomPadding: number;
@@ -64,6 +65,7 @@ export function getPolyrhythmCanvasMetrics(
   return {
     width,
     height,
+    isMobile,
     sidePadding,
     topPadding,
     bottomPadding,
@@ -83,8 +85,8 @@ export function findPolyrhythmHit(
   y: number,
   preferredLayerId?: string | null,
 ): PolyrhythmHitResult | null {
-  const pointHitRadius = 18;
-  const ringHitPadding = 14;
+  const pointHitRadius = metrics.isMobile ? 30 : 18;
+  const ringHitPadding = metrics.isMobile ? 10 : 14;
   const orderedLayers = [...study.layers].sort((a, b) => {
     if (preferredLayerId) {
       if (a.id === preferredLayerId) {

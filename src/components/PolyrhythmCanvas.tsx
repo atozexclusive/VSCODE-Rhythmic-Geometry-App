@@ -997,7 +997,9 @@ export default function PolyrhythmCanvas({
         clearLongPress();
         pointerStepHitRef.current = null;
         onSelectStep(null);
-        onOpenLayerMenu?.(hit.layerId);
+        if (!isMobileRef.current) {
+          onOpenLayerMenu?.(hit.layerId);
+        }
         return;
       }
 
