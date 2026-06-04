@@ -870,6 +870,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           return;
         }
 
+        const shouldPreserveMobileTrace =
+          isMobileRef.current &&
+          traceSegmentCountRef.current > 0 &&
+          traceCanvas.width > 0 &&
+          traceCanvas.height > 0;
+        const traceSnapshot = shouldPreserveMobileTrace ? document.createElement('canvas') : null;
+        if (traceSnapshot) {
+          traceSnapshot.width = traceCanvas.width;
+          traceSnapshot.height = traceCanvas.height;
+          traceSnapshot.getContext('2d')?.drawImage(traceCanvas, 0, 0);
+        }
+
         canvas.width = nextCanvasWidth;
         canvas.height = nextCanvasHeight;
         ctx.setTransform(effectiveDpr, 0, 0, effectiveDpr, 0, 0);
@@ -877,7 +889,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         traceCanvas.width = nextCanvasWidth;
         traceCanvas.height = nextCanvasHeight;
         traceCtx.setTransform(effectiveDpr, 0, 0, effectiveDpr, 0, 0);
-        clearTraces();
+        if (traceSnapshot) {
+          traceCtx.setTransform(1, 0, 0, 1, 0, 0);
+          traceCtx.drawImage(traceSnapshot, 0, 0, nextCanvasWidth, nextCanvasHeight);
+          traceCtx.setTransform(effectiveDpr, 0, 0, effectiveDpr, 0, 0);
+        } else {
+          clearTraces();
+        }
       };
 
       resize();
@@ -925,11 +943,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             const previousLayout = lastMobileLayoutRef.current;
             if (
               previousLayout &&
-              (Math.abs(previousLayout.width - w) > 0.5 ||
-                Math.abs(previousLayout.height - h) > 0.5 ||
-                Math.abs(previousLayout.cx - cx) > 0.5 ||
-                Math.abs(previousLayout.cy - cy) > 0.5 ||
-                Math.abs(previousLayout.orbitScale - orbitScale) > 0.001)
+              (Math.abs(previousLayout.width - w) > 24 ||
+                Math.abs(previousLayout.orbitScale - orbitScale) > 0.04)
             ) {
               clearTraces();
               bloomsRef.current = [];
