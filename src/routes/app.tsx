@@ -23877,6 +23877,8 @@ function OrbitalPolymeter() {
             y={radialMenu.y}
             orbitId={radialMenu.orbitId}
             orbitColor={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'}
+            orbitPulseCount={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.pulseCount}
+            orbitPulseMax={mobileQuickOrbitSliderMax}
             orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
             orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
             orbitOptions={engineState.orbits.map((orbit, index) => ({
@@ -23890,6 +23892,7 @@ function OrbitalPolymeter() {
             onSelectOrbit={(orbitId) =>
               setRadialMenu((current) => (current ? { ...current, orbitId } : current))
             }
+            onChangePulseCount={handleSetQuickOrbit}
             onChangeColor={handleRadialColorChange}
             onChangeHarmony={handleHarmonyChange}
             onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}
@@ -24339,6 +24342,8 @@ function OrbitalPolymeter() {
           orbitColor={
             engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'
           }
+          orbitPulseCount={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.pulseCount}
+          orbitPulseMax={mobileQuickOrbitSliderMax}
           orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
           orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
           orbitOptions={engineState.orbits.map((orbit, index) => ({
@@ -24352,6 +24357,7 @@ function OrbitalPolymeter() {
           onSelectOrbit={(orbitId) =>
             setRadialMenu((current) => (current ? { ...current, orbitId } : current))
           }
+          onChangePulseCount={handleSetQuickOrbit}
           onChangeColor={handleRadialColorChange}
           onChangeHarmony={handleHarmonyChange}
           onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}
