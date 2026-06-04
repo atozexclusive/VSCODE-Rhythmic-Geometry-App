@@ -108,7 +108,7 @@ export function findPolyrhythmHit(
     );
 
     for (const point of points) {
-      if (!study.showInactiveSteps && !point.active) {
+      if (!point.active && !study.showInactiveSteps && !study.showStepLabels && !metrics.isMobile) {
         continue;
       }
 

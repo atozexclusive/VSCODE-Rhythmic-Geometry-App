@@ -462,9 +462,11 @@ export default function PolyrhythmCanvas({
           }
           const showSharedGhostStepsForLayer =
             !sharedDisplay || soloLayerDisplayRef.current || isSelectedLayer;
+          const shouldShowInactiveStep =
+            currentStudy.showInactiveSteps || currentStudy.showStepLabels || isMobileRef.current;
           if (
             !point.active &&
-            (!currentStudy.showInactiveSteps || !showSharedGhostStepsForLayer)
+            (!shouldShowInactiveStep || !showSharedGhostStepsForLayer)
           ) {
             return;
           }
