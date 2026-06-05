@@ -187,7 +187,7 @@ function drawRiffCarves(
     return;
   }
 
-  const labelCandidates: Array<{ x: number; y: number; label: string; span: number }> = [];
+  const labelCandidates: Array<{ angle: number; label: string; span: number }> = [];
 
   activePoints.forEach((point, index) => {
     const nextPoint = activePoints[(index + 1) % activePoints.length];
@@ -239,10 +239,8 @@ function drawRiffCarves(
     ctx.restore();
 
     if (options.showLabels && stepSpan > 1) {
-      const labelRadius = Math.max(options.radius * 0.46, controlRadius - 11 * options.pointScale);
       labelCandidates.push({
-        x: options.centerX + Math.cos(midAngle) * labelRadius,
-        y: options.centerY + Math.sin(midAngle) * labelRadius,
+        angle: midAngle,
         label: String(stepSpan),
         span: stepSpan,
       });
@@ -255,32 +253,35 @@ function drawRiffCarves(
 
   const placedLabels: Array<{ x: number; y: number; radius: number }> = [];
   ctx.save();
-  ctx.font = `${Math.max(8, 9.5 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
+  const labelRadius = options.radius * 0.66;
+  ctx.font = `${Math.max(8, 9.75 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   labelCandidates
-    .sort((a, b) => b.span - a.span)
+    .sort((a, b) => a.angle - b.angle)
     .forEach((candidate) => {
+      const labelX = options.centerX + Math.cos(candidate.angle) * labelRadius;
+      const labelY = options.centerY + Math.sin(candidate.angle) * labelRadius;
       const textWidth = ctx.measureText(candidate.label).width;
-      const candidateRadius = Math.max(7 * options.pointScale, textWidth / 2 + 4 * options.pointScale);
+      const candidateRadius = Math.max(6.5 * options.pointScale, textWidth / 2 + 3.25 * options.pointScale);
       const collides = placedLabels.some(
         (placed) =>
-          Math.hypot(candidate.x - placed.x, candidate.y - placed.y) <
-          candidateRadius + placed.radius + 2.5 * options.pointScale,
+          Math.hypot(labelX - placed.x, labelY - placed.y) <
+          candidateRadius + placed.radius + 1.5 * options.pointScale,
       );
       if (collides) {
         return;
       }
-      placedLabels.push({ x: candidate.x, y: candidate.y, radius: candidateRadius });
+      placedLabels.push({ x: labelX, y: labelY, radius: candidateRadius });
 
       ctx.save();
       ctx.lineWidth = 4 * options.pointScale;
       ctx.strokeStyle = 'rgba(2,4,7,0.9)';
-      ctx.strokeText(candidate.label, candidate.x, candidate.y);
+      ctx.strokeText(candidate.label, labelX, labelY);
       ctx.fillStyle = `${options.color}E6`;
       ctx.shadowBlur = 7 * options.glowMultiplier * options.pointScale;
       ctx.shadowColor = `${options.color}88`;
-      ctx.fillText(candidate.label, candidate.x, candidate.y);
+      ctx.fillText(candidate.label, labelX, labelY);
       ctx.restore();
     });
   ctx.restore();
@@ -899,7 +900,7 @@ export default function RiffCycleCanvas({
       }
     }
 
-    if (currentStudy.showPhraseRing) {
+    if (currentStudy.showPhraseRing && !carveViewActive) {
       ctx.save();
       ctx.strokeStyle = flashActive
         ? `${currentStudy.riff.color}66`
@@ -1060,6 +1061,7 @@ export default function RiffCycleCanvas({
     }
 
     riffPoints.forEach((point) => {
+      const carveBoundsActive = carveViewActive && circularPhraseBoundsActive;
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
       const isCurrent = currentRiffStep === point.index;
@@ -1080,14 +1082,20 @@ export default function RiffCycleCanvas({
               : 5.4
             : effectiveActive
               ? carveViewActive
-                ? effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
-                  ? 5.75
-                  : 4.35
+                ? carveBoundsActive
+                  ? effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
+                    ? 7.25
+                    : 6.15
+                  : effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
+                    ? 5.75
+                    : 4.35
                 : circularPhraseBoundsActive
                   ? 6.15
                   : 5.65
               : carveViewActive
-                ? 1.75
+                ? carveBoundsActive
+                  ? 2.9
+                  : 1.75
                 : circularPhraseBoundsActive
                   ? 3.8
                   : 3.35) +
@@ -1131,10 +1139,14 @@ export default function RiffCycleCanvas({
           : 'rgba(255,255,255,0.24)';
       ctx.globalAlpha = effectiveActive
         ? carveViewActive
-          ? Math.min(0.95, (isCurrent || isHovered ? 0.95 : 0.74) + attackRemaining * 0.24)
+          ? Math.min(
+              0.98,
+              (isCurrent || isHovered ? 0.98 : carveBoundsActive ? 0.88 : 0.74) +
+                attackRemaining * 0.24,
+            )
           : Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
         : carveViewActive
-          ? (isHovered ? 0.38 : 0.13) * inactiveAlpha
+          ? (isHovered ? 0.46 : carveBoundsActive ? 0.23 : 0.13) * inactiveAlpha
         : circularPhraseBoundsActive
           ? isHovered
             ? 0.62
@@ -1142,7 +1154,9 @@ export default function RiffCycleCanvas({
           : (isHovered ? 0.52 : 0.34) * inactiveAlpha;
       ctx.shadowBlur = effectiveActive
         ? carveViewActive
-          ? ((isCurrent || isHovered ? 12 : 5.5) + attackRemaining * 14) * glowMultiplier * pointScale
+          ? ((isCurrent || isHovered ? 14 : carveBoundsActive ? 9.5 : 5.5) + attackRemaining * 14) *
+            glowMultiplier *
+            pointScale
           : ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * pointScale
         : isHovered
           ? 10 * glowMultiplier * pointScale
@@ -1185,17 +1199,21 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (effectiveAccented || isPhraseRestart) {
+      if (effectiveAccented || isPhraseRestart || (carveBoundsActive && effectiveActive)) {
         ctx.save();
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.88)'
-          : 'rgba(255,255,255,0.46)';
-        ctx.lineWidth = (effectiveAccented ? 1.9 : 1.2) * pointScale;
+          : carveBoundsActive && effectiveActive
+            ? `${currentStudy.riff.color}CC`
+            : 'rgba(255,255,255,0.46)';
+        ctx.lineWidth = (effectiveAccented ? 1.9 : carveBoundsActive && effectiveActive ? 1.35 : 1.2) * pointScale;
         ctx.beginPath();
         ctx.arc(
           point.x,
           point.y,
-          radius + (effectiveAccented ? 3.6 : 2.8) * pointScale,
+          radius +
+            (effectiveAccented ? 3.6 : carveBoundsActive && effectiveActive ? 2.9 : 2.8) *
+              pointScale,
           0,
           TAU,
         );
@@ -1232,23 +1250,42 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (currentStudy.showStepLabels && !carveViewActive && !circularPhraseBoundsActive) {
+      if (currentStudy.showStepLabels && (!circularPhraseBoundsActive || carveViewActive)) {
         const densityLabelScale =
-          visibleRiff.stepCount > 28 ? 0.76 : visibleRiff.stepCount > 20 ? 0.86 : 1;
+          carveViewActive
+            ? visibleRiff.stepCount > 56
+              ? 0.62
+              : visibleRiff.stepCount > 40
+                ? 0.68
+                : 0.76
+            : visibleRiff.stepCount > 28
+              ? 0.76
+              : visibleRiff.stepCount > 20
+                ? 0.86
+                : 1;
         const labelScale = densityLabelScale * exportLabelScale;
+        const labelRadius =
+          metrics.innerRadius +
+          (carveViewActive
+            ? (circularPhraseBoundsActive ? 23 : 20) +
+              (1 - densityLabelScale) * 14 +
+              (exportLayoutMode ? 8 : 0)
+            : 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0));
         ctx.save();
-        ctx.fillStyle = isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.56)';
+        ctx.fillStyle = isSelected
+          ? 'rgba(255,255,255,0.92)'
+          : carveViewActive
+            ? effectiveActive
+              ? 'rgba(255,255,255,0.62)'
+              : 'rgba(255,255,255,0.38)'
+            : 'rgba(255,255,255,0.56)';
         ctx.font = `${Math.max(7.5, 10 * labelScale)}px "SF Mono", "Fira Code", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
           String(point.index + 1),
-          metrics.circleCenterX +
-            Math.cos(point.angle) *
-              (metrics.innerRadius + 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0)),
-          metrics.circleCenterY +
-            Math.sin(point.angle) *
-              (metrics.innerRadius + 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0)),
+          metrics.circleCenterX + Math.cos(point.angle) * labelRadius,
+          metrics.circleCenterY + Math.sin(point.angle) * labelRadius,
         );
         ctx.restore();
       }
