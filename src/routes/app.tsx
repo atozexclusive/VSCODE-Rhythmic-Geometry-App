@@ -17997,7 +17997,7 @@ function OrbitalPolymeter() {
                                 onClick={handleToggleRiffStructureView}
                                 className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
                               >
-                                Structure
+                                Carve
                               </StudyShellButton>
                             </div>
                           </div>
@@ -21060,7 +21060,7 @@ function OrbitalPolymeter() {
 	                          onClick={handleToggleRiffStructureView}
 	                          className={utilityButtonClass}
 	                        >
-	                          Structure
+	                          Carve
 	                        </StudyShellButton>
 	                      </div>
 	                    </div>
