@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RiffRouteImport } from './routes/riff'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 
+const RiffRoute = RiffRouteImport.update({
+  id: '/riff',
+  path: '/riff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaunchRoute = LaunchRouteImport.update({
   id: '/launch',
   path: '/launch',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
+  '/riff': typeof RiffRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
+  '/riff': typeof RiffRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/app': typeof AppRoute
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
+  '/riff': typeof RiffRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/how-it-works' | '/launch'
+  fullPaths: '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/how-it-works' | '/launch'
-  id: '__root__' | '/' | '/app' | '/how-it-works' | '/launch'
+  to: '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
+  id: '__root__' | '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   HowItWorksRoute: typeof HowItWorksRoute
   LaunchRoute: typeof LaunchRoute
+  RiffRoute: typeof RiffRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/riff': {
+      id: '/riff'
+      path: '/riff'
+      fullPath: '/riff'
+      preLoaderRoute: typeof RiffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/launch': {
       id: '/launch'
       path: '/launch'
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   HowItWorksRoute: HowItWorksRoute,
   LaunchRoute: LaunchRoute,
+  RiffRoute: RiffRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

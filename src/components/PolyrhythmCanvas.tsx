@@ -462,9 +462,11 @@ export default function PolyrhythmCanvas({
           }
           const showSharedGhostStepsForLayer =
             !sharedDisplay || soloLayerDisplayRef.current || isSelectedLayer;
+          const shouldShowInactiveStep =
+            currentStudy.showInactiveSteps || currentStudy.showStepLabels || isMobileRef.current;
           if (
             !point.active &&
-            (!currentStudy.showInactiveSteps || !showSharedGhostStepsForLayer)
+            (!shouldShowInactiveStep || !showSharedGhostStepsForLayer)
           ) {
             return;
           }
@@ -501,12 +503,12 @@ export default function PolyrhythmCanvas({
             : isSelectedStep
               ? soloLayerDisplayRef.current ? 6.8 : 6
               : isHoveredStep
-                ? soloLayerDisplayRef.current ? 6 : 5.4
+                ? soloLayerDisplayRef.current ? 6.4 : 5.9
               : isHoveredLayer
-                ? soloLayerDisplayRef.current ? 4.1 : 3.6
+                ? soloLayerDisplayRef.current ? 5.8 : 5.1
                 : denseLayer
-                  ? soloLayerDisplayRef.current ? 3.6 : 3.2
-                  : soloLayerDisplayRef.current ? 2.8 : 2.4) * pointScale;
+                  ? soloLayerDisplayRef.current ? 5.4 : 4.8
+                  : soloLayerDisplayRef.current ? 5.6 : 5) * pointScale;
 
           if (isHoveredStep && !isReferenceLayer) {
             ctx.save();
@@ -597,46 +599,60 @@ export default function PolyrhythmCanvas({
               ctx.fill();
             }
           } else {
-            ctx.shadowBlur = 0;
-            ctx.shadowColor = 'transparent';
             const ghostFillAlpha = (
               isSelectedLayer
                 ? denseLayer
-                  ? 0.34
-                  : 0.4
+                  ? 0.62
+                  : 0.7
                 : isHoveredStep
-                  ? 0.36
+                  ? 0.68
                   : isHoveredLayer
-                    ? 0.28
+                    ? 0.52
                   : denseLayer
-                    ? 0.2
-                    : 0.24
+                    ? 0.42
+                    : 0.48
             ) * inactiveAlpha;
             const ghostStrokeAlpha = (
               isSelectedLayer
                 ? denseLayer
-                  ? 0.5
-                  : 0.58
+                  ? 0.92
+                  : 0.96
                 : isHoveredStep
-                  ? 0.62
+                  ? 0.94
                   : isHoveredLayer
-                    ? 0.42
+                    ? 0.78
                   : denseLayer
-                    ? 0.3
-                    : 0.34
+                    ? 0.68
+                    : 0.76
             ) * inactiveAlpha;
+            if (isSelectedLayer && !isReferenceLayer) {
+              ctx.save();
+              ctx.globalAlpha = 0.16 * inactiveAlpha;
+              ctx.strokeStyle = layer.color;
+              ctx.lineWidth = 2.2 * pointScale;
+              ctx.shadowBlur = 10 * glowMultiplier * pointScale;
+              ctx.shadowColor = layer.color;
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, pointRadius + 1.8 * pointScale, 0, TAU);
+              ctx.stroke();
+              ctx.restore();
+            }
+            ctx.shadowBlur = isSelectedLayer ? 5 * glowMultiplier * pointScale : 0;
+            ctx.shadowColor = isSelectedLayer ? layer.color : 'transparent';
             ctx.fillStyle = isSelectedStep
-              ? 'rgba(255,255,255,0.22)'
-              : 'rgba(18,22,28,0.9)';
+              ? 'rgba(255,255,255,0.92)'
+              : 'rgba(255,255,255,0.78)';
             ctx.globalAlpha = ghostFillAlpha;
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius + 0.15, 0, TAU);
             ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
             ctx.globalAlpha = ghostStrokeAlpha;
             ctx.strokeStyle = isSelectedStep
               ? 'rgba(255,255,255,0.92)'
-              : 'rgba(255,255,255,0.72)';
-            ctx.lineWidth = denseLayer ? 1 : 1.15;
+              : 'rgba(255,255,255,0.94)';
+            ctx.lineWidth = (denseLayer ? 1.35 : 1.5) * pointScale;
             ctx.beginPath();
             ctx.arc(point.x, point.y, pointRadius + 0.15, 0, TAU);
             ctx.stroke();
@@ -997,7 +1013,9 @@ export default function PolyrhythmCanvas({
         clearLongPress();
         pointerStepHitRef.current = null;
         onSelectStep(null);
-        onOpenLayerMenu?.(hit.layerId);
+        if (!isMobileRef.current) {
+          onOpenLayerMenu?.(hit.layerId);
+        }
         return;
       }
 

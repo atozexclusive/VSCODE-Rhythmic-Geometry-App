@@ -4,7 +4,7 @@
 // ============================================================
 
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleHelp, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -127,6 +127,8 @@ import {
 import { resumeFlowAudio, stopFlowAudio } from '../lib/flowAudio';
 import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
+  RIFF_MAX_RESET_BARS,
+  RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
   RIFF_CYCLE_COLORS,
@@ -1961,7 +1963,7 @@ function loadAppSurface(preferredSurface?: string | null): AppSurface {
 }
 
 function canUseFreeRiffStepCount(stepCount: number): boolean {
-  const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+  const normalizedStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)));
   return normalizedStepCount <= FREE_RIFF_STEP_LIMIT;
 }
 
@@ -3602,6 +3604,72 @@ function mutatePulse(value: number, cap: number, spread: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function EditableTempoValue({
+  value,
+  min,
+  max,
+  onCommit,
+  className = 'text-[14px]',
+  ariaLabel = 'Set tempo',
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (value: number) => void;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commitDraft = useCallback(() => {
+    const parsed = Number.parseFloat(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const nextValue = Math.round(clamp(parsed, min, max));
+    setDraft(String(nextValue));
+    if (nextValue !== value) {
+      onCommit(nextValue);
+    }
+  }, [draft, max, min, onCommit, value]);
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.currentTarget.blur();
+      }
+      if (event.key === 'Escape') {
+        setDraft(String(value));
+        event.currentTarget.blur();
+      }
+    },
+    [value],
+  );
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={min}
+      max={max}
+      step="1"
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onFocus={(event) => event.currentTarget.select()}
+      onBlur={commitDraft}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+      className={`w-full border-0 bg-transparent p-0 text-right font-light leading-none text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${className}`}
+      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+    />
+  );
 }
 
 function sortAndSeparate(values: number[], minGap: number, cap: number): number[] {
@@ -5718,6 +5786,13 @@ function OrbitalPolymeter() {
   const [flowRestartToken, setFlowRestartToken] = useState(0);
   const [flowMobileSection, setFlowMobileSection] =
     useState<null | 'scenes' | 'sound' | 'motion'>(null);
+  const pendingMobileSliderRef = useRef<{
+    sliderId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    onValueChange: (value: number) => void;
+  } | null>(null);
   const [polyrhythmStudy, setPolyrhythmStudy] = useState<PolyrhythmStudy>(() =>
     createDefaultPolyrhythmStudy(),
   );
@@ -5954,7 +6029,7 @@ function OrbitalPolymeter() {
   }, [effectivePlan, polyrhythmStudy.layers.length]);
   const requireUnlockedRiffStepCount = useCallback(
     (stepCount: number) => {
-      const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+      const normalizedStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)));
       if (
         canUseProFeature(effectivePlan, 'riff-extended-patterns') ||
         canUseFreeRiffStepCount(normalizedStepCount)
@@ -6130,11 +6205,13 @@ function OrbitalPolymeter() {
         return;
       }
 
-      event.preventDefault();
-      const input = event.currentTarget;
-      input.setPointerCapture?.(event.pointerId);
-      setActiveMobileSliderId(sliderId);
-      onValueChange(getRangeValueFromClientX(input, event.clientX));
+      pendingMobileSliderRef.current = {
+        sliderId,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        onValueChange,
+      };
     },
     [isMobile],
   );
@@ -6146,6 +6223,30 @@ function OrbitalPolymeter() {
       onValueChange: (value: number) => void,
     ) => {
       if (activeMobileSliderId !== sliderId) {
+        const pendingSlider = pendingMobileSliderRef.current;
+        if (pendingSlider?.sliderId !== sliderId || pendingSlider.pointerId !== event.pointerId) {
+          return;
+        }
+
+        const deltaX = event.clientX - pendingSlider.startX;
+        const deltaY = event.clientY - pendingSlider.startY;
+        const horizontalIntent = Math.abs(deltaX) >= 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+        const verticalIntent = Math.abs(deltaY) >= 8 && Math.abs(deltaY) > Math.abs(deltaX);
+
+        if (verticalIntent) {
+          pendingMobileSliderRef.current = null;
+          return;
+        }
+
+        if (!horizontalIntent) {
+          return;
+        }
+
+        event.preventDefault();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        pendingMobileSliderRef.current = null;
+        setActiveMobileSliderId(sliderId);
+        pendingSlider.onValueChange(getRangeValueFromClientX(event.currentTarget, event.clientX));
         return;
       }
 
@@ -6156,6 +6257,8 @@ function OrbitalPolymeter() {
   );
 
   const clearActiveMobileSlider = useCallback((sliderId: string) => {
+    pendingMobileSliderRef.current =
+      pendingMobileSliderRef.current?.sliderId === sliderId ? null : pendingMobileSliderRef.current;
     setActiveMobileSliderId((current) => (current === sliderId ? null : current));
   }, []);
 
@@ -7130,7 +7233,7 @@ function OrbitalPolymeter() {
         resetBars:
           updates.resetBars == null
             ? current.riff.resetBars
-            : Math.max(1, Math.min(16, Math.round(updates.resetBars))),
+            : Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(updates.resetBars))),
       },
     }));
   }, [effectivePlan, requireEditableRiffCycleStudy]);
@@ -7155,7 +7258,7 @@ function OrbitalPolymeter() {
         : updateRiffStepCount(current, stepCount),
     );
     setSelectedRiffCycleStep((current) =>
-      current != null && current >= Math.max(3, Math.min(64, Math.round(stepCount || 0)))
+      current != null && current >= Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)))
         ? null
       : current,
     );
@@ -11378,7 +11481,7 @@ function OrbitalPolymeter() {
       setRiffPhraseStepDraft(String(riffEditableStepCount));
       return;
     }
-    const nextStepCount = Math.max(3, Math.min(64, parsed));
+    const nextStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, parsed));
     if (
       !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
       !canUseFreeRiffStepCount(nextStepCount)
@@ -12097,7 +12200,7 @@ function OrbitalPolymeter() {
             : null
       : null;
   const mobileCanvasTapHint = mobileCanvasTapHintText ? (
-    <div className="pointer-events-none absolute left-3 top-3 z-20">
+    <div className="pointer-events-none absolute right-3 top-3 z-20">
       <div
         className="rounded-full border px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.11em]"
         style={{
@@ -13153,12 +13256,14 @@ function OrbitalPolymeter() {
                       aria-label="Set study tempo"
                     />
                     <div className="w-12 shrink-0 text-right">
-                      <div
-                        className="text-[14px] font-light leading-none text-white"
-                        style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                      >
-                        {polyrhythmStudy.bpm}
-                      </div>
+                      <EditableTempoValue
+                        value={polyrhythmStudy.bpm}
+                        min={40}
+                        max={180}
+                        onCommit={handlePolyrhythmBpmChange}
+                        className="text-[14px]"
+                        ariaLabel="Type exact study tempo"
+                      />
                       <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         BPM
                       </div>
@@ -16195,12 +16300,14 @@ function OrbitalPolymeter() {
                   aria-label="Set study tempo"
                 />
                 <div className="w-12 shrink-0 text-right">
-                  <div
-                    className="text-[14px] font-light leading-none text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    {polyrhythmStudy.bpm}
-                  </div>
+                  <EditableTempoValue
+                    value={polyrhythmStudy.bpm}
+                    min={40}
+                    max={180}
+                    onCommit={handlePolyrhythmBpmChange}
+                    className="text-[14px]"
+                    ariaLabel="Type exact study tempo"
+                  />
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                     BPM
                   </div>
@@ -16757,12 +16864,14 @@ function OrbitalPolymeter() {
                     aria-label="Set study tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div
-                      className="text-[18px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {polyrhythmStudy.bpm}
-                    </div>
+                    <EditableTempoValue
+                      value={polyrhythmStudy.bpm}
+                      min={40}
+                      max={180}
+                      onCommit={handlePolyrhythmBpmChange}
+                      className="text-[18px]"
+                      ariaLabel="Type exact study tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       BPM
                     </div>
@@ -17125,12 +17234,14 @@ function OrbitalPolymeter() {
                       aria-label="Set riff cycle tempo"
                     />
                     <div className="w-12 shrink-0 text-right">
-                      <div
-                        className="text-[14px] font-light leading-none text-white"
-                        style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                      >
-                        {riffCycleStudy.reference.bpm}
-                      </div>
+                      <EditableTempoValue
+                        value={riffCycleStudy.reference.bpm}
+                        min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                        max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                        onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                        className="text-[14px]"
+                        ariaLabel="Type exact riff tempo"
+                      />
                       <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         {riffTempoUnitLabel}
                       </div>
@@ -17440,6 +17551,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
+                                { value: 'every-32-bars', label: '32 Bars' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -17697,7 +17809,7 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="square"
                                 onClick={() =>
-                                  handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))
+                                  handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
                                 }
                               >
                                 <Plus size={14} />
@@ -19337,6 +19449,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
+                                { value: 'every-32-bars', label: '32 Bars' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -19443,7 +19556,10 @@ function OrbitalPolymeter() {
                   >
                     Rhythmic Geometry
                   </h1>
-                  <div className="mt-1 text-[9px] font-light tracking-[0.14em] text-white/18">
+                  <div
+                    className="mt-1 text-[9px] font-light tracking-[0.14em]"
+                    style={{ color: 'rgba(255, 255, 255, 0.24)' }}
+                  >
                     Living structure from rhythm
                   </div>
                 </div>
@@ -19601,12 +19717,20 @@ function OrbitalPolymeter() {
         {!presentationMode ? (
           <div className="fixed left-5 top-4 z-20">
             <Link to="/" className="group inline-block">
-              <h1
-                className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
-                style={{ color: 'rgba(255, 255, 255, 0.25)' }}
-              >
-                Rhythmic Geometry
-              </h1>
+              <div>
+                <h1
+                  className={`${isMobile ? 'text-[11px] tracking-[0.24em]' : 'text-sm tracking-[0.3em]'} font-light uppercase transition-colors group-hover:text-white/45`}
+                  style={{ color: 'rgba(255, 255, 255, 0.25)' }}
+                >
+                  Rhythmic Geometry
+                </h1>
+                <div
+                  className="mt-1 text-[9px] font-light tracking-[0.14em]"
+                  style={{ color: 'rgba(255, 255, 255, 0.28)' }}
+                >
+                  Living structure through rhythm
+                </div>
+              </div>
             </Link>
           </div>
         ) : null}
@@ -20011,7 +20135,7 @@ function OrbitalPolymeter() {
                           <input
                             type="number"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onFocus={(event) => event.currentTarget.select()}
@@ -20020,7 +20144,7 @@ function OrbitalPolymeter() {
                               if (Number.isNaN(next)) {
                                 return;
                               }
-                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(64, next)));
+                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                             }}
                             className="w-full rounded-xl border px-3 py-2 text-center text-[20px] font-light leading-none focus:outline-none"
                             style={{
@@ -20037,7 +20161,7 @@ function OrbitalPolymeter() {
                         <StudyShellButton
                           size="square"
                           onClick={() =>
-                            handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))
+                            handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
                           }
                           aria-label="Lengthen phrase"
                         >
@@ -20047,7 +20171,7 @@ function OrbitalPolymeter() {
                       <input
                         type="range"
                         min="3"
-                        max="64"
+                        max={RIFF_MAX_STEP_COUNT}
                         step="1"
                         value={riffEditableStepCount}
                         onChange={(event) => handleSetRiffPhraseStepCount(parseInt(event.target.value, 10) || riffEditableStepCount)}
@@ -20173,6 +20297,7 @@ function OrbitalPolymeter() {
                           { value: 'every-4-bars', label: '4 Bars' },
                           { value: 'every-8-bars', label: '8 Bars' },
                           { value: 'every-16-bars', label: '16 Bars' },
+                          { value: 'every-32-bars', label: '32 Bars' },
                         ].map((option) => (
                           <StudyShellButton
                             key={option.value}
@@ -21280,12 +21405,14 @@ function OrbitalPolymeter() {
                   aria-label="Set riff cycle tempo"
                 />
                 <div className="w-12 shrink-0 text-right">
-                  <div
-                    className="text-[14px] font-light leading-none text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    {riffCycleStudy.reference.bpm}
-                  </div>
+                  <EditableTempoValue
+                    value={riffCycleStudy.reference.bpm}
+                    min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                    max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                    onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                    className="text-[14px]"
+                    ariaLabel="Type exact riff tempo"
+                  />
                   <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                     {riffTempoUnitLabel}
                   </div>
@@ -21396,6 +21523,7 @@ function OrbitalPolymeter() {
                         { value: 'every-4-bars', label: '4 Bars' },
                         { value: 'every-8-bars', label: '8 Bars' },
                         { value: 'every-16-bars', label: '16 Bars' },
+                        { value: 'every-32-bars', label: '32 Bars' },
                       ].map((option) => (
                         <StudyShellButton
                           key={option.value}
@@ -21775,7 +21903,7 @@ function OrbitalPolymeter() {
                           <input
                             type="number"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onFocus={(event) => event.currentTarget.select()}
@@ -21784,7 +21912,7 @@ function OrbitalPolymeter() {
                               if (Number.isNaN(next)) {
                                 return;
                               }
-                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(64, next)));
+                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                             }}
                             className="w-[4.8rem] rounded-xl border px-2 py-1 text-center text-[14px] font-medium focus:outline-none"
                             style={{
@@ -21806,7 +21934,7 @@ function OrbitalPolymeter() {
                           <input
                             type="range"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onChange={(event) =>
@@ -21821,7 +21949,7 @@ function OrbitalPolymeter() {
                           />
                           <StudyShellButton
                             size="square"
-                            onClick={() => handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))}
+                            onClick={() => handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))}
                             aria-label="Lengthen riff"
                           >
                             <Plus size={14} />
@@ -22316,12 +22444,14 @@ function OrbitalPolymeter() {
                     aria-label="Set riff cycle tempo"
                   />
                   <div className="w-[52px] shrink-0 text-right">
-                    <div
-                      className="text-[16px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {riffCycleStudy.reference.bpm}
-                    </div>
+                    <EditableTempoValue
+                      value={riffCycleStudy.reference.bpm}
+                      min={RIFF_REFERENCE_TEMPO_MIN_BPM}
+                      max={RIFF_REFERENCE_TEMPO_MAX_BPM}
+                      onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
+                      className="text-[16px]"
+                      ariaLabel="Type exact riff tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
                       {riffTempoUnitLabel}
                     </div>
@@ -22718,12 +22848,14 @@ function OrbitalPolymeter() {
                     aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
                   />
                   <div className="w-12 shrink-0 text-right">
-                    <div
-                      className="text-[14px] font-light leading-none text-white"
-                      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                    >
-                      {orbitTempoDisplayBpm}
-                    </div>
+                    <EditableTempoValue
+                      value={orbitTempoDisplayBpm}
+                      min={ORBIT_TEMPO_MIN_BPM}
+                      max={orbitTempoMaxBpm}
+                      onCommit={handleSpeedChange}
+                      className="text-[14px]"
+                      ariaLabel="Type exact orbit tempo"
+                    />
                     <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                       {orbitTempoAnchorLabel}
                     </div>
@@ -23751,6 +23883,8 @@ function OrbitalPolymeter() {
             y={radialMenu.y}
             orbitId={radialMenu.orbitId}
             orbitColor={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'}
+            orbitPulseCount={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.pulseCount}
+            orbitPulseMax={mobileQuickOrbitSliderMax}
             orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
             orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
             orbitOptions={engineState.orbits.map((orbit, index) => ({
@@ -23764,6 +23898,7 @@ function OrbitalPolymeter() {
             onSelectOrbit={(orbitId) =>
               setRadialMenu((current) => (current ? { ...current, orbitId } : current))
             }
+            onChangePulseCount={handleSetQuickOrbit}
             onChangeColor={handleRadialColorChange}
             onChangeHarmony={handleHarmonyChange}
             onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}
@@ -24213,6 +24348,8 @@ function OrbitalPolymeter() {
           orbitColor={
             engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.color || '#ffffff'
           }
+          orbitPulseCount={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.pulseCount}
+          orbitPulseMax={mobileQuickOrbitSliderMax}
           orbitDegree={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyDegree}
           orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
           orbitOptions={engineState.orbits.map((orbit, index) => ({
@@ -24226,6 +24363,7 @@ function OrbitalPolymeter() {
           onSelectOrbit={(orbitId) =>
             setRadialMenu((current) => (current ? { ...current, orbitId } : current))
           }
+          onChangePulseCount={handleSetQuickOrbit}
           onChangeColor={handleRadialColorChange}
           onChangeHarmony={handleHarmonyChange}
           onChangeOrbitRole={(orbitId, updates) => handleUpdateOrbit(orbitId, updates)}

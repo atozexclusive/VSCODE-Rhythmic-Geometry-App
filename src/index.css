@@ -413,4 +413,33 @@
     box-shadow: 0 0 0 8px color-mix(in srgb, var(--slider-accent) 16%, transparent),
       0 0 18px color-mix(in srgb, var(--slider-accent) 60%, transparent);
   }
+
+  .touch-slider.rg-transport-tempo-track {
+    height: 2.35rem;
+    padding: 0.75rem 0;
+    margin: -0.4rem 0;
+  }
+
+  .touch-slider.rg-transport-tempo-track::-webkit-slider-runnable-track {
+    height: 0.42rem;
+  }
+
+  .touch-slider.rg-transport-tempo-track::-moz-range-track {
+    height: 0.42rem;
+  }
+
+  .touch-slider.rg-transport-tempo-track::-webkit-slider-thumb {
+    width: 1.22rem;
+    height: 1.22rem;
+    margin-top: calc((0.42rem - 1.22rem) / 2);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--slider-accent) 14%, transparent),
+      0 0 14px color-mix(in srgb, var(--slider-accent) 55%, transparent);
+  }
+
+  .touch-slider.rg-transport-tempo-track::-moz-range-thumb {
+    width: 1.22rem;
+    height: 1.22rem;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--slider-accent) 14%, transparent),
+      0 0 14px color-mix(in srgb, var(--slider-accent) 55%, transparent);
+  }
 }

@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, Lock, Trash2 } from 'lucide-react';
+import { ChevronUp, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 import {
   NOTE_NAMES,
   SCALE_PRESETS,
@@ -20,6 +20,8 @@ interface RadialMenuProps {
   y: number;
   orbitId: string;
   orbitColor: string;
+  orbitPulseCount?: number;
+  orbitPulseMax?: number;
   orbitDegree?: number;
   orbitRegister?: -1 | 0 | 1;
   orbitOptions?: Array<{ id: string; label: string; color: string }>;
@@ -27,6 +29,7 @@ interface RadialMenuProps {
   colorEditingLocked?: boolean;
   onLockedFeature?: (feature: 'color-editing') => void;
   onSelectOrbit?: (orbitId: string) => void;
+  onChangePulseCount?: (orbitId: string, pulseCount: number) => void;
   onChangeColor: (orbitId: string, color: string) => void;
   onChangeHarmony: (updates: Partial<HarmonySettings>) => void;
   onChangeOrbitRole: (
@@ -49,6 +52,8 @@ export default function RadialMenu({
   y,
   orbitId,
   orbitColor,
+  orbitPulseCount,
+  orbitPulseMax = 32,
   orbitDegree,
   orbitRegister,
   orbitOptions = [],
@@ -56,6 +61,7 @@ export default function RadialMenu({
   colorEditingLocked = false,
   onLockedFeature,
   onSelectOrbit,
+  onChangePulseCount,
   onChangeColor,
   onChangeHarmony,
   onChangeOrbitRole,
@@ -67,6 +73,9 @@ export default function RadialMenu({
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const selectedOrbitLabel =
     orbitOptions.find((orbit) => orbit.id === orbitId)?.label ?? 'Orbit';
+  const selectedOrbitNumber = Math.max(1, Math.round(orbitPulseCount ?? 1));
+  const ratioSliderMax = Math.max(1, orbitPulseMax);
+  const ratioSliderValue = Math.min(selectedOrbitNumber, ratioSliderMax);
   const mobileViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
   const mobileViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 760;
   const mobileMenuWidth = Math.min(430, mobileViewportWidth - 16);
@@ -228,6 +237,70 @@ export default function RadialMenu({
                 </button>
               );
             })}
+          </div>
+        </div>
+      ) : null}
+
+      {onChangePulseCount ? (
+        <div className={`${isMobile ? 'mt-2 rounded-xl border p-2' : 'mt-3 rounded-xl border p-2'}`} style={isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div
+              className="text-[8px] font-mono uppercase tracking-[0.16em]"
+              style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.58)' }}
+            >
+              Ratio
+            </div>
+            <div
+              className="rounded-lg border px-2 py-1 text-[11px] font-mono"
+              style={{
+                color: orbitColor,
+                background: `${orbitColor}12`,
+                borderColor: `${orbitColor}36`,
+              }}
+            >
+              {selectedOrbitNumber}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onChangePulseCount(orbitId, selectedOrbitNumber - 1)}
+              className={`${isMobile ? 'h-8 w-8' : 'h-9 w-9'} shrink-0 rounded-lg border flex items-center justify-center transition active:scale-[0.96]`}
+              style={{
+                color: 'rgba(255,255,255,0.74)',
+                background: 'rgba(255,255,255,0.05)',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+              aria-label={`Lower ${selectedOrbitLabel} ratio`}
+              title={`Lower ${selectedOrbitLabel}`}
+            >
+              <Minus size={isMobile ? 13 : 14} />
+            </button>
+            <input
+              type="range"
+              min="1"
+              max={String(ratioSliderMax)}
+              step="1"
+              value={ratioSliderValue}
+              onChange={(event) => onChangePulseCount(orbitId, parseInt(event.target.value, 10) || 1)}
+              className="touch-slider flex-1"
+              style={{ ['--slider-accent' as string]: orbitColor }}
+              aria-label={`Set ${selectedOrbitLabel} ratio`}
+            />
+            <button
+              type="button"
+              onClick={() => onChangePulseCount(orbitId, selectedOrbitNumber + 1)}
+              className={`${isMobile ? 'h-8 w-8' : 'h-9 w-9'} shrink-0 rounded-lg border flex items-center justify-center transition active:scale-[0.96]`}
+              style={{
+                color: 'rgba(255,255,255,0.74)',
+                background: 'rgba(255,255,255,0.05)',
+                borderColor: 'rgba(255,255,255,0.08)',
+              }}
+              aria-label={`Raise ${selectedOrbitLabel} ratio`}
+              title={`Raise ${selectedOrbitLabel}`}
+            >
+              <Plus size={isMobile ? 13 : 14} />
+            </button>
           </div>
         </div>
       ) : null}

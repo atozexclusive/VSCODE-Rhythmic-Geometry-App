@@ -3,6 +3,8 @@ import type { RootNote, ScaleName } from './audioEngine';
 const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
 export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
+export const RIFF_MAX_STEP_COUNT = 96;
+export const RIFF_MAX_RESET_BARS = 32;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
@@ -27,6 +29,7 @@ export type RiffPhraseResetMode =
   | 'every-4-bars'
   | 'every-8-bars'
   | 'every-16-bars'
+  | 'every-32-bars'
   | 'custom-cycle';
 export type RiffSequenceCellLabel = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 
@@ -175,11 +178,11 @@ function normalizeSubdivision(value: number): RiffCycleSubdivision {
 }
 
 function normalizeBeatCount(value: number): number {
-  return clamp(Math.round(value || 0), 3, 64);
+  return clamp(Math.round(value || 0), 3, RIFF_MAX_STEP_COUNT);
 }
 
 function normalizeCellStepCount(value: number): number {
-  return clamp(Math.round(value || 0), 3, 64);
+  return clamp(Math.round(value || 0), 3, RIFF_MAX_STEP_COUNT);
 }
 
 function normalizeRotationOffset(value: number): number {
@@ -204,7 +207,7 @@ function normalizePitch(value: number): number {
 }
 
 function normalizeBars(value: number): number {
-  return clamp(Math.round(value || 0), 1, 16);
+  return clamp(Math.round(value || 0), 1, RIFF_MAX_RESET_BARS);
 }
 
 function normalizeBackbeatBarInterval(value: number | undefined): RiffBackbeatBarInterval {
@@ -302,11 +305,11 @@ function normalizeRiffCellGroups(groups: number[] | undefined, fallback: number[
   const next: number[] = [];
   let total = 0;
   source.forEach((value) => {
-    if (next.length >= 12 || total >= 64) {
+    if (next.length >= 12 || total >= RIFF_MAX_STEP_COUNT) {
       return;
     }
     const normalized = clamp(Math.round(value || 0), 1, 32);
-    if (total + normalized > 64) {
+    if (total + normalized > RIFF_MAX_STEP_COUNT) {
       return;
     }
     next.push(normalized);
@@ -349,7 +352,7 @@ export function parseRiffCellGroups(value: string): number[] | null {
     return null;
   }
   const total = groups.reduce((sum, group) => sum + group, 0);
-  if (total < 1 || total > 64) {
+  if (total < 1 || total > RIFF_MAX_STEP_COUNT) {
     return null;
   }
   return groups;
@@ -806,6 +809,8 @@ export function getResetBarCount(riff: RiffPhrase): number | null {
       return 8;
     case 'every-16-bars':
       return 16;
+    case 'every-32-bars':
+      return 32;
     case 'custom-cycle':
       return normalizeBars(riff.resetBars);
     default:

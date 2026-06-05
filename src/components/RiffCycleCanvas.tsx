@@ -1470,6 +1470,12 @@ export default function RiffCycleCanvas({
           (stepWidth >= (compactMobileTimeline ? 15 : 10) || visibleStepCount <= 64)
         ) {
           const stepCenterX = stepX + Math.max(1, stepWidth - 1) / 2;
+          const stepWithinBar = ((step % metrics.stepsPerBar) + metrics.stepsPerBar) % metrics.stepsPerBar;
+          const stepsPerBeat = Math.max(1, Math.round(metrics.stepsPerBar / Math.max(1, currentStudy.reference.numerator)));
+          const beatNumber = Math.min(
+            currentStudy.reference.numerator,
+            Math.floor(stepWithinBar / stepsPerBeat) + 1,
+          );
           ctx.font = `${compactMobileTimeline ? 8 : 9}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -1482,7 +1488,7 @@ export default function RiffCycleCanvas({
           if (isBeat || isDownbeat) {
             ctx.fillStyle = 'rgba(255,255,255,0.5)';
             ctx.fillText(
-              String((step % metrics.stepsPerBar) + 1),
+              String(beatNumber),
               stepCenterX,
               topLaneY + laneHeight * 0.52,
             );
