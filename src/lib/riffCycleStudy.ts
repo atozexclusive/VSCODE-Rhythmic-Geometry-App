@@ -4,6 +4,7 @@ const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
 export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
 export const RIFF_MAX_STEP_COUNT = 96;
+export const RIFF_MAX_RESET_BARS = 32;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
@@ -28,6 +29,7 @@ export type RiffPhraseResetMode =
   | 'every-4-bars'
   | 'every-8-bars'
   | 'every-16-bars'
+  | 'every-32-bars'
   | 'custom-cycle';
 export type RiffSequenceCellLabel = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 
@@ -205,7 +207,7 @@ function normalizePitch(value: number): number {
 }
 
 function normalizeBars(value: number): number {
-  return clamp(Math.round(value || 0), 1, 16);
+  return clamp(Math.round(value || 0), 1, RIFF_MAX_RESET_BARS);
 }
 
 function normalizeBackbeatBarInterval(value: number | undefined): RiffBackbeatBarInterval {
@@ -807,6 +809,8 @@ export function getResetBarCount(riff: RiffPhrase): number | null {
       return 8;
     case 'every-16-bars':
       return 16;
+    case 'every-32-bars':
+      return 32;
     case 'custom-cycle':
       return normalizeBars(riff.resetBars);
     default:

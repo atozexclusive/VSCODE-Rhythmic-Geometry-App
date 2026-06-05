@@ -127,6 +127,7 @@ import {
 import { resumeFlowAudio, stopFlowAudio } from '../lib/flowAudio';
 import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
+  RIFF_MAX_RESET_BARS,
   RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
@@ -7232,7 +7233,7 @@ function OrbitalPolymeter() {
         resetBars:
           updates.resetBars == null
             ? current.riff.resetBars
-            : Math.max(1, Math.min(16, Math.round(updates.resetBars))),
+            : Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(updates.resetBars))),
       },
     }));
   }, [effectivePlan, requireEditableRiffCycleStudy]);
@@ -17550,6 +17551,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
+                                { value: 'every-32-bars', label: '32 Bars' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -19447,6 +19449,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
+                                { value: 'every-32-bars', label: '32 Bars' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -20294,6 +20297,7 @@ function OrbitalPolymeter() {
                           { value: 'every-4-bars', label: '4 Bars' },
                           { value: 'every-8-bars', label: '8 Bars' },
                           { value: 'every-16-bars', label: '16 Bars' },
+                          { value: 'every-32-bars', label: '32 Bars' },
                         ].map((option) => (
                           <StudyShellButton
                             key={option.value}
@@ -21519,6 +21523,7 @@ function OrbitalPolymeter() {
                         { value: 'every-4-bars', label: '4 Bars' },
                         { value: 'every-8-bars', label: '8 Bars' },
                         { value: 'every-16-bars', label: '16 Bars' },
+                        { value: 'every-32-bars', label: '32 Bars' },
                       ].map((option) => (
                         <StudyShellButton
                           key={option.value}

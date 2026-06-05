@@ -1185,6 +1185,7 @@ export default function RiffCycleSidebar({
                 { value: 'every-4-bars', label: 'Every 4' },
                 { value: 'every-8-bars', label: 'Every 8' },
                 { value: 'every-16-bars', label: 'Every 16' },
+                { value: 'every-32-bars', label: 'Every 32' },
               ].map((option) => {
                 const active = study.riff.resetMode === option.value;
                 return (
@@ -1228,7 +1229,7 @@ export default function RiffCycleSidebar({
                 <input
                   type="number"
                   min="1"
-                  max="16"
+                  max="32"
                   value={study.riff.resetBars}
                   onChange={(event) => {
                     pinEndingTab();
