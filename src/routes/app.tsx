@@ -127,6 +127,7 @@ import {
 import { resumeFlowAudio, stopFlowAudio } from '../lib/flowAudio';
 import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
+  RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
   RIFF_CYCLE_COLORS,
@@ -1961,7 +1962,7 @@ function loadAppSurface(preferredSurface?: string | null): AppSurface {
 }
 
 function canUseFreeRiffStepCount(stepCount: number): boolean {
-  const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+  const normalizedStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)));
   return normalizedStepCount <= FREE_RIFF_STEP_LIMIT;
 }
 
@@ -6027,7 +6028,7 @@ function OrbitalPolymeter() {
   }, [effectivePlan, polyrhythmStudy.layers.length]);
   const requireUnlockedRiffStepCount = useCallback(
     (stepCount: number) => {
-      const normalizedStepCount = Math.max(3, Math.min(64, Math.round(stepCount || 0)));
+      const normalizedStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)));
       if (
         canUseProFeature(effectivePlan, 'riff-extended-patterns') ||
         canUseFreeRiffStepCount(normalizedStepCount)
@@ -7256,7 +7257,7 @@ function OrbitalPolymeter() {
         : updateRiffStepCount(current, stepCount),
     );
     setSelectedRiffCycleStep((current) =>
-      current != null && current >= Math.max(3, Math.min(64, Math.round(stepCount || 0)))
+      current != null && current >= Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, Math.round(stepCount || 0)))
         ? null
       : current,
     );
@@ -11479,7 +11480,7 @@ function OrbitalPolymeter() {
       setRiffPhraseStepDraft(String(riffEditableStepCount));
       return;
     }
-    const nextStepCount = Math.max(3, Math.min(64, parsed));
+    const nextStepCount = Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, parsed));
     if (
       !canUseProFeature(effectivePlan, 'riff-extended-patterns') &&
       !canUseFreeRiffStepCount(nextStepCount)
@@ -17806,7 +17807,7 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="square"
                                 onClick={() =>
-                                  handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))
+                                  handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
                                 }
                               >
                                 <Plus size={14} />
@@ -20131,7 +20132,7 @@ function OrbitalPolymeter() {
                           <input
                             type="number"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onFocus={(event) => event.currentTarget.select()}
@@ -20140,7 +20141,7 @@ function OrbitalPolymeter() {
                               if (Number.isNaN(next)) {
                                 return;
                               }
-                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(64, next)));
+                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                             }}
                             className="w-full rounded-xl border px-3 py-2 text-center text-[20px] font-light leading-none focus:outline-none"
                             style={{
@@ -20157,7 +20158,7 @@ function OrbitalPolymeter() {
                         <StudyShellButton
                           size="square"
                           onClick={() =>
-                            handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))
+                            handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
                           }
                           aria-label="Lengthen phrase"
                         >
@@ -20167,7 +20168,7 @@ function OrbitalPolymeter() {
                       <input
                         type="range"
                         min="3"
-                        max="64"
+                        max={RIFF_MAX_STEP_COUNT}
                         step="1"
                         value={riffEditableStepCount}
                         onChange={(event) => handleSetRiffPhraseStepCount(parseInt(event.target.value, 10) || riffEditableStepCount)}
@@ -21897,7 +21898,7 @@ function OrbitalPolymeter() {
                           <input
                             type="number"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onFocus={(event) => event.currentTarget.select()}
@@ -21906,7 +21907,7 @@ function OrbitalPolymeter() {
                               if (Number.isNaN(next)) {
                                 return;
                               }
-                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(64, next)));
+                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                             }}
                             className="w-[4.8rem] rounded-xl border px-2 py-1 text-center text-[14px] font-medium focus:outline-none"
                             style={{
@@ -21928,7 +21929,7 @@ function OrbitalPolymeter() {
                           <input
                             type="range"
                             min="3"
-                            max="64"
+                            max={RIFF_MAX_STEP_COUNT}
                             step="1"
                             value={riffEditableStepCount}
                             onChange={(event) =>
@@ -21943,7 +21944,7 @@ function OrbitalPolymeter() {
                           />
                           <StudyShellButton
                             size="square"
-                            onClick={() => handleSetRiffPhraseStepCount(Math.min(64, riffEditableStepCount + 1))}
+                            onClick={() => handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))}
                             aria-label="Lengthen riff"
                           >
                             <Plus size={14} />

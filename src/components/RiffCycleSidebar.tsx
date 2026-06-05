@@ -13,6 +13,7 @@ import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEn
 import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
+  RIFF_MAX_STEP_COUNT,
   getReferenceStepsPerBar,
   type ReferenceMeter,
   type RiffCyclePreset,
@@ -917,7 +918,7 @@ export default function RiffCycleSidebar({
               <input
                 type="number"
                 min="3"
-                max="64"
+                max={RIFF_MAX_STEP_COUNT}
                 value={study.riff.stepCount}
                 onChange={(event) => onSetRiffStepCount(parseInt(event.target.value, 10) || 17)}
                 className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[15px] font-light text-white outline-none"

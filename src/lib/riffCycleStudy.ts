@@ -3,6 +3,7 @@ import type { RootNote, ScaleName } from './audioEngine';
 const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
 export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
+export const RIFF_MAX_STEP_COUNT = 96;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';
@@ -175,11 +176,11 @@ function normalizeSubdivision(value: number): RiffCycleSubdivision {
 }
 
 function normalizeBeatCount(value: number): number {
-  return clamp(Math.round(value || 0), 3, 64);
+  return clamp(Math.round(value || 0), 3, RIFF_MAX_STEP_COUNT);
 }
 
 function normalizeCellStepCount(value: number): number {
-  return clamp(Math.round(value || 0), 3, 64);
+  return clamp(Math.round(value || 0), 3, RIFF_MAX_STEP_COUNT);
 }
 
 function normalizeRotationOffset(value: number): number {
@@ -302,11 +303,11 @@ function normalizeRiffCellGroups(groups: number[] | undefined, fallback: number[
   const next: number[] = [];
   let total = 0;
   source.forEach((value) => {
-    if (next.length >= 12 || total >= 64) {
+    if (next.length >= 12 || total >= RIFF_MAX_STEP_COUNT) {
       return;
     }
     const normalized = clamp(Math.round(value || 0), 1, 32);
-    if (total + normalized > 64) {
+    if (total + normalized > RIFF_MAX_STEP_COUNT) {
       return;
     }
     next.push(normalized);
@@ -349,7 +350,7 @@ export function parseRiffCellGroups(value: string): number[] | null {
     return null;
   }
   const total = groups.reduce((sum, group) => sum + group, 0);
-  if (total < 1 || total > 64) {
+  if (total < 1 || total > RIFF_MAX_STEP_COUNT) {
     return null;
   }
   return groups;
