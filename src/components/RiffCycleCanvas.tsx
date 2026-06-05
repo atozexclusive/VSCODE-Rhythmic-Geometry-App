@@ -1061,7 +1061,6 @@ export default function RiffCycleCanvas({
     }
 
     riffPoints.forEach((point) => {
-      const carveBoundsActive = carveViewActive && circularPhraseBoundsActive;
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
       const isCurrent = currentRiffStep === point.index;
@@ -1082,20 +1081,14 @@ export default function RiffCycleCanvas({
               : 5.4
             : effectiveActive
               ? carveViewActive
-                ? carveBoundsActive
-                  ? effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
-                    ? 7.25
-                    : 6.15
-                  : effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
-                    ? 5.75
-                    : 4.35
+                ? effectiveAccented || isPhraseRestart || isCurrent || isSelected || isHovered
+                  ? 5.75
+                  : 4.35
                 : circularPhraseBoundsActive
                   ? 6.15
                   : 5.65
               : carveViewActive
-                ? carveBoundsActive
-                  ? 2.9
-                  : 1.75
+                ? 1.75
                 : circularPhraseBoundsActive
                   ? 3.8
                   : 3.35) +
@@ -1139,14 +1132,10 @@ export default function RiffCycleCanvas({
           : 'rgba(255,255,255,0.24)';
       ctx.globalAlpha = effectiveActive
         ? carveViewActive
-          ? Math.min(
-              0.98,
-              (isCurrent || isHovered ? 0.98 : carveBoundsActive ? 0.88 : 0.74) +
-                attackRemaining * 0.24,
-            )
+          ? Math.min(0.95, (isCurrent || isHovered ? 0.95 : 0.74) + attackRemaining * 0.24)
           : Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
         : carveViewActive
-          ? (isHovered ? 0.46 : carveBoundsActive ? 0.23 : 0.13) * inactiveAlpha
+          ? (isHovered ? 0.38 : 0.13) * inactiveAlpha
         : circularPhraseBoundsActive
           ? isHovered
             ? 0.62
@@ -1154,9 +1143,7 @@ export default function RiffCycleCanvas({
           : (isHovered ? 0.52 : 0.34) * inactiveAlpha;
       ctx.shadowBlur = effectiveActive
         ? carveViewActive
-          ? ((isCurrent || isHovered ? 14 : carveBoundsActive ? 9.5 : 5.5) + attackRemaining * 14) *
-            glowMultiplier *
-            pointScale
+          ? ((isCurrent || isHovered ? 12 : 5.5) + attackRemaining * 14) * glowMultiplier * pointScale
           : ((isCurrent || isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * pointScale
         : isHovered
           ? 10 * glowMultiplier * pointScale
@@ -1199,21 +1186,17 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (effectiveAccented || isPhraseRestart || (carveBoundsActive && effectiveActive)) {
+      if (effectiveAccented || isPhraseRestart) {
         ctx.save();
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.88)'
-          : carveBoundsActive && effectiveActive
-            ? `${currentStudy.riff.color}CC`
-            : 'rgba(255,255,255,0.46)';
-        ctx.lineWidth = (effectiveAccented ? 1.9 : carveBoundsActive && effectiveActive ? 1.35 : 1.2) * pointScale;
+          : 'rgba(255,255,255,0.46)';
+        ctx.lineWidth = (effectiveAccented ? 1.9 : 1.2) * pointScale;
         ctx.beginPath();
         ctx.arc(
           point.x,
           point.y,
-          radius +
-            (effectiveAccented ? 3.6 : carveBoundsActive && effectiveActive ? 2.9 : 2.8) *
-              pointScale,
+          radius + (effectiveAccented ? 3.6 : 2.8) * pointScale,
           0,
           TAU,
         );
