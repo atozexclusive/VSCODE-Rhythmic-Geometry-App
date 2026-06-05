@@ -235,6 +235,15 @@ const FREE_RIFF_STEP_LIMIT = 12;
 const FREE_RIFF_ENDING_SLOT_LIMIT = 4;
 const FREE_RIFF_METERS = [3, 4] as const;
 const FREE_RIFF_SUBDIVISIONS = [8, 12, 16] as const;
+const RIFF_RETURN_OPTIONS: Array<{ value: RiffPhrase['resetMode']; label: string }> = [
+  { value: 'free', label: 'Free' },
+  { value: 'per-bar', label: '1 Bar' },
+  { value: 'every-2-bars', label: '2 Bars' },
+  { value: 'every-4-bars', label: '4 Bars' },
+  { value: 'every-8-bars', label: '8 Bars' },
+  { value: 'every-16-bars', label: '16 Bars' },
+  { value: 'custom-cycle', label: 'Custom' },
+];
 
 function canUseFreeRiffMeter(numerator: number): boolean {
   return FREE_RIFF_METERS.includes(Math.round(numerator) as (typeof FREE_RIFF_METERS)[number]);
@@ -7469,6 +7478,16 @@ function OrbitalPolymeter() {
     }));
   }, [requireEditableRiffCycleStudy]);
 
+  const handleToggleRiffStructureView = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showStructureView: !current.showStructureView,
+    }));
+  }, [requireEditableRiffCycleStudy]);
+
   const handleToggleRiffPhraseBody = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
       return;
@@ -7612,6 +7631,7 @@ function OrbitalPolymeter() {
       showStepLabels: riffCycleStudy.showStepLabels,
       showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
       showPhraseBounds: riffCycleStudy.showPhraseBounds,
+      showStructureView: riffCycleStudy.showStructureView,
     });
     setActiveRiffCyclePresetId(null);
     setActiveRiffCycleSavedSceneId(null);
@@ -7619,7 +7639,7 @@ function OrbitalPolymeter() {
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
 
   const handleRemixRiffCycleStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -7633,6 +7653,7 @@ function OrbitalPolymeter() {
         showStepLabels: current.showStepLabels,
         showAlignmentMarkers: current.showAlignmentMarkers,
         showPhraseBounds: current.showPhraseBounds,
+        showStructureView: current.showStructureView,
       };
       setActiveRiffCyclePresetId(null);
       setActiveRiffCycleSavedSceneId(null);
@@ -7658,6 +7679,7 @@ function OrbitalPolymeter() {
       showStepLabels: riffCycleStudy.showStepLabels,
       showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
       showPhraseBounds: riffCycleStudy.showPhraseBounds,
+      showStructureView: riffCycleStudy.showStructureView,
     });
     setActiveRiffCyclePresetId(null);
     setActiveRiffCycleSavedSceneId(null);
@@ -7665,7 +7687,7 @@ function OrbitalPolymeter() {
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
 
   const handleToggleFlowPlayback = useCallback(() => {
     resumeFlowAudio();
@@ -17544,15 +17566,7 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             <div className="grid grid-cols-3 gap-2">
-                              {[
-                                { value: 'free', label: 'Free' },
-                                { value: 'per-bar', label: '1 Bar' },
-                                { value: 'every-2-bars', label: '2 Bars' },
-                                { value: 'every-4-bars', label: '4 Bars' },
-                                { value: 'every-8-bars', label: '8 Bars' },
-                                { value: 'every-16-bars', label: '16 Bars' },
-                                { value: 'every-32-bars', label: '32 Bars' },
-                              ].map((option) => (
+                              {RIFF_RETURN_OPTIONS.map((option) => (
                                 <StudyShellButton
                                   key={option.value}
                                   size="compact"
@@ -17560,7 +17574,7 @@ function OrbitalPolymeter() {
                                   highlighted={riffCycleStudy.riff.resetMode === option.value}
                                   onClick={() =>
                                     handleUpdateRiffPhrase({
-                                      resetMode: option.value as RiffPhrase['resetMode'],
+                                      resetMode: option.value,
                                     })
                                   }
                                 >
@@ -17568,6 +17582,24 @@ function OrbitalPolymeter() {
                                 </StudyShellButton>
                               ))}
                             </div>
+                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
+                                Custom Bars
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max={RIFF_MAX_RESET_BARS}
+                                  value={riffCycleStudy.riff.resetBars}
+                                  onChange={(event) =>
+                                    handleUpdateRiffPhrase({
+                                      resetBars: parseInt(event.target.value, 10) || 4,
+                                    })
+                                  }
+                                  className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
+                                />
+                              </label>
+                            ) : null}
                             <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-3 py-2 text-[10px] leading-relaxed text-[#FFD3E9]">
                               {riffCycleStudy.riff.resetMode === 'free'
                                 ? riffFreeResolutionCopy
@@ -17930,7 +17962,7 @@ function OrbitalPolymeter() {
                               labelClassName={mobileRiffMenuTitleClass}
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
@@ -17957,6 +17989,15 @@ function OrbitalPolymeter() {
                                 className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
                               >
                                 Riff Bounds
+                              </StudyShellButton>
+                              <StudyShellButton
+                                size="compact"
+                                tone="green"
+                                highlighted={Boolean(riffCycleStudy.showStructureView)}
+                                onClick={handleToggleRiffStructureView}
+                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                              >
+                                Structure
                               </StudyShellButton>
                             </div>
                           </div>
@@ -19442,15 +19483,7 @@ function OrbitalPolymeter() {
                               labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
                             />
                             <div className="grid grid-cols-2 gap-1.5">
-                              {[
-                                { value: 'free', label: 'Free' },
-                                { value: 'per-bar', label: '1 Bar' },
-                                { value: 'every-2-bars', label: '2 Bars' },
-                                { value: 'every-4-bars', label: '4 Bars' },
-                                { value: 'every-8-bars', label: '8 Bars' },
-                                { value: 'every-16-bars', label: '16 Bars' },
-                                { value: 'every-32-bars', label: '32 Bars' },
-                              ].map((option) => (
+                              {RIFF_RETURN_OPTIONS.map((option) => (
                                 <StudyShellButton
                                   key={option.value}
                                   size="compact"
@@ -19460,7 +19493,7 @@ function OrbitalPolymeter() {
                                     handleSetRiffEditMode('landing');
                                     setRiffMobileEditTab('return');
                                     handleUpdateRiffPhrase({
-                                      resetMode: option.value as RiffPhrase['resetMode'],
+                                      resetMode: option.value,
                                     });
                                   }}
                                   className="min-w-0 px-1.5 text-[8px] tracking-[0.07em]"
@@ -19469,6 +19502,24 @@ function OrbitalPolymeter() {
                                 </StudyShellButton>
                               ))}
                             </div>
+                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
+                                Custom Bars
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max={RIFF_MAX_RESET_BARS}
+                                  value={riffCycleStudy.riff.resetBars}
+                                  onChange={(event) =>
+                                    handleUpdateRiffPhrase({
+                                      resetBars: parseInt(event.target.value, 10) || 4,
+                                    })
+                                  }
+                                  className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
+                                />
+                              </label>
+                            ) : null}
                           </div>
                           <div className="space-y-1.5">
                             <InlineInfoLabel
@@ -20290,15 +20341,7 @@ function OrbitalPolymeter() {
                         labelStyle={desktopMenuSubheaderStyle}
                       />
                       <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { value: 'free', label: 'Free' },
-                          { value: 'per-bar', label: '1 Bar' },
-                          { value: 'every-2-bars', label: '2 Bars' },
-                          { value: 'every-4-bars', label: '4 Bars' },
-                          { value: 'every-8-bars', label: '8 Bars' },
-                          { value: 'every-16-bars', label: '16 Bars' },
-                          { value: 'every-32-bars', label: '32 Bars' },
-                        ].map((option) => (
+                        {RIFF_RETURN_OPTIONS.map((option) => (
                           <StudyShellButton
                             key={option.value}
                             size="compact"
@@ -20306,7 +20349,7 @@ function OrbitalPolymeter() {
                             highlighted={riffCycleStudy.riff.resetMode === option.value}
                             onClick={() => {
                               handleUpdateRiffPhrase({
-                                resetMode: option.value as RiffPhrase['resetMode'],
+                                resetMode: option.value,
                               });
                               handleSetRiffEditMode('landing');
                               setRiffQuickPanel('return');
@@ -20316,6 +20359,24 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         ))}
                       </div>
+                      {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                        <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
+                          Custom Bars
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            max={RIFF_MAX_RESET_BARS}
+                            value={riffCycleStudy.riff.resetBars}
+                            onChange={(event) =>
+                              handleUpdateRiffPhrase({
+                                resetBars: parseInt(event.target.value, 10) || 4,
+                              })
+                            }
+                            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
+                          />
+                        </label>
+                      ) : null}
                       {riffCycleStudy.riff.resetMode === 'free' ? (
                         <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                           Free resolves when the riff meets the barline again.
@@ -20992,6 +21053,15 @@ function OrbitalPolymeter() {
 	                        >
 	                          Filled Hits
 	                        </StudyShellButton>
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="green"
+	                          highlighted={Boolean(riffCycleStudy.showStructureView)}
+	                          onClick={handleToggleRiffStructureView}
+	                          className={utilityButtonClass}
+	                        >
+	                          Structure
+	                        </StudyShellButton>
 	                      </div>
 	                    </div>
 	                  </div>
@@ -21516,15 +21586,7 @@ function OrbitalPolymeter() {
                       labelStyle={desktopMenuSubheaderStyle}
                     />
                     <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { value: 'free', label: 'Free' },
-                        { value: 'per-bar', label: '1 Bar' },
-                        { value: 'every-2-bars', label: '2 Bars' },
-                        { value: 'every-4-bars', label: '4 Bars' },
-                        { value: 'every-8-bars', label: '8 Bars' },
-                        { value: 'every-16-bars', label: '16 Bars' },
-                        { value: 'every-32-bars', label: '32 Bars' },
-                      ].map((option) => (
+                      {RIFF_RETURN_OPTIONS.map((option) => (
                         <StudyShellButton
                           key={option.value}
                           size="compact"
@@ -21534,7 +21596,7 @@ function OrbitalPolymeter() {
                             handleSetRiffEditMode('landing');
                             setRiffDesktopEditTab('return');
                             handleUpdateRiffPhrase({
-                              resetMode: option.value as RiffPhrase['resetMode'],
+                              resetMode: option.value,
                             });
                           }}
                         >
@@ -21542,6 +21604,24 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       ))}
                     </div>
+                    {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                      <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
+                        Custom Bars
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          max={RIFF_MAX_RESET_BARS}
+                          value={riffCycleStudy.riff.resetBars}
+                          onChange={(event) =>
+                            handleUpdateRiffPhrase({
+                              resetBars: parseInt(event.target.value, 10) || 4,
+                            })
+                          }
+                          className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
+                        />
+                      </label>
+                    ) : null}
                     {riffCycleStudy.riff.resetMode === 'free' ? (
                       <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                         {riffFreeResolutionCopy}
