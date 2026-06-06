@@ -13,7 +13,9 @@ import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEn
 import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
+  RIFF_MAX_RESET_BARS,
   RIFF_MAX_STEP_COUNT,
+  getResetBarCount,
   getReferenceStepsPerBar,
   type ReferenceMeter,
   type RiffCyclePreset,
@@ -1185,7 +1187,7 @@ export default function RiffCycleSidebar({
                 { value: 'every-4-bars', label: 'Every 4' },
                 { value: 'every-8-bars', label: 'Every 8' },
                 { value: 'every-16-bars', label: 'Every 16' },
-                { value: 'every-32-bars', label: 'Every 32' },
+                { value: 'custom-cycle', label: 'Custom' },
               ].map((option) => {
                 const active = study.riff.resetMode === option.value;
                 return (
@@ -1194,7 +1196,12 @@ export default function RiffCycleSidebar({
                     type="button"
                     onClick={() => {
                       pinEndingTab();
-                      onUpdateRiff({ resetMode: option.value as RiffPhrase['resetMode'] });
+                      onUpdateRiff({
+                        resetMode: option.value as RiffPhrase['resetMode'],
+                        ...(option.value === 'custom-cycle'
+                          ? { resetBars: getResetBarCount(study.riff) ?? study.riff.resetBars }
+                          : {}),
+                      });
                     }}
                     className="rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
                     style={{
@@ -1208,29 +1215,16 @@ export default function RiffCycleSidebar({
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                pinEndingTab();
-                onUpdateRiff({ resetMode: 'custom-cycle' });
-              }}
-              className="w-full rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.16em]"
-              style={{
-                background: study.riff.resetMode === 'custom-cycle' ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.04)',
-                borderColor: study.riff.resetMode === 'custom-cycle' ? 'rgba(255,209,102,0.24)' : 'rgba(255,255,255,0.08)',
-                color: study.riff.resetMode === 'custom-cycle' ? '#FFD166' : 'rgba(255,255,255,0.66)',
-              }}
-            >
-              Custom Return
-            </button>
             {study.riff.resetMode === 'custom-cycle' ? (
               <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
                 Return Bars
                 <input
                   type="number"
                   min="1"
-                  max="32"
+                  max={RIFF_MAX_RESET_BARS}
+                  inputMode="numeric"
                   value={study.riff.resetBars}
+                  onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => {
                     pinEndingTab();
                     onUpdateRiff({ resetBars: parseInt(event.target.value, 10) || 4 });

@@ -17551,7 +17551,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
-                                { value: 'every-32-bars', label: '32 Bars' },
+                                { value: 'custom-cycle', label: 'Custom' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -17561,6 +17561,9 @@ function OrbitalPolymeter() {
                                   onClick={() =>
                                     handleUpdateRiffPhrase({
                                       resetMode: option.value as RiffPhrase['resetMode'],
+                                      ...(option.value === 'custom-cycle'
+                                        ? { resetBars: getResetBarCount(riffCycleStudy.riff) ?? riffCycleStudy.riff.resetBars }
+                                        : {}),
                                     })
                                   }
                                 >
@@ -17568,6 +17571,26 @@ function OrbitalPolymeter() {
                                 </StudyShellButton>
                               ))}
                             </div>
+                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.16em] text-[#FFD3E9]/72">
+                                Custom Bars
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={RIFF_MAX_RESET_BARS}
+                                  value={riffCycleStudy.riff.resetBars}
+                                  onFocus={(event) => event.currentTarget.select()}
+                                  onChange={(event) =>
+                                    handleUpdateRiffPhrase({
+                                      resetMode: 'custom-cycle',
+                                      resetBars: Number.parseInt(event.target.value, 10) || riffCycleStudy.riff.resetBars,
+                                    })
+                                  }
+                                  className="w-full rounded-xl border border-[#FF88C2]/18 bg-black/20 px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                                />
+                              </label>
+                            ) : null}
                             <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-3 py-2 text-[10px] leading-relaxed text-[#FFD3E9]">
                               {riffCycleStudy.riff.resetMode === 'free'
                                 ? riffFreeResolutionCopy
@@ -19449,7 +19472,7 @@ function OrbitalPolymeter() {
                                 { value: 'every-4-bars', label: '4 Bars' },
                                 { value: 'every-8-bars', label: '8 Bars' },
                                 { value: 'every-16-bars', label: '16 Bars' },
-                                { value: 'every-32-bars', label: '32 Bars' },
+                                { value: 'custom-cycle', label: 'Custom' },
                               ].map((option) => (
                                 <StudyShellButton
                                   key={option.value}
@@ -19461,6 +19484,9 @@ function OrbitalPolymeter() {
                                     setRiffMobileEditTab('return');
                                     handleUpdateRiffPhrase({
                                       resetMode: option.value as RiffPhrase['resetMode'],
+                                      ...(option.value === 'custom-cycle'
+                                        ? { resetBars: getResetBarCount(riffCycleStudy.riff) ?? riffCycleStudy.riff.resetBars }
+                                        : {}),
                                     });
                                   }}
                                   className="min-w-0 px-1.5 text-[8px] tracking-[0.07em]"
@@ -19469,6 +19495,26 @@ function OrbitalPolymeter() {
                                 </StudyShellButton>
                               ))}
                             </div>
+                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.16em] text-[#BFEAFF]/72">
+                                Custom Bars
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={RIFF_MAX_RESET_BARS}
+                                  value={riffCycleStudy.riff.resetBars}
+                                  onFocus={(event) => event.currentTarget.select()}
+                                  onChange={(event) =>
+                                    handleUpdateRiffPhrase({
+                                      resetMode: 'custom-cycle',
+                                      resetBars: Number.parseInt(event.target.value, 10) || riffCycleStudy.riff.resetBars,
+                                    })
+                                  }
+                                  className="w-full rounded-xl border border-[#7FD7FF]/18 bg-black/20 px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                                />
+                              </label>
+                            ) : null}
                           </div>
                           <div className="space-y-1.5">
                             <InlineInfoLabel
@@ -20297,7 +20343,7 @@ function OrbitalPolymeter() {
                           { value: 'every-4-bars', label: '4 Bars' },
                           { value: 'every-8-bars', label: '8 Bars' },
                           { value: 'every-16-bars', label: '16 Bars' },
-                          { value: 'every-32-bars', label: '32 Bars' },
+                          { value: 'custom-cycle', label: 'Custom' },
                         ].map((option) => (
                           <StudyShellButton
                             key={option.value}
@@ -20307,6 +20353,9 @@ function OrbitalPolymeter() {
                             onClick={() => {
                               handleUpdateRiffPhrase({
                                 resetMode: option.value as RiffPhrase['resetMode'],
+                                ...(option.value === 'custom-cycle'
+                                  ? { resetBars: getResetBarCount(riffCycleStudy.riff) ?? riffCycleStudy.riff.resetBars }
+                                  : {}),
                               });
                               handleSetRiffEditMode('landing');
                               setRiffQuickPanel('return');
@@ -20316,6 +20365,26 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         ))}
                       </div>
+                      {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                        <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.16em] text-[#BFEAFF]/72">
+                          Custom Bars
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={RIFF_MAX_RESET_BARS}
+                            value={riffCycleStudy.riff.resetBars}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) =>
+                              handleUpdateRiffPhrase({
+                                resetMode: 'custom-cycle',
+                                resetBars: Number.parseInt(event.target.value, 10) || riffCycleStudy.riff.resetBars,
+                              })
+                            }
+                            className="w-full rounded-xl border border-[#7FD7FF]/18 bg-black/20 px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                          />
+                        </label>
+                      ) : null}
                       {riffCycleStudy.riff.resetMode === 'free' ? (
                         <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                           Free resolves when the riff meets the barline again.
@@ -21523,7 +21592,7 @@ function OrbitalPolymeter() {
                         { value: 'every-4-bars', label: '4 Bars' },
                         { value: 'every-8-bars', label: '8 Bars' },
                         { value: 'every-16-bars', label: '16 Bars' },
-                        { value: 'every-32-bars', label: '32 Bars' },
+                        { value: 'custom-cycle', label: 'Custom' },
                       ].map((option) => (
                         <StudyShellButton
                           key={option.value}
@@ -21535,6 +21604,9 @@ function OrbitalPolymeter() {
                             setRiffDesktopEditTab('return');
                             handleUpdateRiffPhrase({
                               resetMode: option.value as RiffPhrase['resetMode'],
+                              ...(option.value === 'custom-cycle'
+                                ? { resetBars: getResetBarCount(riffCycleStudy.riff) ?? riffCycleStudy.riff.resetBars }
+                                : {}),
                             });
                           }}
                         >
@@ -21542,6 +21614,26 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       ))}
                     </div>
+                    {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
+                      <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.16em] text-[#BFEAFF]/72">
+                        Custom Bars
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={RIFF_MAX_RESET_BARS}
+                          value={riffCycleStudy.riff.resetBars}
+                          onFocus={(event) => event.currentTarget.select()}
+                          onChange={(event) =>
+                            handleUpdateRiffPhrase({
+                              resetMode: 'custom-cycle',
+                              resetBars: Number.parseInt(event.target.value, 10) || riffCycleStudy.riff.resetBars,
+                            })
+                          }
+                          className="w-full rounded-xl border border-[#7FD7FF]/18 bg-black/20 px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                        />
+                      </label>
+                    ) : null}
                     {riffCycleStudy.riff.resetMode === 'free' ? (
                       <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                         {riffFreeResolutionCopy}
