@@ -74,6 +74,7 @@ export interface RiffPhrase {
 export interface RiffSequenceCell {
   id: string;
   label: RiffSequenceCellLabel;
+  color: string;
   groups: number[];
   stepCount: number;
   activeSteps: boolean[];
@@ -143,6 +144,7 @@ export interface RiffSequencePlaybackState extends RiffSequenceTimelineEntry {
 }
 
 export const RIFF_SEQUENCE_CELL_LABELS: RiffSequenceCellLabel[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const RIFF_SEQUENCE_CELL_DEFAULT_COLORS = ['#FFD166', '#7FD7FF', '#FF88C2', '#72F1B8', '#B6A0FF', '#FFB86B', '#9BE7FF', '#C9A7FF'];
 
 export const RIFF_CYCLE_COLORS = [
   '#72F1B8',
@@ -380,6 +382,16 @@ function buildCellMaskFromGroups(groups: number[]): {
   return { stepCount, activeSteps, accents };
 }
 
+export function getRiffSequenceCellDefaultColor(label: RiffSequenceCellLabel): string {
+  const colorIndex = Math.max(0, RIFF_SEQUENCE_CELL_LABELS.indexOf(label)) % RIFF_SEQUENCE_CELL_DEFAULT_COLORS.length;
+  return RIFF_SEQUENCE_CELL_DEFAULT_COLORS[colorIndex] ?? '#FFD166';
+}
+
+function normalizeRiffColor(color: string | undefined, fallback: string): string {
+  const value = typeof color === 'string' ? color.trim() : '';
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
 export function createRiffSequenceCell(
   label: RiffSequenceCellLabel,
   groups: number[],
@@ -396,6 +408,7 @@ export function createRiffSequenceCell(
   return {
     id: overrides.id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
+    color: normalizeRiffColor(overrides.color, getRiffSequenceCellDefaultColor(label)),
     groups: deriveGroupsFromMask(activeSteps, mask.stepCount),
     stepCount: mask.stepCount,
     activeSteps,
@@ -409,12 +422,14 @@ function createRiffSequenceCellFromState(
   activeSteps: boolean[] | undefined,
   accents: boolean[] | undefined,
   id?: string,
+  color?: string,
 ): RiffSequenceCell {
   const normalizedStepCount = normalizeCellStepCount(stepCount);
   const normalizedActiveSteps = normalizeCellActiveSteps(activeSteps, normalizedStepCount);
   return {
     id: id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
+    color: normalizeRiffColor(color, getRiffSequenceCellDefaultColor(label)),
     groups: deriveGroupsFromMask(normalizedActiveSteps, normalizedStepCount),
     stepCount: normalizedStepCount,
     activeSteps: normalizedActiveSteps,
@@ -424,7 +439,7 @@ function createRiffSequenceCellFromState(
 
 function createDefaultRiffSequenceCells(riff: RiffPhrase): RiffSequenceCell[] {
   return [
-    createRiffSequenceCellFromState('A', riff.stepCount, riff.activeSteps, riff.accents),
+    createRiffSequenceCellFromState('A', riff.stepCount, riff.activeSteps, riff.accents, undefined, riff.color),
   ];
 }
 
@@ -473,6 +488,7 @@ function normalizeRiffSequenceCells(
           ? sourceCell.accents
           : cellFromGroups?.accents ?? fallbackCell.accents,
         sourceCell?.id,
+        normalizeRiffColor(sourceCell?.color, getRiffSequenceCellDefaultColor(label)),
       ),
     );
     usedLabels.add(label);
@@ -910,6 +926,7 @@ export function getVisibleRiffPhraseAtReferenceStep(
     ...study.riff,
     id: sequenceState.cell.id,
     name: `Cell ${sequenceState.cell.label}`,
+    color: sequenceState.cell.color,
     stepCount: sequenceState.cell.stepCount,
     activeSteps: sequenceState.cell.activeSteps,
     accents: sequenceState.cell.accents,
@@ -1298,6 +1315,8 @@ export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
     sourceCell.stepCount,
     sourceCell.activeSteps,
     sourceCell.accents,
+    undefined,
+    getRiffSequenceCellDefaultColor(nextLabel),
   );
   const nextCells = [...riffCells, nextCell];
   const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
@@ -1315,7 +1334,7 @@ export function setRiffCellGroups(
   groups: number[],
 ): RiffCycleStudy {
   const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff).map((cell) =>
-    cell.label === label ? createRiffSequenceCell(label, groups, { id: cell.id }) : cell,
+    cell.label === label ? createRiffSequenceCell(label, groups, { id: cell.id, color: cell.color }) : cell,
   );
   return {
     ...study,
@@ -1337,8 +1356,20 @@ export function updateRiffSequenceCellStepCount(
       normalizeCellActiveSteps(cell.activeSteps, normalizedStepCount),
       normalizeCellAccents(cell.accents, normalizedStepCount),
       cell.id,
+      cell.color,
     ),
   );
+}
+
+export function updateRiffSequenceCellColor(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  color: string,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => ({
+    ...cell,
+    color: normalizeRiffColor(color, cell.color),
+  }));
 }
 
 export function toggleRiffSequenceCellStep(
@@ -1356,7 +1387,7 @@ export function toggleRiffSequenceCellStep(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? (cell.activeSteps[index] ? false : accent) : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
   });
 }
 
@@ -1376,7 +1407,7 @@ export function setRiffSequenceCellStepActive(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? (active ? accent : false) : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
   });
 }
 
@@ -1396,7 +1427,7 @@ export function toggleRiffSequenceCellAccent(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? nextAccented : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
   });
 }
 
@@ -1416,7 +1447,7 @@ export function rotateRiffSequenceCellSteps(
       const nextIndex = (index + stepOffset + cell.stepCount) % cell.stepCount;
       nextAccents[nextIndex] = accented;
     });
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextSteps, nextAccents, cell.id);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextSteps, nextAccents, cell.id, cell.color);
   });
 }
 
@@ -1431,6 +1462,7 @@ export function invertRiffSequenceCellSteps(
       cell.activeSteps.map((active) => !active),
       cell.accents,
       cell.id,
+      cell.color,
     ),
   );
 }
@@ -1446,6 +1478,7 @@ export function clearRiffSequenceCellSteps(
       cell.activeSteps.map(() => false),
       cell.accents.map(() => false),
       cell.id,
+      cell.color,
     ),
   );
 }

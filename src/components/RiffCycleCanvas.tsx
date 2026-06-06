@@ -589,6 +589,7 @@ export default function RiffCycleCanvas({
       currentStudy,
       currentAbsoluteReferenceStep,
     );
+    const activeRiffColor = visibleRiff.color;
     const sequenceState = getRiffSequenceStateAtReferenceStep(
       currentStudy,
       currentAbsoluteReferenceStep,
@@ -711,16 +712,17 @@ export default function RiffCycleCanvas({
       ctx.font = `${exportLayoutMode ? 11.5 : 9}px "SF Mono", "Fira Code", monospace`;
       visibleEntries.forEach((entry, index) => {
         const active = entry.sequenceIndex === sequenceState.sequenceIndex;
+        const chipColor = entry.cell.color;
         const x = startX + index * (chipWidth + gap);
         drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, 7);
-        ctx.fillStyle = active ? `${currentStudy.riff.color}2E` : 'rgba(255,255,255,0.055)';
+        ctx.fillStyle = active ? `${chipColor}2E` : `${chipColor}10`;
         ctx.fill();
-        ctx.strokeStyle = active ? `${currentStudy.riff.color}C4` : 'rgba(255,255,255,0.13)';
+        ctx.strokeStyle = active ? `${chipColor}C4` : `${chipColor}2A`;
         ctx.lineWidth = active ? 1.45 : 0.9;
         ctx.stroke();
-        ctx.fillStyle = active ? currentStudy.riff.color : 'rgba(255,255,255,0.48)';
+        ctx.fillStyle = active ? chipColor : `${chipColor}B8`;
         ctx.shadowBlur = active ? 9 * glowMultiplier : 0;
-        ctx.shadowColor = active ? `${currentStudy.riff.color}88` : 'transparent';
+        ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
         ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
       });
       if (sequenceTimeline.entries.length > visibleEntries.length) {
@@ -903,8 +905,8 @@ export default function RiffCycleCanvas({
     if (currentStudy.showPhraseRing && !carveViewActive) {
       ctx.save();
       ctx.strokeStyle = flashActive
-        ? `${currentStudy.riff.color}66`
-        : `${currentStudy.riff.color}${Math.round(0x22 * lineAlpha).toString(16).padStart(2, '0')}`;
+        ? `${activeRiffColor}66`
+        : `${activeRiffColor}${Math.round(0x22 * lineAlpha).toString(16).padStart(2, '0')}`;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.arc(metrics.circleCenterX, metrics.circleCenterY, metrics.innerRadius, 0, TAU);
@@ -914,7 +916,7 @@ export default function RiffCycleCanvas({
 
     if (currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
       ctx.save();
-      ctx.fillStyle = currentStudy.riff.color;
+      ctx.fillStyle = activeRiffColor;
       ctx.globalAlpha = 0.14;
       ctx.beginPath();
       ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
@@ -928,11 +930,11 @@ export default function RiffCycleCanvas({
       ctx.restore();
 
       ctx.save();
-      ctx.strokeStyle = currentStudy.riff.color;
+      ctx.strokeStyle = activeRiffColor;
       ctx.lineWidth = 2.1;
       ctx.globalAlpha = 0.9;
       ctx.shadowBlur = 14 * glowMultiplier;
-      ctx.shadowColor = currentStudy.riff.color;
+      ctx.shadowColor = activeRiffColor;
       ctx.beginPath();
       ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
       for (let index = 1; index < activeRiffPoints.length; index += 1) {
@@ -951,7 +953,7 @@ export default function RiffCycleCanvas({
         centerY: metrics.circleCenterY,
         radius: metrics.innerRadius,
         stepCount: visibleRiff.stepCount,
-        color: currentStudy.riff.color,
+        color: activeRiffColor,
         glowMultiplier,
         pointScale,
         showLabels: circularPhraseBoundsActive,
@@ -1003,10 +1005,10 @@ export default function RiffCycleCanvas({
 
         ctx.save();
         ctx.globalAlpha = 0.72;
-        ctx.strokeStyle = currentStudy.riff.color;
+        ctx.strokeStyle = activeRiffColor;
         ctx.lineWidth = 1.45 * pointScale;
         ctx.shadowBlur = 10 * glowMultiplier * pointScale;
-        ctx.shadowColor = `${currentStudy.riff.color}88`;
+        ctx.shadowColor = `${activeRiffColor}88`;
         ctx.beginPath();
         ctx.arc(metrics.circleCenterX, metrics.circleCenterY, groupRadius, arcStart, arcEnd);
         ctx.stroke();
@@ -1048,10 +1050,10 @@ export default function RiffCycleCanvas({
           ctx.shadowBlur = 7 * glowMultiplier * pointScale;
           ctx.shadowColor = 'rgba(0,0,0,0.82)';
           ctx.strokeText(candidate.label, candidate.x, candidate.y);
-          ctx.fillStyle = currentStudy.riff.color;
+          ctx.fillStyle = activeRiffColor;
           ctx.globalAlpha = 0.9;
           ctx.shadowBlur = 6 * glowMultiplier * pointScale;
-          ctx.shadowColor = `${currentStudy.riff.color}AA`;
+          ctx.shadowColor = `${activeRiffColor}AA`;
           ctx.fillText(candidate.label, candidate.x, candidate.y);
           ctx.restore();
         });
@@ -1100,12 +1102,12 @@ export default function RiffCycleCanvas({
         ctx.strokeStyle = 'rgba(255,255,255,0.9)';
         ctx.lineWidth = 1.65 * pointScale;
         ctx.shadowBlur = 15 * glowMultiplier * pointScale;
-        ctx.shadowColor = currentStudy.riff.color;
+        ctx.shadowColor = activeRiffColor;
         ctx.beginPath();
         ctx.arc(point.x, point.y, radius + 5.6 * pointScale, 0, TAU);
         ctx.stroke();
         ctx.globalAlpha = 0.16;
-        ctx.fillStyle = currentStudy.riff.color;
+        ctx.fillStyle = activeRiffColor;
         ctx.beginPath();
         ctx.arc(point.x, point.y, radius + 8.5 * pointScale, 0, TAU);
         ctx.fill();
@@ -1124,7 +1126,7 @@ export default function RiffCycleCanvas({
 
       ctx.save();
       ctx.fillStyle = effectiveActive
-        ? currentStudy.riff.color
+        ? activeRiffColor
         : carveViewActive
           ? 'rgba(255,255,255,0.18)'
         : circularPhraseBoundsActive
@@ -1154,7 +1156,7 @@ export default function RiffCycleCanvas({
             : 1.4 * glowMultiplier * pointScale;
       ctx.shadowColor =
         effectiveActive || isHovered
-          ? currentStudy.riff.color
+          ? activeRiffColor
           : circularPhraseBoundsActive
             ? 'rgba(255,255,255,0.16)'
             : 'rgba(255,255,255,0.08)';
@@ -1177,7 +1179,7 @@ export default function RiffCycleCanvas({
         ctx.save();
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.95)'
-          : `${currentStudy.riff.color}CC`;
+          : `${activeRiffColor}CC`;
         ctx.lineWidth = (effectiveAccented ? 2.25 : 1.55) * pointScale;
         ctx.globalAlpha = Math.min(1, attackRemaining + 0.15);
         ctx.beginPath();
@@ -1380,7 +1382,7 @@ export default function RiffCycleCanvas({
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = `${currentStudy.riff.color}68`;
+    ctx.strokeStyle = `${activeRiffColor}68`;
     ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
@@ -1389,9 +1391,9 @@ export default function RiffCycleCanvas({
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = currentStudy.riff.color;
+    ctx.fillStyle = activeRiffColor;
     ctx.shadowBlur = 16 * glowMultiplier;
-    ctx.shadowColor = currentStudy.riff.color;
+    ctx.shadowColor = activeRiffColor;
     ctx.beginPath();
     ctx.arc(phraseCursorPoint.x, phraseCursorPoint.y, 4.8, 0, TAU);
     ctx.fill();
@@ -1467,7 +1469,7 @@ export default function RiffCycleCanvas({
         ctx.fillStyle = isCurrentEndingGuideBar
           ? isEndingGuideBar
             ? 'rgba(127,215,255,0.2)'
-            : `${currentStudy.riff.color}18`
+            : `${activeRiffColor}18`
           : isEndingGuideBar
             ? 'rgba(127,215,255,0.11)'
             : barIndex % 2 === 0
@@ -1479,7 +1481,7 @@ export default function RiffCycleCanvas({
           ctx.strokeStyle = isCurrentEndingGuideBar
             ? isEndingGuideBar
               ? 'rgba(127,215,255,0.62)'
-              : `${currentStudy.riff.color}88`
+              : `${activeRiffColor}88`
             : isEndingGuideBar
               ? 'rgba(127,215,255,0.36)'
               : 'rgba(255,255,255,0.08)';
@@ -1492,7 +1494,7 @@ export default function RiffCycleCanvas({
             ctx.shadowBlur = isCurrentEndingGuideBar ? 10 * glowMultiplier : 4 * glowMultiplier;
             ctx.shadowColor = isEndingGuideBar
               ? 'rgba(127,215,255,0.34)'
-              : `${currentStudy.riff.color}55`;
+              : `${activeRiffColor}55`;
             if (showEndingGuideBar || isCurrentEndingGuideBar) {
               ctx.fillText(
                 isEndingGuideBar ? 'ENDING' : 'NOW',
@@ -1554,7 +1556,7 @@ export default function RiffCycleCanvas({
 
         ctx.save();
         ctx.fillStyle = phraseActive
-          ? `${currentStudy.riff.color}${phraseAccent ? 'F0' : 'B8'}`
+          ? `${activeRiffColor}${phraseAccent ? 'F0' : 'B8'}`
           : currentStudy.landingEditEnabled && isLandingStep
             ? 'rgba(127,215,255,0.08)'
             : 'rgba(255,255,255,0.05)';
@@ -1590,7 +1592,7 @@ export default function RiffCycleCanvas({
         if (currentStudy.showAlignmentMarkers && (phraseRestart || forcedReset || freeResolution)) {
           ctx.strokeStyle = forcedReset || freeResolution
             ? 'rgba(255,209,102,0.94)'
-            : `${currentStudy.riff.color}A8`;
+            : `${activeRiffColor}A8`;
           ctx.lineWidth = forcedReset || freeResolution ? 2.1 : 1.45;
           ctx.beginPath();
           ctx.moveTo(stepX + 0.5, topLaneY - 7);
@@ -1605,15 +1607,15 @@ export default function RiffCycleCanvas({
           ctx.save();
           ctx.globalCompositeOperation = 'screen';
           ctx.globalAlpha = 0.14 + markerFlashStrength * 0.32;
-          ctx.fillStyle = `${currentStudy.riff.color}24`;
+          ctx.fillStyle = `${activeRiffColor}24`;
           ctx.fillRect(markerX - pulseWidth, y + 8, pulseWidth * 2, height - 16);
           ctx.restore();
 
           ctx.save();
           ctx.globalAlpha = 0.46 + markerFlashStrength * 0.36;
           ctx.shadowBlur = (16 + markerFlashStrength * 28) * glowMultiplier;
-          ctx.shadowColor = `${currentStudy.riff.color}EE`;
-          ctx.strokeStyle = `${currentStudy.riff.color}FF`;
+          ctx.shadowColor = `${activeRiffColor}EE`;
+          ctx.strokeStyle = `${activeRiffColor}FF`;
           ctx.lineWidth = 1.8 + markerFlashStrength * 1.5;
           ctx.lineCap = 'round';
           ctx.beginPath();
@@ -1626,7 +1628,7 @@ export default function RiffCycleCanvas({
             bottomLaneY + laneHeight + 6,
             Math.max(3.5, stepWidth * 0.2) + markerFlashStrength * 1.2,
           );
-          ctx.fillStyle = `${currentStudy.riff.color}F0`;
+          ctx.fillStyle = `${activeRiffColor}F0`;
           ctx.fill();
           ctx.restore();
         }
@@ -1801,15 +1803,15 @@ export default function RiffCycleCanvas({
           ctx.save();
           ctx.globalCompositeOperation = 'screen';
           ctx.globalAlpha = pulseAlpha;
-          ctx.fillStyle = `${currentStudy.riff.color}24`;
+          ctx.fillStyle = `${activeRiffColor}24`;
           ctx.fillRect(drawX - pulseWidth, y + 8, pulseWidth * 2, height - 16);
           ctx.restore();
 
           ctx.save();
           ctx.globalAlpha = 0.42 + markerFlashStrength * 0.36;
           ctx.shadowBlur = (18 + markerFlashStrength * 28) * glowMultiplier;
-          ctx.shadowColor = `${currentStudy.riff.color}EE`;
-          ctx.strokeStyle = `${currentStudy.riff.color}FF`;
+          ctx.shadowColor = `${activeRiffColor}EE`;
+          ctx.strokeStyle = `${activeRiffColor}FF`;
           ctx.lineWidth = 2 + markerFlashStrength * 1.7;
           ctx.lineCap = 'round';
           ctx.beginPath();
@@ -1817,7 +1819,7 @@ export default function RiffCycleCanvas({
           ctx.lineTo(drawX, y + height - 8);
           ctx.stroke();
 
-          ctx.fillStyle = `${currentStudy.riff.color}F0`;
+          ctx.fillStyle = `${activeRiffColor}F0`;
           drawDiamondMarker(
             ctx,
             drawX,
@@ -1842,7 +1844,7 @@ export default function RiffCycleCanvas({
         ) {
           ctx.fillStyle =
             markerFlashRemaining > 0
-              ? `${currentStudy.riff.color}F0`
+              ? `${activeRiffColor}F0`
               : 'rgba(255,255,255,0.72)';
           ctx.font = '8px "SF Mono", "Fira Code", monospace';
           ctx.textAlign = 'left';
@@ -1850,7 +1852,7 @@ export default function RiffCycleCanvas({
           ctx.shadowBlur = 9 * glowMultiplier;
           ctx.shadowColor =
             markerFlashRemaining > 0
-              ? `${currentStudy.riff.color}88`
+              ? `${activeRiffColor}88`
               : 'rgba(255,255,255,0.24)';
           ctx.fillText(`BAR ${visibleBarNumber}`, drawX + 5, topLaneY - 14);
         }
@@ -1859,7 +1861,7 @@ export default function RiffCycleCanvas({
 
       if (playheadX != null) {
         ctx.save();
-        ctx.strokeStyle = `${currentStudy.riff.color}AA`;
+        ctx.strokeStyle = `${activeRiffColor}AA`;
         ctx.lineWidth = 1.35;
         ctx.beginPath();
         ctx.moveTo(playheadX, topLaneY - 8);
@@ -1878,7 +1880,7 @@ export default function RiffCycleCanvas({
       ctx.shadowBlur = 9 * glowMultiplier;
       ctx.shadowColor = currentStudy.landingEditEnabled
         ? 'rgba(127,215,255,0.32)'
-        : `${currentStudy.riff.color}44`;
+        : `${activeRiffColor}44`;
       ctx.fillStyle = currentStudy.landingEditEnabled
         ? 'rgba(225,246,255,0.88)'
         : 'rgba(255,255,255,0.86)';

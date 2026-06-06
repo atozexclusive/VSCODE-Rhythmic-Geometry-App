@@ -163,6 +163,7 @@ import {
   rotateRiffSequenceCellSteps,
   setRiffSequenceBars,
   setRiffSequenceEnabled,
+  updateRiffSequenceCellColor,
   setRiffSequenceCellStepActive,
   setRiffStepActive,
   setLandingLength,
@@ -3017,6 +3018,9 @@ function RiffCellSequenceEditor({
   onRemoveLastCell,
   onResetSequence,
   onSetSequenceBars,
+  onSetCellColor,
+  colorEditingLocked = false,
+  onLockedColorClick,
   compact = false,
 }: {
   study: RiffCycleStudy;
@@ -3028,6 +3032,9 @@ function RiffCellSequenceEditor({
   onRemoveLastCell: () => void;
   onResetSequence: () => void;
   onSetSequenceBars: (bars: number) => void;
+  onSetCellColor: (label: RiffSequenceCellLabel, color: string) => void;
+  colorEditingLocked?: boolean;
+  onLockedColorClick?: () => void;
   compact?: boolean;
 }) {
   const resetStepCount = getResetStepCount(study);
@@ -3038,25 +3045,25 @@ function RiffCellSequenceEditor({
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
-  const cellVisualColors = ['#FFD166', '#7FD7FF', '#FF88C2', '#72F1B8', '#B6A0FF', '#FFB86B', '#9BE7FF', '#C9A7FF'];
+  const selectedCellColor = selectedCell?.color ?? study.riff.color;
   const getCellVisualColor = (label: RiffSequenceCellLabel): string =>
-    cellVisualColors[Math.max(0, RIFF_SEQUENCE_CELL_LABELS.indexOf(label)) % cellVisualColors.length] ?? study.riff.color;
+    cells.find((cell) => cell.label === label)?.color ?? study.riff.color;
 
   return (
     <div
       className={`rounded-2xl border ${compact ? 'px-3 py-3' : 'px-3.5 py-3.5'} space-y-3`}
       style={{
         background: study.riffSequenceEnabled
-          ? `linear-gradient(180deg, ${study.riff.color}10, rgba(255,255,255,0.025))`
+          ? `linear-gradient(180deg, ${selectedCellColor}10, rgba(255,255,255,0.025))`
           : 'rgba(255,255,255,0.03)',
-        borderColor: study.riffSequenceEnabled ? `${study.riff.color}30` : 'rgba(255,255,255,0.09)',
+        borderColor: study.riffSequenceEnabled ? `${selectedCellColor}30` : 'rgba(255,255,255,0.09)',
       }}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <div
             className="text-[10px] font-mono uppercase tracking-[0.18em]"
-            style={{ color: study.riffSequenceEnabled ? study.riff.color : 'rgba(255,255,255,0.52)' }}
+            style={{ color: study.riffSequenceEnabled ? selectedCellColor : 'rgba(255,255,255,0.52)' }}
           >
             Cell Sequencer
           </div>
@@ -3082,15 +3089,25 @@ function RiffCellSequenceEditor({
                 Cell Library
               </div>
               {selectedCell ? (
-                <div
-                  className="rounded-full border px-2 py-0.5 text-[8px] font-mono uppercase tracking-[0.12em]"
-                  style={{
-                    borderColor: `${study.riff.color}24`,
-                    background: `${study.riff.color}0d`,
-                    color: study.riff.color,
-                  }}
-                >
-                  Cell {selectedCell.label} · {selectedCell.stepCount}
+                <div className="flex items-center gap-1.5">
+                  <LimitedColorPickerButton
+                    colors={RIFF_CYCLE_COLORS}
+                    value={selectedCell.color}
+                    onChange={(color) => onSetCellColor(selectedCell.label, color)}
+                    label={`Pick Cell ${selectedCell.label} color`}
+                    locked={colorEditingLocked}
+                    onLockedClick={onLockedColorClick}
+                  />
+                  <div
+                    className="rounded-full border px-2 py-0.5 text-[8px] font-mono uppercase tracking-[0.12em]"
+                    style={{
+                      borderColor: `${selectedCell.color}24`,
+                      background: `${selectedCell.color}0d`,
+                      color: selectedCell.color,
+                    }}
+                  >
+                    Cell {selectedCell.label} · {selectedCell.stepCount}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -3210,9 +3227,9 @@ function RiffCellSequenceEditor({
                     onClick={() => onAppendCell(cell.label)}
                     className="rounded-xl border px-2.5 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.97]"
                     style={{
-                      background: `${study.riff.color}0f`,
-                      borderColor: `${study.riff.color}24`,
-                      color: study.riff.color,
+                      background: `${cell.color}0f`,
+                      borderColor: `${cell.color}24`,
+                      color: cell.color,
                     }}
                   >
                     +{cell.label}
@@ -7299,6 +7316,16 @@ function OrbitalPolymeter() {
       handleUpdateRiffPhrase({ color });
     },
     [handleUpdateRiffPhrase],
+  );
+
+  const handleSetRiffSequenceCellColor = useCallback(
+    (label: RiffSequenceCellLabel, color: string) => {
+      if (!requireEditableRiffCycleStudy()) {
+        return;
+      }
+      setRiffCycleStudy((current) => updateRiffSequenceCellColor(current, label, color));
+    },
+    [requireEditableRiffCycleStudy],
   );
 
   const handleSetRiffPhraseStepCount = useCallback((stepCount: number) => {
@@ -11469,9 +11496,20 @@ function OrbitalPolymeter() {
   const riffEditableStepCount = riffSelectedSequenceCell?.stepCount ?? riffCycleStudy.riff.stepCount;
   const riffEditableActiveSteps = riffSelectedSequenceCell?.activeSteps ?? riffCycleStudy.riff.activeSteps;
   const riffEditableAccents = riffSelectedSequenceCell?.accents ?? riffCycleStudy.riff.accents;
+  const riffEditableColor = riffSelectedSequenceCell?.color ?? riffCycleStudy.riff.color;
   const riffEditableLabel = riffSelectedSequenceCell
     ? `Cell ${riffSelectedSequenceCell.label}`
     : 'Riff';
+  const handleSetRiffEditableColor = useCallback(
+    (color: string) => {
+      if (riffSelectedSequenceCell) {
+        handleSetRiffSequenceCellColor(riffSelectedSequenceCell.label, color);
+        return;
+      }
+      handleSetRiffPhraseColor(color);
+    },
+    [handleSetRiffPhraseColor, handleSetRiffSequenceCellColor, riffSelectedSequenceCell],
+  );
   const riffVisiblePatternStepCount =
     RIFF_CELL_SEQUENCE_FEATURE_ENABLED && riffCycleStudy.riffSequenceEnabled && riffSequenceTimeline.totalSteps > 0
       ? riffSequenceTimeline.totalSteps
@@ -17796,16 +17834,16 @@ function OrbitalPolymeter() {
                           data-guide="riff-mobile-focus-pattern"
                           className="rounded-[1.65rem] border px-3.5 py-3.5"
                           style={{
-                            background: `radial-gradient(circle at 14% 0%, ${riffCycleStudy.riff.color}22, transparent 42%), linear-gradient(180deg, ${riffCycleStudy.riff.color}0f, rgba(255,255,255,0.026))`,
-                            borderColor: `${riffCycleStudy.riff.color}34`,
-                            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 30px ${riffCycleStudy.riff.color}10`,
+                            background: `radial-gradient(circle at 14% 0%, ${riffEditableColor}22, transparent 42%), linear-gradient(180deg, ${riffEditableColor}0f, rgba(255,255,255,0.026))`,
+                            borderColor: `${riffEditableColor}34`,
+                            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 30px ${riffEditableColor}10`,
                           }}
                         >
                           <div
                             className="flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5"
                             style={{
-                              background: `linear-gradient(90deg, ${riffCycleStudy.riff.color}14, rgba(255,255,255,0.026))`,
-                              borderColor: `${riffCycleStudy.riff.color}22`,
+                              background: `linear-gradient(90deg, ${riffEditableColor}14, rgba(255,255,255,0.026))`,
+                              borderColor: `${riffEditableColor}22`,
                             }}
                           >
                             <div>
@@ -17821,9 +17859,9 @@ function OrbitalPolymeter() {
                             </div>
                             <LimitedColorPickerButton
                               colors={RIFF_CYCLE_COLORS}
-                              value={riffCycleStudy.riff.color}
-                              onChange={handleSetRiffPhraseColor}
-                              label="Pick riff pattern color"
+                              value={riffEditableColor}
+                              onChange={handleSetRiffEditableColor}
+                              label={`Pick ${riffEditableLabel.toLowerCase()} color`}
                               locked={colorEditingLocked}
                               onLockedClick={() => openProPrompt('color-editing')}
                             />
@@ -17840,6 +17878,9 @@ function OrbitalPolymeter() {
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
                               onSetSequenceBars={handleSetRiffSequenceBars}
+                              onSetCellColor={handleSetRiffSequenceCellColor}
+                              colorEditingLocked={colorEditingLocked}
+                              onLockedColorClick={() => openProPrompt('color-editing')}
                               compact
                             />
                           </div>
@@ -17871,9 +17912,9 @@ function OrbitalPolymeter() {
                               <label
                                 className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center text-[14px] font-light"
                                 style={{
-                                  background: `${riffCycleStudy.riff.color}12`,
-                                  borderColor: `${riffCycleStudy.riff.color}30`,
-                                  color: riffCycleStudy.riff.color,
+                                  background: `${riffEditableColor}12`,
+                                  borderColor: `${riffEditableColor}30`,
+                                  color: riffEditableColor,
                                 }}
                               >
                                 <span className="inline-flex items-center justify-center gap-1.5">
@@ -17893,7 +17934,7 @@ function OrbitalPolymeter() {
                                       }
                                     }}
                                     className="w-9 bg-transparent text-center font-light outline-none"
-                                    style={{ color: riffCycleStudy.riff.color }}
+                                    style={{ color: riffEditableColor }}
                                     aria-label="Set riff steps"
                                   />
                                   <span>steps</span>
@@ -17913,7 +17954,7 @@ function OrbitalPolymeter() {
                             <RiffRollEditor
                               activeSteps={riffEditableActiveSteps}
                               accents={riffEditableAccents}
-                              color={riffCycleStudy.riff.color}
+                              color={riffEditableColor}
 	                              selectedStepIndex={selectedRiffCycleStep}
 	                              labelPrefix="riff"
 	                              onPressStep={(stepIndex) => {
@@ -19415,9 +19456,9 @@ function OrbitalPolymeter() {
                           <div
                             className="rounded-lg border px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em]"
                             style={{
-                              borderColor: `${riffCycleStudy.riff.color}28`,
-                              background: `${riffCycleStudy.riff.color}10`,
-                              color: riffCycleStudy.riff.color,
+                              borderColor: `${riffEditableColor}28`,
+                              background: `${riffEditableColor}10`,
+                              color: riffEditableColor,
                             }}
                           >
                             {riffEditableStepCount} Steps
@@ -19426,7 +19467,7 @@ function OrbitalPolymeter() {
                         <RiffRollEditor
                           activeSteps={riffEditableActiveSteps}
                           accents={riffEditableAccents}
-                          color={riffCycleStudy.riff.color}
+                          color={riffEditableColor}
                           selectedStepIndex={selectedRiffCycleStep}
                           labelPrefix="riff"
 	                          onPressStep={(stepIndex) => {
@@ -20206,15 +20247,18 @@ function OrbitalPolymeter() {
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
                     onSetSequenceBars={handleSetRiffSequenceBars}
+                    onSetCellColor={handleSetRiffSequenceCellColor}
+                    colorEditingLocked={colorEditingLocked}
+                    onLockedColorClick={() => openProPrompt('color-editing')}
                     compact
                   />
                   ) : null}
                   <div
                     className="space-y-2 rounded-xl border px-2.5 py-2"
                     style={{
-                      background: `${riffCycleStudy.riff.color}08`,
-                      borderColor: `${riffCycleStudy.riff.color}18`,
-                      boxShadow: `inset 0 1px 0 ${riffCycleStudy.riff.color}0d`,
+                      background: `${riffEditableColor}08`,
+                      borderColor: `${riffEditableColor}18`,
+                      boxShadow: `inset 0 1px 0 ${riffEditableColor}0d`,
                     }}
                   >
                     <div className="space-y-1">
@@ -20227,9 +20271,9 @@ function OrbitalPolymeter() {
                         />
                         <LimitedColorPickerButton
                           colors={RIFF_CYCLE_COLORS}
-                          value={riffCycleStudy.riff.color}
-                          onChange={handleSetRiffPhraseColor}
-                          label="Pick riff pattern color"
+                          value={riffEditableColor}
+                          onChange={handleSetRiffEditableColor}
+                          label={`Pick ${riffEditableLabel.toLowerCase()} color`}
                           locked={colorEditingLocked}
                           onLockedClick={() => openProPrompt('color-editing')}
                         />
@@ -22010,6 +22054,9 @@ function OrbitalPolymeter() {
                       onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                       onResetSequence={handleResetRiffSequence}
                       onSetSequenceBars={handleSetRiffSequenceBars}
+                      onSetCellColor={handleSetRiffSequenceCellColor}
+                      colorEditingLocked={colorEditingLocked}
+                      onLockedColorClick={() => openProPrompt('color-editing')}
                       compact
                     />
                     ) : null}
@@ -22036,9 +22083,9 @@ function OrbitalPolymeter() {
                             />
                             <LimitedColorPickerButton
                               colors={RIFF_CYCLE_COLORS}
-                              value={riffCycleStudy.riff.color}
-                              onChange={handleSetRiffPhraseColor}
-                              label="Pick riff pattern color"
+                              value={riffEditableColor}
+                              onChange={handleSetRiffEditableColor}
+                              label={`Pick ${riffEditableLabel.toLowerCase()} color`}
                               locked={colorEditingLocked}
                               onLockedClick={() => openProPrompt('color-editing')}
                             />
@@ -22059,9 +22106,9 @@ function OrbitalPolymeter() {
                             }}
                             className="w-[4.8rem] rounded-xl border px-2 py-1 text-center text-[14px] font-medium focus:outline-none"
                             style={{
-                              background: `${riffCycleStudy.riff.color}12`,
-                              borderColor: `${riffCycleStudy.riff.color}30`,
-                              color: riffCycleStudy.riff.color,
+                              background: `${riffEditableColor}12`,
+                              borderColor: `${riffEditableColor}30`,
+                              color: riffEditableColor,
                             }}
                             aria-label="Set riff phrase steps"
                           />
@@ -22085,8 +22132,8 @@ function OrbitalPolymeter() {
                             }
                             className="touch-slider min-w-0 flex-1"
                             style={{
-                              ['--slider-accent' as string]: riffCycleStudy.riff.color,
-                              accentColor: riffCycleStudy.riff.color,
+                              ['--slider-accent' as string]: riffEditableColor,
+                              accentColor: riffEditableColor,
                             }}
                             aria-label="Set riff phrase step count"
                           />
@@ -22146,7 +22193,7 @@ function OrbitalPolymeter() {
                       <RiffRollEditor
                         activeSteps={riffEditableActiveSteps}
                         accents={riffEditableAccents}
-                        color={riffCycleStudy.riff.color}
+                        color={riffEditableColor}
                         selectedStepIndex={selectedRiffCycleStep}
                         labelPrefix="riff-desktop"
                         onPressStep={(stepIndex) => {
