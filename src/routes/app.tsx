@@ -3038,6 +3038,9 @@ function RiffCellSequenceEditor({
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
+  const cellVisualColors = ['#FFD166', '#7FD7FF', '#FF88C2', '#72F1B8', '#B6A0FF', '#FFB86B', '#9BE7FF', '#C9A7FF'];
+  const getCellVisualColor = (label: RiffSequenceCellLabel): string =>
+    cellVisualColors[Math.max(0, RIFF_SEQUENCE_CELL_LABELS.indexOf(label)) % cellVisualColors.length] ?? study.riff.color;
 
   return (
     <div
@@ -3095,20 +3098,38 @@ function RiffCellSequenceEditor({
               <div className="flex min-w-max gap-1.5 px-0.5">
                 {cells.map((cell) => {
                   const selected = cell.label === selectedCell?.label;
+                  const cellColor = getCellVisualColor(cell.label);
+                  const previewSteps = cell.activeSteps.slice(0, Math.min(8, cell.stepCount));
                   return (
                     <button
                       key={cell.label}
                       type="button"
                       onClick={() => onSelectCell(cell.label)}
-                      className={`${compact ? 'h-9 px-3' : 'h-10 px-3.5'} rounded-xl border text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.97]`}
+                      className={`${compact ? 'h-12 min-w-14 px-2' : 'h-12 min-w-16 px-2.5'} rounded-xl border text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.97]`}
                       style={{
-                        background: selected ? `${study.riff.color}18` : 'rgba(255,255,255,0.04)',
-                        borderColor: selected ? `${study.riff.color}52` : 'rgba(255,255,255,0.1)',
-                        color: selected ? study.riff.color : 'rgba(255,255,255,0.58)',
-                        boxShadow: selected ? `0 0 0 1px ${study.riff.color}18 inset` : 'none',
+                        background: selected ? `${cellColor}18` : 'rgba(255,255,255,0.04)',
+                        borderColor: selected ? `${cellColor}66` : 'rgba(255,255,255,0.1)',
+                        color: selected ? cellColor : 'rgba(255,255,255,0.58)',
+                        boxShadow: selected ? `0 0 0 1px ${cellColor}18 inset` : 'none',
                       }}
                     >
-                      {cell.label}
+                      <span className="block leading-none">{cell.label}</span>
+                      <span className="mt-1.5 flex justify-center gap-0.5" aria-hidden="true">
+                        {previewSteps.map((active, stepIndex) => {
+                          const accented = cell.accents[stepIndex];
+                          return (
+                            <span
+                              key={`cell-preview-${cell.label}-${stepIndex}`}
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{
+                                background: active ? cellColor : 'rgba(255,255,255,0.16)',
+                                boxShadow: accented ? `0 0 0 1px ${cellColor}` : 'none',
+                                opacity: active ? 1 : 0.7,
+                              }}
+                            />
+                          );
+                        })}
+                      </span>
                     </button>
                   );
                 })}
@@ -3143,6 +3164,7 @@ function RiffCellSequenceEditor({
             <div className="flex min-h-10 flex-wrap items-center gap-1.5">
               {sequence.map((label, index) => {
                 const exists = cells.some((cell) => cell.label === label);
+                const cellColor = getCellVisualColor(label);
               return (
                 <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1.5">
                   <button
@@ -3156,13 +3178,13 @@ function RiffCellSequenceEditor({
                     style={{
                       background:
                         exists && label === selectedCell?.label
-                          ? 'rgba(127,215,255,0.12)'
+                          ? `${cellColor}18`
                           : 'rgba(255,255,255,0.04)',
                       borderColor:
                         exists && label === selectedCell?.label
-                          ? 'rgba(127,215,255,0.32)'
+                          ? `${cellColor}52`
                           : 'rgba(255,255,255,0.09)',
-                      color: exists ? (label === selectedCell?.label ? '#7FD7FF' : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
+                      color: exists ? (label === selectedCell?.label ? cellColor : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
                     }}
                   >
                     <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
@@ -3246,7 +3268,7 @@ function RiffCellSequenceEditor({
                   color: '#BFEAFF',
                 }}
               >
-                {sequenceLabel} repeats across {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'}
+                {sequenceLabel} forms one {sequenceResetBars}-bar phrase
               </div>
             ) : null}
           </div>
@@ -17826,7 +17848,7 @@ function OrbitalPolymeter() {
                             <div className="flex items-center justify-between gap-3">
                               <InlineInfoLabel
                                 infoId="riff_steps"
-                                label="Steps"
+                                label={`${riffEditableLabel} Steps`}
                                 labelClassName={mobileRiffMenuTitleClass}
                                 labelStyle={mobileRiffWhiteTitleStyle}
                               />
@@ -20199,7 +20221,7 @@ function OrbitalPolymeter() {
                       <div className="flex items-center justify-between gap-2">
                         <InlineInfoLabel
                           infoId="riff_steps"
-                          label="Riff Length"
+                          label={`${riffEditableLabel} Length`}
                           labelClassName={riffQuickControlLabelClass}
                           labelStyle={desktopMenuSubheaderStyle}
                         />
@@ -22008,7 +22030,7 @@ function OrbitalPolymeter() {
                           <div className="flex items-center gap-2">
                             <InlineInfoLabel
                               infoId="riff_steps"
-                              label="Steps"
+                              label={`${riffEditableLabel} Steps`}
                               labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                               labelStyle={desktopMenuSubheaderStyle}
                             />
