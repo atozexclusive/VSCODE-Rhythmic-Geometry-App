@@ -696,7 +696,16 @@ export default function RiffCycleCanvas({
       const gap = exportLayoutMode ? 5 : 4;
       const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
       const startX = metrics.circleCenterX - totalWidth / 2;
-      const stripY = Math.max(22, metrics.circleCenterY - metrics.outerRadius - (exportLayoutMode ? 92 : 72));
+      const bottomStripY = metrics.timelineRect
+        ? Math.max(
+            metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 32 : 22),
+            metrics.timelineRect.y - (exportLayoutMode ? 46 : 38),
+          )
+        : metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 40 : 28);
+      const stripY = Math.min(
+        rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
+        Math.max(metrics.topPadding + 8, bottomStripY),
+      );
 
       ctx.save();
       ctx.textAlign = 'center';
