@@ -3030,11 +3030,11 @@ function RiffCellSequenceEditor({
   onSetSequenceBars: (bars: number) => void;
   compact?: boolean;
 }) {
-  const sequenceTimeline = getRiffSequenceTimeline(study);
   const resetStepCount = getResetStepCount(study);
   const sequenceResetBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceBars || 4)));
   const cells = study.riffCells ?? [];
   const sequence = study.riffSequence ?? [];
+  const sequenceLabel = sequence.length > 0 ? sequence.join(' ') : 'A';
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
@@ -3055,10 +3055,10 @@ function RiffCellSequenceEditor({
             className="text-[10px] font-mono uppercase tracking-[0.18em]"
             style={{ color: study.riffSequenceEnabled ? study.riff.color : 'rgba(255,255,255,0.52)' }}
           >
-            Cell Sequence
+            Cell Sequencer
           </div>
           <div className="mt-1 text-[10px] leading-relaxed text-white/42">
-            Arrange cells and set how many bars the whole sequence resolves across.
+            Build pattern cells, arrange them, then set the section length.
           </div>
         </div>
         <StudyShellButton
@@ -3076,7 +3076,7 @@ function RiffCellSequenceEditor({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
-                Cells
+                Cell Library
               </div>
               {selectedCell ? (
                 <div
@@ -3133,60 +3133,70 @@ function RiffCellSequenceEditor({
           <div className="space-y-2 rounded-xl border border-white/10 bg-black/[0.12] px-2.5 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
-                Sequence
+                Sequence Order
               </div>
               <div className="text-[8px] font-mono uppercase tracking-[0.12em] text-white/38">
-                {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'}
+                {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'} total
               </div>
             </div>
 
-            <div className="flex min-h-9 flex-wrap items-center gap-1.5">
+            <div className="flex min-h-10 flex-wrap items-center gap-1.5">
               {sequence.map((label, index) => {
                 const exists = cells.some((cell) => cell.label === label);
               return (
-                <button
-                  key={`sequence-cell-${index}-${label}`}
-                  type="button"
-                  onClick={() => {
-                    if (exists) {
-                      onSelectCell(label);
-                    }
-                  }}
-                  className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-[10px] font-mono uppercase tracking-[0.12em]"
-                  style={{
-                    background:
-                      exists && label === selectedCell?.label
-                        ? `${study.riff.color}18`
-                        : 'rgba(255,255,255,0.04)',
-                    borderColor:
-                      exists && label === selectedCell?.label
-                        ? `${study.riff.color}44`
-                        : 'rgba(255,255,255,0.09)',
-                    color: exists ? (label === selectedCell?.label ? study.riff.color : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
-                  }}
-                >
-                  {label}
-                </button>
+                <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (exists) {
+                        onSelectCell(label);
+                      }
+                    }}
+                    className="inline-flex h-9 min-w-10 flex-col items-center justify-center rounded-lg border px-2 font-mono uppercase transition-transform active:scale-[0.97]"
+                    style={{
+                      background:
+                        exists && label === selectedCell?.label
+                          ? 'rgba(127,215,255,0.12)'
+                          : 'rgba(255,255,255,0.04)',
+                      borderColor:
+                        exists && label === selectedCell?.label
+                          ? 'rgba(127,215,255,0.32)'
+                          : 'rgba(255,255,255,0.09)',
+                      color: exists ? (label === selectedCell?.label ? '#7FD7FF' : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
+                    }}
+                  >
+                    <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
+                    <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
+                  </button>
+                  {index < sequence.length - 1 ? (
+                    <span className="text-[10px] text-white/24">-&gt;</span>
+                  ) : null}
+                </div>
               );
             })}
             </div>
 
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
-              {cells.map((cell) => (
-                <button
-                  key={`append-${cell.label}`}
-                  type="button"
-                  onClick={() => onAppendCell(cell.label)}
-                  className="rounded-xl border px-2.5 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.97]"
-                  style={{
-                    background: `${study.riff.color}0f`,
-                    borderColor: `${study.riff.color}24`,
-                    color: study.riff.color,
-                  }}
-                >
-                  {cell.label}
-                </button>
-              ))}
+            <div className="space-y-1.5">
+              <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                Add To Sequence
+              </div>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
+                {cells.map((cell) => (
+                  <button
+                    key={`append-${cell.label}`}
+                    type="button"
+                    onClick={() => onAppendCell(cell.label)}
+                    className="rounded-xl border px-2.5 py-2 text-[10px] font-mono uppercase tracking-[0.14em] transition-transform active:scale-[0.97]"
+                    style={{
+                      background: `${study.riff.color}0f`,
+                      borderColor: `${study.riff.color}24`,
+                      color: study.riff.color,
+                    }}
+                  >
+                    +{cell.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5">
@@ -3204,43 +3214,39 @@ function RiffCellSequenceEditor({
                 icon={<RotateCcw size={13} />}
                 onClick={onResetSequence}
               >
-                Reset
+                Clear Order
               </StudyShellButton>
             </div>
 
             <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
-              Whole Sequence Resolve
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={RIFF_MAX_RESET_BARS}
-                value={sequenceResetBars}
-                onFocus={(event) => event.currentTarget.select()}
-                onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-center text-[14px] font-light text-white outline-none"
-              />
+              Resolve After
+              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={RIFF_MAX_RESET_BARS}
+                  value={sequenceResetBars}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                />
+                <span className="flex items-center border-l border-white/10 px-3 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
+                  Bars
+                </span>
+              </div>
             </label>
 
             {resetStepCount != null ? (
               <div
                 className="rounded-xl border px-2.5 py-2 text-center text-[8px] font-mono uppercase tracking-[0.12em]"
                 style={{
-                  borderColor:
-                    sequenceTimeline.totalSteps > resetStepCount
-                      ? 'rgba(127,215,255,0.24)'
-                      : 'rgba(255,255,255,0.08)',
-                  background:
-                    sequenceTimeline.totalSteps > resetStepCount
-                      ? 'rgba(127,215,255,0.1)'
-                      : 'rgba(255,255,255,0.035)',
-                  color:
-                    sequenceTimeline.totalSteps > resetStepCount
-                      ? '#7FD7FF'
-                      : 'rgba(255,255,255,0.46)',
+                  borderColor: 'rgba(127,215,255,0.18)',
+                  background: 'rgba(127,215,255,0.07)',
+                  color: '#BFEAFF',
                 }}
               >
-                {sequenceTimeline.totalSteps} sequence steps over {resetStepCount} reference steps
+                {sequenceLabel} repeats across {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'}
               </div>
             ) : null}
           </div>
