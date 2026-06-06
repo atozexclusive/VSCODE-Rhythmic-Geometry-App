@@ -541,6 +541,7 @@ export default function RiffCycleCanvas({
     const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
+    const subdivisionGridVisible = Boolean(currentDisplaySettings.subdivisionGrid);
     const circularPhraseBoundsActive =
       currentStudy.showPhraseBounds && currentStudy.viewMode === 'circular';
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -837,6 +838,40 @@ export default function RiffCycleCanvas({
         ctx.restore();
       });
 
+      if (subdivisionGridVisible) {
+        metrics.referencePerimeterPoints.forEach((point, index) => {
+          const isBeat = isReferenceBeatStart(currentStudy, index);
+          if (isBeat) {
+            return;
+          }
+          const subdivisionFlashStrength =
+            currentReferenceStep === index
+              ? Math.max(0, 1 - Math.abs((referenceProgress % 1) - 0.18) / 0.82)
+              : 0;
+          const vectorX = point.x - metrics.circleCenterX;
+          const vectorY = point.y - metrics.circleCenterY;
+          const vectorLength = Math.max(1, Math.hypot(vectorX, vectorY));
+          const unitX = vectorX / vectorLength;
+          const unitY = vectorY / vectorLength;
+          const tickLength = (7 + subdivisionFlashStrength * 3.5) * shellScale;
+          const innerX = point.x - unitX * tickLength;
+          const innerY = point.y - unitY * tickLength;
+          const outerX = point.x + unitX * (2.5 * shellScale);
+          const outerY = point.y + unitY * (2.5 * shellScale);
+
+          ctx.save();
+          ctx.strokeStyle = `rgba(127,215,255,${0.11 + subdivisionFlashStrength * 0.13})`;
+          ctx.lineWidth = (0.75 + subdivisionFlashStrength * 0.45) * shellScale;
+          ctx.shadowBlur = subdivisionFlashStrength * 7 * glowMultiplier * shellScale;
+          ctx.shadowColor = 'rgba(127,215,255,0.26)';
+          ctx.beginPath();
+          ctx.moveTo(innerX, innerY);
+          ctx.lineTo(outerX, outerY);
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+
       metrics.referencePerimeterPoints.forEach((point, index) => {
         const isDownbeat = currentStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(currentStudy, index);
@@ -857,7 +892,9 @@ export default function RiffCycleCanvas({
             ? 'rgba(255,255,255,0.88)'
             : isBeat
               ? 'rgba(255,255,255,0.56)'
-              : 'rgba(255,255,255,0.16)';
+              : subdivisionGridVisible
+                ? 'rgba(127,215,255,0.22)'
+                : 'rgba(255,255,255,0.16)';
         ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier * shellScale;
         ctx.shadowColor = isBackbeat
           ? 'rgba(255,136,194,0.42)'
@@ -1559,9 +1596,24 @@ export default function RiffCycleCanvas({
           ? 'rgba(255,136,194,0.24)'
           : isBeat
             ? 'rgba(255,255,255,0.12)'
-            : 'rgba(255,255,255,0.032)';
+            : subdivisionGridVisible
+              ? 'rgba(127,215,255,0.045)'
+              : 'rgba(255,255,255,0.032)';
         ctx.fillRect(stepX, topLaneY, Math.max(1, stepWidth - 1), laneHeight);
         ctx.restore();
+
+        if (subdivisionGridVisible && !isBeat && !isBackbeat) {
+          ctx.save();
+          const subdivisionPulse = isCurrentStep ? 0.12 + 0.08 * (1 - Math.abs((referenceProgress % 1) - 0.5) * 2) : 0;
+          ctx.fillStyle = `rgba(127,215,255,${0.075 + subdivisionPulse})`;
+          ctx.fillRect(
+            stepX + Math.max(0.5, stepWidth * 0.5 - 0.5),
+            topLaneY + 6,
+            1,
+            Math.max(4, laneHeight - 12),
+          );
+          ctx.restore();
+        }
 
         ctx.save();
         ctx.fillStyle = phraseActive

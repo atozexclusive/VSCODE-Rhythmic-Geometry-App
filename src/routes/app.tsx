@@ -2613,6 +2613,40 @@ function CanvasDisplayControls({
       <div
         className={canvasCardClass}
         style={{
+          background: 'rgba(114,241,184,0.032)',
+          borderColor: 'rgba(114,241,184,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(114,241,184,0.04)',
+        }}
+      >
+        <InlineInfoLabel
+          infoId="canvas_display"
+          label="Guides"
+          labelClassName={canvasSubheaderClass}
+          labelStyle={canvasSubheaderStyle}
+        />
+        <div className="grid grid-cols-2 gap-1.5">
+          <StudyShellButton
+            size="compact"
+            tone="blue"
+            highlighted={Boolean(settings.subdivisionGrid)}
+            onClick={() => onChange({ subdivisionGrid: !settings.subdivisionGrid })}
+          >
+            Subdivisions
+          </StudyShellButton>
+          <StudyShellButton
+            size="compact"
+            tone="neutral"
+            highlighted={!settings.subdivisionGrid}
+            onClick={() => onChange({ subdivisionGrid: false })}
+          >
+            Minimal
+          </StudyShellButton>
+        </div>
+      </div>
+
+      <div
+        className={canvasCardClass}
+        style={{
           background: 'rgba(127,215,255,0.032)',
           borderColor: 'rgba(127,215,255,0.12)',
           boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',

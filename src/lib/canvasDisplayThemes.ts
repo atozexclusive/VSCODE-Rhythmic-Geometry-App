@@ -25,6 +25,7 @@ export interface CanvasDisplaySettings {
   glow: CanvasGlowLevel;
   squareGrid?: boolean;
   centerAxes?: boolean;
+  subdivisionGrid?: boolean;
 }
 
 interface CanvasDisplayTheme {
@@ -55,9 +56,13 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   glow: 'medium',
   squareGrid: true,
   centerAxes: true,
+  subdivisionGrid: false,
 };
 
-export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS;
+export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = {
+  ...DEFAULT_CANVAS_DISPLAY_SETTINGS,
+  subdivisionGrid: true,
+};
 
 export const CANVAS_DISPLAY_THEMES: Record<CanvasDisplayThemeId, CanvasDisplayTheme> = {
   classic: {
@@ -282,6 +287,7 @@ export function normalizeCanvasDisplaySettings(
     glow: value?.glow ? clampGlow(value.glow) : fallback.glow,
     squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
     centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
+    subdivisionGrid: typeof value?.subdivisionGrid === 'boolean' ? value.subdivisionGrid : fallback.subdivisionGrid,
   };
 }
 
