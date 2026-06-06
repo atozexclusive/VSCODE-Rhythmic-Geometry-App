@@ -691,10 +691,11 @@ export default function RiffCycleCanvas({
     ctx.restore();
 
     if (sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
-      const visibleEntries = sequenceTimeline.entries.slice(0, 12);
-      const chipWidth = exportLayoutMode ? 36 : 29;
-      const chipHeight = exportLayoutMode ? 20 : 17;
-      const gap = exportLayoutMode ? 5 : 4;
+      const visibleEntries = sequenceTimeline.entries.slice(0, exportLayoutMode ? 9 : 12);
+      const chipWidth = exportLayoutMode ? 62 : 29;
+      const chipHeight = exportLayoutMode ? 34 : 17;
+      const gap = exportLayoutMode ? 9 : 4;
+      const chipRadius = exportLayoutMode ? 12 : 7;
       const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
       const startX = metrics.circleCenterX - totalWidth / 2;
       const bottomStripY = metrics.timelineRect
@@ -711,34 +712,36 @@ export default function RiffCycleCanvas({
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${exportLayoutMode ? 9.5 : 8}px "SF Mono", "Fira Code", monospace`;
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = `${exportLayoutMode ? 17 : 8}px "SF Mono", "Fira Code", monospace`;
+      ctx.fillStyle = exportLayoutMode ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)';
       ctx.shadowBlur = 0;
       ctx.fillText(
         `CELL ${sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
         metrics.circleCenterX,
-        stripY - (exportLayoutMode ? 10 : 8),
+        stripY - (exportLayoutMode ? 18 : 8),
       );
-      ctx.font = `${exportLayoutMode ? 11.5 : 9}px "SF Mono", "Fira Code", monospace`;
+      ctx.font = `${exportLayoutMode ? 20 : 9}px "SF Mono", "Fira Code", monospace`;
       visibleEntries.forEach((entry, index) => {
         const active = entry.sequenceIndex === sequenceState.sequenceIndex;
         const chipColor = entry.cell.color;
         const x = startX + index * (chipWidth + gap);
-        drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, 7);
-        ctx.fillStyle = active ? `${chipColor}2E` : `${chipColor}10`;
+        drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, chipRadius);
+        ctx.fillStyle = active
+          ? `${chipColor}${exportLayoutMode ? '44' : '2E'}`
+          : `${chipColor}${exportLayoutMode ? '18' : '10'}`;
         ctx.fill();
         ctx.strokeStyle = active ? `${chipColor}C4` : `${chipColor}2A`;
-        ctx.lineWidth = active ? 1.45 : 0.9;
+        ctx.lineWidth = active ? (exportLayoutMode ? 2.35 : 1.45) : (exportLayoutMode ? 1.2 : 0.9);
         ctx.stroke();
         ctx.fillStyle = active ? chipColor : `${chipColor}B8`;
-        ctx.shadowBlur = active ? 9 * glowMultiplier : 0;
+        ctx.shadowBlur = active ? (exportLayoutMode ? 15 : 9) * glowMultiplier : 0;
         ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
         ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
       });
       if (sequenceTimeline.entries.length > visibleEntries.length) {
         ctx.fillStyle = 'rgba(255,255,255,0.34)';
         ctx.shadowBlur = 0;
-        ctx.fillText('...', startX + totalWidth + 13, stripY + chipHeight / 2);
+        ctx.fillText('...', startX + totalWidth + (exportLayoutMode ? 22 : 13), stripY + chipHeight / 2);
       }
       ctx.restore();
     }
