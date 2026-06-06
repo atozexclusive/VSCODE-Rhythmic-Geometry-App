@@ -429,8 +429,15 @@ function OrbitalPolymeterLanding() {
               See Modes
             </a>
             <Link
+              to={getModeLaunchHref('riff-cycle-study')}
+              className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:hidden"
+            >
+              Launch App
+              <ArrowRight size={14} />
+            </Link>
+            <Link
               to="/launch"
-              className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18"
+              className="hidden items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:inline-flex"
             >
               Launch App
               <ArrowRight size={14} />
