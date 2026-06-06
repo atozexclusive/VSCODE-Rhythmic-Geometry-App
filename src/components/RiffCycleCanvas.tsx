@@ -848,7 +848,7 @@ export default function RiffCycleCanvas({
             return;
           }
           const subdivisionFlashStrength =
-            currentReferenceStep === index
+            currentReferenceStep % metrics.stepsPerBar === index
               ? Math.max(0, 1 - Math.abs((referenceProgress % 1) - 0.18) / 0.82)
               : 0;
           const vectorX = point.x - metrics.circleCenterX;
@@ -856,20 +856,32 @@ export default function RiffCycleCanvas({
           const vectorLength = Math.max(1, Math.hypot(vectorX, vectorY));
           const unitX = vectorX / vectorLength;
           const unitY = vectorY / vectorLength;
-          const tickLength = (7 + subdivisionFlashStrength * 3.5) * shellScale;
+          const tickLength = (11 + subdivisionFlashStrength * 5) * shellScale;
           const innerX = point.x - unitX * tickLength;
           const innerY = point.y - unitY * tickLength;
-          const outerX = point.x + unitX * (2.5 * shellScale);
-          const outerY = point.y + unitY * (2.5 * shellScale);
+          const outerX = point.x + unitX * (3.5 * shellScale);
+          const outerY = point.y + unitY * (3.5 * shellScale);
 
           ctx.save();
-          ctx.strokeStyle = `rgba(127,215,255,${0.11 + subdivisionFlashStrength * 0.13})`;
-          ctx.lineWidth = (0.75 + subdivisionFlashStrength * 0.45) * shellScale;
-          ctx.shadowBlur = subdivisionFlashStrength * 7 * glowMultiplier * shellScale;
-          ctx.shadowColor = 'rgba(127,215,255,0.26)';
+          ctx.strokeStyle = `rgba(127,215,255,${0.18 + subdivisionFlashStrength * 0.24})`;
+          ctx.lineWidth = (1.05 + subdivisionFlashStrength * 0.65) * shellScale;
+          ctx.shadowBlur = (2 + subdivisionFlashStrength * 9) * glowMultiplier * shellScale;
+          ctx.shadowColor = 'rgba(127,215,255,0.34)';
           ctx.beginPath();
           ctx.moveTo(innerX, innerY);
           ctx.lineTo(outerX, outerY);
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.save();
+          ctx.strokeStyle = `rgba(127,215,255,${0.055 + subdivisionFlashStrength * 0.06})`;
+          ctx.lineWidth = 0.75 * shellScale;
+          ctx.beginPath();
+          ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
+          ctx.lineTo(
+            metrics.circleCenterX + unitX * (metrics.outerRadius - 18 * shellScale),
+            metrics.circleCenterY + unitY * (metrics.outerRadius - 18 * shellScale),
+          );
           ctx.stroke();
           ctx.restore();
         });
@@ -896,7 +908,7 @@ export default function RiffCycleCanvas({
             : isBeat
               ? 'rgba(255,255,255,0.56)'
               : subdivisionGridVisible
-                ? 'rgba(127,215,255,0.22)'
+                ? 'rgba(127,215,255,0.34)'
                 : 'rgba(255,255,255,0.16)';
         ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier * shellScale;
         ctx.shadowColor = isBackbeat
@@ -1600,20 +1612,20 @@ export default function RiffCycleCanvas({
           : isBeat
             ? 'rgba(255,255,255,0.12)'
             : subdivisionGridVisible
-              ? 'rgba(127,215,255,0.045)'
+              ? 'rgba(127,215,255,0.075)'
               : 'rgba(255,255,255,0.032)';
         ctx.fillRect(stepX, topLaneY, Math.max(1, stepWidth - 1), laneHeight);
         ctx.restore();
 
         if (subdivisionGridVisible && !isBeat && !isBackbeat) {
           ctx.save();
-          const subdivisionPulse = isCurrentStep ? 0.12 + 0.08 * (1 - Math.abs((referenceProgress % 1) - 0.5) * 2) : 0;
-          ctx.fillStyle = `rgba(127,215,255,${0.075 + subdivisionPulse})`;
+          const subdivisionPulse = isCurrentStep ? 0.16 + 0.12 * (1 - Math.abs((referenceProgress % 1) - 0.5) * 2) : 0;
+          ctx.fillStyle = `rgba(127,215,255,${0.14 + subdivisionPulse})`;
           ctx.fillRect(
-            stepX + Math.max(0.5, stepWidth * 0.5 - 0.5),
-            topLaneY + 6,
-            1,
-            Math.max(4, laneHeight - 12),
+            stepX + Math.max(0.5, stepWidth * 0.5 - 0.75),
+            topLaneY + 4,
+            1.5,
+            Math.max(6, laneHeight - 8),
           );
           ctx.restore();
         }
