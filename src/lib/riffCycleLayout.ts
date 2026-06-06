@@ -1,10 +1,10 @@
 import {
   getDisplayStepCount,
+  getEffectiveResetBarCount,
   getReferenceStepsPerBar,
   getReferenceStepsPerBeat,
   getRiffPhrasePoints,
   getRiffStepIndexAtReferenceStep,
-  getResetBarCount,
   getResetStepCount,
   type RiffCycleStudy,
 } from './riffCycleStudy';
@@ -124,7 +124,7 @@ export function getRiffCycleCanvasMetrics(
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
   const maxVisibleStart = Math.max(0, totalDisplaySteps - visibleStepCount);
-  const resetBarCount = getResetBarCount(study.riff);
+  const resetBarCount = getEffectiveResetBarCount(study);
   const absoluteTimeline =
     showingTimeline &&
     (getResetStepCount(study) == null ||
