@@ -1,10 +1,10 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
   getEffectiveRiffStepStateAtReferenceStep,
+  getEffectiveResetBarCount,
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBeat,
   getReferenceStepsPerBar,
-  getResetBarCount,
   isPhraseRestartAtReferenceStep,
   type RiffCycleStudy,
   type RiffCycleSoundSettings,
@@ -131,7 +131,7 @@ export function buildRiffCycleMidiFile(
   const ticksPerStep = Math.max(1, Math.round(MIDI_PPQ / Math.max(1, stepsPerBeat)));
   const exportBarCount =
     mode === 'cycle'
-      ? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay
+      ? getEffectiveResetBarCount(study) ?? study.reference.barCountForDisplay
       : Math.max(1, Math.ceil(study.riff.stepCount / stepsPerBar));
   const exportStepCount =
     mode === 'cycle'
