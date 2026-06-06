@@ -147,7 +147,6 @@ import {
   createDefaultRiffCycleStudy,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
-  getEffectiveResetBarCount,
   getLandingWindowLength,
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBar,
@@ -161,7 +160,6 @@ import {
   resetRiffSequenceOrder,
   rotateRiffSteps,
   rotateRiffSequenceCellSteps,
-  setRiffSequenceBars,
   setRiffSequenceEnabled,
   setRiffSequenceCellStepActive,
   setRiffStepActive,
@@ -3007,7 +3005,6 @@ function RiffCellSequenceEditor({
   onAppendCell,
   onRemoveLastCell,
   onResetSequence,
-  onSetSequenceBars,
   compact = false,
 }: {
   study: RiffCycleStudy;
@@ -3018,12 +3015,10 @@ function RiffCellSequenceEditor({
   onAppendCell: (label: RiffSequenceCellLabel) => void;
   onRemoveLastCell: () => void;
   onResetSequence: () => void;
-  onSetSequenceBars: (bars: number) => void;
   compact?: boolean;
 }) {
   const sequenceTimeline = getRiffSequenceTimeline(study);
   const resetStepCount = getResetStepCount(study);
-  const sequenceResetBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceBars || 4)));
   const cells = study.riffCells ?? [];
   const sequence = study.riffSequence ?? [];
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
@@ -3049,7 +3044,7 @@ function RiffCellSequenceEditor({
             Cell Sequence
           </div>
           <div className="mt-1 text-[10px] leading-relaxed text-white/42">
-            Arrange cells and set how many bars the whole sequence resolves across.
+            Arrange local riff cells without changing the bar frame.
           </div>
         </div>
         <StudyShellButton
@@ -3127,7 +3122,7 @@ function RiffCellSequenceEditor({
                 Sequence
               </div>
               <div className="text-[8px] font-mono uppercase tracking-[0.12em] text-white/38">
-                {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'}
+                {sequenceTimeline.totalSteps} steps
               </div>
             </div>
 
@@ -3199,20 +3194,6 @@ function RiffCellSequenceEditor({
               </StudyShellButton>
             </div>
 
-            <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
-              Whole Sequence Resolve
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={RIFF_MAX_RESET_BARS}
-                value={sequenceResetBars}
-                onFocus={(event) => event.currentTarget.select()}
-                onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-center text-[14px] font-light text-white outline-none"
-              />
-            </label>
-
             {resetStepCount != null ? (
               <div
                 className="rounded-xl border px-2.5 py-2 text-center text-[8px] font-mono uppercase tracking-[0.12em]"
@@ -3231,7 +3212,7 @@ function RiffCellSequenceEditor({
                       : 'rgba(255,255,255,0.46)',
                 }}
               >
-                {sequenceTimeline.totalSteps} sequence steps over {resetStepCount} reference steps
+                Reset {resetStepCount} steps
               </div>
             ) : null}
           </div>
@@ -6102,7 +6083,7 @@ function OrbitalPolymeter() {
       ? riffMobileFreeResolutionBars
       : Math.max(
           1,
-          getEffectiveResetBarCount(riffCycleStudy) ?? riffCycleStudy.reference.barCountForDisplay,
+          getResetBarCount(riffCycleStudy.riff) ?? riffCycleStudy.reference.barCountForDisplay,
         );
   const riffMobileEndingFocusActive =
     !riffMobileLaneHidden &&
@@ -7338,14 +7319,6 @@ function OrbitalPolymeter() {
     }
     setRiffCycleStudy((current) => resetRiffSequenceOrder(current));
     setSelectedRiffSequenceCellLabel('A');
-    setRiffCycleRestartToken((value) => value + 1);
-  }, [requireEditableRiffCycleStudy]);
-
-  const handleSetRiffSequenceBars = useCallback((bars: number) => {
-    if (!requireEditableRiffCycleStudy()) {
-      return;
-    }
-    setRiffCycleStudy((current) => setRiffSequenceBars(current, bars));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
 
@@ -17059,16 +17032,11 @@ function OrbitalPolymeter() {
         (riffMobileBarPanelActive || riffMobilePhrasePanelActive) && !riffMobileLaneHidden;
       const riffMobileLanePanelActive = riffMobileMainLaneActive;
       const riffMobileRiffResolveHint =
-        riffCycleStudy.riffSequenceEnabled
-          ? (() => {
-              const sequenceBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(riffCycleStudy.riffSequenceBars || 4)));
-              return `The cell sequence resolves every ${sequenceBars.toLocaleString()} bar${sequenceBars === 1 ? '' : 's'}.`;
-            })()
-        : riffCycleStudy.riff.resetMode === 'free'
+        riffCycleStudy.riff.resetMode === 'free'
           ? getFreeRiffResolutionCopy(riffCycleStudy)
           : (() => {
               const resetBars =
-                getEffectiveResetBarCount(riffCycleStudy) ?? riffMobileFreeResolutionBars;
+                getResetBarCount(riffCycleStudy.riff) ?? riffMobileFreeResolutionBars;
               return `This riff restarts every ${resetBars.toLocaleString()} bar${resetBars === 1 ? '' : 's'}. Choose Free to hear it keep moving until it meets the bar line again.`;
             })();
       const riffMobileLaneWindowLabel =
@@ -17802,7 +17770,6 @@ function OrbitalPolymeter() {
                               onAppendCell={handleAppendRiffSequenceCell}
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
-                              onSetSequenceBars={handleSetRiffSequenceBars}
                               compact
                             />
                           </div>
@@ -20172,7 +20139,6 @@ function OrbitalPolymeter() {
                     onAppendCell={handleAppendRiffSequenceCell}
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
-                    onSetSequenceBars={handleSetRiffSequenceBars}
                     compact
                   />
                   ) : null}
@@ -21993,7 +21959,6 @@ function OrbitalPolymeter() {
                       onAppendCell={handleAppendRiffSequenceCell}
                       onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                       onResetSequence={handleResetRiffSequence}
-                      onSetSequenceBars={handleSetRiffSequenceBars}
                       compact
                     />
                     ) : null}

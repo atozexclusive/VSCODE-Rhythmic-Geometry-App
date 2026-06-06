@@ -24,7 +24,6 @@ import {
   canEditRiffStep,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
-  getEffectiveResetBarCount,
   getLandingStepCount,
   getLandingWindowLength,
   getLandingSlotAtReferenceStep,
@@ -32,6 +31,7 @@ import {
   getReferenceStepsPerBar,
   getReferenceStepsPerBeat,
   getReferenceStepsPerSecond,
+  getResetBarCount,
   getResetStepCount,
   getRiffSequenceStateAtReferenceStep,
   getRiffSequenceTimeline,
@@ -221,7 +221,7 @@ function isFreeResolutionAtReferenceStep(study: RiffCycleStudy, referenceStep: n
 }
 
 function getVisibleBarNumber(study: RiffCycleStudy, barIndex: number): number {
-  const resetBarCount = getEffectiveResetBarCount(study);
+  const resetBarCount = getResetBarCount(study.riff);
   if (resetBarCount == null) {
     const barCount = getFreeResolutionBarCount(study);
     const normalizedBarIndex = ((barIndex % barCount) + barCount) % barCount;
@@ -235,7 +235,7 @@ function getVisibleBarNumber(study: RiffCycleStudy, barIndex: number): number {
 }
 
 function isVisibleBarCycleStart(study: RiffCycleStudy, barIndex: number): boolean {
-  const resetBarCount = getEffectiveResetBarCount(study);
+  const resetBarCount = getResetBarCount(study.riff);
   const barCount =
     resetBarCount == null
       ? getFreeResolutionBarCount(study)
@@ -247,7 +247,7 @@ function shouldUseAbsoluteLaneWindow(study: RiffCycleStudy): boolean {
   if (study.viewMode !== 'unwrapped') {
     return false;
   }
-  const resetBarCount = getEffectiveResetBarCount(study);
+  const resetBarCount = getResetBarCount(study.riff);
   return resetBarCount == null || resetBarCount > Math.max(1, study.reference.barCountForDisplay);
 }
 

@@ -89,7 +89,6 @@ export interface RiffCycleStudy {
   riffSequenceEnabled: boolean;
   riffCells: RiffSequenceCell[];
   riffSequence: RiffSequenceCellLabel[];
-  riffSequenceBars: number;
   playing: boolean;
   soundEnabled: boolean;
   referenceSoundEnabled: boolean;
@@ -723,9 +722,6 @@ export function createRiffCycleStudy(
     riffSequenceEnabled: overrides.riffSequenceEnabled ?? false,
     riffCells,
     riffSequence: normalizeRiffSequenceOrder(overrides.riffSequence, riffCells),
-    riffSequenceBars: normalizeBars(
-      overrides.riffSequenceBars ?? getResetBarCount(riff) ?? reference.barCountForDisplay,
-    ),
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
@@ -777,7 +773,6 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       accents: [...cell.accents],
     })),
     riffSequence: normalizeRiffSequenceOrder(study.riffSequence, riffCells),
-    riffSequenceBars: normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay),
     soundSettings: { ...study.soundSettings },
     landingOverrides: [...study.landingOverrides],
   };
@@ -823,15 +818,8 @@ export function getResetBarCount(riff: RiffPhrase): number | null {
   }
 }
 
-export function getEffectiveResetBarCount(study: RiffCycleStudy): number | null {
-  if (study.riffSequenceEnabled) {
-    return normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
-  }
-  return getResetBarCount(study.riff);
-}
-
 export function getResetStepCount(study: RiffCycleStudy): number | null {
-  const resetBars = getEffectiveResetBarCount(study);
+  const resetBars = getResetBarCount(study.riff);
   if (resetBars == null) {
     return null;
   }
@@ -1014,7 +1002,7 @@ export function getDownbeatSteps(study: RiffCycleStudy): number[] {
 
 export function getDriftStepOffsets(study: RiffCycleStudy): number[] {
   const stepsPerBar = getReferenceStepsPerBar(study.reference);
-  const resetBars = getEffectiveResetBarCount(study) ?? study.reference.barCountForDisplay;
+  const resetBars = getResetBarCount(study.riff) ?? study.reference.barCountForDisplay;
   const count = Math.min(study.reference.barCountForDisplay, resetBars);
   return Array.from({ length: count }, (_, index) => (index * stepsPerBar) % study.riff.stepCount);
 }
@@ -1457,13 +1445,6 @@ export function setRiffSequenceOrder(
     ...study,
     riffCells,
     riffSequence: normalizeRiffSequenceOrder(sequence, riffCells),
-  };
-}
-
-export function setRiffSequenceBars(study: RiffCycleStudy, bars: number): RiffCycleStudy {
-  return {
-    ...study,
-    riffSequenceBars: normalizeBars(bars),
   };
 }
 
