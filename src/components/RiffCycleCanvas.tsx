@@ -541,11 +541,6 @@ export default function RiffCycleCanvas({
     const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
-    const subdivisionGuideMode =
-      currentDisplaySettings.subdivisionGuide ??
-      (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
-    const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
-    const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const circularPhraseBoundsActive =
       currentStudy.showPhraseBounds && currentStudy.viewMode === 'circular';
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -583,6 +578,20 @@ export default function RiffCycleCanvas({
     );
     const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
     const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
+    const manualSubdivisionGuideMode =
+      currentDisplaySettings.subdivisionGuide ??
+      (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
+    const subdivisionGuideAutomation = currentDisplaySettings.subdivisionGuideAutomation;
+    const currentSubdivisionGuideBar = Math.floor(currentAbsoluteReferenceStep / Math.max(1, stepsPerBar));
+    const subdivisionGuideMode =
+      subdivisionGuideAutomation?.enabled
+        ? subdivisionGuideAutomation.modes[
+            Math.floor(currentSubdivisionGuideBar / Math.max(1, subdivisionGuideAutomation.cycleBars)) %
+              subdivisionGuideAutomation.modes.length
+          ] ?? manualSubdivisionGuideMode
+        : manualSubdivisionGuideMode;
+    const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
+    const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const currentReferenceStep =
       ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
     const currentLaneReferenceStep =

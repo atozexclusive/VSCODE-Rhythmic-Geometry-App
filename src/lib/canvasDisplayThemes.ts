@@ -19,6 +19,13 @@ export type CanvasAtmosphereId =
 
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
 export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
+export type CanvasSubdivisionGuideCycleBars = 4 | 8 | 16;
+
+export interface CanvasSubdivisionGuideAutomation {
+  enabled: boolean;
+  cycleBars: CanvasSubdivisionGuideCycleBars;
+  modes: [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode];
+}
 
 export interface CanvasDisplaySettings {
   theme: CanvasDisplayThemeId;
@@ -27,6 +34,7 @@ export interface CanvasDisplaySettings {
   squareGrid?: boolean;
   centerAxes?: boolean;
   subdivisionGuide?: CanvasSubdivisionGuideMode;
+  subdivisionGuideAutomation?: CanvasSubdivisionGuideAutomation;
   subdivisionGrid?: boolean;
 }
 
@@ -59,6 +67,11 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   squareGrid: true,
   centerAxes: true,
   subdivisionGuide: 'off',
+  subdivisionGuideAutomation: {
+    enabled: false,
+    cycleBars: 8,
+    modes: ['off', 'minimal'],
+  },
   subdivisionGrid: false,
 };
 
@@ -295,6 +308,32 @@ function clampSubdivisionGuide(
   return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuide ?? 'off';
 }
 
+function clampSubdivisionGuideCycleBars(value: unknown): CanvasSubdivisionGuideCycleBars {
+  return value === 4 || value === 8 || value === 16 ? value : 8;
+}
+
+function normalizeSubdivisionGuideAutomation(
+  value: Partial<CanvasSubdivisionGuideAutomation> | null | undefined,
+  fallback: CanvasSubdivisionGuideAutomation | undefined,
+): CanvasSubdivisionGuideAutomation {
+  const fallbackAutomation =
+    fallback ??
+    DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuideAutomation ?? {
+      enabled: false,
+      cycleBars: 8,
+      modes: ['off', 'minimal'] as [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode],
+    };
+  const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
+  return {
+    enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
+    cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
+    modes: [
+      clampSubdivisionGuide(sourceModes[0], undefined, fallbackAutomation.modes[0]),
+      clampSubdivisionGuide(sourceModes[1], undefined, fallbackAutomation.modes[1]),
+    ],
+  };
+}
+
 export function normalizeCanvasDisplaySettings(
   value: Partial<CanvasDisplaySettings> | null | undefined,
   fallback: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
@@ -311,6 +350,10 @@ export function normalizeCanvasDisplaySettings(
     squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
     centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
     subdivisionGuide,
+    subdivisionGuideAutomation: normalizeSubdivisionGuideAutomation(
+      value?.subdivisionGuideAutomation,
+      fallback.subdivisionGuideAutomation,
+    ),
     subdivisionGrid: subdivisionGuide === 'subdivisions',
   };
 }

@@ -200,6 +200,7 @@ import {
   type CanvasDisplaySettings,
   type CanvasDisplayThemeId,
   type CanvasGlowLevel,
+  type CanvasSubdivisionGuideCycleBars,
   type CanvasSubdivisionGuideMode,
 } from '../lib/canvasDisplayThemes';
 
@@ -2555,6 +2556,26 @@ function CanvasDisplayControls({
     : 'space-y-2.5 rounded-xl border px-3 py-3';
   const subdivisionGuideMode: CanvasSubdivisionGuideMode =
     settings.subdivisionGuide ?? (settings.subdivisionGrid ? 'subdivisions' : 'off');
+  const subdivisionGuideAutomation = settings.subdivisionGuideAutomation ?? {
+    enabled: false,
+    cycleBars: 8 as CanvasSubdivisionGuideCycleBars,
+    modes: ['off', 'minimal'] as [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode],
+  };
+  const subdivisionGuideModeOptions: Array<{ value: CanvasSubdivisionGuideMode; label: string }> = [
+    { value: 'off', label: 'Off' },
+    { value: 'minimal', label: 'Minimal' },
+    { value: 'subdivisions', label: 'Subdiv' },
+  ];
+  const updateSubdivisionGuideAutomation = (
+    updates: Partial<typeof subdivisionGuideAutomation>,
+  ) => {
+    onChange({
+      subdivisionGuideAutomation: {
+        ...subdivisionGuideAutomation,
+        ...updates,
+      },
+    });
+  };
 
   return (
     <div className={compact ? 'space-y-2' : 'space-y-2.5'}>
@@ -2653,6 +2674,68 @@ function CanvasDisplayControls({
             Off
           </StudyShellButton>
         </div>
+        <div className="h-px bg-white/6" />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+            By Bars
+          </span>
+          <StudyShellButton
+            size="compact"
+            tone="amber"
+            highlighted={subdivisionGuideAutomation.enabled}
+            onClick={() =>
+              updateSubdivisionGuideAutomation({
+                enabled: !subdivisionGuideAutomation.enabled,
+              })
+            }
+          >
+            {subdivisionGuideAutomation.enabled ? 'On' : 'Off'}
+          </StudyShellButton>
+        </div>
+        {subdivisionGuideAutomation.enabled ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              {([4, 8, 16] as const).map((cycleBars) => (
+                <StudyShellButton
+                  key={cycleBars}
+                  size="compact"
+                  tone="blue"
+                  highlighted={subdivisionGuideAutomation.cycleBars === cycleBars}
+                  onClick={() => updateSubdivisionGuideAutomation({ cycleBars })}
+                >
+                  {cycleBars} Bars
+                </StudyShellButton>
+              ))}
+            </div>
+            {[0, 1].map((cycleIndex) => (
+              <div key={`subdivision-cycle-${cycleIndex}`} className="space-y-1">
+                <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
+                  Cycle {cycleIndex + 1}
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {subdivisionGuideModeOptions.map((option) => (
+                    <StudyShellButton
+                      key={`${cycleIndex}-${option.value}`}
+                      size="compact"
+                      tone={option.value === 'off' ? 'neutral' : 'blue'}
+                      highlighted={subdivisionGuideAutomation.modes[cycleIndex] === option.value}
+                      onClick={() => {
+                        const modes = [...subdivisionGuideAutomation.modes] as [
+                          CanvasSubdivisionGuideMode,
+                          CanvasSubdivisionGuideMode,
+                        ];
+                        modes[cycleIndex] = option.value;
+                        updateSubdivisionGuideAutomation({ modes });
+                      }}
+                    >
+                      {option.label}
+                    </StudyShellButton>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div
