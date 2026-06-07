@@ -24,7 +24,7 @@ export type CanvasSubdivisionGuideCycleBars = 4 | 8 | 16;
 export interface CanvasSubdivisionGuideAutomation {
   enabled: boolean;
   cycleBars: CanvasSubdivisionGuideCycleBars;
-  modes: [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode];
+  modes: CanvasSubdivisionGuideMode[];
 }
 
 export interface CanvasDisplaySettings {
@@ -321,16 +321,22 @@ function normalizeSubdivisionGuideAutomation(
     DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuideAutomation ?? {
       enabled: false,
       cycleBars: 8,
-      modes: ['off', 'minimal'] as [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode],
+      modes: ['off', 'minimal'],
     };
   const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
+  const normalizedModes = sourceModes
+    .slice(0, 8)
+    .map((mode, index) =>
+      clampSubdivisionGuide(
+        mode,
+        undefined,
+        fallbackAutomation.modes[index] ?? fallbackAutomation.modes[0] ?? 'off',
+      ),
+    );
   return {
     enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
     cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
-    modes: [
-      clampSubdivisionGuide(sourceModes[0], undefined, fallbackAutomation.modes[0]),
-      clampSubdivisionGuide(sourceModes[1], undefined, fallbackAutomation.modes[1]),
-    ],
+    modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'minimal'],
   };
 }
 

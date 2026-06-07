@@ -2559,8 +2559,9 @@ function CanvasDisplayControls({
   const subdivisionGuideAutomation = settings.subdivisionGuideAutomation ?? {
     enabled: false,
     cycleBars: 8 as CanvasSubdivisionGuideCycleBars,
-    modes: ['off', 'minimal'] as [CanvasSubdivisionGuideMode, CanvasSubdivisionGuideMode],
+    modes: ['off', 'minimal'] as CanvasSubdivisionGuideMode[],
   };
+  const canAddSubdivisionGuideCycle = subdivisionGuideAutomation.modes.length < 8;
   const subdivisionGuideModeOptions: Array<{ value: CanvasSubdivisionGuideMode; label: string }> = [
     { value: 'off', label: 'Off' },
     { value: 'minimal', label: 'Minimal' },
@@ -2707,10 +2708,26 @@ function CanvasDisplayControls({
                 </StudyShellButton>
               ))}
             </div>
-            {[0, 1].map((cycleIndex) => (
+            {subdivisionGuideAutomation.modes.map((cycleMode, cycleIndex) => (
               <div key={`subdivision-cycle-${cycleIndex}`} className="space-y-1">
-                <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
-                  Cycle {cycleIndex + 1}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
+                    Cycle {cycleIndex + 1}
+                  </div>
+                  {subdivisionGuideAutomation.modes.length > 2 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateSubdivisionGuideAutomation({
+                          modes: subdivisionGuideAutomation.modes.filter((_, index) => index !== cycleIndex),
+                        });
+                      }}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-white/42 transition active:scale-[0.96]"
+                      aria-label={`Remove subdivision guide cycle ${cycleIndex + 1}`}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  ) : null}
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {subdivisionGuideModeOptions.map((option) => (
@@ -2718,12 +2735,9 @@ function CanvasDisplayControls({
                       key={`${cycleIndex}-${option.value}`}
                       size="compact"
                       tone={option.value === 'off' ? 'neutral' : 'blue'}
-                      highlighted={subdivisionGuideAutomation.modes[cycleIndex] === option.value}
+                      highlighted={cycleMode === option.value}
                       onClick={() => {
-                        const modes = [...subdivisionGuideAutomation.modes] as [
-                          CanvasSubdivisionGuideMode,
-                          CanvasSubdivisionGuideMode,
-                        ];
+                        const modes = [...subdivisionGuideAutomation.modes];
                         modes[cycleIndex] = option.value;
                         updateSubdivisionGuideAutomation({ modes });
                       }}
@@ -2734,6 +2748,22 @@ function CanvasDisplayControls({
                 </div>
               </div>
             ))}
+            <StudyShellButton
+              size="compact"
+              tone="amber"
+              icon={<Plus size={13} />}
+              disabled={!canAddSubdivisionGuideCycle}
+              onClick={() =>
+                updateSubdivisionGuideAutomation({
+                  modes: [
+                    ...subdivisionGuideAutomation.modes,
+                    subdivisionGuideAutomation.modes[subdivisionGuideAutomation.modes.length - 1] ?? 'minimal',
+                  ],
+                })
+              }
+            >
+              Add Cycle
+            </StudyShellButton>
           </div>
         ) : null}
       </div>
