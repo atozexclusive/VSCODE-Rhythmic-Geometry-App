@@ -541,7 +541,11 @@ export default function RiffCycleCanvas({
     const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
-    const subdivisionGridVisible = Boolean(currentDisplaySettings.subdivisionGrid);
+    const subdivisionGuideMode =
+      currentDisplaySettings.subdivisionGuide ??
+      (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
+    const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
+    const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const circularPhraseBoundsActive =
       currentStudy.showPhraseBounds && currentStudy.viewMode === 'circular';
     const glowMultiplier = getCanvasGlowMultiplier(
@@ -841,7 +845,7 @@ export default function RiffCycleCanvas({
         ctx.restore();
       });
 
-      if (subdivisionGridVisible) {
+      if (subdivisionGuideVisible) {
         metrics.referencePerimeterPoints.forEach((point, index) => {
           const isBeat = isReferenceBeatStart(currentStudy, index);
           if (isBeat) {
@@ -873,17 +877,19 @@ export default function RiffCycleCanvas({
           ctx.stroke();
           ctx.restore();
 
-          ctx.save();
-          ctx.strokeStyle = `rgba(127,215,255,${0.055 + subdivisionFlashStrength * 0.06})`;
-          ctx.lineWidth = 0.75 * shellScale;
-          ctx.beginPath();
-          ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
-          ctx.lineTo(
-            metrics.circleCenterX + unitX * (metrics.outerRadius - 18 * shellScale),
-            metrics.circleCenterY + unitY * (metrics.outerRadius - 18 * shellScale),
-          );
-          ctx.stroke();
-          ctx.restore();
+          if (subdivisionSpokesVisible) {
+            ctx.save();
+            ctx.strokeStyle = `rgba(127,215,255,${0.055 + subdivisionFlashStrength * 0.06})`;
+            ctx.lineWidth = 0.75 * shellScale;
+            ctx.beginPath();
+            ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
+            ctx.lineTo(
+              metrics.circleCenterX + unitX * (metrics.outerRadius - 18 * shellScale),
+              metrics.circleCenterY + unitY * (metrics.outerRadius - 18 * shellScale),
+            );
+            ctx.stroke();
+            ctx.restore();
+          }
         });
       }
 
@@ -907,7 +913,7 @@ export default function RiffCycleCanvas({
             ? 'rgba(255,255,255,0.88)'
             : isBeat
               ? 'rgba(255,255,255,0.56)'
-              : subdivisionGridVisible
+              : subdivisionGuideVisible
                 ? 'rgba(127,215,255,0.34)'
                 : 'rgba(255,255,255,0.16)';
         ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier * shellScale;
@@ -1611,13 +1617,13 @@ export default function RiffCycleCanvas({
           ? 'rgba(255,136,194,0.24)'
           : isBeat
             ? 'rgba(255,255,255,0.12)'
-            : subdivisionGridVisible
+            : subdivisionGuideVisible
               ? 'rgba(127,215,255,0.075)'
               : 'rgba(255,255,255,0.032)';
         ctx.fillRect(stepX, topLaneY, Math.max(1, stepWidth - 1), laneHeight);
         ctx.restore();
 
-        if (subdivisionGridVisible && !isBeat && !isBackbeat) {
+        if (subdivisionGuideVisible && !isBeat && !isBackbeat) {
           ctx.save();
           const subdivisionPulse = isCurrentStep ? 0.16 + 0.12 * (1 - Math.abs((referenceProgress % 1) - 0.5) * 2) : 0;
           ctx.fillStyle = `rgba(127,215,255,${0.14 + subdivisionPulse})`;

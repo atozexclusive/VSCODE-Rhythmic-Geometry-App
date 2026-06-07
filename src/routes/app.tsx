@@ -200,6 +200,7 @@ import {
   type CanvasDisplaySettings,
   type CanvasDisplayThemeId,
   type CanvasGlowLevel,
+  type CanvasSubdivisionGuideMode,
 } from '../lib/canvasDisplayThemes';
 
 const SCENES_STORAGE_KEY = 'orbital-polymeter-scenes';
@@ -2552,6 +2553,8 @@ function CanvasDisplayControls({
   const canvasCardClass = compact
     ? 'space-y-2 rounded-xl border px-3 py-3'
     : 'space-y-2.5 rounded-xl border px-3 py-3';
+  const subdivisionGuideMode: CanvasSubdivisionGuideMode =
+    settings.subdivisionGuide ?? (settings.subdivisionGrid ? 'subdivisions' : 'off');
 
   return (
     <div className={compact ? 'space-y-2' : 'space-y-2.5'}>
@@ -2624,22 +2627,30 @@ function CanvasDisplayControls({
           labelClassName={canvasSubheaderClass}
           labelStyle={canvasSubheaderStyle}
         />
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           <StudyShellButton
             size="compact"
             tone="blue"
-            highlighted={Boolean(settings.subdivisionGrid)}
-            onClick={() => onChange({ subdivisionGrid: !settings.subdivisionGrid })}
+            highlighted={subdivisionGuideMode === 'minimal'}
+            onClick={() => onChange({ subdivisionGuide: 'minimal', subdivisionGrid: false })}
+          >
+            Minimal
+          </StudyShellButton>
+          <StudyShellButton
+            size="compact"
+            tone="blue"
+            highlighted={subdivisionGuideMode === 'subdivisions'}
+            onClick={() => onChange({ subdivisionGuide: 'subdivisions', subdivisionGrid: true })}
           >
             Subdivisions
           </StudyShellButton>
           <StudyShellButton
             size="compact"
             tone="neutral"
-            highlighted={!settings.subdivisionGrid}
-            onClick={() => onChange({ subdivisionGrid: false })}
+            highlighted={subdivisionGuideMode === 'off'}
+            onClick={() => onChange({ subdivisionGuide: 'off', subdivisionGrid: false })}
           >
-            Minimal
+            Off
           </StudyShellButton>
         </div>
       </div>

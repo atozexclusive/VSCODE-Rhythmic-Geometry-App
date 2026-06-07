@@ -18,6 +18,7 @@ export type CanvasAtmosphereId =
   | 'deep-field';
 
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
+export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
 
 export interface CanvasDisplaySettings {
   theme: CanvasDisplayThemeId;
@@ -25,6 +26,7 @@ export interface CanvasDisplaySettings {
   glow: CanvasGlowLevel;
   squareGrid?: boolean;
   centerAxes?: boolean;
+  subdivisionGuide?: CanvasSubdivisionGuideMode;
   subdivisionGrid?: boolean;
 }
 
@@ -56,12 +58,14 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   glow: 'medium',
   squareGrid: true,
   centerAxes: true,
+  subdivisionGuide: 'off',
   subdivisionGrid: false,
 };
 
 export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   ...DEFAULT_CANVAS_DISPLAY_SETTINGS,
-  subdivisionGrid: true,
+  subdivisionGuide: 'minimal',
+  subdivisionGrid: false,
 };
 
 export const CANVAS_DISPLAY_THEMES: Record<CanvasDisplayThemeId, CanvasDisplayTheme> = {
@@ -277,17 +281,37 @@ function clampGlow(value: unknown): CanvasGlowLevel {
     : DEFAULT_CANVAS_DISPLAY_SETTINGS.glow;
 }
 
+function clampSubdivisionGuide(
+  value: unknown,
+  legacyGridValue: unknown,
+  fallback: CanvasSubdivisionGuideMode | undefined,
+): CanvasSubdivisionGuideMode {
+  if (value === 'off' || value === 'minimal' || value === 'subdivisions') {
+    return value;
+  }
+  if (typeof legacyGridValue === 'boolean') {
+    return legacyGridValue ? 'subdivisions' : 'off';
+  }
+  return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuide ?? 'off';
+}
+
 export function normalizeCanvasDisplaySettings(
   value: Partial<CanvasDisplaySettings> | null | undefined,
   fallback: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
 ): CanvasDisplaySettings {
+  const subdivisionGuide = clampSubdivisionGuide(
+    value?.subdivisionGuide,
+    value?.subdivisionGrid,
+    fallback.subdivisionGuide,
+  );
   return {
     theme: value?.theme ? clampDisplayTheme(value.theme) : fallback.theme,
     atmosphere: value?.atmosphere ? clampAtmosphere(value.atmosphere) : fallback.atmosphere,
     glow: value?.glow ? clampGlow(value.glow) : fallback.glow,
     squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
     centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
-    subdivisionGrid: typeof value?.subdivisionGrid === 'boolean' ? value.subdivisionGrid : fallback.subdivisionGrid,
+    subdivisionGuide,
+    subdivisionGrid: subdivisionGuide === 'subdivisions',
   };
 }
 
