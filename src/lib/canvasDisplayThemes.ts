@@ -20,11 +20,18 @@ export type CanvasAtmosphereId =
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
 export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
 export type CanvasSubdivisionGuideCycleBars = 4 | 8 | 16;
+export type CanvasInnerClockMode = 'off' | 'minimal' | 'full';
 
 export interface CanvasSubdivisionGuideAutomation {
   enabled: boolean;
   cycleBars: CanvasSubdivisionGuideCycleBars;
   modes: CanvasSubdivisionGuideMode[];
+}
+
+export interface CanvasInnerClockAutomation {
+  enabled: boolean;
+  cycleBars: CanvasSubdivisionGuideCycleBars;
+  modes: CanvasInnerClockMode[];
 }
 
 export interface CanvasDisplaySettings {
@@ -35,6 +42,8 @@ export interface CanvasDisplaySettings {
   centerAxes?: boolean;
   subdivisionGuide?: CanvasSubdivisionGuideMode;
   subdivisionGuideAutomation?: CanvasSubdivisionGuideAutomation;
+  innerClock?: CanvasInnerClockMode;
+  innerClockAutomation?: CanvasInnerClockAutomation;
   subdivisionGrid?: boolean;
 }
 
@@ -71,6 +80,12 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
     enabled: false,
     cycleBars: 8,
     modes: ['off', 'minimal'],
+  },
+  innerClock: 'full',
+  innerClockAutomation: {
+    enabled: false,
+    cycleBars: 8,
+    modes: ['off', 'full'],
   },
   subdivisionGrid: false,
 };
@@ -312,6 +327,13 @@ function clampSubdivisionGuideCycleBars(value: unknown): CanvasSubdivisionGuideC
   return value === 4 || value === 8 || value === 16 ? value : 8;
 }
 
+function clampInnerClockMode(value: unknown, fallback: CanvasInnerClockMode | undefined): CanvasInnerClockMode {
+  if (value === 'off' || value === 'minimal' || value === 'full') {
+    return value;
+  }
+  return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClock ?? 'full';
+}
+
 function normalizeSubdivisionGuideAutomation(
   value: Partial<CanvasSubdivisionGuideAutomation> | null | undefined,
   fallback: CanvasSubdivisionGuideAutomation | undefined,
@@ -340,6 +362,30 @@ function normalizeSubdivisionGuideAutomation(
   };
 }
 
+function normalizeInnerClockAutomation(
+  value: Partial<CanvasInnerClockAutomation> | null | undefined,
+  fallback: CanvasInnerClockAutomation | undefined,
+): CanvasInnerClockAutomation {
+  const fallbackAutomation =
+    fallback ??
+    DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClockAutomation ?? {
+      enabled: false,
+      cycleBars: 8,
+      modes: ['off', 'full'],
+    };
+  const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
+  const normalizedModes = sourceModes
+    .slice(0, 8)
+    .map((mode, index) =>
+      clampInnerClockMode(mode, fallbackAutomation.modes[index] ?? fallbackAutomation.modes[0] ?? 'full'),
+    );
+  return {
+    enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
+    cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
+    modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'full'],
+  };
+}
+
 export function normalizeCanvasDisplaySettings(
   value: Partial<CanvasDisplaySettings> | null | undefined,
   fallback: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
@@ -359,6 +405,11 @@ export function normalizeCanvasDisplaySettings(
     subdivisionGuideAutomation: normalizeSubdivisionGuideAutomation(
       value?.subdivisionGuideAutomation,
       fallback.subdivisionGuideAutomation,
+    ),
+    innerClock: clampInnerClockMode(value?.innerClock, fallback.innerClock),
+    innerClockAutomation: normalizeInnerClockAutomation(
+      value?.innerClockAutomation,
+      fallback.innerClockAutomation,
     ),
     subdivisionGrid: subdivisionGuide === 'subdivisions',
   };

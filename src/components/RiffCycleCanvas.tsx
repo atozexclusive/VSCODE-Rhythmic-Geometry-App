@@ -592,6 +592,17 @@ export default function RiffCycleCanvas({
         : manualSubdivisionGuideMode;
     const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
+    const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
+    const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
+    const innerClockMode =
+      innerClockAutomation?.enabled
+        ? innerClockAutomation.modes[
+            Math.floor(currentSubdivisionGuideBar / Math.max(1, innerClockAutomation.cycleBars)) %
+              innerClockAutomation.modes.length
+          ] ?? manualInnerClockMode
+        : manualInnerClockMode;
+    const innerClockVisible = innerClockMode !== 'off';
+    const innerClockFull = innerClockMode === 'full';
     const currentReferenceStep =
       ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
     const currentLaneReferenceStep =
@@ -978,7 +989,7 @@ export default function RiffCycleCanvas({
       }
     }
 
-    if (currentStudy.showPhraseRing && !carveViewActive) {
+    if (innerClockFull && currentStudy.showPhraseRing && !carveViewActive) {
       ctx.save();
       ctx.strokeStyle = flashActive
         ? `${activeRiffColor}66`
@@ -990,7 +1001,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
+    if (innerClockFull && currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
       ctx.save();
       ctx.fillStyle = activeRiffColor;
       ctx.globalAlpha = 0.14;
@@ -1023,7 +1034,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (currentStudy.showPhraseRing && carveViewActive) {
+    if (innerClockFull && currentStudy.showPhraseRing && carveViewActive) {
       drawRiffCarves(ctx, riffPoints, {
         centerX: metrics.circleCenterX,
         centerY: metrics.circleCenterY,
@@ -1036,7 +1047,7 @@ export default function RiffCycleCanvas({
       });
     }
 
-    if (!carveViewActive && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
+    if (innerClockFull && !carveViewActive && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
       const activePoints = [...activeRiffPoints].sort((a, b) => a.index - b.index);
       const groupRadius = metrics.innerRadius;
       const labelRingRadius =
@@ -1138,6 +1149,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
+    if (innerClockVisible) {
     riffPoints.forEach((point) => {
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
@@ -1351,7 +1363,9 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
     });
+    }
 
+    if (innerClockVisible) {
     landingReferenceStates.forEach((state) => {
       const markerRadius = state.accented ? 5.1 : 4.1;
       const markerX = state.point.x;
@@ -1387,8 +1401,10 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
     });
+    }
 
     if (
+      innerClockVisible &&
       isFreeRestartMode &&
       currentStudy.landingEditEnabled &&
       currentRiffStepState.landingSlot != null &&
@@ -1425,7 +1441,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (selectedPoint && !isMobileRef.current) {
+    if (innerClockVisible && selectedPoint && !isMobileRef.current) {
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.38)';
       ctx.font = '10px "SF Mono", "Fira Code", monospace';
@@ -1457,31 +1473,33 @@ export default function RiffCycleCanvas({
     ctx.fill();
     ctx.restore();
 
-    ctx.save();
-    ctx.strokeStyle = `${activeRiffColor}68`;
-    ctx.lineWidth = 1.25;
-    ctx.beginPath();
-    ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
-    ctx.lineTo(phraseCursorPoint.x, phraseCursorPoint.y);
-    ctx.stroke();
-    ctx.restore();
+    if (innerClockVisible) {
+      ctx.save();
+      ctx.strokeStyle = `${activeRiffColor}68`;
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.moveTo(metrics.circleCenterX, metrics.circleCenterY);
+      ctx.lineTo(phraseCursorPoint.x, phraseCursorPoint.y);
+      ctx.stroke();
+      ctx.restore();
 
-    ctx.save();
-    ctx.fillStyle = activeRiffColor;
-    ctx.shadowBlur = 16 * glowMultiplier;
-    ctx.shadowColor = activeRiffColor;
-    ctx.beginPath();
-    ctx.arc(phraseCursorPoint.x, phraseCursorPoint.y, 4.8, 0, TAU);
-    ctx.fill();
-    ctx.restore();
+      ctx.save();
+      ctx.fillStyle = activeRiffColor;
+      ctx.shadowBlur = 16 * glowMultiplier;
+      ctx.shadowColor = activeRiffColor;
+      ctx.beginPath();
+      ctx.arc(phraseCursorPoint.x, phraseCursorPoint.y, 4.8, 0, TAU);
+      ctx.fill();
+      ctx.restore();
 
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.82)';
-    ctx.lineWidth = 1.25;
-    ctx.beginPath();
-    ctx.arc(phraseCursorPoint.x, phraseCursorPoint.y, 9.4, 0, TAU);
-    ctx.stroke();
-    ctx.restore();
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.arc(phraseCursorPoint.x, phraseCursorPoint.y, 9.4, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (metrics.timelineRect) {
       const compactMobileTimeline = isMobileRef.current;

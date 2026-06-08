@@ -200,6 +200,7 @@ import {
   type CanvasDisplaySettings,
   type CanvasDisplayThemeId,
   type CanvasGlowLevel,
+  type CanvasInnerClockMode,
   type CanvasSubdivisionGuideCycleBars,
   type CanvasSubdivisionGuideMode,
 } from '../lib/canvasDisplayThemes';
@@ -2535,10 +2536,12 @@ function CanvasDisplayControls({
   settings,
   onChange,
   compact = false,
+  showInnerClockControls = false,
 }: {
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
   compact?: boolean;
+  showInnerClockControls?: boolean;
 }) {
   const activeTheme = getCanvasDisplayTheme(settings.theme);
   const canvasSubheaderClass =
@@ -2573,6 +2576,28 @@ function CanvasDisplayControls({
     onChange({
       subdivisionGuideAutomation: {
         ...subdivisionGuideAutomation,
+        ...updates,
+      },
+    });
+  };
+  const innerClockMode: CanvasInnerClockMode = settings.innerClock ?? 'full';
+  const innerClockAutomation = settings.innerClockAutomation ?? {
+    enabled: false,
+    cycleBars: 8 as CanvasSubdivisionGuideCycleBars,
+    modes: ['off', 'full'] as CanvasInnerClockMode[],
+  };
+  const canAddInnerClockCycle = innerClockAutomation.modes.length < 8;
+  const innerClockModeOptions: Array<{ value: CanvasInnerClockMode; label: string }> = [
+    { value: 'off', label: 'Off' },
+    { value: 'minimal', label: 'Minimal' },
+    { value: 'full', label: 'Full' },
+  ];
+  const updateInnerClockAutomation = (
+    updates: Partial<typeof innerClockAutomation>,
+  ) => {
+    onChange({
+      innerClockAutomation: {
+        ...innerClockAutomation,
         ...updates,
       },
     });
@@ -2634,6 +2659,128 @@ function CanvasDisplayControls({
           })}
         </div>
       </div>
+
+      {showInnerClockControls ? (
+        <div
+          className={canvasCardClass}
+          style={{
+            background: 'rgba(255,136,194,0.032)',
+            borderColor: 'rgba(255,136,194,0.12)',
+            boxShadow: 'inset 0 1px 0 rgba(255,136,194,0.04)',
+          }}
+        >
+          <InlineInfoLabel
+            infoId="canvas_display"
+            label="Inner Clock"
+            labelClassName={canvasSubheaderClass}
+            labelStyle={canvasSubheaderStyle}
+          />
+          <div className="grid grid-cols-3 gap-1.5">
+            {innerClockModeOptions.map((option) => (
+              <StudyShellButton
+                key={`inner-clock-manual-${option.value}`}
+                size="compact"
+                tone={option.value === 'off' ? 'neutral' : 'blue'}
+                highlighted={innerClockMode === option.value}
+                onClick={() => onChange({ innerClock: option.value })}
+              >
+                {option.label}
+              </StudyShellButton>
+            ))}
+          </div>
+          <div className="h-px bg-white/6" />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+              By Bars
+            </span>
+            <StudyShellButton
+              size="compact"
+              tone="amber"
+              highlighted={innerClockAutomation.enabled}
+              onClick={() =>
+                updateInnerClockAutomation({
+                  enabled: !innerClockAutomation.enabled,
+                })
+              }
+            >
+              {innerClockAutomation.enabled ? 'On' : 'Off'}
+            </StudyShellButton>
+          </div>
+          {innerClockAutomation.enabled ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-1.5">
+                {([4, 8, 16] as const).map((cycleBars) => (
+                  <StudyShellButton
+                    key={`inner-clock-bars-${cycleBars}`}
+                    size="compact"
+                    tone="blue"
+                    highlighted={innerClockAutomation.cycleBars === cycleBars}
+                    onClick={() => updateInnerClockAutomation({ cycleBars })}
+                  >
+                    {cycleBars} Bars
+                  </StudyShellButton>
+                ))}
+              </div>
+              {innerClockAutomation.modes.map((cycleMode, cycleIndex) => (
+                <div key={`inner-clock-cycle-${cycleIndex}`} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
+                      Cycle {cycleIndex + 1}
+                    </div>
+                    {innerClockAutomation.modes.length > 2 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateInnerClockAutomation({
+                            modes: innerClockAutomation.modes.filter((_, index) => index !== cycleIndex),
+                          });
+                        }}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-white/42 transition active:scale-[0.96]"
+                        aria-label={`Remove inner clock cycle ${cycleIndex + 1}`}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {innerClockModeOptions.map((option) => (
+                      <StudyShellButton
+                        key={`inner-clock-${cycleIndex}-${option.value}`}
+                        size="compact"
+                        tone={option.value === 'off' ? 'neutral' : 'blue'}
+                        highlighted={cycleMode === option.value}
+                        onClick={() => {
+                          const modes = [...innerClockAutomation.modes];
+                          modes[cycleIndex] = option.value;
+                          updateInnerClockAutomation({ modes });
+                        }}
+                      >
+                        {option.label}
+                      </StudyShellButton>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <StudyShellButton
+                size="compact"
+                tone="amber"
+                icon={<Plus size={13} />}
+                disabled={!canAddInnerClockCycle}
+                onClick={() =>
+                  updateInnerClockAutomation({
+                    modes: [
+                      ...innerClockAutomation.modes,
+                      innerClockAutomation.modes[innerClockAutomation.modes.length - 1] ?? 'full',
+                    ],
+                  })
+                }
+              >
+                Add Cycle
+              </StudyShellButton>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div
         className={canvasCardClass}
@@ -19225,6 +19372,7 @@ function OrbitalPolymeter() {
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
+                      showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       compact
                     />
                   </div>
@@ -21374,6 +21522,7 @@ function OrbitalPolymeter() {
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
+                      showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       compact
                     />
                   </div>
