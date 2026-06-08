@@ -223,7 +223,7 @@ function normalizeBackbeatBeats(
   numerator: number,
   fallbackBeat: number | null | undefined,
 ): number[] {
-  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, 11);
+  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, 32);
   const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
@@ -671,7 +671,7 @@ export function createEvenMask(stepCount: number, activeCount: number, offset = 
 export function createReferenceMeter(
   overrides: Partial<ReferenceMeter> = {},
 ): ReferenceMeter {
-  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 11);
+  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 32);
   const backbeatBeats = normalizeBackbeatBeats(
     overrides.backbeatBeats,
     numerator,

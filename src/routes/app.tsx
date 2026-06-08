@@ -161,6 +161,7 @@ import {
   resetRiffSequenceOrder,
   rotateRiffSteps,
   rotateRiffSequenceCellSteps,
+  setRiffCellGroups,
   setRiffSequenceBars,
   setRiffSequenceEnabled,
   updateRiffSequenceCellColor,
@@ -264,7 +265,7 @@ function normalizeRiffBackbeatBeats(
   numerator: number,
   fallbackBeat: number | null | undefined,
 ): number[] {
-  const normalizedNumerator = Math.max(2, Math.min(11, Math.round(numerator || 0)));
+  const normalizedNumerator = Math.max(2, Math.min(32, Math.round(numerator || 0)));
   const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
@@ -3313,6 +3314,143 @@ function RiffRollEditor({
   );
 }
 
+function parseMetricModGroups(value: string): number[] | null {
+  const groups = value
+    .split(/[\s,+-]+/)
+    .map((token) => Number.parseInt(token.trim(), 10))
+    .filter((group) => Number.isFinite(group));
+  if (groups.length === 0 || groups.length > 8) {
+    return null;
+  }
+  const normalizedGroups = groups.map((group) => Math.max(1, Math.min(32, Math.round(group))));
+  const total = normalizedGroups.reduce((sum, group) => sum + group, 0);
+  return total >= 3 && total <= RIFF_MAX_STEP_COUNT ? normalizedGroups : null;
+}
+
+function formatMetricModGroups(groups: number[]): string {
+  return groups.join(' ');
+}
+
+function RiffMetricModLab({
+  selectedCell,
+  onApply,
+  compact = false,
+}: {
+  selectedCell: RiffCycleStudy['riffCells'][number] | null;
+  onApply: (label: RiffSequenceCellLabel, groups: number[], followTargetMeter: boolean) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [sourceDraft, setSourceDraft] = useState('');
+  const [targetDraft, setTargetDraft] = useState('');
+  const [followTargetMeter, setFollowTargetMeter] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCell) {
+      setSourceDraft('');
+      setTargetDraft('');
+      return;
+    }
+    const groups = formatMetricModGroups(selectedCell.groups);
+    setSourceDraft(groups);
+    setTargetDraft(groups);
+  }, [selectedCell?.id, selectedCell?.groups]);
+
+  const sourceGroups = parseMetricModGroups(sourceDraft);
+  const targetGroups = parseMetricModGroups(targetDraft);
+  const sourceTotal = sourceGroups?.reduce((sum, group) => sum + group, 0) ?? null;
+  const targetTotal = targetGroups?.reduce((sum, group) => sum + group, 0) ?? null;
+  const targetValid = selectedCell != null && targetGroups != null;
+
+  return (
+    <div
+      className="rounded-xl border px-2.5 py-2.5"
+      style={{
+        background: 'rgba(255,136,194,0.035)',
+        borderColor: 'rgba(255,136,194,0.14)',
+        boxShadow: 'inset 0 1px 0 rgba(255,136,194,0.04)',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div>
+          <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-[#FF88C2]">
+            Metric Mod Lab
+          </div>
+          <div className="mt-1 text-[9px] leading-relaxed text-white/38">
+            Try grouped accent morphs on the selected cell.
+          </div>
+        </div>
+        <ChevronDown
+          size={15}
+          className={`shrink-0 text-white/44 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="mt-2.5 space-y-2">
+          <div className={`grid gap-2 ${compact ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            <label className="space-y-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
+              Source Groups
+              <input
+                type="text"
+                value={sourceDraft}
+                onChange={(event) => setSourceDraft(event.currentTarget.value)}
+                placeholder="3 3 3 2"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.045] px-2.5 py-2 text-[11px] font-mono text-white outline-none"
+              />
+            </label>
+            <label className="space-y-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
+              Target Groups
+              <input
+                type="text"
+                value={targetDraft}
+                onChange={(event) => setTargetDraft(event.currentTarget.value)}
+                placeholder="4 4 4 3"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.045] px-2.5 py-2 text-[11px] font-mono text-white outline-none"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
+            <span>{sourceTotal ?? '--'} steps</span>
+            <span>-&gt;</span>
+            <span>{targetTotal ?? '--'} steps</span>
+            {followTargetMeter && targetTotal != null ? <span>{targetTotal}/8 outer</span> : null}
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto] gap-1.5">
+            <StudyShellButton
+              size="compact"
+              tone="blue"
+              highlighted={followTargetMeter}
+              onClick={() => setFollowTargetMeter((current) => !current)}
+            >
+              Follow Target Meter
+            </StudyShellButton>
+            <StudyShellButton
+              size="compact"
+              tone="pink"
+              highlighted={targetValid}
+              disabled={!targetValid}
+              onClick={() => {
+                if (selectedCell && targetGroups) {
+                  onApply(selectedCell.label, targetGroups, followTargetMeter);
+                }
+              }}
+            >
+              Apply
+            </StudyShellButton>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function RiffCellSequenceEditor({
   study,
   selectedCellLabel,
@@ -3324,6 +3462,7 @@ function RiffCellSequenceEditor({
   onResetSequence,
   onSetSequenceBars,
   onSetCellColor,
+  onApplyMetricMod,
   colorEditingLocked = false,
   onLockedColorClick,
   compact = false,
@@ -3338,6 +3477,7 @@ function RiffCellSequenceEditor({
   onResetSequence: () => void;
   onSetSequenceBars: (bars: number) => void;
   onSetCellColor: (label: RiffSequenceCellLabel, color: string) => void;
+  onApplyMetricMod: (label: RiffSequenceCellLabel, groups: number[], followTargetMeter: boolean) => void;
   colorEditingLocked?: boolean;
   onLockedColorClick?: () => void;
   compact?: boolean;
@@ -3472,6 +3612,14 @@ function RiffCellSequenceEditor({
               </div>
             </div>
           </div>
+
+          {selectedCell ? (
+            <RiffMetricModLab
+              selectedCell={selectedCell}
+              onApply={onApplyMetricMod}
+              compact={compact}
+            />
+          ) : null}
 
           <div className="space-y-2 rounded-xl border border-white/10 bg-black/[0.12] px-2.5 py-2.5">
             <div className="flex items-center justify-between gap-3">
@@ -7446,7 +7594,7 @@ function OrbitalPolymeter() {
       const nextNumerator =
         updates.numerator == null
           ? current.reference.numerator
-          : Math.max(2, Math.min(11, Math.round(updates.numerator)));
+          : Math.max(2, Math.min(32, Math.round(updates.numerator)));
       if (
         updates.numerator != null &&
         !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
@@ -7717,6 +7865,54 @@ function OrbitalPolymeter() {
     setRiffCycleStudy((current) => setRiffSequenceBars(current, bars));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
+
+  const handleApplyRiffMetricMod = useCallback(
+    (label: RiffSequenceCellLabel, groups: number[], followTargetMeter: boolean) => {
+      if (!requireEditableRiffCycleStudy()) {
+        return;
+      }
+      const targetStepCount = groups.reduce((sum, group) => sum + group, 0);
+      if (requireUnlockedRiffStepCount(targetStepCount)) {
+        return;
+      }
+      if (
+        followTargetMeter &&
+        !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
+        !canUseFreeRiffMeter(targetStepCount)
+      ) {
+        showProPrompt('riff-advanced-timing');
+        return;
+      }
+
+      setRiffCycleStudy((current) => {
+        const next = setRiffCellGroups(current, label, groups);
+        if (!followTargetMeter) {
+          return next;
+        }
+        const targetNumerator = Math.max(2, Math.min(32, targetStepCount));
+        const nextBackbeatBeat = Math.min(next.reference.backbeatBeat ?? 1, targetNumerator);
+        return {
+          ...next,
+          reference: {
+            ...next.reference,
+            numerator: targetNumerator,
+            denominator: 8,
+            subdivision: 8,
+            backbeatBeat: nextBackbeatBeat,
+            backbeatBeats: normalizeRiffBackbeatBeats(
+              next.reference.backbeatBeats,
+              targetNumerator,
+              nextBackbeatBeat,
+            ),
+          },
+        };
+      });
+      setSelectedRiffSequenceCellLabel(label);
+      setSelectedRiffCycleStep(null);
+      setRiffCycleRestartToken((value) => value + 1);
+    },
+    [effectivePlan, requireEditableRiffCycleStudy, requireUnlockedRiffStepCount],
+  );
 
   const handleToggleRiffCycleStep = useCallback((stepIndex: number) => {
     if (!requireEditableRiffCycleStudy()) {
@@ -17890,12 +18086,12 @@ function OrbitalPolymeter() {
                                 size="square"
                                 locked={
                                   riffAdvancedTimingLocked &&
-                                  !canUseFreeRiffMeter(Math.min(11, riffCycleStudy.reference.numerator + 1))
+                                  !canUseFreeRiffMeter(Math.min(32, riffCycleStudy.reference.numerator + 1))
                                 }
                                 onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                                    numerator: Math.min(32, riffCycleStudy.reference.numerator + 1),
                                   })
                                 }
                               >
@@ -18184,6 +18380,7 @@ function OrbitalPolymeter() {
                               onResetSequence={handleResetRiffSequence}
                               onSetSequenceBars={handleSetRiffSequenceBars}
                               onSetCellColor={handleSetRiffSequenceCellColor}
+                              onApplyMetricMod={handleApplyRiffMetricMod}
                               colorEditingLocked={colorEditingLocked}
                               onLockedColorClick={() => openProPrompt('color-editing')}
                               compact
@@ -19540,7 +19737,7 @@ function OrbitalPolymeter() {
                                 size="square"
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                                    numerator: Math.min(32, riffCycleStudy.reference.numerator + 1),
                                   })
                                 }
                               >
@@ -20399,7 +20596,7 @@ function OrbitalPolymeter() {
                           size="square"
                           onClick={() =>
                             handleUpdateRiffReference({
-                              numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                              numerator: Math.min(32, riffCycleStudy.reference.numerator + 1),
                             })
                           }
                           aria-label="Increase bar numerator"
@@ -20554,6 +20751,7 @@ function OrbitalPolymeter() {
                     onResetSequence={handleResetRiffSequence}
                     onSetSequenceBars={handleSetRiffSequenceBars}
                     onSetCellColor={handleSetRiffSequenceCellColor}
+                    onApplyMetricMod={handleApplyRiffMetricMod}
                     colorEditingLocked={colorEditingLocked}
                     onLockedColorClick={() => openProPrompt('color-editing')}
                     compact
@@ -22200,7 +22398,7 @@ function OrbitalPolymeter() {
                             size="square"
                             onClick={() =>
                               handleUpdateRiffReference({
-                                numerator: Math.min(11, riffCycleStudy.reference.numerator + 1),
+                                numerator: Math.min(32, riffCycleStudy.reference.numerator + 1),
                               })
                             }
                           >
@@ -22362,6 +22560,7 @@ function OrbitalPolymeter() {
                       onResetSequence={handleResetRiffSequence}
                       onSetSequenceBars={handleSetRiffSequenceBars}
                       onSetCellColor={handleSetRiffSequenceCellColor}
+                      onApplyMetricMod={handleApplyRiffMetricMod}
                       colorEditingLocked={colorEditingLocked}
                       onLockedColorClick={() => openProPrompt('color-editing')}
                       compact
