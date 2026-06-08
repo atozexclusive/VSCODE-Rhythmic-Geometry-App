@@ -2199,6 +2199,11 @@ function getRiffPatternBarMarkerCopy(study: RiffCycleStudy): string {
   return `Pattern cues every ${steps.toLocaleString()} riff step${steps === 1 ? '' : 's'}, restarting at the return cycle.`;
 }
 
+function normalizeHexColorDraft(value: string): string | null {
+  const hex = value.trim().replace(/^#/, '');
+  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex.toUpperCase()}` : null;
+}
+
 function LimitedColorPickerButton({
   colors,
   value,
@@ -2222,6 +2227,11 @@ function LimitedColorPickerButton({
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [hexDraft, setHexDraft] = useState(value.toUpperCase());
+
+  useEffect(() => {
+    setHexDraft(value.toUpperCase());
+  }, [value]);
 
   useEffect(() => {
     if (!open) {
@@ -2233,10 +2243,10 @@ function LimitedColorPickerButton({
       if (!rect) {
         return;
       }
-      const popoverWidth = 160;
+      const popoverWidth = 184;
       setPosition({
         left: Math.min(Math.max(8, rect.right - popoverWidth), window.innerWidth - popoverWidth - 8),
-        top: Math.min(rect.bottom + 8, window.innerHeight - 270),
+        top: Math.min(rect.bottom + 8, window.innerHeight - 320),
       });
     };
 
@@ -2304,7 +2314,7 @@ function LimitedColorPickerButton({
         ? createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[120] grid w-40 grid-cols-4 gap-1.5 rounded-xl border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+          className="fixed z-[120] grid w-[11.5rem] grid-cols-4 gap-1.5 rounded-xl border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
           style={{
             left: position.left,
             top: position.top,
@@ -2335,6 +2345,41 @@ function LimitedColorPickerButton({
               />
             );
           })}
+          <div className="col-span-4 mt-1 grid grid-cols-[1.75rem_1fr] gap-1.5">
+            <input
+              type="color"
+              value={normalizeHexColorDraft(hexDraft) ?? value}
+              onChange={(event) => {
+                const nextColor = event.currentTarget.value.toUpperCase();
+                setHexDraft(nextColor);
+                onChange(nextColor);
+              }}
+              className="h-8 w-7 cursor-pointer rounded-lg border border-white/12 bg-transparent p-0.5"
+              aria-label={`${label}: custom color`}
+              title="Custom color"
+            />
+            <input
+              type="text"
+              value={hexDraft}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => {
+                const nextDraft = event.currentTarget.value.toUpperCase();
+                setHexDraft(nextDraft);
+                const normalized = normalizeHexColorDraft(nextDraft);
+                if (normalized) {
+                  onChange(normalized);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && normalizeHexColorDraft(hexDraft)) {
+                  setOpen(false);
+                }
+              }}
+              placeholder="#FF88C2"
+              className="min-w-0 rounded-lg border border-white/10 bg-white/[0.055] px-2 text-[10px] font-mono uppercase tracking-[0.08em] text-white outline-none placeholder:text-white/24"
+              aria-label={`${label}: hex color`}
+            />
+          </div>
         </div>,
         document.body,
           )
