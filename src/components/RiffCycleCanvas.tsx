@@ -602,7 +602,7 @@ export default function RiffCycleCanvas({
           ] ?? manualInnerClockMode
         : manualInnerClockMode;
     const innerClockVisible = innerClockMode !== 'off';
-    const innerClockFull = innerClockMode === 'full';
+    const innerClockMotionVisible = innerClockMode === 'full';
     const currentReferenceStep =
       ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
     const currentLaneReferenceStep =
@@ -989,7 +989,7 @@ export default function RiffCycleCanvas({
       }
     }
 
-    if (innerClockFull && currentStudy.showPhraseRing && !carveViewActive) {
+    if (innerClockVisible && currentStudy.showPhraseRing && !carveViewActive) {
       ctx.save();
       ctx.strokeStyle = flashActive
         ? `${activeRiffColor}66`
@@ -1001,7 +1001,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (innerClockFull && currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
+    if (innerClockVisible && currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
       ctx.save();
       ctx.fillStyle = activeRiffColor;
       ctx.globalAlpha = 0.14;
@@ -1034,7 +1034,7 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (innerClockFull && currentStudy.showPhraseRing && carveViewActive) {
+    if (innerClockVisible && currentStudy.showPhraseRing && carveViewActive) {
       drawRiffCarves(ctx, riffPoints, {
         centerX: metrics.circleCenterX,
         centerY: metrics.circleCenterY,
@@ -1047,7 +1047,7 @@ export default function RiffCycleCanvas({
       });
     }
 
-    if (innerClockFull && !carveViewActive && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
+    if (innerClockVisible && !carveViewActive && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
       const activePoints = [...activeRiffPoints].sort((a, b) => a.index - b.index);
       const groupRadius = metrics.innerRadius;
       const labelRingRadius =
@@ -1153,15 +1153,17 @@ export default function RiffCycleCanvas({
     riffPoints.forEach((point) => {
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
-      const isCurrent = currentRiffStep === point.index;
+      const isCurrent = innerClockMotionVisible && currentRiffStep === point.index;
       const isPhraseRestart = point.index === 0;
       const effectiveActive = isCurrent ? currentRiffStepState.active : point.active;
       const effectiveAccented = isCurrent ? currentRiffStepState.accented : point.accented;
-      const attackRemaining = Math.max(
-        0,
-        ((riffAttackUntilRef.current[point.index] ?? 0) - now) /
-          (effectiveAccented ? 320 : 220),
-      );
+      const attackRemaining = innerClockMotionVisible
+        ? Math.max(
+            0,
+            ((riffAttackUntilRef.current[point.index] ?? 0) - now) /
+              (effectiveAccented ? 320 : 220),
+          )
+        : 0;
       const radius =
         ((isSelected
           ? 8.4
@@ -1405,6 +1407,7 @@ export default function RiffCycleCanvas({
 
     if (
       innerClockVisible &&
+      innerClockMotionVisible &&
       isFreeRestartMode &&
       currentStudy.landingEditEnabled &&
       currentRiffStepState.landingSlot != null &&
@@ -1473,7 +1476,7 @@ export default function RiffCycleCanvas({
     ctx.fill();
     ctx.restore();
 
-    if (innerClockVisible) {
+    if (innerClockMotionVisible) {
       ctx.save();
       ctx.strokeStyle = `${activeRiffColor}68`;
       ctx.lineWidth = 1.25;
