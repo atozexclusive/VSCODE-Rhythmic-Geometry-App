@@ -2587,11 +2587,13 @@ function CanvasDisplayControls({
   onChange,
   compact = false,
   showInnerClockControls = false,
+  showCellStripControl = false,
 }: {
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
   compact?: boolean;
   showInnerClockControls?: boolean;
+  showCellStripControl?: boolean;
 }) {
   const activeTheme = getCanvasDisplayTheme(settings.theme);
   const canvasSubheaderClass =
@@ -2962,6 +2964,29 @@ function CanvasDisplayControls({
               Add Cycle
             </StudyShellButton>
           </div>
+        ) : null}
+        {showCellStripControl ? (
+          <>
+            <div className="h-px bg-white/6" />
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                  Cell Strip
+                </div>
+                <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                  Canvas and export overlay
+                </div>
+              </div>
+              <StudyShellButton
+                size="compact"
+                tone="blue"
+                highlighted={settings.showCellStrip !== false}
+                onClick={() => onChange({ showCellStrip: settings.showCellStrip === false })}
+              >
+                {settings.showCellStrip === false ? 'Hidden' : 'Shown'}
+              </StudyShellButton>
+            </div>
+          </>
         ) : null}
       </div>
 
@@ -19737,6 +19762,7 @@ function OrbitalPolymeter() {
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       compact
                     />
                   </div>
@@ -21891,6 +21917,7 @@ function OrbitalPolymeter() {
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       compact
                     />
                   </div>

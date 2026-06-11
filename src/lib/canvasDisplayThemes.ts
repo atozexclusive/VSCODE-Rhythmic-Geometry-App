@@ -45,6 +45,7 @@ export interface CanvasDisplaySettings {
   innerClock?: CanvasInnerClockMode;
   innerClockAutomation?: CanvasInnerClockAutomation;
   subdivisionGrid?: boolean;
+  showCellStrip?: boolean;
 }
 
 interface CanvasDisplayTheme {
@@ -88,12 +89,14 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
     modes: ['off', 'full'],
   },
   subdivisionGrid: false,
+  showCellStrip: true,
 };
 
 export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   ...DEFAULT_CANVAS_DISPLAY_SETTINGS,
-  subdivisionGuide: 'minimal',
+  subdivisionGuide: 'off',
   subdivisionGrid: false,
+  showCellStrip: true,
 };
 
 export const CANVAS_DISPLAY_THEMES: Record<CanvasDisplayThemeId, CanvasDisplayTheme> = {
@@ -412,6 +415,7 @@ export function normalizeCanvasDisplaySettings(
       fallback.innerClockAutomation,
     ),
     subdivisionGrid: subdivisionGuide === 'subdivisions',
+    showCellStrip: typeof value?.showCellStrip === 'boolean' ? value.showCellStrip : fallback.showCellStrip,
   };
 }
 

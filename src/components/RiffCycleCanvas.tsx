@@ -714,7 +714,7 @@ export default function RiffCycleCanvas({
     ctx.stroke();
     ctx.restore();
 
-    if (sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
+    if (currentDisplaySettings.showCellStrip !== false && sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
       const visibleEntries = sequenceTimeline.entries.slice(0, exportLayoutMode ? 9 : 12);
       const chipWidth = exportLayoutMode ? 62 : 29;
       const chipHeight = exportLayoutMode ? 34 : 17;
