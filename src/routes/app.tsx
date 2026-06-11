@@ -2077,6 +2077,42 @@ interface StudyModeCanvasDisplayState {
   riff: CanvasDisplaySettings;
 }
 
+function usePreventBrowserZoom() {
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const prevent = (event: Event) => {
+      event.preventDefault();
+    };
+    const preventPinchTouch = (event: TouchEvent) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    };
+    const preventModifierWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('gesturestart', prevent, { passive: false });
+    document.addEventListener('gesturechange', prevent, { passive: false });
+    document.addEventListener('gestureend', prevent, { passive: false });
+    document.addEventListener('touchmove', preventPinchTouch, { passive: false });
+    window.addEventListener('wheel', preventModifierWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener('gesturestart', prevent);
+      document.removeEventListener('gesturechange', prevent);
+      document.removeEventListener('gestureend', prevent);
+      document.removeEventListener('touchmove', preventPinchTouch);
+      window.removeEventListener('wheel', preventModifierWheel);
+    };
+  }, []);
+}
+
 function loadCanvasDisplayState(): StudyModeCanvasDisplayState {
   return {
     version: CANVAS_DISPLAY_STORAGE_VERSION,
@@ -6394,6 +6430,7 @@ function launchLoadedState(
 }
 
 function OrbitalPolymeter() {
+  usePreventBrowserZoom();
   const { user, enabled: authEnabled, loading: authLoading, effectivePlan, refreshAccount } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -17791,10 +17828,11 @@ function OrbitalPolymeter() {
         savedRiffCycleScenes.find((scene) => scene.id === activeRiffCycleSavedSceneId) ?? null;
       const activeRiffSceneName =
         activeRiffSavedScene?.name ?? activeRiffPreset?.name ?? 'Custom Study';
+      const riffMobileShortViewport = viewportHeight < 720;
       const riffMobileCanvasStyle = {
         width: '100%',
-        height: 'min(72svh, 620px)',
-        minHeight: '460px',
+        height: riffMobileShortViewport ? 'clamp(350px, 54svh, 430px)' : 'min(68svh, 580px)',
+        minHeight: riffMobileShortViewport ? '350px' : '430px',
       } as const;
       const riffMobileEditSummary =
         riffMobileEditTab === 'bar'
@@ -17927,7 +17965,7 @@ function OrbitalPolymeter() {
 
               <div
                 data-guide="riff-mobile-transport"
-                className="relative z-10 rounded-[28px] border px-4 py-4 space-y-3"
+                className={`relative z-10 rounded-[28px] border px-4 ${riffMobileShortViewport ? 'py-3 space-y-2.5' : 'py-4 space-y-3'}`}
                 style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
               >
                 <div className="flex items-center justify-between gap-3">
