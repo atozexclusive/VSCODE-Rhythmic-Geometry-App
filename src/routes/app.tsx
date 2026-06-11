@@ -128,6 +128,7 @@ import { resumeFlowAudio, stopFlowAudio } from '../lib/flowAudio';
 import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
   RIFF_MAX_RESET_BARS,
+  RIFF_MAX_SEQUENCE_REPEATS,
   RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
@@ -163,7 +164,10 @@ import {
   rotateRiffSequenceCellSteps,
   setRiffCellGroups,
   setRiffSequenceBars,
+  setRiffSequenceBarsMode,
   setRiffSequenceEnabled,
+  setRiffSequenceEntryBars,
+  setRiffSequenceEntryRepeats,
   updateRiffSequenceCellColor,
   setRiffSequenceCellStepActive,
   setRiffStepActive,
@@ -3506,6 +3510,9 @@ function RiffCellSequenceEditor({
   onRemoveLastCell,
   onResetSequence,
   onSetSequenceBars,
+  onSetSequenceBarsMode,
+  onSetSequenceEntryBars,
+  onSetSequenceEntryRepeats,
   onSetCellColor,
   onApplyMetricMod,
   colorEditingLocked = false,
@@ -3521,6 +3528,9 @@ function RiffCellSequenceEditor({
   onRemoveLastCell: () => void;
   onResetSequence: () => void;
   onSetSequenceBars: (bars: number) => void;
+  onSetSequenceBarsMode: (mode: 'global' | 'per-cell') => void;
+  onSetSequenceEntryBars: (sequenceIndex: number, bars: number) => void;
+  onSetSequenceEntryRepeats: (sequenceIndex: number, repeats: number) => void;
   onSetCellColor: (label: RiffSequenceCellLabel, color: string) => void;
   onApplyMetricMod: (label: RiffSequenceCellLabel, groups: number[], followTargetMeter: boolean) => void;
   colorEditingLocked?: boolean;
@@ -3531,6 +3541,17 @@ function RiffCellSequenceEditor({
   const sequenceResetBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceBars || 4)));
   const cells = study.riffCells ?? [];
   const sequence = study.riffSequence ?? [];
+  const sequenceBarsMode = study.riffSequenceBarsMode === 'per-cell' ? 'per-cell' : 'global';
+  const sequenceEntryBars = sequence.map((_, index) =>
+    Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceEntryBars?.[index] ?? sequenceResetBars))),
+  );
+  const sequenceEntryRepeats = sequence.map((_, index) =>
+    Math.max(1, Math.min(RIFF_MAX_SEQUENCE_REPEATS, Math.round(study.riffSequenceEntryRepeats?.[index] ?? 1))),
+  );
+  const sequenceTotalBars =
+    sequenceBarsMode === 'per-cell'
+      ? sequenceEntryBars.reduce((sum, bars, index) => sum + bars * (sequenceEntryRepeats[index] ?? 1), 0)
+      : sequenceResetBars;
   const sequenceLabel = sequence.length > 0 ? sequence.join(' ') : 'A';
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
   const selectedCell =
@@ -3672,7 +3693,7 @@ function RiffCellSequenceEditor({
                 Sequence Order
               </div>
               <div className="text-[8px] font-mono uppercase tracking-[0.12em] text-white/38">
-                {sequenceResetBars} bar{sequenceResetBars === 1 ? '' : 's'} total
+                {sequenceTotalBars} bar{sequenceTotalBars === 1 ? '' : 's'} total
               </div>
             </div>
 
@@ -3682,29 +3703,73 @@ function RiffCellSequenceEditor({
                 const cellColor = getCellVisualColor(label);
               return (
                 <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (exists) {
-                        onSelectCell(label);
-                      }
-                    }}
-                    className="inline-flex h-9 min-w-10 flex-col items-center justify-center rounded-lg border px-2 font-mono uppercase transition-transform active:scale-[0.97]"
-                    style={{
-                      background:
-                        exists && label === selectedCell?.label
-                          ? `${cellColor}18`
-                          : 'rgba(255,255,255,0.04)',
-                      borderColor:
-                        exists && label === selectedCell?.label
-                          ? `${cellColor}52`
-                          : 'rgba(255,255,255,0.09)',
-                      color: exists ? (label === selectedCell?.label ? cellColor : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
-                    }}
-                  >
-                    <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
-                    <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
-                  </button>
+                  <div className="inline-flex flex-col items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (exists) {
+                          onSelectCell(label);
+                        }
+                      }}
+                      className="inline-flex h-9 min-w-10 flex-col items-center justify-center rounded-lg border px-2 font-mono uppercase transition-transform active:scale-[0.97]"
+                      style={{
+                        background:
+                          exists && label === selectedCell?.label
+                            ? `${cellColor}18`
+                            : 'rgba(255,255,255,0.04)',
+                        borderColor:
+                          exists && label === selectedCell?.label
+                            ? `${cellColor}52`
+                            : 'rgba(255,255,255,0.09)',
+                        color: exists ? (label === selectedCell?.label ? cellColor : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
+                      }}
+                    >
+                      <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
+                      <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
+                    </button>
+                    {sequenceBarsMode === 'per-cell' ? (
+                      <div className="grid grid-cols-2 gap-1">
+                        <label className="flex items-center gap-1 rounded-md border border-white/8 bg-white/[0.035] px-1.5 py-0.5">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={RIFF_MAX_RESET_BARS}
+                            value={sequenceEntryBars[index] ?? sequenceResetBars}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) =>
+                              onSetSequenceEntryBars(
+                                index,
+                                Number.parseInt(event.currentTarget.value, 10) || sequenceEntryBars[index] || sequenceResetBars,
+                              )
+                            }
+                            className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
+                            aria-label={`Set bars for sequence ${index + 1} cell ${label}`}
+                          />
+                          <span className="text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">bar</span>
+                        </label>
+                        <label className="flex items-center gap-1 rounded-md border border-white/8 bg-white/[0.035] px-1.5 py-0.5">
+                          <span className="text-[8px] font-mono uppercase tracking-[0.08em] text-white/32">x</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={RIFF_MAX_SEQUENCE_REPEATS}
+                            value={sequenceEntryRepeats[index] ?? 1}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) =>
+                              onSetSequenceEntryRepeats(
+                                index,
+                                Number.parseInt(event.currentTarget.value, 10) || sequenceEntryRepeats[index] || 1,
+                              )
+                            }
+                            className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
+                            aria-label={`Set repeats for sequence ${index + 1} cell ${label}`}
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
                   {index < sequence.length - 1 ? (
                     <span className="text-[10px] text-white/24">-&gt;</span>
                   ) : null}
@@ -3755,24 +3820,51 @@ function RiffCellSequenceEditor({
               </StudyShellButton>
             </div>
 
-            <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
-              Resolve After
-              <div className="flex overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={RIFF_MAX_RESET_BARS}
-                  value={sequenceResetBars}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
-                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-light text-white outline-none"
-                />
-                <span className="flex items-center border-l border-white/10 px-3 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
-                  Bars
-                </span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42">
+                  Section Bars
+                </div>
+                <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/10 bg-white/[0.035]">
+                  {(['global', 'per-cell'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => onSetSequenceBarsMode(mode)}
+                      className="px-2 py-1 text-[7px] font-mono uppercase tracking-[0.12em] transition"
+                      style={{
+                        background: sequenceBarsMode === mode ? 'rgba(255,209,102,0.16)' : 'transparent',
+                        color: sequenceBarsMode === mode ? '#FFD166' : 'rgba(255,255,255,0.38)',
+                      }}
+                    >
+                      {mode === 'global' ? 'Global' : 'Per Cell'}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </label>
+
+              {sequenceBarsMode === 'global' ? (
+                <div className="flex overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={RIFF_MAX_RESET_BARS}
+                    value={sequenceResetBars}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
+                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-light text-white outline-none"
+                  />
+                  <span className="flex items-center border-l border-white/10 px-3 text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
+                    Bars
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
+                  Set bars and repeats under each sequence cell
+                </div>
+              )}
+            </div>
 
             {resetStepCount != null ? (
               <div
@@ -3783,7 +3875,7 @@ function RiffCellSequenceEditor({
                   color: '#BFEAFF',
                 }}
               >
-                {sequenceLabel} forms one {sequenceResetBars}-bar phrase
+                {sequenceLabel} forms one {sequenceTotalBars}-bar phrase
               </div>
             ) : null}
           </div>
@@ -7908,6 +8000,30 @@ function OrbitalPolymeter() {
       return;
     }
     setRiffCycleStudy((current) => setRiffSequenceBars(current, bars));
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleSetRiffSequenceBarsMode = useCallback((mode: 'global' | 'per-cell') => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => setRiffSequenceBarsMode(current, mode));
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleSetRiffSequenceEntryBars = useCallback((sequenceIndex: number, bars: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => setRiffSequenceEntryBars(current, sequenceIndex, bars));
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleSetRiffSequenceEntryRepeats = useCallback((sequenceIndex: number, repeats: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => setRiffSequenceEntryRepeats(current, sequenceIndex, repeats));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
 
@@ -17695,7 +17811,10 @@ function OrbitalPolymeter() {
       const riffMobileRiffResolveHint =
         riffCycleStudy.riffSequenceEnabled
           ? (() => {
-              const sequenceBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(riffCycleStudy.riffSequenceBars || 4)));
+              const sequenceBars =
+                riffCycleStudy.riffSequenceBarsMode === 'per-cell'
+                  ? getEffectiveResetBarCount(riffCycleStudy) ?? 1
+                  : Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(riffCycleStudy.riffSequenceBars || 4)));
               return `The cell sequence resolves every ${sequenceBars.toLocaleString()} bar${sequenceBars === 1 ? '' : 's'}.`;
             })()
         : riffCycleStudy.riff.resetMode === 'free'
@@ -18424,6 +18543,9 @@ function OrbitalPolymeter() {
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
                               onSetSequenceBars={handleSetRiffSequenceBars}
+                              onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
+                              onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
+                              onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                               onSetCellColor={handleSetRiffSequenceCellColor}
                               onApplyMetricMod={handleApplyRiffMetricMod}
                               colorEditingLocked={colorEditingLocked}
@@ -20795,6 +20917,9 @@ function OrbitalPolymeter() {
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
                     onSetSequenceBars={handleSetRiffSequenceBars}
+                    onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
+                    onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
+                    onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                     onSetCellColor={handleSetRiffSequenceCellColor}
                     onApplyMetricMod={handleApplyRiffMetricMod}
                     colorEditingLocked={colorEditingLocked}
@@ -22604,6 +22729,9 @@ function OrbitalPolymeter() {
                       onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                       onResetSequence={handleResetRiffSequence}
                       onSetSequenceBars={handleSetRiffSequenceBars}
+                      onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
+                      onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
+                      onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                       onSetCellColor={handleSetRiffSequenceCellColor}
                       onApplyMetricMod={handleApplyRiffMetricMod}
                       colorEditingLocked={colorEditingLocked}
