@@ -240,6 +240,13 @@
     touch-action: manipulation;
     -webkit-text-size-adjust: 100%;
   }
+  @supports (height: 100svh) {
+    html,
+    body,
+    #root {
+      min-height: 100svh;
+    }
+  }
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);

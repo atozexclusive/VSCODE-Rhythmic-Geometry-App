@@ -8677,8 +8677,8 @@ function OrbitalPolymeter() {
   const mobileCanvasFrameStyle = isMobile
     ? ({
         width: '100%',
-        height: 'min(76svh, 640px)',
-        minHeight: '540px',
+        height: 'clamp(420px, 66svh, 600px)',
+        minHeight: '420px',
       } as const)
     : undefined;
   const handleExportRiffCyclePng = useCallback(
@@ -9057,8 +9057,15 @@ function OrbitalPolymeter() {
     [activeRiffCycleSavedSceneId, savedRiffCycleScenes],
   );
 
-  const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? window.innerWidth : 1280;
-  const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? window.innerHeight : 800;
+  const layoutViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const layoutViewportHeight =
+    typeof window !== 'undefined'
+      ? typeof document !== 'undefined'
+        ? document.documentElement?.clientHeight || window.innerHeight
+        : window.innerHeight
+      : 800;
+  const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? layoutViewportWidth : 1280;
+  const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? layoutViewportHeight : 800;
   const guideCalloutHeight = Math.min(
     Math.max(220, guideMeasuredHeight),
     Math.max(220, viewportHeight - 48),
@@ -17862,7 +17869,7 @@ function OrbitalPolymeter() {
         savedRiffCycleScenes.find((scene) => scene.id === activeRiffCycleSavedSceneId) ?? null;
       const activeRiffSceneName =
         activeRiffSavedScene?.name ?? activeRiffPreset?.name ?? 'Custom Study';
-      const riffMobileShortViewport = viewportHeight < 720;
+      const riffMobileShortViewport = layoutViewportHeight < 720;
       const riffMobileCanvasStyle = {
         width: '100%',
         height: riffMobileShortViewport ? 'clamp(350px, 54svh, 430px)' : 'min(68svh, 580px)',
@@ -20708,7 +20715,7 @@ function OrbitalPolymeter() {
         >
           <StudyShellPremiumPanel
             accent={riffCycleStudy.riff.color}
-            className={`rg-side-menu-panel-tight ${isMobile ? 'max-h-[calc(100vh-22rem)]' : ''} overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
+            className={`rg-side-menu-panel-tight ${isMobile ? 'max-h-[calc(100svh-22rem)]' : ''} overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]`}
           >
             <div className={desktopSideMenuHeaderClass}>
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]" style={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}>
