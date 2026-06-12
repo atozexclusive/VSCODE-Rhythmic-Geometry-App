@@ -254,7 +254,6 @@
   textarea,
   select {
     touch-action: manipulation;
-    font-size: 16px;
   }
 }
 

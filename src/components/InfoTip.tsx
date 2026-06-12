@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { CircleHelp } from 'lucide-react';
 
 interface InfoTipProps {
@@ -5,8 +6,36 @@ interface InfoTipProps {
 }
 
 export default function InfoTip({ text }: InfoTipProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!wrapperRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
   return (
-    <span className="relative inline-flex items-center group align-middle">
+    <span ref={wrapperRef} className="relative inline-flex items-center group align-middle">
       <button
         type="button"
         className="w-4 h-4 rounded-full flex items-center justify-center transition-colors"
@@ -16,11 +45,16 @@ export default function InfoTip({ text }: InfoTipProps) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
         aria-label="Show description"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
       >
         <CircleHelp size={10} />
       </button>
       <span
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[120] w-48 -translate-x-1/2 rounded-xl border px-3 py-2 text-[10px] leading-relaxed opacity-0 shadow-2xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+        className={`pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[120] w-48 -translate-x-1/2 rounded-xl border px-3 py-2 text-[10px] leading-relaxed shadow-2xl transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${open ? 'opacity-100' : 'opacity-0'}`}
         style={{
           color: 'rgba(255,255,255,0.82)',
           background: 'rgba(17, 17, 22, 0.94)',
