@@ -174,7 +174,14 @@ export function getRiffCycleCanvasMetrics(
     circleCenterY = topPadding + safeHeight / 2;
   }
 
-  const innerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
+  const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
+  const referenceSideCount = Math.max(2, study.reference.numerator);
+  const referenceInradius = outerRadius * Math.cos(Math.PI / referenceSideCount);
+  const containmentPadding = isMobile ? 4 : 6;
+  const innerRadius = Math.min(
+    defaultInnerRadius,
+    Math.max(32, referenceInradius - containmentPadding),
+  );
 
   const baseMetrics = {
     circleCenterX,
