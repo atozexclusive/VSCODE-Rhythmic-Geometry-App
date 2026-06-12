@@ -995,31 +995,31 @@ export default function RiffCycleCanvas({
             ? Math.max(0, 1 - Math.abs((referenceProgress % 1) - 0.22) / 0.78)
             : 0;
           const hitRadius =
-            ((entry.accented ? 5.4 : 4.2) + hitPulseStrength * (entry.accented ? 3.2 : 2.4)) *
+            ((entry.accented ? 3.7 : 3) + hitPulseStrength * (entry.accented ? 1.5 : 1.1)) *
             shellScale;
 
           ctx.save();
-          ctx.globalAlpha = entry.current ? 0.86 : entry.accented ? 0.68 : 0.52;
+          ctx.globalAlpha = entry.current ? 0.42 : entry.accented ? 0.3 : 0.22;
           ctx.fillStyle = activeRiffColor;
           ctx.shadowBlur =
-            (entry.current ? 14 + hitPulseStrength * 14 : entry.accented ? 10 : 6) *
+            (entry.current ? 5 + hitPulseStrength * 5 : entry.accented ? 4 : 2.5) *
             glowMultiplier *
             shellScale;
-          ctx.shadowColor = `${activeRiffColor}${entry.current ? 'AA' : entry.accented ? '88' : '66'}`;
+          ctx.shadowColor = `${activeRiffColor}${entry.current ? '55' : entry.accented ? '42' : '30'}`;
           ctx.beginPath();
           ctx.arc(entry.point.x, entry.point.y, hitRadius, 0, TAU);
           ctx.fill();
           ctx.restore();
 
           ctx.save();
-          ctx.globalAlpha = entry.current ? 0.86 : 0.54;
-          ctx.strokeStyle = entry.accented ? 'rgba(255,255,255,0.78)' : `${activeRiffColor}AA`;
-          ctx.lineWidth = (entry.current ? 1.45 : 1.05) * shellScale;
+          ctx.globalAlpha = entry.current ? 0.34 : 0.22;
+          ctx.strokeStyle = entry.accented ? 'rgba(255,255,255,0.38)' : `${activeRiffColor}66`;
+          ctx.lineWidth = (entry.current ? 0.9 : 0.7) * shellScale;
           ctx.beginPath();
           ctx.arc(
             entry.point.x,
             entry.point.y,
-            hitRadius + (entry.current ? 5.8 : 3.8) * shellScale,
+            hitRadius + (entry.current ? 3.6 : 2.6) * shellScale,
             0,
             TAU,
           );
@@ -1028,11 +1028,11 @@ export default function RiffCycleCanvas({
 
           if (entry.accented) {
             ctx.save();
-            ctx.globalAlpha = entry.current ? 0.92 : 0.68;
-            ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.strokeStyle = 'rgba(17,17,22,0.62)';
-            ctx.lineWidth = 0.9 * shellScale;
-            drawDiamondMarker(ctx, entry.point.x, entry.point.y, 2.8 * shellScale);
+            ctx.globalAlpha = entry.current ? 0.46 : 0.3;
+            ctx.fillStyle = 'rgba(255,255,255,0.58)';
+            ctx.strokeStyle = 'rgba(17,17,22,0.36)';
+            ctx.lineWidth = 0.65 * shellScale;
+            drawDiamondMarker(ctx, entry.point.x, entry.point.y, 2 * shellScale);
             ctx.fill();
             ctx.stroke();
             ctx.restore();
