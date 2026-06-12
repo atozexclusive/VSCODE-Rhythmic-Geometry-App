@@ -659,6 +659,36 @@ export default function RiffCycleCanvas({
       currentAbsoluteReferenceStep,
     );
     const currentRiffPoint = riffPoints[currentRiffStep] ?? null;
+    const currentStepWithinBar =
+      ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+    const currentBarStartStep = currentAbsoluteReferenceStep - currentStepWithinBar;
+    const outerReferenceHitHighlights = subdivisionGuideVisible
+      ? metrics.referencePerimeterPoints
+          .map((point, index) => {
+            const state = getEffectiveRiffStepStateAtReferenceStep(
+              currentStudy,
+              currentBarStartStep + index,
+            );
+            return state.active
+              ? {
+                  point,
+                  index,
+                  accented: state.accented,
+                  current: index === currentStepWithinBar,
+                }
+              : null;
+          })
+          .filter(
+            (
+              entry,
+            ): entry is {
+              point: { x: number; y: number };
+              index: number;
+              accented: boolean;
+              current: boolean;
+            } => entry != null,
+          )
+      : [];
     const isFreeRestartMode = getResetStepCount(currentStudy) == null;
     const landingWindowLength = getLandingWindowLength(currentStudy);
     const normalizedStepWithinLandingWindow =
@@ -958,6 +988,57 @@ export default function RiffCycleCanvas({
           ctx.restore();
         }
       });
+
+      if (outerReferenceHitHighlights.length > 0) {
+        outerReferenceHitHighlights.forEach((entry) => {
+          const hitPulseStrength = entry.current
+            ? Math.max(0, 1 - Math.abs((referenceProgress % 1) - 0.22) / 0.78)
+            : 0;
+          const hitRadius =
+            ((entry.accented ? 5.4 : 4.2) + hitPulseStrength * (entry.accented ? 3.2 : 2.4)) *
+            shellScale;
+
+          ctx.save();
+          ctx.globalAlpha = entry.current ? 0.86 : entry.accented ? 0.68 : 0.52;
+          ctx.fillStyle = activeRiffColor;
+          ctx.shadowBlur =
+            (entry.current ? 14 + hitPulseStrength * 14 : entry.accented ? 10 : 6) *
+            glowMultiplier *
+            shellScale;
+          ctx.shadowColor = `${activeRiffColor}${entry.current ? 'AA' : entry.accented ? '88' : '66'}`;
+          ctx.beginPath();
+          ctx.arc(entry.point.x, entry.point.y, hitRadius, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.save();
+          ctx.globalAlpha = entry.current ? 0.86 : 0.54;
+          ctx.strokeStyle = entry.accented ? 'rgba(255,255,255,0.78)' : `${activeRiffColor}AA`;
+          ctx.lineWidth = (entry.current ? 1.45 : 1.05) * shellScale;
+          ctx.beginPath();
+          ctx.arc(
+            entry.point.x,
+            entry.point.y,
+            hitRadius + (entry.current ? 5.8 : 3.8) * shellScale,
+            0,
+            TAU,
+          );
+          ctx.stroke();
+          ctx.restore();
+
+          if (entry.accented) {
+            ctx.save();
+            ctx.globalAlpha = entry.current ? 0.92 : 0.68;
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.strokeStyle = 'rgba(17,17,22,0.62)';
+            ctx.lineWidth = 0.9 * shellScale;
+            drawDiamondMarker(ctx, entry.point.x, entry.point.y, 2.8 * shellScale);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
+      }
 
       if (flashActive) {
         const highlightIndices = [
