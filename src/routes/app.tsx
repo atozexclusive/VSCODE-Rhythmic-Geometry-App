@@ -2057,6 +2057,42 @@ interface StudyModeCanvasDisplayState {
   riff: CanvasDisplaySettings;
 }
 
+function usePreventBrowserZoom() {
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const prevent = (event: Event) => {
+      event.preventDefault();
+    };
+    const preventPinchTouch = (event: TouchEvent) => {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    };
+    const preventModifierWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('gesturestart', prevent, { passive: false });
+    document.addEventListener('gesturechange', prevent, { passive: false });
+    document.addEventListener('gestureend', prevent, { passive: false });
+    document.addEventListener('touchmove', preventPinchTouch, { passive: false });
+    window.addEventListener('wheel', preventModifierWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener('gesturestart', prevent);
+      document.removeEventListener('gesturechange', prevent);
+      document.removeEventListener('gestureend', prevent);
+      document.removeEventListener('touchmove', preventPinchTouch);
+      window.removeEventListener('wheel', preventModifierWheel);
+    };
+  }, []);
+}
+
 function loadCanvasDisplayState(): StudyModeCanvasDisplayState {
   return {
     version: CANVAS_DISPLAY_STORAGE_VERSION,
@@ -5706,6 +5742,7 @@ function launchLoadedState(
 }
 
 function OrbitalPolymeter() {
+  usePreventBrowserZoom();
   const { user, enabled: authEnabled, loading: authLoading, effectivePlan, refreshAccount } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
