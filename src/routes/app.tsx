@@ -9888,7 +9888,41 @@ function OrbitalPolymeter() {
       return;
     }
     const modeOrbitLimit = getOrbitLimitForMode(effectivePlan, geometryMode);
-    if (engineState.orbits.length >= modeOrbitLimit) {
+    const isPairGeometryMode = geometryMode === 'sweep' || geometryMode === 'interference-trace';
+    if (isPairGeometryMode) {
+      const normalized = normalizeInterferenceSettings(engineState.orbits, interferenceSettings);
+      const activeOrbitIds = [
+        normalized.sourceOrbitAId,
+        normalized.sourceOrbitBId,
+        normalized.sourceOrbitCId,
+        normalized.sourceOrbitDId,
+      ].filter((orbitId): orbitId is string => Boolean(orbitId));
+      if (activeOrbitIds.length >= modeOrbitLimit) {
+        openProPrompt('extra-orbits');
+        return;
+      }
+
+      const unusedOrbit = engineState.orbits.find((orbit) => !activeOrbitIds.includes(orbit.id));
+      if (unusedOrbit) {
+        setInterferenceSettings((current) =>
+          normalizeInterferenceSettings(engineState.orbits, {
+            ...current,
+            sourceOrbitCId: current.sourceOrbitCId ?? unusedOrbit.id,
+            sourceOrbitDId: current.sourceOrbitCId && !current.sourceOrbitDId ? unusedOrbit.id : current.sourceOrbitDId,
+          }),
+        );
+        resetEngine(engineState);
+        handleClearTraces();
+        setActiveSceneSource('custom');
+        rerender();
+        return;
+      }
+    } else if (engineState.orbits.length >= modeOrbitLimit) {
+      openProPrompt('extra-orbits');
+      return;
+    }
+
+    if (isPairGeometryMode && engineState.orbits.length >= 6) {
       openProPrompt('extra-orbits');
       return;
     }
@@ -9929,7 +9963,7 @@ function OrbitalPolymeter() {
     handleClearTraces();
     setActiveSceneSource('custom');
     rerender();
-  }, [effectivePlan, engineState, geometryMode, handleClearTraces, openProPrompt, requireUnlockedSceneEditing, rerender]);
+  }, [effectivePlan, engineState, geometryMode, handleClearTraces, interferenceSettings, openProPrompt, requireUnlockedSceneEditing, rerender]);
 
   const handleLoadPreset = useCallback(
     (ratios: number[]) => {

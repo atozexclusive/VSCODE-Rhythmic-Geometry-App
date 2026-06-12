@@ -236,6 +236,17 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+  canvas,
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+  }
 }
 
 .touch-slider {
