@@ -64,6 +64,7 @@ import {
   triggerReferencePulse,
   triggerResetCue,
   triggerRiffPulse,
+  triggerSubdivisionPulse,
 } from '../lib/riffCycleAudio';
 
 const TAU = Math.PI * 2;
@@ -99,6 +100,7 @@ interface RiffCycleCanvasProps {
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
   onToggleAccent: (stepIndex: number) => void;
+  onTogglePulseLayerStep?: (stepIndex: number) => void;
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
   onToggleLandingAccent: (slotIndex: number) => void;
   className?: string;
@@ -166,6 +168,21 @@ function drawDiamondMarker(
   ctx.lineTo(x, y + size);
   ctx.lineTo(x - size, y);
   ctx.closePath();
+}
+
+function getPulseLayerPoint(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  stepIndex: number,
+  stepCount: number,
+): { x: number; y: number; angle: number } {
+  const angle = -Math.PI / 2 + (stepIndex / Math.max(1, stepCount)) * TAU;
+  return {
+    x: centerX + Math.cos(angle) * radius,
+    y: centerY + Math.sin(angle) * radius,
+    angle,
+  };
 }
 
 function drawRiffCarves(
@@ -288,7 +305,7 @@ function drawRiffCarves(
 }
 
 function getBarMarkerIntervalBarCount(study: RiffCycleStudy): number | null {
-  const markerInterval = study.barMarkerInterval ?? 'pattern';
+  const markerInterval = study.barMarkerInterval ?? 'none';
   if (markerInterval === 'none') {
     return null;
   }
@@ -299,7 +316,7 @@ function getBarMarkerIntervalBarCount(study: RiffCycleStudy): number | null {
 }
 
 function isBarMarkerCueStep(study: RiffCycleStudy, referenceStep: number): boolean {
-  if ((study.barMarkerInterval ?? 'pattern') === 'pattern') {
+  if ((study.barMarkerInterval ?? 'none') === 'pattern') {
     const riffStepCount = Math.max(1, Math.round(study.riff.stepCount || 1));
     const resetStepCount = getResetStepCount(study);
     const stepWithinReturn =
@@ -434,6 +451,7 @@ export default function RiffCycleCanvas({
   onSelectStep,
   onSetStepActive,
   onToggleAccent,
+  onTogglePulseLayerStep,
   onSetLandingStepActive,
   onToggleLandingAccent,
   className,
@@ -591,6 +609,8 @@ export default function RiffCycleCanvas({
           ] ?? manualSubdivisionGuideMode
         : manualSubdivisionGuideMode;
     const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
+    const meterSubdivisionMarksVisible =
+      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled;
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
     const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
@@ -662,7 +682,7 @@ export default function RiffCycleCanvas({
     const currentStepWithinBar =
       ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const currentBarStartStep = currentAbsoluteReferenceStep - currentStepWithinBar;
-    const outerReferenceHitHighlights = subdivisionGuideVisible
+    const outerReferenceHitHighlights = meterSubdivisionMarksVisible
       ? metrics.referencePerimeterPoints
           .map((point, index) => {
             const state = getEffectiveRiffStepStateAtReferenceStep(
@@ -800,6 +820,80 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
+    if (currentStudy.pulseLayerEnabled) {
+      const pulseStepCount = Math.max(1, stepsPerBar);
+      const pulseSteps = Array.from(
+        { length: pulseStepCount },
+        (_, index) => currentStudy.pulseLayerSteps?.[index] ?? true,
+      );
+      const pulseRadius = metrics.outerRadius;
+      const currentPulsePosition =
+        ((referenceProgress % pulseStepCount) + pulseStepCount) % pulseStepCount;
+      const currentPulseIndex = Math.floor(currentPulsePosition) % pulseStepCount;
+      const pulseLayerColor = '#7FD7FF';
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(metrics.circleCenterX, metrics.circleCenterY, pulseRadius, 0, TAU);
+      ctx.strokeStyle = 'rgba(127, 215, 255, 0.28)';
+      ctx.lineWidth = (exportLayoutMode ? 1.9 : 1.25) * shellScale;
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${exportLayoutMode ? 16 : 8}px "SF Mono", "Fira Code", monospace`;
+      ctx.fillStyle = exportLayoutMode ? 'rgba(174, 227, 255, 0.72)' : 'rgba(174, 227, 255, 0.52)';
+      ctx.fillText(
+        `SUBDIVISIONS ${pulseStepCount}`,
+        metrics.circleCenterX,
+        metrics.circleCenterY - pulseRadius - (exportLayoutMode ? 18 : 9),
+      );
+
+      for (let index = 0; index < pulseStepCount; index += 1) {
+        const active = pulseSteps[index];
+        const current = index === currentPulseIndex;
+        const point = getPulseLayerPoint(
+          metrics.circleCenterX,
+          metrics.circleCenterY,
+          pulseRadius,
+          index,
+          pulseStepCount,
+        );
+        const nodeRadius =
+          (active ? (current ? 4.7 : 3.15) : 1.85) * pointScale;
+
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, nodeRadius, 0, TAU);
+        ctx.fillStyle = active
+          ? current
+            ? 'rgba(190, 238, 255, 0.78)'
+            : 'rgba(127, 215, 255, 0.28)'
+          : 'rgba(255,255,255,0.075)';
+        ctx.shadowBlur = active ? (current ? 7 : 1.5) * glowMultiplier * pointScale : 0;
+        ctx.shadowColor = active ? `${pulseLayerColor}88` : 'transparent';
+        ctx.fill();
+        ctx.lineWidth = active ? 1 * shellScale : 0.7 * shellScale;
+        ctx.strokeStyle = active ? 'rgba(174, 227, 255, 0.5)' : 'rgba(255,255,255,0.13)';
+        ctx.stroke();
+      }
+
+      const cursorPoint = getPulseLayerPoint(
+        metrics.circleCenterX,
+        metrics.circleCenterY,
+        pulseRadius,
+        currentPulsePosition,
+        pulseStepCount,
+      );
+      ctx.beginPath();
+      ctx.arc(cursorPoint.x, cursorPoint.y, 6.6 * pointScale, 0, TAU);
+      ctx.strokeStyle = 'rgba(255,255,255,0.34)';
+      ctx.lineWidth = 0.95 * shellScale;
+      ctx.shadowBlur = 5 * glowMultiplier * pointScale;
+      ctx.shadowColor = 'rgba(255,255,255,0.2)';
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (currentStudy.showReferenceRing) {
       ctx.save();
       ctx.beginPath();
@@ -895,7 +989,7 @@ export default function RiffCycleCanvas({
         ctx.restore();
       });
 
-      if (subdivisionGuideVisible) {
+      if (meterSubdivisionMarksVisible) {
         metrics.referencePerimeterPoints.forEach((point, index) => {
           const isBeat = isReferenceBeatStart(currentStudy, index);
           if (isBeat) {
@@ -947,6 +1041,9 @@ export default function RiffCycleCanvas({
         const isDownbeat = currentStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(currentStudy, index);
         const isBackbeat = isBackbeatStep(currentStudy, index);
+        if (currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
+          return;
+        }
         const beatFlashStrength =
           referenceBeatFlashStepRef.current === index
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
@@ -963,7 +1060,7 @@ export default function RiffCycleCanvas({
             ? 'rgba(255,255,255,0.88)'
             : isBeat
               ? 'rgba(255,255,255,0.56)'
-              : subdivisionGuideVisible
+              : meterSubdivisionMarksVisible
                 ? 'rgba(127,215,255,0.34)'
                 : 'rgba(255,255,255,0.16)';
         ctx.shadowBlur = (isBeat ? 6 + beatFlashStrength * 18 : 0) * glowMultiplier * shellScale;
@@ -2174,6 +2271,19 @@ export default function RiffCycleCanvas({
           triggerBackbeatAccent(currentStudy.soundSettings);
         }
         if (
+          audioEnabledRef.current &&
+          currentStudy.soundEnabled &&
+          currentStudy.subdivisionSoundEnabled &&
+          currentStudy.pulseLayerEnabled
+        ) {
+          const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
+          const subdivisionStep =
+            ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+          if (currentStudy.pulseLayerSteps?.[subdivisionStep] ?? true) {
+            triggerSubdivisionPulse(currentStudy.soundSettings);
+          }
+        }
+        if (
           currentStudy.showAlignmentMarkers &&
           isBarMarkerCueStep(currentStudy, currentAbsoluteReferenceStep)
         ) {
@@ -2461,6 +2571,36 @@ export default function RiffCycleCanvas({
     paintedStepsRef.current.clear();
   }, [clearLongPressTimer]);
 
+  const findPulseLayerHit = useCallback(
+    (
+      metrics: ReturnType<typeof getRiffCycleCanvasMetrics>,
+      x: number,
+      y: number,
+    ): number | null => {
+      const currentStudy = studyRef.current;
+      if (!currentStudy.pulseLayerEnabled) {
+        return null;
+      }
+
+      const pulseStepCount = Math.max(1, getReferenceStepsPerBar(currentStudy.reference));
+      const pulseRadius = metrics.outerRadius;
+      for (let index = 0; index < pulseStepCount; index += 1) {
+        const point = getPulseLayerPoint(
+          metrics.circleCenterX,
+          metrics.circleCenterY,
+          pulseRadius,
+          index,
+          pulseStepCount,
+        );
+        if (Math.hypot(x - point.x, y - point.y) <= (isMobileRef.current ? 18 : 14)) {
+          return index;
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
@@ -2475,20 +2615,30 @@ export default function RiffCycleCanvas({
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
+      const metrics = getRiffCycleCanvasMetrics(
+        studyRef.current,
+        rect.width,
+        rect.height,
+        isMobileRef.current,
+        layoutTopInsetRef.current,
+        layoutBottomInsetRef.current,
+        effectiveLaneWindowStartStep,
+        laneWindowStepCountRef.current,
+      );
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      const pulseHit = findPulseLayerHit(metrics, localX, localY);
+      if (pulseHit != null && onTogglePulseLayerStep) {
+        onTogglePulseLayerStep(pulseHit);
+        onSelectStep(null);
+        clearPointerPaint(event);
+        return;
+      }
       const hit = findRiffCycleHit(
         studyRef.current,
-        getRiffCycleCanvasMetrics(
-          studyRef.current,
-          rect.width,
-          rect.height,
-          isMobileRef.current,
-          layoutTopInsetRef.current,
-          layoutBottomInsetRef.current,
-          effectiveLaneWindowStartStep,
-          laneWindowStepCountRef.current,
-        ),
-        event.clientX - rect.left,
-        event.clientY - rect.top,
+        metrics,
+        localX,
+        localY,
       );
 
       if (!hit || hit.stepIndex == null) {
@@ -2574,6 +2724,8 @@ export default function RiffCycleCanvas({
       onSelectStep,
       onToggleAccent,
       onToggleLandingAccent,
+      onTogglePulseLayerStep,
+      findPulseLayerHit,
     ],
   );
 
@@ -2596,26 +2748,30 @@ export default function RiffCycleCanvas({
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
+      const metrics = getRiffCycleCanvasMetrics(
+        studyRef.current,
+        rect.width,
+        rect.height,
+        isMobileRef.current,
+        layoutTopInsetRef.current,
+        layoutBottomInsetRef.current,
+        effectiveLaneWindowStartStep,
+        laneWindowStepCountRef.current,
+      );
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
       const hit = findRiffCycleHit(
         studyRef.current,
-        getRiffCycleCanvasMetrics(
-          studyRef.current,
-          rect.width,
-          rect.height,
-          isMobileRef.current,
-          layoutTopInsetRef.current,
-          layoutBottomInsetRef.current,
-          effectiveLaneWindowStartStep,
-          laneWindowStepCountRef.current,
-        ),
-        event.clientX - rect.left,
-        event.clientY - rect.top,
+        metrics,
+        localX,
+        localY,
       );
+      const pulseHit = findPulseLayerHit(metrics, localX, localY);
 
       if (activePointerId == null) {
         if (!isMobileRef.current) {
           hoveredStepRef.current = hit?.stepIndex ?? null;
-          canvas.style.cursor = hit?.stepIndex != null ? 'pointer' : 'default';
+          canvas.style.cursor = hit?.stepIndex != null || pulseHit != null ? 'pointer' : 'default';
         }
         return;
       }
@@ -2648,7 +2804,7 @@ export default function RiffCycleCanvas({
         }
       }
     },
-    [applyLandingPaint, applyStepPaint, clearLongPressTimer],
+    [applyLandingPaint, applyStepPaint, clearLongPressTimer, findPulseLayerHit],
   );
 
   const handlePointerLeave = useCallback(() => {

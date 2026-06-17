@@ -149,6 +149,9 @@ export function getRiffCycleCanvasMetrics(
       isMobile ? 96 : 84,
       Math.min(safeWidth / 2 - (isMobile ? 6 : 10), availableTopHeight / 2 - (isMobile ? 8 : 8)),
     );
+    if (study.pulseLayerEnabled) {
+      outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
+    }
     circleCenterY = topPadding + availableTopHeight / 2;
     topLaneY = timelineY + (isMobile ? 10 : 16);
     bottomLaneY = topLaneY + laneHeight + (isMobile ? 14 : 20);
@@ -171,6 +174,9 @@ export function getRiffCycleCanvasMetrics(
       isMobile ? 96 : 84,
       Math.min(safeWidth / 2 - (isMobile ? 6 : 10), safeHeight / 2 - (isMobile ? 4 : 8)),
     );
+    if (study.pulseLayerEnabled) {
+      outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
+    }
     circleCenterY = topPadding + safeHeight / 2;
   }
 

@@ -418,7 +418,7 @@ function isFreeResolutionAtReferenceStep(study: RiffCycleStudy, referenceStep: n
 }
 
 function isExportBarMarkerCueStep(study: RiffCycleStudy, referenceStep: number): boolean {
-  const markerInterval = study.barMarkerInterval ?? 'pattern';
+  const markerInterval = study.barMarkerInterval ?? 'none';
   if (markerInterval === 'none') {
     return false;
   }
@@ -472,6 +472,18 @@ export function createRiffCycleExportAudioStream(
     }
     if (study.soundEnabled && study.backbeatSoundEnabled && isBackbeatStep(study, referenceStep)) {
       triggerBackbeatAccent(study.soundSettings, atTime, target);
+    }
+    if (
+      study.soundEnabled &&
+      study.subdivisionSoundEnabled &&
+      study.pulseLayerEnabled &&
+      (study.pulseLayerSteps?.[
+        ((referenceStep % getReferenceStepsPerBar(study.reference)) +
+          getReferenceStepsPerBar(study.reference)) %
+          getReferenceStepsPerBar(study.reference)
+      ] ?? true)
+    ) {
+      triggerSubdivisionPulse(study.soundSettings, atTime, target);
     }
     if (
       study.soundEnabled &&
@@ -536,6 +548,21 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, atTime?: n
     attack: 0.002,
     release: 0.12,
     filterFrequency: 1760,
+    atTime,
+  }, target);
+}
+
+export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+  const metal = sound?.palette === 'metal-tick';
+  withVoice({
+    type: metal ? 'square' : 'triangle',
+    frequency: metal ? 2480 : 2140,
+    gain: metal ? 0.018 : 0.014,
+    attack: 0.0015,
+    release: metal ? 0.024 : 0.032,
+    filterFrequency: metal ? 3600 : 3000,
+    filterType: 'highpass',
+    filterQ: 0.74,
     atTime,
   }, target);
 }

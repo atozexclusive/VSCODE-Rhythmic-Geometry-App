@@ -7744,6 +7744,28 @@ function OrbitalPolymeter() {
     }));
   }, [effectivePlan, requireEditableRiffCycleStudy]);
 
+  const handleToggleRiffSubdivisionSound = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'sound-editing')) {
+      showProPrompt('sound-editing');
+      return;
+    }
+    resumeRiffCycleAudio();
+    setRiffCycleStudy((current) => ({
+      ...current,
+      soundEnabled: true,
+      pulseLayerEnabled: true,
+      pulseLayerGroupSize: getReferenceStepsPerBar(current.reference),
+      pulseLayerSteps: Array.from(
+        { length: getReferenceStepsPerBar(current.reference) },
+        (_, index) => current.pulseLayerSteps?.[index] ?? true,
+      ),
+      subdivisionSoundEnabled: !current.subdivisionSoundEnabled,
+    }));
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
+
   const handleUpdateRiffSoundSettings = useCallback(
     (updates: Partial<RiffCycleSoundSettings>) => {
       if (!requireEditableRiffCycleStudy()) {
@@ -8251,6 +8273,44 @@ function OrbitalPolymeter() {
       ...current,
       showAlignmentMarkers: !current.showAlignmentMarkers,
     }));
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffPulseLayer = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => ({
+      ...current,
+      pulseLayerEnabled: !current.pulseLayerEnabled,
+      pulseLayerGroupSize: getReferenceStepsPerBar(current.reference),
+      pulseLayerSteps: Array.from(
+        { length: getReferenceStepsPerBar(current.reference) },
+        (_, index) => current.pulseLayerSteps?.[index] ?? true,
+      ),
+    }));
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffPulseLayerStep = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => {
+      const groupSize = Math.max(1, getReferenceStepsPerBar(current.reference));
+      if (stepIndex < 0 || stepIndex >= groupSize) {
+        return current;
+      }
+      const pulseLayerSteps = Array.from(
+        { length: groupSize },
+        (_, index) => current.pulseLayerSteps?.[index] ?? true,
+      );
+      pulseLayerSteps[stepIndex] = !pulseLayerSteps[stepIndex];
+      return {
+        ...current,
+        pulseLayerEnabled: true,
+        pulseLayerGroupSize: groupSize,
+        pulseLayerSteps,
+      };
+    });
   }, [requireEditableRiffCycleStudy]);
 
   const handleSetRiffBarMarkerInterval = useCallback((barMarkerInterval: RiffBarMarkerInterval) => {
@@ -17994,6 +18054,7 @@ function OrbitalPolymeter() {
                 onSelectStep={handleSelectRiffCycleStep}
                 onSetStepActive={handleSetRiffCycleStepActive}
                 onToggleAccent={handleToggleRiffCycleAccent}
+                onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
                 onToggleLandingAccent={handleToggleRiffLandingAccent}
                 className="absolute inset-0 h-full w-full"
@@ -18579,14 +18640,14 @@ function OrbitalPolymeter() {
                                   key={option.label}
                                   size="compact"
                                   tone="pink"
-                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'pattern') === option.value}
+                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
                                   onClick={() => handleSetRiffBarMarkerInterval(option.value)}
                                 >
                                   {option.label}
                                 </StudyShellButton>
                               ))}
                             </div>
-                            {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
                               <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-3 py-2 text-[10px] leading-relaxed text-[#FFD3E9]">
                                 {riffPatternBarMarkerCopy}
                               </div>
@@ -18850,11 +18911,11 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
-                                highlighted={Boolean(riffCycleStudy.showAlignmentMarkers)}
-                                onClick={handleToggleRiffAlignmentMarkers}
+                                highlighted={Boolean(riffCycleStudy.pulseLayerEnabled)}
+                                onClick={handleToggleRiffPulseLayer}
                                 className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
                               >
-                                Start Lines
+                                Grid {getReferenceStepsPerBar(riffCycleStudy.reference)}
                               </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
@@ -19281,6 +19342,19 @@ function OrbitalPolymeter() {
                             {focus.label}
                           </StudyShellButton>
                         ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          highlighted={riffCycleStudy.subdivisionSoundEnabled}
+                          onClick={handleToggleRiffSubdivisionSound}
+                        >
+                          Grid Click
+                        </StudyShellButton>
+                        <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
+                          {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
+                        </div>
                       </div>
                     </div>
 
@@ -20209,6 +20283,7 @@ function OrbitalPolymeter() {
                             onSelectStep={handleSelectRiffCycleStep}
                             onSetStepActive={handleSetRiffCycleStepActive}
                             onToggleAccent={handleToggleRiffCycleAccent}
+                            onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                             onSetLandingStepActive={handleSetRiffLandingStepActive}
                             onToggleLandingAccent={handleToggleRiffLandingAccent}
                             className="absolute inset-0 h-full w-full"
@@ -20417,7 +20492,7 @@ function OrbitalPolymeter() {
                                   key={option.label}
                                   size="compact"
                                   tone="blue"
-                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'pattern') === option.value}
+                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
                                   onClick={() => handleSetRiffBarMarkerInterval(option.value)}
                                   className="min-w-0 px-1.5 text-[8px] tracking-[0.07em]"
                                 >
@@ -20608,6 +20683,7 @@ function OrbitalPolymeter() {
             onSelectStep={handleSelectRiffCycleStep}
             onSetStepActive={handleSetRiffCycleStepActive}
             onToggleAccent={handleToggleRiffCycleAccent}
+            onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
             onSetLandingStepActive={handleSetRiffLandingStepActive}
             onToggleLandingAccent={handleToggleRiffLandingAccent}
           />
@@ -21297,14 +21373,14 @@ function OrbitalPolymeter() {
                             key={option.label}
                             size="compact"
                             tone="blue"
-                            highlighted={(riffCycleStudy.barMarkerInterval ?? 'pattern') === option.value}
+                            highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
                             onClick={() => handleSetRiffBarMarkerInterval(option.value)}
                           >
                             {option.label}
                           </StudyShellButton>
                         ))}
                       </div>
-                      {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
                         <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                           Cues follow the riff cycle, even when it phases across the bar.
                         </div>
@@ -21682,6 +21758,35 @@ function OrbitalPolymeter() {
                     <div
                       className="space-y-2 rounded-xl border px-2.5 py-2"
                       style={{
+                        background: 'rgba(127,215,255,0.04)',
+                        borderColor: 'rgba(127,215,255,0.14)',
+                        boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
+                      }}
+                    >
+                      <InlineInfoLabel
+                        infoId="riff_part_focus"
+                        label="Grid Audio"
+                        labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
+                        labelStyle={desktopMenuSubheaderStyle}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          highlighted={riffCycleStudy.subdivisionSoundEnabled}
+                          onClick={handleToggleRiffSubdivisionSound}
+                          className={utilityButtonClass}
+                        >
+                          Grid Click
+                        </StudyShellButton>
+                        <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
+                          {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className="space-y-2 rounded-xl border px-2.5 py-2"
+                      style={{
                         background: 'rgba(255,255,255,0.028)',
                         borderColor: 'rgba(255,255,255,0.08)',
                         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
@@ -21898,12 +22003,12 @@ function OrbitalPolymeter() {
 	                        </StudyShellButton>
 	                        <StudyShellButton
 	                          size="compact"
-	                          tone="amber"
-	                          highlighted={Boolean(riffCycleStudy.showAlignmentMarkers)}
-	                          onClick={handleToggleRiffAlignmentMarkers}
+	                          tone="blue"
+	                          highlighted={Boolean(riffCycleStudy.pulseLayerEnabled)}
+	                          onClick={handleToggleRiffPulseLayer}
 	                          className={utilityButtonClass}
 	                        >
-	                          Start Lines
+	                          Grid {getReferenceStepsPerBar(riffCycleStudy.reference)}
 	                        </StudyShellButton>
 	                      </div>
 	                    </div>
@@ -22444,6 +22549,7 @@ function OrbitalPolymeter() {
                   onSelectStep={handleSelectRiffCycleStep}
                   onSetStepActive={handleSetRiffCycleStepActive}
                   onToggleAccent={handleToggleRiffCycleAccent}
+                  onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
                   onToggleLandingAccent={handleToggleRiffLandingAccent}
                   className="absolute inset-0 h-full w-full"
@@ -22535,14 +22641,14 @@ function OrbitalPolymeter() {
                           key={option.label}
                           size="compact"
                           tone="blue"
-                          highlighted={(riffCycleStudy.barMarkerInterval ?? 'pattern') === option.value}
+                          highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
                           onClick={() => handleSetRiffBarMarkerInterval(option.value)}
                         >
                           {option.label}
                         </StudyShellButton>
                       ))}
                     </div>
-                    {(riffCycleStudy.barMarkerInterval ?? 'pattern') === 'pattern' ? (
+                    {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
                       <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                         {riffPatternBarMarkerCopy}
                       </div>

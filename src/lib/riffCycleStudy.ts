@@ -100,6 +100,7 @@ export interface RiffCycleStudy {
   soundEnabled: boolean;
   referenceSoundEnabled: boolean;
   backbeatSoundEnabled: boolean;
+  subdivisionSoundEnabled: boolean;
   tailEditEnabled: boolean;
   tailLength: number;
   landingEditEnabled: boolean;
@@ -111,6 +112,9 @@ export interface RiffCycleStudy {
   showAlignmentMarkers: boolean;
   showPhraseBounds: boolean;
   showStructureView: boolean;
+  pulseLayerEnabled: boolean;
+  pulseLayerGroupSize: number;
+  pulseLayerSteps: boolean[];
   barMarkerInterval: RiffBarMarkerInterval;
   showDriftTrail: boolean;
   viewMode: RiffCycleViewMode;
@@ -518,6 +522,17 @@ function normalizeRiffSequenceOrder(
   return next.length > 0 ? next : [fallbackLabel];
 }
 
+function normalizePulseLayerGroupSize(value: number | undefined): number {
+  return Math.max(1, Math.min(64, Math.round(value ?? 5)));
+}
+
+function normalizePulseLayerSteps(
+  steps: boolean[] | undefined,
+  groupSize: number,
+): boolean[] {
+  return Array.from({ length: groupSize }, (_, index) => steps?.[index] ?? true);
+}
+
 function normalizeRiffSequenceBarsMode(mode: RiffSequenceBarsMode | undefined): RiffSequenceBarsMode {
   return mode === 'per-cell' ? 'per-cell' : 'global';
 }
@@ -755,6 +770,9 @@ export function createRiffCycleStudy(
   const riffSequenceBars = normalizeBars(
     overrides.riffSequenceBars ?? getResetBarCount(riff) ?? reference.barCountForDisplay,
   );
+  const pulseLayerGroupSize = normalizePulseLayerGroupSize(
+    overrides.pulseLayerGroupSize ?? getReferenceStepsPerBar(reference),
+  );
   const defaultLandingLength = normalizeLandingLength(
     overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(reference) * 2),
     getReferenceStepsPerBar(reference),
@@ -785,6 +803,7 @@ export function createRiffCycleStudy(
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
     backbeatSoundEnabled: overrides.backbeatSoundEnabled ?? true,
+    subdivisionSoundEnabled: overrides.subdivisionSoundEnabled ?? false,
     tailEditEnabled: overrides.tailEditEnabled ?? false,
     tailLength: normalizeTailLength(overrides.tailLength ?? 4, riff.stepCount),
     landingEditEnabled: overrides.landingEditEnabled ?? false,
@@ -799,6 +818,9 @@ export function createRiffCycleStudy(
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
     showPhraseBounds: overrides.showPhraseBounds ?? false,
     showStructureView: overrides.showStructureView ?? false,
+    pulseLayerEnabled: overrides.pulseLayerEnabled ?? false,
+    pulseLayerGroupSize,
+    pulseLayerSteps: normalizePulseLayerSteps(overrides.pulseLayerSteps, pulseLayerGroupSize),
     barMarkerInterval:
       overrides.barMarkerInterval === 'none' ||
       overrides.barMarkerInterval === 'pattern' ||
@@ -807,7 +829,7 @@ export function createRiffCycleStudy(
       overrides.barMarkerInterval === 4 ||
       overrides.barMarkerInterval === 8
         ? overrides.barMarkerInterval
-        : 'pattern',
+        : 'none',
     showDriftTrail: overrides.showDriftTrail ?? true,
     viewMode: overrides.viewMode ?? 'unwrapped',
     emphasisMode: overrides.emphasisMode ?? 'analysis',
@@ -819,6 +841,9 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
   const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
   const riffSequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
   const riffSequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  const pulseLayerGroupSize = normalizePulseLayerGroupSize(
+    study.pulseLayerGroupSize ?? getReferenceStepsPerBar(study.reference),
+  );
   return {
     ...study,
     reference: { ...study.reference },
@@ -846,6 +871,10 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       study.riffSequenceEntryRepeats,
       riffSequence,
     ),
+    subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
+    pulseLayerEnabled: Boolean(study.pulseLayerEnabled),
+    pulseLayerGroupSize,
+    pulseLayerSteps: normalizePulseLayerSteps(study.pulseLayerSteps, pulseLayerGroupSize),
     soundSettings: { ...study.soundSettings },
     landingOverrides: [...study.landingOverrides],
   };
