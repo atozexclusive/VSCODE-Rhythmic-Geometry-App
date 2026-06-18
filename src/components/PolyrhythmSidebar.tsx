@@ -1902,15 +1902,23 @@ export default function PolyrhythmSidebar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => importInputRef.current?.click()}
+                  onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
                   className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
                   style={{
                     background: 'rgba(255, 255, 255, 0.045)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: 'rgba(255, 255, 255, 0.68)',
+                    ...(saveScenesLocked
+                      ? {
+                          background: 'rgba(255,255,255,0.035)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.5)',
+                          filter: 'grayscale(0.45)',
+                        }
+                      : {}),
                   }}
                 >
-                  Import Scene
+                  {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
                 </button>
                 <input
                   ref={importInputRef}

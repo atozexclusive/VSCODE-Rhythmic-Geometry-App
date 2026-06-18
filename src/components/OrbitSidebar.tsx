@@ -98,10 +98,11 @@ interface OrbitSidebarProps {
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
+    saveScenes?: boolean;
     soundEditing?: boolean;
     proScenes?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'pro-scenes') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'save-scenes' | 'sound-editing' | 'pro-scenes') => void;
 }
 
 const COLORS = [
@@ -179,6 +180,10 @@ export default function OrbitSidebar({
   const promptLockedExport = () => {
     onLockedFeature?.('export');
     setExportNotice('Export is a Pro feature.');
+  };
+  const saveScenesLocked = Boolean(lockedFeatures.saveScenes);
+  const promptLockedSaveScenes = () => {
+    onLockedFeature?.('save-scenes');
   };
   const promptLockedSound = () => {
     onLockedFeature?.('sound-editing');
@@ -1374,15 +1379,23 @@ export default function OrbitSidebar({
                   <InfoTip text="Scene files save the editable setup, not just a picture. Use them to move a scene between devices." />
                 </div>
                 <button
-                  onClick={() => importInputRef.current?.click()}
+                  onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
                   className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
                   style={{
                     background: 'rgba(255, 255, 255, 0.06)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: 'rgba(255, 255, 255, 0.7)',
+                    ...(saveScenesLocked
+                      ? {
+                          background: 'rgba(255,255,255,0.035)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.5)',
+                          filter: 'grayscale(0.45)',
+                        }
+                      : {}),
                   }}
                 >
-                  Import Scene
+                  {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
                 </button>
                 <input
                   ref={importInputRef}
