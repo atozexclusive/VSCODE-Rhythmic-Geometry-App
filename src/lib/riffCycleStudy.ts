@@ -101,6 +101,8 @@ export interface RiffCycleStudy {
   referenceSoundEnabled: boolean;
   backbeatSoundEnabled: boolean;
   subdivisionSoundEnabled: boolean;
+  referenceGain: number;
+  subdivisionGain: number;
   tailEditEnabled: boolean;
   tailLength: number;
   landingEditEnabled: boolean;
@@ -108,6 +110,7 @@ export interface RiffCycleStudy {
   landingOverrides: LandingOverrideState[];
   showReferenceRing: boolean;
   showPhraseRing: boolean;
+  showPhraseFill: boolean;
   showStepLabels: boolean;
   showAlignmentMarkers: boolean;
   showPhraseBounds: boolean;
@@ -215,6 +218,10 @@ function normalizeBpm(value: number): number {
 
 function normalizeGain(value: number): number {
   return clamp(Number.isFinite(value) ? value : 0.12, 0.02, 0.32);
+}
+
+function normalizeCueGain(value: number, fallback: number): number {
+  return clamp(Number.isFinite(value) ? value : fallback, 0, 0.18);
 }
 
 function normalizePitch(value: number): number {
@@ -804,6 +811,8 @@ export function createRiffCycleStudy(
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
     backbeatSoundEnabled: overrides.backbeatSoundEnabled ?? true,
     subdivisionSoundEnabled: overrides.subdivisionSoundEnabled ?? false,
+    referenceGain: normalizeCueGain(overrides.referenceGain ?? 0.055, 0.055),
+    subdivisionGain: normalizeCueGain(overrides.subdivisionGain ?? 0.014, 0.014),
     tailEditEnabled: overrides.tailEditEnabled ?? false,
     tailLength: normalizeTailLength(overrides.tailLength ?? 4, riff.stepCount),
     landingEditEnabled: overrides.landingEditEnabled ?? false,
@@ -814,6 +823,7 @@ export function createRiffCycleStudy(
     ),
     showReferenceRing: overrides.showReferenceRing ?? true,
     showPhraseRing: overrides.showPhraseRing ?? true,
+    showPhraseFill: overrides.showPhraseFill ?? true,
     showStepLabels: overrides.showStepLabels ?? true,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
     showPhraseBounds: overrides.showPhraseBounds ?? false,
@@ -871,7 +881,10 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       study.riffSequenceEntryRepeats,
       riffSequence,
     ),
+    showPhraseFill: study.showPhraseFill ?? true,
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
+    referenceGain: normalizeCueGain(study.referenceGain ?? 0.055, 0.055),
+    subdivisionGain: normalizeCueGain(study.subdivisionGain ?? 0.014, 0.014),
     pulseLayerEnabled: Boolean(study.pulseLayerEnabled),
     pulseLayerGroupSize,
     pulseLayerSteps: normalizePulseLayerSteps(study.pulseLayerSteps, pulseLayerGroupSize),

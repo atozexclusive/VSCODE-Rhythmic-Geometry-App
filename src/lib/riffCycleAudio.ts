@@ -290,12 +290,12 @@ function triggerPaletteRiff(
   }, target);
 }
 
-function triggerReferencePalette(sound: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+function triggerReferencePalette(sound: RiffCycleSoundSettings, gain = 0.055, atTime?: number, target?: VoiceTarget): void {
   if (sound.palette === 'metal-tick') {
     withVoice({
       type: 'square',
       frequency: 1760,
-      gain: 0.05,
+      gain: clamp(gain * 0.91, 0, 0.2),
       attack: 0.0015,
       release: 0.035,
       filterFrequency: 2600,
@@ -310,7 +310,7 @@ function triggerReferencePalette(sound: RiffCycleSoundSettings, atTime?: number,
     withVoice({
       type: 'square',
       frequency: 1440,
-      gain: 0.05,
+      gain: clamp(gain * 0.91, 0, 0.2),
       attack: 0.002,
       release: 0.05,
       filterFrequency: 2200,
@@ -319,15 +319,15 @@ function triggerReferencePalette(sound: RiffCycleSoundSettings, atTime?: number,
     return;
   }
 
-  triggerReferencePulse(undefined, atTime, target);
+  triggerReferencePulse(undefined, gain, atTime, target);
 }
 
-function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+function triggerBackbeatPalette(sound: RiffCycleSoundSettings, gain = 0.11, atTime?: number, target?: VoiceTarget): void {
   if (sound.palette === 'muted-djent') {
     withVoice({
       type: 'square',
       frequency: 980,
-      gain: 0.095,
+      gain: clamp(gain * 0.86, 0, 0.24),
       attack: 0.0015,
       release: 0.09,
       filterFrequency: 1500,
@@ -342,7 +342,7 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, 
     withVoice({
       type: 'triangle',
       frequency: 960,
-      gain: 0.1,
+      gain: clamp(gain * 0.91, 0, 0.24),
       attack: 0.0015,
       release: 0.075,
       filterFrequency: 1850,
@@ -357,7 +357,7 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, 
     withVoice({
       type: 'triangle',
       frequency: 620,
-      gain: 0.1,
+      gain: clamp(gain * 0.91, 0, 0.24),
       attack: 0.002,
       release: 0.13,
       filterFrequency: 1200,
@@ -366,7 +366,7 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings, atTime?: number, 
     return;
   }
 
-  triggerBackbeatAccent(undefined, atTime, target);
+  triggerBackbeatAccent(undefined, gain, atTime, target);
 }
 
 export function resumeRiffCycleAudio(): void {
@@ -467,15 +467,16 @@ export function createRiffCycleExportAudioStream(
 
   for (let referenceStep = 0; referenceStep <= totalSteps; referenceStep += 1) {
     const atTime = scheduleStartTime + referenceStep / stepsPerSecond;
-    if (study.soundEnabled && study.referenceSoundEnabled && isReferenceBeatStart(study, referenceStep)) {
-      triggerReferencePulse(study.soundSettings, atTime, target);
+    if (study.soundEnabled && study.referenceSoundEnabled && study.referenceGain > 0 && isReferenceBeatStart(study, referenceStep)) {
+      triggerReferencePulse(study.soundSettings, study.referenceGain, atTime, target);
     }
-    if (study.soundEnabled && study.backbeatSoundEnabled && isBackbeatStep(study, referenceStep)) {
-      triggerBackbeatAccent(study.soundSettings, atTime, target);
+    if (study.soundEnabled && study.backbeatSoundEnabled && study.referenceGain > 0 && isBackbeatStep(study, referenceStep)) {
+      triggerBackbeatAccent(study.soundSettings, study.referenceGain * 2, atTime, target);
     }
     if (
       study.soundEnabled &&
       study.subdivisionSoundEnabled &&
+      study.subdivisionGain > 0 &&
       study.pulseLayerEnabled &&
       (study.pulseLayerSteps?.[
         ((referenceStep % getReferenceStepsPerBar(study.reference)) +
@@ -483,7 +484,7 @@ export function createRiffCycleExportAudioStream(
           getReferenceStepsPerBar(study.reference)
       ] ?? true)
     ) {
-      triggerSubdivisionPulse(study.soundSettings, atTime, target);
+      triggerSubdivisionPulse(study.soundSettings, study.subdivisionGain, atTime, target);
     }
     if (
       study.soundEnabled &&
@@ -518,16 +519,19 @@ export function createRiffCycleExportAudioStream(
   return destination.stream;
 }
 
-export function triggerReferencePulse(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+export function triggerReferencePulse(sound?: RiffCycleSoundSettings, gain = 0.055, atTime?: number, target?: VoiceTarget): void {
+  if (gain <= 0) {
+    return;
+  }
   if (sound && sound.palette !== 'architectural') {
-    triggerReferencePalette(sound, atTime, target);
+    triggerReferencePalette(sound, gain, atTime, target);
     return;
   }
 
   withVoice({
     type: 'square',
     frequency: 1660,
-    gain: 0.055,
+    gain: clamp(gain, 0, 0.2),
     attack: 0.002,
     release: 0.045,
     filterFrequency: 3000,
@@ -535,16 +539,19 @@ export function triggerReferencePulse(sound?: RiffCycleSoundSettings, atTime?: n
   }, target);
 }
 
-export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, gain = 0.11, atTime?: number, target?: VoiceTarget): void {
+  if (gain <= 0) {
+    return;
+  }
   if (sound && sound.palette !== 'architectural') {
-    triggerBackbeatPalette(sound, atTime, target);
+    triggerBackbeatPalette(sound, gain, atTime, target);
     return;
   }
 
   withVoice({
     type: 'triangle',
     frequency: 820,
-    gain: 0.11,
+    gain: clamp(gain, 0, 0.24),
     attack: 0.002,
     release: 0.12,
     filterFrequency: 1760,
@@ -552,12 +559,16 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, atTime?: n
   }, target);
 }
 
-export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
+export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: number, atTime?: number, target?: VoiceTarget): void {
   const metal = sound?.palette === 'metal-tick';
+  const baseGain = gain ?? (metal ? 0.018 : 0.014);
+  if (baseGain <= 0) {
+    return;
+  }
   withVoice({
     type: metal ? 'square' : 'triangle',
     frequency: metal ? 2480 : 2140,
-    gain: metal ? 0.018 : 0.014,
+    gain: clamp(baseGain, 0, 0.12),
     attack: 0.0015,
     release: metal ? 0.024 : 0.032,
     filterFrequency: metal ? 3600 : 3000,

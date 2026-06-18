@@ -70,7 +70,6 @@ import {
 const TAU = Math.PI * 2;
 const BAR_MARKER_FLASH_DURATION = 520;
 const REFERENCE_BEAT_FLASH_DURATION = 280;
-const CARVE_VIEW_STEP_THRESHOLD = 33;
 
 interface RiffCyclePlaybackState {
   referenceProgress: number;
@@ -197,6 +196,8 @@ function drawRiffCarves(
     glowMultiplier: number;
     pointScale: number;
     showLabels: boolean;
+    intensity: number;
+    fill: boolean;
   },
 ): void {
   const activePoints = points.filter((point) => point.active).sort((a, b) => a.index - b.index);
@@ -204,37 +205,65 @@ function drawRiffCarves(
     return;
   }
 
+  const segments = activePoints
+    .map((point, index) => {
+      const nextPoint = activePoints[(index + 1) % activePoints.length];
+      const stepSpan =
+        nextPoint.index > point.index
+          ? nextPoint.index - point.index
+          : options.stepCount - point.index + nextPoint.index;
+      const startAngle = point.angle;
+      const endAngle = nextPoint.index > point.index ? nextPoint.angle : nextPoint.angle + TAU;
+      const arcSpan = endAngle - startAngle;
+      if (stepSpan <= 0 || arcSpan <= 0.02) {
+        return null;
+      }
+
+      const midAngle = startAngle + arcSpan / 2;
+      const carveDepth = Math.min(
+        options.radius * (0.16 + options.intensity * 0.18),
+        (8 + options.intensity * 8 + Math.min(34, stepSpan * 4.5) * options.intensity) * options.pointScale,
+      );
+      const controlRadius = Math.max(options.radius * 0.5, options.radius - carveDepth);
+
+      return {
+        point,
+        nextPoint,
+        stepSpan,
+        midAngle,
+        controlX: options.centerX + Math.cos(midAngle) * controlRadius,
+        controlY: options.centerY + Math.sin(midAngle) * controlRadius,
+      };
+    })
+    .filter((segment): segment is NonNullable<typeof segment> => segment != null);
+
+  if (segments.length === 0) {
+    return;
+  }
+
   const labelCandidates: Array<{ angle: number; label: string; span: number }> = [];
 
-  activePoints.forEach((point, index) => {
-    const nextPoint = activePoints[(index + 1) % activePoints.length];
-    const stepSpan =
-      nextPoint.index > point.index
-        ? nextPoint.index - point.index
-        : options.stepCount - point.index + nextPoint.index;
-    if (stepSpan <= 0) {
-      return;
-    }
+  if (options.fill && segments.length >= 3) {
+    ctx.save();
+    ctx.fillStyle = options.color;
+    ctx.globalAlpha = 0.14;
+    ctx.beginPath();
+    ctx.moveTo(segments[0].point.x, segments[0].point.y);
+    segments.forEach((segment) => {
+      ctx.quadraticCurveTo(segment.controlX, segment.controlY, segment.nextPoint.x, segment.nextPoint.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
 
-    const startAngle = point.angle;
-    const endAngle = nextPoint.index > point.index ? nextPoint.angle : nextPoint.angle + TAU;
-    const arcSpan = endAngle - startAngle;
-    if (arcSpan <= 0.02) {
-      return;
-    }
-
-    const midAngle = startAngle + arcSpan / 2;
-    const carveDepth = Math.min(options.radius * 0.34, (16 + Math.min(34, stepSpan * 4.5)) * options.pointScale);
-    const controlRadius = Math.max(options.radius * 0.5, options.radius - carveDepth);
-    const controlX = options.centerX + Math.cos(midAngle) * controlRadius;
-    const controlY = options.centerY + Math.sin(midAngle) * controlRadius;
-
+  segments.forEach(({ point, nextPoint, stepSpan, midAngle, controlX, controlY }) => {
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(3,5,8,0.56)';
-    ctx.lineWidth = 7.2 * options.pointScale;
-    ctx.globalAlpha = 0.58;
+    ctx.lineWidth = (3.2 + options.intensity * 4) * options.pointScale;
+    ctx.globalAlpha = 0.28 + options.intensity * 0.3;
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
     ctx.quadraticCurveTo(controlX, controlY, nextPoint.x, nextPoint.y);
@@ -245,9 +274,9 @@ function drawRiffCarves(
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = options.color;
-    ctx.lineWidth = 1.75 * options.pointScale;
-    ctx.globalAlpha = 0.76;
-    ctx.shadowBlur = 11 * options.glowMultiplier * options.pointScale;
+    ctx.lineWidth = (0.9 + options.intensity * 0.85) * options.pointScale;
+    ctx.globalAlpha = 0.48 + options.intensity * 0.28;
+    ctx.shadowBlur = (4 + options.intensity * 7) * options.glowMultiplier * options.pointScale;
     ctx.shadowColor = `${options.color}99`;
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
@@ -666,10 +695,13 @@ export default function RiffCycleCanvas({
       };
     });
     const activeRiffPoints = riffPoints.filter((point) => point.active);
-    const carveViewActive =
-      currentStudy.showStructureView &&
-      currentStudy.viewMode === 'circular' &&
-      visibleRiff.stepCount >= CARVE_VIEW_STEP_THRESHOLD;
+    const carveViewActive = currentStudy.showStructureView;
+    const contourIntensity =
+      visibleRiff.stepCount >= 33
+        ? 1
+        : visibleRiff.stepCount >= 16
+          ? 0.72
+          : 0.54;
     const currentRiffStep = getRiffStepIndexAtReferenceStep(
       currentStudy,
       currentAbsoluteReferenceStep,
@@ -1167,7 +1199,7 @@ export default function RiffCycleCanvas({
       }
     }
 
-    if (innerClockVisible && currentStudy.showPhraseRing && !carveViewActive) {
+    if (innerClockVisible && currentStudy.showPhraseRing) {
       ctx.save();
       ctx.strokeStyle = flashActive
         ? `${activeRiffColor}66`
@@ -1179,37 +1211,41 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (innerClockVisible && currentStudy.showPhraseRing && !carveViewActive && activeRiffPoints.length >= 2) {
-      ctx.save();
-      ctx.fillStyle = activeRiffColor;
-      ctx.globalAlpha = 0.14;
-      ctx.beginPath();
-      ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
-      for (let index = 1; index < activeRiffPoints.length; index += 1) {
-        ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+    if (innerClockVisible && currentStudy.showPhraseRing && activeRiffPoints.length >= 2) {
+      if (!carveViewActive && currentStudy.showPhraseFill) {
+        ctx.save();
+        ctx.fillStyle = activeRiffColor;
+        ctx.globalAlpha = 0.14;
+        ctx.beginPath();
+        ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
+        for (let index = 1; index < activeRiffPoints.length; index += 1) {
+          ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+        }
+        if (activeRiffPoints.length >= 3) {
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
       }
-      if (activeRiffPoints.length >= 3) {
-        ctx.closePath();
-        ctx.fill();
-      }
-      ctx.restore();
 
-      ctx.save();
-      ctx.strokeStyle = activeRiffColor;
-      ctx.lineWidth = 2.1;
-      ctx.globalAlpha = 0.9;
-      ctx.shadowBlur = 14 * glowMultiplier;
-      ctx.shadowColor = activeRiffColor;
-      ctx.beginPath();
-      ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
-      for (let index = 1; index < activeRiffPoints.length; index += 1) {
-        ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+      if (!carveViewActive) {
+        ctx.save();
+        ctx.strokeStyle = activeRiffColor;
+        ctx.lineWidth = 2.1;
+        ctx.globalAlpha = 0.9;
+        ctx.shadowBlur = 14 * glowMultiplier;
+        ctx.shadowColor = activeRiffColor;
+        ctx.beginPath();
+        ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
+        for (let index = 1; index < activeRiffPoints.length; index += 1) {
+          ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+        }
+        if (activeRiffPoints.length >= 3) {
+          ctx.closePath();
+        }
+        ctx.stroke();
+        ctx.restore();
       }
-      if (activeRiffPoints.length >= 3) {
-        ctx.closePath();
-      }
-      ctx.stroke();
-      ctx.restore();
     }
 
     if (innerClockVisible && currentStudy.showPhraseRing && carveViewActive) {
@@ -1222,6 +1258,8 @@ export default function RiffCycleCanvas({
         glowMultiplier,
         pointScale,
         showLabels: circularPhraseBoundsActive,
+        intensity: contourIntensity,
+        fill: currentStudy.showPhraseFill,
       });
     }
 
@@ -2264,23 +2302,24 @@ export default function RiffCycleCanvas({
           );
           referenceBeatFlashUntilRef.current = now + REFERENCE_BEAT_FLASH_DURATION;
         }
-        if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled) {
-          triggerReferencePulse(currentStudy.soundSettings);
+        if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled && currentStudy.referenceGain > 0) {
+          triggerReferencePulse(currentStudy.soundSettings, currentStudy.referenceGain);
         }
-        if (audioEnabledRef.current && currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled) {
-          triggerBackbeatAccent(currentStudy.soundSettings);
+        if (audioEnabledRef.current && currentStudy.soundEnabled && backbeatStep && currentStudy.backbeatSoundEnabled && currentStudy.referenceGain > 0) {
+          triggerBackbeatAccent(currentStudy.soundSettings, currentStudy.referenceGain * 2);
         }
         if (
           audioEnabledRef.current &&
           currentStudy.soundEnabled &&
           currentStudy.subdivisionSoundEnabled &&
+          currentStudy.subdivisionGain > 0 &&
           currentStudy.pulseLayerEnabled
         ) {
           const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
           const subdivisionStep =
             ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
           if (currentStudy.pulseLayerSteps?.[subdivisionStep] ?? true) {
-            triggerSubdivisionPulse(currentStudy.soundSettings);
+            triggerSubdivisionPulse(currentStudy.soundSettings, currentStudy.subdivisionGain);
           }
         }
         if (

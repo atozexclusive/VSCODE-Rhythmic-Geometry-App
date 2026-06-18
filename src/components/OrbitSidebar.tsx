@@ -334,12 +334,9 @@ export default function OrbitSidebar({
         { key: 'account', label: 'Account', activeColor: '#C9D4E5' },
       ]
     : [
-        { key: 'scenes', label: 'Scenes', activeColor: '#00FFAA' },
-        { key: 'geometry', label: 'Orbit Mode', activeColor: geometryMode === 'standard-trace' ? '#00FFAA' : geometryMode === 'interference-trace' ? '#88CCFF' : '#FFAA00' },
-        { key: 'orbits', label: 'Orbits', activeColor: '#FF88C2' },
-        { key: 'sound', label: 'Sound', activeColor: '#88CCFF' },
+        { key: 'scenes', label: 'Scenes', activeColor: '#7FD7FF' },
         { key: 'export', label: 'Export', activeColor: '#FFAA00' },
-        { key: 'account', label: 'Account', activeColor: '#FFAA00' },
+        { key: 'account', label: 'Account', activeColor: '#C9D4E5' },
       ];
   const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
     { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
@@ -361,6 +358,12 @@ export default function OrbitSidebar({
       setActiveTab('scenes');
     }
   }, [isMobile, isOpen]);
+
+  useEffect(() => {
+    if (activeTab === 'geometry' || activeTab === 'orbits' || activeTab === 'sound') {
+      setActiveTab('scenes');
+    }
+  }, [activeTab]);
 
   return (
     <>
@@ -837,6 +840,20 @@ export default function OrbitSidebar({
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={onSaveScene}
+                className="flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(0,255,170,0.18), rgba(0,255,170,0.09))',
+                  borderColor: 'rgba(0,255,170,0.28)',
+                  color: '#72F1B8',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px rgba(0,255,170,0.1)',
+                }}
+              >
+                Save Scene
+              </button>
 
               <div className="rounded-[1rem] border px-1 py-1 flex gap-1" style={isMobile ? mobileSceneFilterShellStyle : { background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
                 {sceneModeTabs.map((mode) => (
