@@ -560,7 +560,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   riff_read_aids: {
     title: 'Read Aids',
-    body: 'Adds visual helpers to the lane and canvas. Numbers show step position, Grid shows the subdivision surface, Riff Bounds show phrase edges, and Contour shows the spaces between hits.',
+    body: 'Adds visual helpers to the lane and canvas. Numbers show step position, Subdivisions show the subdivision surface, Riff Bounds show phrase edges, and Contour shows the spaces between hits.',
   },
   riff_playback_output: {
     title: 'Output',
@@ -3467,6 +3467,8 @@ function RiffCellSequenceEditor({
   onRandomizeCells,
   colorEditingLocked = false,
   onLockedColorClick,
+  sequenceLocked = false,
+  onLockedSequenceClick,
   compact = false,
 }: {
   study: RiffCycleStudy;
@@ -3487,6 +3489,8 @@ function RiffCellSequenceEditor({
   onRandomizeCells: () => void;
   colorEditingLocked?: boolean;
   onLockedColorClick?: () => void;
+  sequenceLocked?: boolean;
+  onLockedSequenceClick?: () => void;
   compact?: boolean;
 }) {
   const resetStepCount = getResetStepCount(study);
@@ -3574,15 +3578,17 @@ function RiffCellSequenceEditor({
         <StudyShellButton
           size="compact"
           tone="amber"
-          highlighted={study.riffSequenceEnabled}
+          highlighted={study.riffSequenceEnabled && !sequenceLocked}
+          locked={sequenceLocked}
+          onLockedClick={onLockedSequenceClick}
           className={compact ? '!h-7 rounded-lg px-2 text-[8.5px]' : undefined}
           onClick={() => onSetEnabled(!study.riffSequenceEnabled)}
         >
-          {study.riffSequenceEnabled ? 'On' : 'Off'}
+          {sequenceLocked ? 'Pro' : study.riffSequenceEnabled ? 'On' : 'Off'}
         </StudyShellButton>
       </div>
 
-      {study.riffSequenceEnabled ? (
+      {study.riffSequenceEnabled && !sequenceLocked ? (
         <>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
@@ -6616,6 +6622,9 @@ function OrbitalPolymeter() {
   const riffEndingLengthLocked = !canUseProFeature(effectivePlan, 'riff-ending-length');
   const riffAdvancedTimingLocked = !canUseProFeature(effectivePlan, 'riff-advanced-timing');
   const riffExtendedPatternsLocked = !canUseProFeature(effectivePlan, 'riff-extended-patterns');
+  const riffCellSequencerLocked = !canUseProFeature(effectivePlan, 'riff-cell-sequencer');
+  const riffSubdivisionsLocked = !canUseProFeature(effectivePlan, 'riff-subdivisions');
+  const riffCustomRestartLocked = !canUseProFeature(effectivePlan, 'riff-custom-restart');
   const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
@@ -6704,6 +6713,21 @@ function OrbitalPolymeter() {
         feature: 'riff-pattern-tools',
         title: 'Advanced Pattern Tools Need Pro',
         body: 'Pro unlocks quick transforms like Offset and Invert. Clear stays free under the step roll.',
+      },
+      'riff-cell-sequencer': {
+        feature: 'riff-cell-sequencer',
+        title: 'Cell Sequencer Needs Pro',
+        body: 'Pro unlocks cell sequencing so you can compose sections from multiple riff cells and arrange full phrases.',
+      },
+      'riff-subdivisions': {
+        feature: 'riff-subdivisions',
+        title: 'Subdivisions Need Pro',
+        body: 'Pro unlocks subdivision controls and subdivision read aids for denser rhythmic grids.',
+      },
+      'riff-custom-restart': {
+        feature: 'riff-custom-restart',
+        title: 'Custom Riff Restart Needs Pro',
+        body: 'Pro unlocks custom restart bars so riffs can resolve across your own cycle length.',
       },
       'pro-scenes': {
         feature: 'pro-scenes',
@@ -7691,12 +7715,26 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
-    resumeRiffCycleAudio();
-    setRiffCycleStudy((current) => ({
-      ...current,
-      ...updates,
-    }));
-  }, []);
+    setRiffCycleStudy((current) => {
+      const enablingSubdivisionLayer =
+        updates.subdivisionSoundEnabled === true ||
+        updates.pulseLayerEnabled === true ||
+        (typeof updates.subdivisionGain === 'number' &&
+          updates.subdivisionGain > 0 &&
+          !current.subdivisionSoundEnabled);
+
+      if (enablingSubdivisionLayer && !canUseProFeature(effectivePlan, 'riff-subdivisions')) {
+        showProPrompt('riff-subdivisions');
+        return current;
+      }
+
+      resumeRiffCycleAudio();
+      return {
+        ...current,
+        ...updates,
+      };
+    });
+  }, [effectivePlan]);
 
   const handleToggleRiffReferenceSound = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
@@ -7730,6 +7768,10 @@ function OrbitalPolymeter() {
 
   const handleToggleRiffSubdivisionSound = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'riff-subdivisions')) {
+      showProPrompt('riff-subdivisions');
       return;
     }
     if (!canUseProFeature(effectivePlan, 'sound-editing')) {
@@ -7947,6 +7989,13 @@ function OrbitalPolymeter() {
       return;
     }
     if (
+      (updates.resetMode === 'custom-cycle' || typeof updates.resetBars === 'number') &&
+      !canUseProFeature(effectivePlan, 'riff-custom-restart')
+    ) {
+      showProPrompt('riff-custom-restart');
+      return;
+    }
+    if (
       typeof updates.color === 'string' &&
       !canUseProFeature(effectivePlan, 'color-editing')
     ) {
@@ -8036,9 +8085,13 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (enabled && !canUseProFeature(effectivePlan, 'riff-cell-sequencer')) {
+      showProPrompt('riff-cell-sequencer');
+      return;
+    }
     setRiffCycleStudy((current) => setRiffSequenceEnabled(current, enabled));
     setRiffCycleRestartToken((value) => value + 1);
-  }, [requireEditableRiffCycleStudy]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleSelectRiffSequenceCell = useCallback((label: RiffSequenceCellLabel) => {
     const cell = riffCycleStudy.riffCells.find((candidate) => candidate.label === label);
@@ -8318,6 +8371,10 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    if (!canUseProFeature(effectivePlan, 'riff-subdivisions')) {
+      showProPrompt('riff-subdivisions');
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       pulseLayerEnabled: !current.pulseLayerEnabled,
@@ -8327,10 +8384,14 @@ function OrbitalPolymeter() {
         (_, index) => current.pulseLayerSteps?.[index] ?? true,
       ),
     }));
-  }, [requireEditableRiffCycleStudy]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleToggleRiffPulseLayerStep = useCallback((stepIndex: number) => {
     if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'riff-subdivisions')) {
+      showProPrompt('riff-subdivisions');
       return;
     }
     setRiffCycleStudy((current) => {
@@ -8350,7 +8411,7 @@ function OrbitalPolymeter() {
         pulseLayerSteps,
       };
     });
-  }, [requireEditableRiffCycleStudy]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleSetRiffBarMarkerInterval = useCallback((barMarkerInterval: RiffBarMarkerInterval) => {
     if (!requireEditableRiffCycleStudy()) {
@@ -18688,7 +18749,9 @@ function OrbitalPolymeter() {
                                   size="compact"
                                   className={mobileRiffBarCompactButtonClass}
                                   tone="pink"
-                                  highlighted={riffCycleStudy.riff.resetMode === option.value}
+                                  highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
+                                  locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
+                                  onLockedClick={() => openProPrompt('riff-custom-restart')}
                                   onClick={() =>
                                     handleUpdateRiffPhrase({
                                       resetMode: option.value,
@@ -18708,6 +18771,12 @@ function OrbitalPolymeter() {
                                   min="1"
                                   max={RIFF_MAX_RESET_BARS}
                                   value={riffCycleStudy.riff.resetBars}
+                                  disabled={riffCustomRestartLocked}
+                                  onFocus={() => {
+                                    if (riffCustomRestartLocked) {
+                                      openProPrompt('riff-custom-restart');
+                                    }
+                                  }}
                                   onChange={(event) =>
                                     handleUpdateRiffPhrase({
                                       resetBars: parseInt(event.target.value, 10) || 4,
@@ -18910,6 +18979,8 @@ function OrbitalPolymeter() {
                               onRandomizeCells={handleRandomizeRiffSequenceCells}
                               colorEditingLocked={colorEditingLocked}
                               onLockedColorClick={() => openProPrompt('color-editing')}
+                              sequenceLocked={riffCellSequencerLocked}
+                              onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
                               compact
                             />
                           </div>
@@ -19106,11 +19177,13 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
-                                highlighted={Boolean(riffCycleStudy.pulseLayerEnabled)}
+                                highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
+                                locked={riffSubdivisionsLocked}
+                                onLockedClick={() => openProPrompt('riff-subdivisions')}
                                 onClick={handleToggleRiffPulseLayer}
                                 className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
                               >
-                                Grid {getReferenceStepsPerBar(riffCycleStudy.reference)}
+                                Subdivisions
                               </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
@@ -19551,10 +19624,12 @@ function OrbitalPolymeter() {
                         <StudyShellButton
                           size="compact"
                           tone="blue"
-                          highlighted={riffCycleStudy.subdivisionSoundEnabled}
+                          highlighted={riffCycleStudy.subdivisionSoundEnabled && !riffSubdivisionsLocked}
+                          locked={riffSubdivisionsLocked}
+                          onLockedClick={() => openProPrompt('riff-subdivisions')}
                           onClick={handleToggleRiffSubdivisionSound}
                         >
-                          Grid Click
+                          Subdivision Click
                         </StudyShellButton>
                         <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
                           {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
@@ -20310,7 +20385,11 @@ function OrbitalPolymeter() {
                                   key={value}
                                   size="compact"
                                   tone="blue"
-                                  highlighted={riffEditableReference.subdivision === value}
+                                  highlighted={riffEditableReference.subdivision === value && !(
+                                    riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
+                                  )}
+                                  locked={riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)}
+                                  onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                   onClick={() =>
                                     handleUpdateRiffReference({
                                       subdivision: value as ReferenceMeter['subdivision'],
@@ -20644,7 +20723,9 @@ function OrbitalPolymeter() {
                                   key={option.value}
                                   size="compact"
                                   tone="blue"
-                                  highlighted={riffCycleStudy.riff.resetMode === option.value}
+                                  highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
+                                  locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
+                                  onLockedClick={() => openProPrompt('riff-custom-restart')}
                                   onClick={() => {
                                     handleSetRiffEditMode('landing');
                                     setRiffMobileEditTab('return');
@@ -20667,6 +20748,12 @@ function OrbitalPolymeter() {
                                   min="1"
                                   max={RIFF_MAX_RESET_BARS}
                                   value={riffCycleStudy.riff.resetBars}
+                                  disabled={riffCustomRestartLocked}
+                                  onFocus={() => {
+                                    if (riffCustomRestartLocked) {
+                                      openProPrompt('riff-custom-restart');
+                                    }
+                                  }}
                                   onChange={(event) =>
                                     handleUpdateRiffPhrase({
                                       resetBars: parseInt(event.target.value, 10) || 4,
@@ -21250,7 +21337,9 @@ function OrbitalPolymeter() {
                           size="compact"
                           tone="pink"
                           className={desktopRiffBarCompactButtonClass}
-                          highlighted={riffCycleStudy.riff.resetMode === option.value}
+                          highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
+                          locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
+                          onLockedClick={() => openProPrompt('riff-custom-restart')}
                           onClick={() =>
                             handleUpdateRiffPhrase({
                               resetMode: option.value,
@@ -21270,6 +21359,12 @@ function OrbitalPolymeter() {
                           min="1"
                           max={RIFF_MAX_RESET_BARS}
                           value={riffCycleStudy.riff.resetBars}
+                          disabled={riffCustomRestartLocked}
+                          onFocus={() => {
+                            if (riffCustomRestartLocked) {
+                              openProPrompt('riff-custom-restart');
+                            }
+                          }}
                           onChange={(event) =>
                             handleUpdateRiffPhrase({
                               resetBars: parseInt(event.target.value, 10) || 4,
@@ -21452,6 +21547,8 @@ function OrbitalPolymeter() {
                     onRandomizeCells={handleRandomizeRiffSequenceCells}
                     colorEditingLocked={colorEditingLocked}
                     onLockedColorClick={() => openProPrompt('color-editing')}
+                    sequenceLocked={riffCellSequencerLocked}
+                    onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
                     compact
                   />
                   ) : null}
@@ -22174,7 +22271,7 @@ function OrbitalPolymeter() {
                     >
                       <InlineInfoLabel
                         infoId="riff_part_focus"
-                        label="Grid Audio"
+                        label="Subdivision Audio"
                         labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
                         labelStyle={desktopMenuSubheaderStyle}
                       />
@@ -22182,11 +22279,13 @@ function OrbitalPolymeter() {
                         <StudyShellButton
                           size="compact"
                           tone="blue"
-                          highlighted={riffCycleStudy.subdivisionSoundEnabled}
+                          highlighted={riffCycleStudy.subdivisionSoundEnabled && !riffSubdivisionsLocked}
+                          locked={riffSubdivisionsLocked}
+                          onLockedClick={() => openProPrompt('riff-subdivisions')}
                           onClick={handleToggleRiffSubdivisionSound}
                           className={utilityButtonClass}
                         >
-                          Grid Click
+                          Subdivision Click
                         </StudyShellButton>
                         <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
                           {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
@@ -22413,11 +22512,13 @@ function OrbitalPolymeter() {
 	                        <StudyShellButton
 	                          size="compact"
 	                          tone="blue"
-	                          highlighted={Boolean(riffCycleStudy.pulseLayerEnabled)}
+	                          highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
+                            locked={riffSubdivisionsLocked}
+                            onLockedClick={() => openProPrompt('riff-subdivisions')}
 	                          onClick={handleToggleRiffPulseLayer}
 	                          className={utilityButtonClass}
 	                        >
-	                          Grid {getReferenceStepsPerBar(riffCycleStudy.reference)}
+	                          Subdivisions
 	                        </StudyShellButton>
 	                      </div>
 	                    </div>
@@ -23003,7 +23104,9 @@ function OrbitalPolymeter() {
                           key={option.value}
                           size="compact"
                           tone="blue"
-                          highlighted={riffCycleStudy.riff.resetMode === option.value}
+                          highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
+                          locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
+                          onLockedClick={() => openProPrompt('riff-custom-restart')}
                           onClick={() => {
                             handleSetRiffEditMode('landing');
                             setRiffDesktopEditTab('return');
@@ -23025,6 +23128,12 @@ function OrbitalPolymeter() {
                           min="1"
                           max={RIFF_MAX_RESET_BARS}
                           value={riffCycleStudy.riff.resetBars}
+                          disabled={riffCustomRestartLocked}
+                          onFocus={() => {
+                            if (riffCustomRestartLocked) {
+                              openProPrompt('riff-custom-restart');
+                            }
+                          }}
                           onChange={(event) =>
                             handleUpdateRiffPhrase({
                               resetBars: parseInt(event.target.value, 10) || 4,
@@ -23253,7 +23362,11 @@ function OrbitalPolymeter() {
                               size="compact"
                               tone="blue"
                               className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                              highlighted={riffEditableReference.subdivision === value}
+                              highlighted={riffEditableReference.subdivision === value && !(
+                                riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
+                              )}
+                              locked={riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)}
+                              onLockedClick={() => openProPrompt('riff-advanced-timing')}
                               onClick={() =>
                                 handleUpdateRiffReference({
                                   subdivision: value as ReferenceMeter['subdivision'],
@@ -23279,7 +23392,9 @@ function OrbitalPolymeter() {
                               size="compact"
                               tone="pink"
                               className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                              highlighted={riffCycleStudy.riff.resetMode === option.value}
+                              highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
+                              locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
+                              onLockedClick={() => openProPrompt('riff-custom-restart')}
                               onClick={() =>
                                 handleUpdateRiffPhrase({
                                   resetMode: option.value,
@@ -23398,6 +23513,8 @@ function OrbitalPolymeter() {
                           onRandomizeCells={handleRandomizeRiffSequenceCells}
                           colorEditingLocked={colorEditingLocked}
                           onLockedColorClick={() => openProPrompt('color-editing')}
+                          sequenceLocked={riffCellSequencerLocked}
+                          onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
                           compact
                         />
                       ) : (
@@ -23418,6 +23535,8 @@ function OrbitalPolymeter() {
                               size="compact"
                               tone="amber"
                               className="!h-6 rounded-md px-2 text-[7.5px] tracking-[0.1em]"
+                              locked={riffCellSequencerLocked}
+                              onLockedClick={() => openProPrompt('riff-cell-sequencer')}
                               onClick={() => handleSetRiffCellSequenceEnabled(true)}
                             >
                               Off

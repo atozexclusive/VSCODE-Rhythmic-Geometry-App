@@ -883,16 +883,6 @@ export default function RiffCycleCanvas({
       ctx.lineWidth = (exportLayoutMode ? 1.9 : 1.25) * shellScale;
       ctx.stroke();
 
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = `${exportLayoutMode ? 16 : 8}px "SF Mono", "Fira Code", monospace`;
-      ctx.fillStyle = exportLayoutMode ? 'rgba(174, 227, 255, 0.72)' : 'rgba(174, 227, 255, 0.52)';
-      ctx.fillText(
-        `SUBDIVISIONS ${pulseStepCount}`,
-        metrics.circleCenterX,
-        metrics.circleCenterY - pulseRadius - (exportLayoutMode ? 18 : 9),
-      );
-
       for (let index = 0; index < pulseStepCount; index += 1) {
         const active = pulseSteps[index];
         const current = index === currentPulseIndex;
