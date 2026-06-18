@@ -33,6 +33,7 @@ export type RiffPhraseResetMode =
   | 'custom-cycle';
 export type RiffSequenceCellLabel = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 export type RiffSequenceBarsMode = 'global' | 'per-cell';
+export type RiffSequenceEntryDurationMode = 'patterns' | 'bars';
 export const RIFF_MAX_SEQUENCE_REPEATS = 64;
 
 export interface RiffCycleSoundSettings {
@@ -77,6 +78,12 @@ export interface RiffSequenceCell {
   id: string;
   label: RiffSequenceCellLabel;
   color: string;
+  numerator: number;
+  denominator: ReferenceMeter['denominator'];
+  subdivision: RiffCycleSubdivision;
+  backbeatBeat: number | null;
+  backbeatBeats: number[];
+  backbeatBarInterval: RiffBackbeatBarInterval;
   groups: number[];
   stepCount: number;
   activeSteps: boolean[];
@@ -96,6 +103,7 @@ export interface RiffCycleStudy {
   riffSequenceBarsMode: RiffSequenceBarsMode;
   riffSequenceEntryBars: number[];
   riffSequenceEntryRepeats: number[];
+  riffSequenceEntryDurationModes: RiffSequenceEntryDurationMode[];
   playing: boolean;
   soundEnabled: boolean;
   referenceSoundEnabled: boolean;
@@ -149,6 +157,7 @@ export interface RiffSequenceTimelineEntry {
   endStep: number;
   barCount: number | null;
   repeatCount: number;
+  durationMode: RiffSequenceEntryDurationMode;
 }
 
 export interface RiffSequencePlaybackState extends RiffSequenceTimelineEntry {
@@ -423,10 +432,22 @@ export function createRiffSequenceCell(
   const mask = buildCellMaskFromGroups(normalizedGroups);
   const activeSteps = normalizeCellActiveSteps(overrides.activeSteps ?? mask.activeSteps, mask.stepCount);
   const accents = normalizeCellAccents(overrides.accents ?? mask.accents, mask.stepCount);
+  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 32);
+  const backbeatBeats = normalizeBackbeatBeats(
+    overrides.backbeatBeats,
+    numerator,
+    overrides.backbeatBeat ?? Math.min(numerator, numerator >= 4 ? 3 : 2),
+  );
   return {
     id: overrides.id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
     color: normalizeRiffColor(overrides.color, getRiffSequenceCellDefaultColor(label)),
+    numerator,
+    denominator: overrides.denominator === 8 ? 8 : 4,
+    subdivision: normalizeSubdivision(overrides.subdivision ?? 16),
+    backbeatBeat: backbeatBeats[0] ?? null,
+    backbeatBeats,
+    backbeatBarInterval: normalizeBackbeatBarInterval(overrides.backbeatBarInterval),
     groups: deriveGroupsFromMask(activeSteps, mask.stepCount),
     stepCount: mask.stepCount,
     activeSteps,
@@ -441,13 +462,26 @@ function createRiffSequenceCellFromState(
   accents: boolean[] | undefined,
   id?: string,
   color?: string,
+  timing?: Partial<Pick<RiffSequenceCell, 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'>>,
 ): RiffSequenceCell {
   const normalizedStepCount = normalizeCellStepCount(stepCount);
   const normalizedActiveSteps = normalizeCellActiveSteps(activeSteps, normalizedStepCount);
+  const numerator = clamp(Math.round(timing?.numerator ?? 4), 2, 32);
+  const backbeatBeats = normalizeBackbeatBeats(
+    timing?.backbeatBeats,
+    numerator,
+    timing?.backbeatBeat ?? Math.min(numerator, numerator >= 4 ? 3 : 2),
+  );
   return {
     id: id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
     color: normalizeRiffColor(color, getRiffSequenceCellDefaultColor(label)),
+    numerator,
+    denominator: timing?.denominator === 8 ? 8 : 4,
+    subdivision: normalizeSubdivision(timing?.subdivision ?? 16),
+    backbeatBeat: backbeatBeats[0] ?? null,
+    backbeatBeats,
+    backbeatBarInterval: normalizeBackbeatBarInterval(timing?.backbeatBarInterval),
     groups: deriveGroupsFromMask(normalizedActiveSteps, normalizedStepCount),
     stepCount: normalizedStepCount,
     activeSteps: normalizedActiveSteps,
@@ -459,6 +493,17 @@ function createDefaultRiffSequenceCells(riff: RiffPhrase): RiffSequenceCell[] {
   return [
     createRiffSequenceCellFromState('A', riff.stepCount, riff.activeSteps, riff.accents, undefined, riff.color),
   ];
+}
+
+function getRiffCellTiming(cell: RiffSequenceCell): Pick<RiffSequenceCell, 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'> {
+  return {
+    numerator: cell.numerator,
+    denominator: cell.denominator,
+    subdivision: cell.subdivision,
+    backbeatBeat: cell.backbeatBeat,
+    backbeatBeats: cell.backbeatBeats,
+    backbeatBarInterval: cell.backbeatBarInterval,
+  };
 }
 
 function normalizeRiffSequenceCells(
@@ -507,6 +552,14 @@ function normalizeRiffSequenceCells(
           : cellFromGroups?.accents ?? fallbackCell.accents,
         sourceCell?.id,
         normalizeRiffColor(sourceCell?.color, getRiffSequenceCellDefaultColor(label)),
+        {
+          numerator: sourceCell?.numerator,
+          denominator: sourceCell?.denominator,
+          subdivision: sourceCell?.subdivision,
+          backbeatBeat: sourceCell?.backbeatBeat,
+          backbeatBeats: sourceCell?.backbeatBeats,
+          backbeatBarInterval: sourceCell?.backbeatBarInterval,
+        },
       ),
     );
     usedLabels.add(label);
@@ -559,6 +612,13 @@ function normalizeRiffSequenceEntryRepeats(
   return sequence.map((_, index) => clamp(Math.round(entryRepeats?.[index] ?? 1), 1, RIFF_MAX_SEQUENCE_REPEATS));
 }
 
+function normalizeRiffSequenceEntryDurationModes(
+  entryModes: RiffSequenceEntryDurationMode[] | undefined,
+  sequence: RiffSequenceCellLabel[],
+): RiffSequenceEntryDurationMode[] {
+  return sequence.map((_, index) => (entryModes?.[index] === 'bars' ? 'bars' : 'patterns'));
+}
+
 export function parseRiffSequenceOrder(value: string): RiffSequenceCellLabel[] | null {
   const normalized = value.trim().toUpperCase();
   const tokens = /[\s,;|>-]/.test(normalized)
@@ -584,6 +644,22 @@ function randomInt(min: number, max: number): number {
 
 function randomChoice<T>(items: readonly T[]): T {
   return items[randomInt(0, items.length - 1)] as T;
+}
+
+function createRandomRiffCellStepCount(reference: ReferenceMeter): number {
+  const stepsPerBar = getReferenceStepsPerBar(reference);
+  const roll = Math.random();
+  if (roll < 0.75) {
+    return randomInt(7, Math.min(20, RIFF_MAX_STEP_COUNT));
+  }
+  if (roll < 0.88) {
+    return randomInt(3, 6);
+  }
+  const highAnchor = Math.max(21, Math.min(RIFF_MAX_STEP_COUNT, stepsPerBar + randomInt(-2, 6)));
+  return randomChoice([
+    randomInt(21, RIFF_MAX_STEP_COUNT),
+    highAnchor,
+  ]);
 }
 
 function chooseDifferent<T>(items: readonly T[], current: T): T {
@@ -806,6 +882,10 @@ export function createRiffCycleStudy(
       overrides.riffSequenceEntryRepeats,
       riffSequence,
     ),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(
+      overrides.riffSequenceEntryDurationModes,
+      riffSequence,
+    ),
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
@@ -881,6 +961,10 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       study.riffSequenceEntryRepeats,
       riffSequence,
     ),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(
+      study.riffSequenceEntryDurationModes,
+      riffSequence,
+    ),
     showPhraseFill: study.showPhraseFill ?? true,
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
     referenceGain: normalizeCueGain(study.referenceGain ?? 0.055, 0.055),
@@ -939,12 +1023,8 @@ export function getEffectiveResetBarCount(study: RiffCycleStudy): number | null 
     const cells = normalizeRiffSequenceCells(study.riffCells, study.riff);
     const sequence = normalizeRiffSequenceOrder(study.riffSequence, cells);
     if (normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode) === 'per-cell') {
-      const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
-      const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
-      return entryBars.reduce(
-        (sum, bars, index) => sum + bars * (entryRepeats[index] ?? 1),
-        0,
-      );
+      const totalSteps = getRiffSequenceTimeline(study).totalSteps;
+      return totalSteps / Math.max(1, getReferenceStepsPerBar(study.reference));
     }
     return sequenceBars;
   }
@@ -952,6 +1032,9 @@ export function getEffectiveResetBarCount(study: RiffCycleStudy): number | null 
 }
 
 export function getResetStepCount(study: RiffCycleStudy): number | null {
+  if (study.riffSequenceEnabled && normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode) === 'per-cell') {
+    return Math.max(1, getRiffSequenceTimeline(study).totalSteps);
+  }
   const resetBars = getEffectiveResetBarCount(study);
   if (resetBars == null) {
     return null;
@@ -966,10 +1049,10 @@ export function getRiffSequenceTimeline(study: RiffCycleStudy): {
   const cells = normalizeRiffSequenceCells(study.riffCells, study.riff);
   const sequence = normalizeRiffSequenceOrder(study.riffSequence, cells);
   const barsMode = normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode);
-  const stepsPerBar = getReferenceStepsPerBar(study.reference);
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
   const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
   const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence);
   const entries: RiffSequenceTimelineEntry[] = [];
   let cursor = 0;
   sequence.forEach((label, sequenceIndex) => {
@@ -978,11 +1061,16 @@ export function getRiffSequenceTimeline(study: RiffCycleStudy): {
       return;
     }
     const startStep = cursor;
-    const barCount = barsMode === 'per-cell' ? entryBars[sequenceIndex] ?? sequenceBars : null;
+    const durationMode = barsMode === 'per-cell' ? entryDurationModes[sequenceIndex] ?? 'patterns' : 'patterns';
+    const barCount = barsMode === 'per-cell' && durationMode === 'bars' ? entryBars[sequenceIndex] ?? sequenceBars : null;
     const repeatCount = barsMode === 'per-cell' ? entryRepeats[sequenceIndex] ?? 1 : 1;
-    const durationSteps = barCount == null ? cell.stepCount : Math.max(1, barCount * repeatCount * stepsPerBar);
+    const cellStepsPerBar = getReferenceStepsPerBar(study.reference);
+    const durationSteps =
+      barsMode === 'per-cell' && durationMode === 'bars'
+        ? Math.max(1, (barCount ?? sequenceBars) * cellStepsPerBar)
+        : Math.max(1, cell.stepCount * repeatCount);
     const endStep = startStep + durationSteps;
-    entries.push({ cell, sequenceIndex, startStep, endStep, barCount, repeatCount });
+    entries.push({ cell, sequenceIndex, startStep, endStep, barCount, repeatCount, durationMode });
     cursor = endStep;
   });
   return { entries, totalSteps: cursor };
@@ -1043,6 +1131,13 @@ export function getVisibleRiffPhraseAtReferenceStep(
     activeSteps: sequenceState.cell.activeSteps,
     accents: sequenceState.cell.accents,
   };
+}
+
+export function getVisibleRiffReferenceAtReferenceStep(
+  study: RiffCycleStudy,
+  _referenceStep: number,
+): ReferenceMeter {
+  return study.reference;
 }
 
 export function getRiffStepIndexAtReferenceStep(
@@ -1395,6 +1490,7 @@ export function setRiffSequenceEnabled(
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1418,10 +1514,14 @@ function updateRiffSequenceCell(
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
-export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
+export function addRiffSequenceCell(
+  study: RiffCycleStudy,
+  referenceOverrides: Partial<ReferenceMeter> = {},
+): RiffCycleStudy {
   const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
   const usedLabels = new Set(riffCells.map((cell) => cell.label));
   const nextLabel = RIFF_SEQUENCE_CELL_LABELS.find((label) => !usedLabels.has(label));
@@ -1429,14 +1529,24 @@ export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
     return study;
   }
 
-  const sourceCell = riffCells[0] ?? createDefaultRiffSequenceCells(study.riff)[0];
+  const baseReference = createReferenceMeter({ ...study.reference, ...referenceOverrides });
+  const newStepCount = createRandomRiffCellStepCount(baseReference);
+  const mask = createPhraseMask(newStepCount, 'random');
   const nextCell = createRiffSequenceCellFromState(
     nextLabel,
-    sourceCell.stepCount,
-    sourceCell.activeSteps,
-    sourceCell.accents,
+    newStepCount,
+    mask.activeSteps,
+    mask.accents,
     undefined,
-    getRiffSequenceCellDefaultColor(nextLabel),
+    randomChoice(RIFF_CYCLE_COLORS),
+    {
+      numerator: baseReference.numerator,
+      denominator: baseReference.denominator,
+      subdivision: baseReference.subdivision,
+      backbeatBeat: baseReference.backbeatBeat,
+      backbeatBeats: baseReference.backbeatBeats,
+      backbeatBarInterval: baseReference.backbeatBarInterval,
+    },
   );
   const nextCells = [...riffCells, nextCell];
   const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
@@ -1444,6 +1554,7 @@ export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
   const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
   const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence);
   return {
     ...study,
     riffSequenceEnabled: true,
@@ -1451,6 +1562,127 @@ export function addRiffSequenceCell(study: RiffCycleStudy): RiffCycleStudy {
     riffSequence: nextSequence,
     riffSequenceEntryBars: [...entryBars, sequenceBars].slice(0, nextSequence.length),
     riffSequenceEntryRepeats: [...entryRepeats, 1].slice(0, nextSequence.length),
+    riffSequenceEntryDurationModes: [...entryDurationModes, 'patterns' as RiffSequenceEntryDurationMode].slice(0, nextSequence.length),
+  };
+}
+
+export function removeRiffSequenceCell(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  if (riffCells.length <= 1 || !riffCells.some((cell) => cell.label === label)) {
+    return study;
+  }
+  const nextCells = riffCells.filter((cell) => cell.label !== label);
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
+  const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence);
+  const filteredEntries = sequence
+    .map((entryLabel, index) => ({
+      label: entryLabel,
+      bars: entryBars[index] ?? sequenceBars,
+      repeats: entryRepeats[index] ?? 1,
+      durationMode: entryDurationModes[index] ?? 'patterns',
+    }))
+    .filter((entry) => entry.label !== label);
+  const nextSequence = normalizeRiffSequenceOrder(
+    filteredEntries.length > 0
+      ? filteredEntries.map((entry) => entry.label)
+      : [nextCells[0]?.label ?? 'A'],
+    nextCells,
+  );
+  const nextEntryBars = filteredEntries.map((entry) => entry.bars);
+  const nextEntryRepeats = filteredEntries.map((entry) => entry.repeats);
+  const nextEntryDurationModes = filteredEntries.map((entry) => entry.durationMode);
+  return {
+    ...study,
+    riffCells: nextCells,
+    riffSequence: nextSequence,
+    riffSequenceEntryBars: normalizeRiffSequenceEntryBars(nextEntryBars, nextSequence, sequenceBars),
+    riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(nextEntryRepeats, nextSequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(nextEntryDurationModes, nextSequence),
+  };
+}
+
+export function updateRiffSequenceCellReference(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  updates: Partial<ReferenceMeter>,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => {
+    const nextNumerator =
+      updates.numerator == null
+        ? cell.numerator
+        : clamp(Math.round(updates.numerator || 0), 2, 32);
+    const nextBackbeatBeats = normalizeBackbeatBeats(
+      updates.backbeatBeats ?? (updates.backbeatBeat != null ? [updates.backbeatBeat] : cell.backbeatBeats),
+      nextNumerator,
+      updates.backbeatBeat ?? cell.backbeatBeat,
+    );
+    return {
+      ...cell,
+      numerator: nextNumerator,
+      denominator: updates.denominator == null ? cell.denominator : updates.denominator === 8 ? 8 : 4,
+      subdivision: updates.subdivision == null ? cell.subdivision : normalizeSubdivision(updates.subdivision),
+      backbeatBeat: nextBackbeatBeats[0] ?? null,
+      backbeatBeats: nextBackbeatBeats,
+      backbeatBarInterval:
+        updates.backbeatBarInterval === 2 || updates.backbeatBarInterval === 4
+          ? updates.backbeatBarInterval
+          : updates.backbeatBarInterval === 1
+            ? 1
+            : cell.backbeatBarInterval,
+    };
+  });
+}
+
+function createRandomRiffSequenceCellForReference(
+  label: RiffSequenceCellLabel,
+  reference: ReferenceMeter,
+): RiffSequenceCell {
+  const stepCount = createRandomRiffCellStepCount(reference);
+  const mask = createPhraseMask(stepCount, 'random');
+  return createRiffSequenceCellFromState(
+    label,
+    stepCount,
+    mask.activeSteps,
+    mask.accents,
+    undefined,
+    createRandomRiffColor(undefined, 'random'),
+    {
+      numerator: reference.numerator,
+      denominator: reference.denominator,
+      subdivision: reference.subdivision,
+      backbeatBeat: reference.backbeatBeat,
+      backbeatBeats: reference.backbeatBeats,
+      backbeatBarInterval: reference.backbeatBarInterval,
+    },
+  );
+}
+
+export function randomizeRiffSequenceCells(
+  study: RiffCycleStudy,
+  referenceOverrides: Partial<ReferenceMeter> = {},
+): RiffCycleStudy {
+  const baseReference = createReferenceMeter({ ...study.reference, ...referenceOverrides });
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const nextCells = riffCells.map((cell) => ({
+    ...createRandomRiffSequenceCellForReference(cell.label, baseReference),
+    id: cell.id,
+  }));
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, nextCells);
+  const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  return {
+    ...study,
+    riffSequenceEnabled: true,
+    riffCells: nextCells,
+    riffSequence: sequence,
+    riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
+    riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1460,7 +1692,7 @@ export function setRiffCellGroups(
   groups: number[],
 ): RiffCycleStudy {
   const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff).map((cell) =>
-    cell.label === label ? createRiffSequenceCell(label, groups, { id: cell.id, color: cell.color }) : cell,
+    cell.label === label ? createRiffSequenceCell(label, groups, { id: cell.id, color: cell.color, ...getRiffCellTiming(cell) }) : cell,
   );
   const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
@@ -1470,6 +1702,7 @@ export function setRiffCellGroups(
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1487,6 +1720,7 @@ export function updateRiffSequenceCellStepCount(
       normalizeCellAccents(cell.accents, normalizedStepCount),
       cell.id,
       cell.color,
+      getRiffCellTiming(cell),
     ),
   );
 }
@@ -1517,7 +1751,7 @@ export function toggleRiffSequenceCellStep(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? (cell.activeSteps[index] ? false : accent) : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color, getRiffCellTiming(cell));
   });
 }
 
@@ -1537,7 +1771,7 @@ export function setRiffSequenceCellStepActive(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? (active ? accent : false) : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color, getRiffCellTiming(cell));
   });
 }
 
@@ -1557,7 +1791,7 @@ export function toggleRiffSequenceCellAccent(
     const nextAccents = cell.accents.map((accent, index) =>
       index === stepIndex ? nextAccented : accent,
     );
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextActiveSteps, nextAccents, cell.id, cell.color, getRiffCellTiming(cell));
   });
 }
 
@@ -1577,7 +1811,7 @@ export function rotateRiffSequenceCellSteps(
       const nextIndex = (index + stepOffset + cell.stepCount) % cell.stepCount;
       nextAccents[nextIndex] = accented;
     });
-    return createRiffSequenceCellFromState(label, cell.stepCount, nextSteps, nextAccents, cell.id, cell.color);
+    return createRiffSequenceCellFromState(label, cell.stepCount, nextSteps, nextAccents, cell.id, cell.color, getRiffCellTiming(cell));
   });
 }
 
@@ -1593,6 +1827,7 @@ export function invertRiffSequenceCellSteps(
       cell.accents,
       cell.id,
       cell.color,
+      getRiffCellTiming(cell),
     ),
   );
 }
@@ -1609,6 +1844,7 @@ export function clearRiffSequenceCellSteps(
       cell.accents.map(() => false),
       cell.id,
       cell.color,
+      getRiffCellTiming(cell),
     ),
   );
 }
@@ -1630,6 +1866,7 @@ export function setRiffSequenceOrder(
       sequenceBars,
     ),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, nextSequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, nextSequence),
   };
 }
 
@@ -1644,6 +1881,7 @@ export function setRiffSequenceBars(study: RiffCycleStudy, bars: number): RiffCy
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, nextBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1661,6 +1899,7 @@ export function setRiffSequenceBarsMode(
     riffSequenceBarsMode: normalizeRiffSequenceBarsMode(mode),
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1683,6 +1922,7 @@ export function setRiffSequenceEntryBars(
     riffSequence: sequence,
     riffSequenceEntryBars: entryBars,
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 
@@ -1705,6 +1945,30 @@ export function setRiffSequenceEntryRepeats(
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: entryRepeats,
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
+  };
+}
+
+export function setRiffSequenceEntryDurationMode(
+  study: RiffCycleStudy,
+  sequenceIndex: number,
+  mode: RiffSequenceEntryDurationMode,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  if (sequenceIndex < 0 || sequenceIndex >= sequence.length) {
+    return study;
+  }
+  const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence);
+  entryDurationModes[sequenceIndex] = mode === 'bars' ? 'bars' : 'patterns';
+  return {
+    ...study,
+    riffCells,
+    riffSequence: sequence,
+    riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
+    riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: entryDurationModes,
   };
 }
 
@@ -1721,12 +1985,14 @@ export function appendRiffSequenceOrderCell(
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
   const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
   const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence);
   return {
     ...study,
     riffCells,
     riffSequence: nextSequence,
     riffSequenceEntryBars: [...entryBars, sequenceBars].slice(0, nextSequence.length),
     riffSequenceEntryRepeats: [...entryRepeats, 1].slice(0, nextSequence.length),
+    riffSequenceEntryDurationModes: [...entryDurationModes, 'patterns' as RiffSequenceEntryDurationMode].slice(0, nextSequence.length),
   };
 }
 
@@ -1745,6 +2011,7 @@ export function removeLastRiffSequenceOrderCell(study: RiffCycleStudy): RiffCycl
       sequenceBars,
     ),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, nextSequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, nextSequence),
   };
 }
 
@@ -1758,6 +2025,7 @@ export function resetRiffSequenceOrder(study: RiffCycleStudy): RiffCycleStudy {
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
   };
 }
 

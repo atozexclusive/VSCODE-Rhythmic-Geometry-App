@@ -37,6 +37,7 @@ import {
   getRiffSequenceTimeline,
   getRiffStepIndexAtReferenceStep,
   getVisibleRiffPhraseAtReferenceStep,
+  getVisibleRiffReferenceAtReferenceStep,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
   isPhraseRestartAtReferenceStep,
@@ -601,10 +602,21 @@ export default function RiffCycleCanvas({
       seed: 47,
     });
 
-    const totalDisplaySteps = getDisplayStepCount(currentStudy);
     const playbackState = playbackStateHandleRef.current.current;
     const referenceProgress = playbackState.referenceProgress;
     const currentAbsoluteReferenceStep = Math.floor(referenceProgress);
+    const visibleReference = getVisibleRiffReferenceAtReferenceStep(
+      currentStudy,
+      currentAbsoluteReferenceStep,
+    );
+    const renderStudy =
+      visibleReference === currentStudy.reference
+        ? currentStudy
+        : {
+            ...currentStudy,
+            reference: visibleReference,
+          };
+    const totalDisplaySteps = getDisplayStepCount(renderStudy);
     const resetStepCount = getResetStepCount(currentStudy);
     const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
       currentStudy,
@@ -613,7 +625,7 @@ export default function RiffCycleCanvas({
       laneWindowStepCountRef.current,
     );
     const metrics = getRiffCycleCanvasMetrics(
-      currentStudy,
+      renderStudy,
       rect.width,
       rect.height,
       isMobileRef.current || exportLayoutMode,
@@ -623,8 +635,8 @@ export default function RiffCycleCanvas({
       laneWindowStepCountRef.current,
       { sidePadding: exportSidePadding },
     );
-    const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
-    const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
+    const stepsPerBar = getReferenceStepsPerBar(renderStudy.reference);
+    const stepsPerBeat = getReferenceStepsPerBeat(renderStudy.reference);
     const manualSubdivisionGuideMode =
       currentDisplaySettings.subdivisionGuide ??
       (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
@@ -657,7 +669,7 @@ export default function RiffCycleCanvas({
     const currentLaneReferenceStep =
       shouldUseAbsoluteLaneWindow(currentStudy) ? currentAbsoluteReferenceStep : currentReferenceStep;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
-    const referenceCursorPoint = getReferenceStepPoint(currentStudy, metrics, stepWithinBar);
+    const referenceCursorPoint = getReferenceStepPoint(renderStudy, metrics, stepWithinBar);
     const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, referenceProgress);
     const visibleRiff = getVisibleRiffPhraseAtReferenceStep(
       currentStudy,
@@ -950,13 +962,13 @@ export default function RiffCycleCanvas({
 
       metrics.referenceVertices.forEach((vertex, index) => {
         const backbeatBeats =
-          currentStudy.reference.backbeatBeats?.length
-            ? currentStudy.reference.backbeatBeats
-            : currentStudy.reference.backbeatBeat != null
-              ? [currentStudy.reference.backbeatBeat]
+          renderStudy.reference.backbeatBeats?.length
+            ? renderStudy.reference.backbeatBeats
+            : renderStudy.reference.backbeatBeat != null
+              ? [renderStudy.reference.backbeatBeat]
               : [];
         const isBackbeatVertex =
-          currentStudy.reference.showBackbeat &&
+          renderStudy.reference.showBackbeat &&
           backbeatBeats.includes(index + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
@@ -1070,9 +1082,9 @@ export default function RiffCycleCanvas({
       }
 
       metrics.referencePerimeterPoints.forEach((point, index) => {
-        const isDownbeat = currentStudy.reference.showDownbeats && index === 0;
-        const isBeat = isReferenceBeatStart(currentStudy, index);
-        const isBackbeat = isBackbeatStep(currentStudy, index);
+        const isDownbeat = renderStudy.reference.showDownbeats && index === 0;
+        const isBeat = isReferenceBeatStart(renderStudy, index);
+        const isBackbeat = isBackbeatStep(renderStudy, index);
         if (currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
@@ -1824,8 +1836,8 @@ export default function RiffCycleCanvas({
         const stepX = x + (step - visibleStartStep) * stepWidth;
         const phraseReferenceStep = step;
         const isDownbeat = step % metrics.stepsPerBar === 0;
-        const isBeat = isReferenceBeatStart(currentStudy, step);
-        const isBackbeat = isBackbeatStep(currentStudy, step);
+        const isBeat = isReferenceBeatStart(renderStudy, step);
+        const isBackbeat = isBackbeatStep(renderStudy, step);
         const phraseState = getEffectiveRiffStepStateAtReferenceStep(
           currentStudy,
           phraseReferenceStep,
@@ -1988,9 +2000,9 @@ export default function RiffCycleCanvas({
         ) {
           const stepCenterX = stepX + Math.max(1, stepWidth - 1) / 2;
           const stepWithinBar = ((step % metrics.stepsPerBar) + metrics.stepsPerBar) % metrics.stepsPerBar;
-          const stepsPerBeat = Math.max(1, Math.round(metrics.stepsPerBar / Math.max(1, currentStudy.reference.numerator)));
+          const stepsPerBeat = Math.max(1, Math.round(metrics.stepsPerBar / Math.max(1, renderStudy.reference.numerator)));
           const beatNumber = Math.min(
-            currentStudy.reference.numerator,
+            renderStudy.reference.numerator,
             Math.floor(stepWithinBar / stepsPerBeat) + 1,
           );
           ctx.font = `${compactMobileTimeline ? 8 : 9}px "SF Mono", "Fira Code", monospace`;
