@@ -250,16 +250,14 @@ const FREE_RIFF_STEP_LIMIT = 12;
 const FREE_RIFF_ENDING_SLOT_LIMIT = 4;
 const FREE_RIFF_METERS = [3, 4] as const;
 const FREE_RIFF_SUBDIVISIONS = [8, 12, 16] as const;
-const RIFF_RETURN_OPTIONS: Array<{ value: RiffPhrase['resetMode']; label: string }> = [
-  { value: 'free', label: 'Free' },
-  { value: 'per-bar', label: '1 Bar' },
-  { value: 'every-2-bars', label: '2 Bars' },
-  { value: 'every-4-bars', label: '4 Bars' },
-  { value: 'every-8-bars', label: '8 Bars' },
-  { value: 'every-16-bars', label: '16 Bars' },
-  { value: 'custom-cycle', label: 'Custom' },
+const RIFF_RESTART_SLIDER_OPTIONS: Array<{ value: RiffPhrase['resetMode']; label: string; bars: number | null }> = [
+  { value: 'free', label: 'Free', bars: null },
+  { value: 'per-bar', label: '1 Bar', bars: 1 },
+  { value: 'every-2-bars', label: '2 Bars', bars: 2 },
+  { value: 'every-4-bars', label: '4 Bars', bars: 4 },
+  { value: 'every-8-bars', label: '8 Bars', bars: 8 },
+  { value: 'every-16-bars', label: '16 Bars', bars: 16 },
 ];
-
 function canUseFreeRiffMeter(numerator: number): boolean {
   return FREE_RIFF_METERS.includes(Math.round(numerator) as (typeof FREE_RIFF_METERS)[number]);
 }
@@ -2255,6 +2253,35 @@ function getFreeRiffResolutionCopy(study: RiffCycleStudy): string {
   return `Free resolves after ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'} (${totalSteps.toLocaleString()} reference steps), when the ${phraseSteps}-step riff meets the bar line again.`;
 }
 
+function getNaturalRiffResolutionCopy(study: RiffCycleStudy): string {
+  const bars = getFreeRiffResolutionBars(study);
+  return `Naturally resolves after ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}.`;
+}
+
+function getRiffRestartSliderIndex(riff: RiffPhrase): number {
+  const optionIndex = RIFF_RESTART_SLIDER_OPTIONS.findIndex((option) => option.value === riff.resetMode);
+  if (optionIndex >= 0) {
+    return optionIndex;
+  }
+  if (riff.resetMode !== 'custom-cycle') {
+    return 3;
+  }
+  const customBars = Math.max(1, Math.round(riff.resetBars || 4));
+  let closestIndex = 1;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  RIFF_RESTART_SLIDER_OPTIONS.forEach((option, index) => {
+    if (option.bars == null) {
+      return;
+    }
+    const distance = Math.abs(option.bars - customBars);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+  return closestIndex;
+}
+
 function getRiffPatternBarMarkerCopy(study: RiffCycleStudy): string {
   const steps = Math.max(1, Math.round(study.riff.stepCount || 1));
   if (study.riff.resetMode === 'free') {
@@ -3248,6 +3275,90 @@ function InlineInfoLabel({
             document.body,
           )
         : null}
+    </div>
+  );
+}
+
+function RiffRestartSliderControl({
+  study,
+  onUpdateRiff,
+  label = 'Riff Restart',
+  labelClassName = 'text-[9px] font-mono uppercase tracking-[0.18em] text-white/46',
+  labelStyle,
+  accentColor = '#FF88C2',
+  compact = false,
+  onBeforeChange,
+}: {
+  study: RiffCycleStudy;
+  onUpdateRiff: (updates: Partial<RiffPhrase>) => void;
+  label?: string;
+  labelClassName?: string;
+  labelStyle?: CSSProperties;
+  accentColor?: string;
+  compact?: boolean;
+  onBeforeChange?: () => void;
+}) {
+  const sliderIndex = getRiffRestartSliderIndex(study.riff);
+  const currentOption = RIFF_RESTART_SLIDER_OPTIONS[sliderIndex] ?? RIFF_RESTART_SLIDER_OPTIONS[0];
+  const naturalCopy = getNaturalRiffResolutionCopy(study);
+
+  return (
+    <div
+      className={`rounded-xl border ${compact ? 'space-y-1.5 px-2.5 py-2' : 'space-y-2 px-3 py-2.5'}`}
+      style={{
+        background: `linear-gradient(180deg, ${accentColor}10, rgba(255,255,255,0.025))`,
+        borderColor: `${accentColor}24`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px ${accentColor}0d`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <InlineInfoLabel
+          infoId="riff_return_cycle"
+          label={label}
+          labelClassName={labelClassName}
+          labelStyle={labelStyle}
+        />
+        <div
+          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
+          style={{
+            background: `${accentColor}12`,
+            borderColor: `${accentColor}2e`,
+            color: accentColor,
+          }}
+        >
+          {currentOption.label}
+        </div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={RIFF_RESTART_SLIDER_OPTIONS.length - 1}
+        step={1}
+        value={sliderIndex}
+        onChange={(event) => {
+          const option = RIFF_RESTART_SLIDER_OPTIONS[Number.parseInt(event.target.value, 10)] ?? RIFF_RESTART_SLIDER_OPTIONS[0];
+          onBeforeChange?.();
+          onUpdateRiff({ resetMode: option.value });
+        }}
+        className="touch-slider rg-compact-slider w-full"
+        style={{ accentColor }}
+        aria-label={`${label} slider`}
+      />
+      <div className="grid grid-cols-6 gap-1 text-center text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
+        {RIFF_RESTART_SLIDER_OPTIONS.map((option) => (
+          <span key={option.value}>{option.bars == null ? 'Free' : option.bars}</span>
+        ))}
+      </div>
+      <div
+        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+        style={{
+          background: 'rgba(127,215,255,0.07)',
+          borderColor: 'rgba(127,215,255,0.2)',
+          color: '#BFEAFF',
+        }}
+      >
+        {naturalCopy}
+      </div>
     </div>
   );
 }
@@ -6624,7 +6735,6 @@ function OrbitalPolymeter() {
   const riffExtendedPatternsLocked = !canUseProFeature(effectivePlan, 'riff-extended-patterns');
   const riffCellSequencerLocked = !canUseProFeature(effectivePlan, 'riff-cell-sequencer');
   const riffSubdivisionsLocked = !canUseProFeature(effectivePlan, 'riff-subdivisions');
-  const riffCustomRestartLocked = !canUseProFeature(effectivePlan, 'riff-custom-restart');
   const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
@@ -6881,7 +6991,6 @@ function OrbitalPolymeter() {
       (riffCycleStudy.playing && presentationMode));
   const riffMobilePresentBottomInset = riffMobileLaneHidden ? 112 : 248;
   const riffDesktopStepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
-  const riffFreeResolutionCopy = getFreeRiffResolutionCopy(riffCycleStudy);
   const riffPatternBarMarkerCopy = getRiffPatternBarMarkerCopy(riffCycleStudy);
   const riffEndingPreviewStudy = riffCycleStudy.landingEditEnabled
     ? riffCycleStudy
@@ -18963,62 +19072,14 @@ function OrbitalPolymeter() {
 	                          </div>
 	                        </div>
 
-                          <div data-guide="riff-mobile-riff-restart" className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-black/[0.12] px-2.5 py-2.5">
-                            <InlineInfoLabel
-                              infoId="riff_return_cycle"
-                              label="Riff Restart"
+                          <div data-guide="riff-mobile-riff-restart">
+                            <RiffRestartSliderControl
+                              study={riffCycleStudy}
+                              onUpdateRiff={handleUpdateRiffPhrase}
                               labelClassName={mobileRiffMenuTitleClass}
                               labelStyle={mobileRiffWhiteTitleStyle}
+                              compact
                             />
-                            <div className="grid grid-cols-3 gap-2">
-                              {RIFF_RETURN_OPTIONS.map((option) => (
-                                <StudyShellButton
-                                  key={option.value}
-                                  size="compact"
-                                  className={mobileRiffBarCompactButtonClass}
-                                  tone="pink"
-                                  highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
-                                  locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
-                                  onLockedClick={() => openProPrompt('riff-custom-restart')}
-                                  onClick={() =>
-                                    handleUpdateRiffPhrase({
-                                      resetMode: option.value,
-                                    })
-                                  }
-                                >
-                                  {option.label}
-                                </StudyShellButton>
-                              ))}
-                            </div>
-                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
-                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
-                                Custom Bars
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min="1"
-                                  max={RIFF_MAX_RESET_BARS}
-                                  value={riffCycleStudy.riff.resetBars}
-                                  disabled={riffCustomRestartLocked}
-                                  onFocus={() => {
-                                    if (riffCustomRestartLocked) {
-                                      openProPrompt('riff-custom-restart');
-                                    }
-                                  }}
-                                  onChange={(event) =>
-                                    handleUpdateRiffPhrase({
-                                      resetBars: parseInt(event.target.value, 10) || 4,
-                                    })
-                                  }
-                                  className="h-8 w-full rounded-xl border border-white/10 bg-white/[0.045] px-2.5 text-[13px] font-light text-white outline-none"
-                                />
-                              </label>
-                            ) : null}
-                            <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                              {riffCycleStudy.riff.resetMode === 'free'
-                                ? riffFreeResolutionCopy
-                                : 'This decides where the riff returns to beat 1. Ending uses the last slots before that return.'}
-                            </div>
                           </div>
                         </div>
 
@@ -20939,59 +21000,18 @@ function OrbitalPolymeter() {
                           Return Cycle decides when the riff comes back to beat 1. Ending Length decides how many final slots you can rewrite.
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <InlineInfoLabel
-                              infoId="riff_return_cycle"
-                              label="Return Cycle"
-                              labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
-                            />
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {RIFF_RETURN_OPTIONS.map((option) => (
-                                <StudyShellButton
-                                  key={option.value}
-                                  size="compact"
-                                  tone="blue"
-                                  highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
-                                  locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
-                                  onLockedClick={() => openProPrompt('riff-custom-restart')}
-                                  onClick={() => {
-                                    handleSetRiffEditMode('landing');
-                                    setRiffMobileEditTab('return');
-                                    handleUpdateRiffPhrase({
-                                      resetMode: option.value,
-                                    });
-                                  }}
-                                  className="min-w-0 px-1.5 text-[8px] tracking-[0.07em]"
-                                >
-                                  {option.label}
-                                </StudyShellButton>
-                              ))}
-                            </div>
-                            {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
-                              <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
-                                Custom Bars
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min="1"
-                                  max={RIFF_MAX_RESET_BARS}
-                                  value={riffCycleStudy.riff.resetBars}
-                                  disabled={riffCustomRestartLocked}
-                                  onFocus={() => {
-                                    if (riffCustomRestartLocked) {
-                                      openProPrompt('riff-custom-restart');
-                                    }
-                                  }}
-                                  onChange={(event) =>
-                                    handleUpdateRiffPhrase({
-                                      resetBars: parseInt(event.target.value, 10) || 4,
-                                    })
-                                  }
-                                  className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
-                                />
-                              </label>
-                            ) : null}
-                          </div>
+                          <RiffRestartSliderControl
+                            study={riffCycleStudy}
+                            onUpdateRiff={handleUpdateRiffPhrase}
+                            label="Return Cycle"
+                            labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
+                            accentColor="#7FD7FF"
+                            compact
+                            onBeforeChange={() => {
+                              handleSetRiffEditMode('landing');
+                              setRiffMobileEditTab('return');
+                            }}
+                          />
                           <div className="space-y-1.5">
                             <InlineInfoLabel
                               infoId="riff_bar_markers"
@@ -21548,65 +21568,14 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
 
-                  <div
-                    data-guide="riff-mobile-riff-restart"
-                    className="space-y-1.5 rounded-xl border border-white/10 bg-black/[0.12] px-2.5 py-2.5"
-                  >
-                    <InlineInfoLabel
-                      infoId="riff_return_cycle"
-                      label="Riff Restart"
+                  <div data-guide="riff-mobile-riff-restart">
+                    <RiffRestartSliderControl
+                      study={riffCycleStudy}
+                      onUpdateRiff={handleUpdateRiffPhrase}
                       labelClassName={riffQuickControlLabelClass}
                       labelStyle={desktopMenuSubheaderStyle}
+                      compact
                     />
-                    <div className="grid grid-cols-3 gap-2">
-                      {RIFF_RETURN_OPTIONS.map((option) => (
-                        <StudyShellButton
-                          key={option.value}
-                          size="compact"
-                          tone="pink"
-                          className={desktopRiffBarCompactButtonClass}
-                          highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
-                          locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
-                          onLockedClick={() => openProPrompt('riff-custom-restart')}
-                          onClick={() =>
-                            handleUpdateRiffPhrase({
-                              resetMode: option.value,
-                            })
-                          }
-                        >
-                          {option.label}
-                        </StudyShellButton>
-                      ))}
-                    </div>
-                    {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
-                      <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
-                        Custom Bars
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          max={RIFF_MAX_RESET_BARS}
-                          value={riffCycleStudy.riff.resetBars}
-                          disabled={riffCustomRestartLocked}
-                          onFocus={() => {
-                            if (riffCustomRestartLocked) {
-                              openProPrompt('riff-custom-restart');
-                            }
-                          }}
-                          onChange={(event) =>
-                            handleUpdateRiffPhrase({
-                              resetBars: parseInt(event.target.value, 10) || 4,
-                            })
-                          }
-                          className="h-8 w-full rounded-lg border border-white/10 bg-white/[0.045] px-2.5 text-[13px] font-light text-white outline-none"
-                        />
-                      </label>
-                    ) : null}
-                    <div className="rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                      {riffCycleStudy.riff.resetMode === 'free'
-                        ? riffFreeResolutionCopy
-                        : 'This decides where the riff returns to beat 1. Ending uses the last slots before that return.'}
-                    </div>
                   </div>
 
                   <div
@@ -23319,64 +23288,19 @@ function OrbitalPolymeter() {
                       Return, markers, and tail length
                     </div>
                   </div>
-                  <StudyShellPanel className="space-y-2">
-                    <InlineInfoLabel
-                      infoId="riff_return_cycle"
-                      label="Return Cycle"
-                      labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                      labelStyle={desktopMenuSubheaderStyle}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      {RIFF_RETURN_OPTIONS.map((option) => (
-                        <StudyShellButton
-                          key={option.value}
-                          size="compact"
-                          tone="blue"
-                          highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
-                          locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
-                          onLockedClick={() => openProPrompt('riff-custom-restart')}
-                          onClick={() => {
-                            handleSetRiffEditMode('landing');
-                            setRiffDesktopEditTab('return');
-                            handleUpdateRiffPhrase({
-                              resetMode: option.value,
-                            });
-                          }}
-                        >
-                          {option.label}
-                        </StudyShellButton>
-                      ))}
-                    </div>
-                    {riffCycleStudy.riff.resetMode === 'custom-cycle' ? (
-                      <label className="block space-y-1 text-[9px] font-mono uppercase tracking-[0.18em] text-white/46">
-                        Custom Bars
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          max={RIFF_MAX_RESET_BARS}
-                          value={riffCycleStudy.riff.resetBars}
-                          disabled={riffCustomRestartLocked}
-                          onFocus={() => {
-                            if (riffCustomRestartLocked) {
-                              openProPrompt('riff-custom-restart');
-                            }
-                          }}
-                          onChange={(event) =>
-                            handleUpdateRiffPhrase({
-                              resetBars: parseInt(event.target.value, 10) || 4,
-                            })
-                          }
-                          className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-[14px] font-light text-white outline-none"
-                        />
-                      </label>
-                    ) : null}
-                    {riffCycleStudy.riff.resetMode === 'free' ? (
-                      <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
-                        {riffFreeResolutionCopy}
-                      </div>
-                    ) : null}
-                  </StudyShellPanel>
+                  <RiffRestartSliderControl
+                    study={riffCycleStudy}
+                    onUpdateRiff={handleUpdateRiffPhrase}
+                    label="Return Cycle"
+                    labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                    labelStyle={desktopMenuSubheaderStyle}
+                    accentColor="#7FD7FF"
+                    compact
+                    onBeforeChange={() => {
+                      handleSetRiffEditMode('landing');
+                      setRiffDesktopEditTab('return');
+                    }}
+                  />
                   <StudyShellPanel className="space-y-2">
                     <InlineInfoLabel
                       infoId="riff_bar_markers"
@@ -23606,34 +23530,13 @@ function OrbitalPolymeter() {
                           ))}
                         </div>
                       </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
-                        <InlineInfoLabel
-                          infoId="riff_return_cycle"
-                          label="Riff Restart"
-                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {RIFF_RETURN_OPTIONS.map((option) => (
-                            <StudyShellButton
-                              key={option.value}
-                              size="compact"
-                              tone="pink"
-                              className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                              highlighted={riffCycleStudy.riff.resetMode === option.value && !(option.value === 'custom-cycle' && riffCustomRestartLocked)}
-                              locked={option.value === 'custom-cycle' && riffCustomRestartLocked}
-                              onLockedClick={() => openProPrompt('riff-custom-restart')}
-                              onClick={() =>
-                                handleUpdateRiffPhrase({
-                                  resetMode: option.value,
-                                })
-                              }
-                            >
-                              {option.label}
-                            </StudyShellButton>
-                          ))}
-                        </div>
-                      </StudyShellPanel>
+                      <RiffRestartSliderControl
+                        study={riffCycleStudy}
+                        onUpdateRiff={handleUpdateRiffPhrase}
+                        labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                        labelStyle={desktopMenuSubheaderStyle}
+                        compact
+                      />
                       <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
                         <InlineInfoLabel
                           infoId="riff_backbeat"
