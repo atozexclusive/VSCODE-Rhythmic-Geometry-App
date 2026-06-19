@@ -1,10 +1,10 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
   getEffectiveRiffStepStateAtReferenceStep,
+  getEffectiveResetBarCount,
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBeat,
   getReferenceStepsPerBar,
-  getResetBarCount,
   isPhraseRestartAtReferenceStep,
   type RiffCycleStudy,
   type RiffCycleSoundSettings,
@@ -44,7 +44,8 @@ function getRenderedRiffMidiNote(
 ): number {
   if (study.soundSettings.pitchMode === 'free') {
     return clamp(
-      frequencyToMidi(study.riff.pitchHz * getRegisterMultiplier(study.soundSettings.register)),
+      frequencyToMidi(study.riff.pitchHz * getRegisterMultiplier(study.soundSettings.register)) +
+        (accented ? 1 : 0),
       28,
       84,
     );
@@ -58,15 +59,14 @@ function getRenderedRiffMidiNote(
       : study.soundSettings.register === 'mid-low'
         ? 43
         : 36;
-  const accentShift = accented
-    ? study.soundSettings.accentPush === 'strong'
-      ? 2
-      : 1
-    : 0;
-  const degreeSource = Math.max(0, phraseIndex) + accentShift;
+  const degreeSource = Math.max(0, phraseIndex);
   const degree = degreeSource % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
-  return clamp(registerBaseMidi + rootSemitone + scale.intervals[degree] + octave * 12, 28, 84);
+  return clamp(
+    registerBaseMidi + rootSemitone + scale.intervals[degree] + octave * 12 + (accented ? 1 : 0),
+    28,
+    84,
+  );
 }
 
 function encodeVariableLength(value: number): number[] {
@@ -122,6 +122,63 @@ function buildTrackChunk(events: TimedMidiEvent[]): Uint8Array {
   return new Uint8Array(chunk);
 }
 
+function createTrackNameEvent(name: string): TimedMidiEvent {
+  return {
+    tick: 0,
+    order: 0,
+    bytes: textEventBytes(0x03, name),
+  };
+}
+
+function createNoteEvents(
+  tick: number,
+  channel: number,
+  note: number,
+  velocity: number,
+  lengthTicks: number,
+  order = 2,
+): TimedMidiEvent[] {
+  const statusOn = 0x90 | clamp(channel, 0, 15);
+  const statusOff = 0x80 | clamp(channel, 0, 15);
+  return [
+    {
+      tick,
+      order,
+      bytes: [statusOn, clamp(note, 0, 127), clamp(velocity, 1, 127)],
+    },
+    {
+      tick: tick + Math.max(1, lengthTicks),
+      order: order - 1,
+      bytes: [statusOff, clamp(note, 0, 127), 0],
+    },
+  ];
+}
+
+function getPulseLayerStepActive(study: RiffCycleStudy, referenceStep: number): boolean {
+  const groupSize = Math.max(1, Math.round(study.pulseLayerGroupSize || 1));
+  const stepIndex = ((referenceStep % groupSize) + groupSize) % groupSize;
+  return study.pulseLayerSteps?.[stepIndex] ?? true;
+}
+
+function getRiffCycleBoundarySteps(
+  study: RiffCycleStudy,
+  mode: RiffMidiExportMode,
+  exportStepCount: number,
+): number[] {
+  if (mode === 'pattern') {
+    return [0, exportStepCount];
+  }
+
+  const boundaries = [0];
+  for (let referenceStep = 1; referenceStep < exportStepCount; referenceStep += 1) {
+    if (isPhraseRestartAtReferenceStep(study, referenceStep)) {
+      boundaries.push(referenceStep);
+    }
+  }
+  boundaries.push(exportStepCount);
+  return [...new Set(boundaries)].sort((a, b) => a - b);
+}
+
 export function buildRiffCycleMidiFile(
   study: RiffCycleStudy,
   mode: RiffMidiExportMode = 'cycle',
@@ -131,25 +188,31 @@ export function buildRiffCycleMidiFile(
   const ticksPerStep = Math.max(1, Math.round(MIDI_PPQ / Math.max(1, stepsPerBeat)));
   const exportBarCount =
     mode === 'cycle'
-      ? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay
+      ? getEffectiveResetBarCount(study) ?? study.reference.barCountForDisplay
       : Math.max(1, Math.ceil(study.riff.stepCount / stepsPerBar));
   const exportStepCount =
     mode === 'cycle'
       ? Math.max(1, exportBarCount * stepsPerBar)
       : Math.max(1, study.riff.stepCount);
   const noteLengthTicks = Math.max(30, Math.floor(ticksPerStep * 0.78));
-  const events: TimedMidiEvent[] = [];
+  const metronomeNoteLengthTicks = Math.max(24, Math.floor(ticksPerStep * 0.42));
+  const subdivisionNoteLengthTicks = Math.max(18, Math.floor(ticksPerStep * 0.34));
+  const conductorEvents: TimedMidiEvent[] = [];
+  const riffEvents: TimedMidiEvent[] = [createTrackNameEvent('Riff MIDI')];
+  const metronomeEvents: TimedMidiEvent[] = [createTrackNameEvent('Metronome MIDI')];
+  const subdivisionEvents: TimedMidiEvent[] = [createTrackNameEvent('Subdivision MIDI')];
+  const cycleMarkerEvents: TimedMidiEvent[] = [createTrackNameEvent('Cycle Markers MIDI')];
 
-  events.push({
+  conductorEvents.push({
     tick: 0,
     order: 0,
     bytes: textEventBytes(
       0x03,
-      `${study.name || 'Riff Cycle'} ${mode === 'cycle' ? 'Rendered Cycle' : 'Pattern Only'}`,
+      `${study.name || 'Riff Cycle'} ${mode === 'cycle' ? 'Rendered Cycle' : 'Pattern Only'} Lanes`,
     ),
   });
 
-  events.push({
+  conductorEvents.push({
     tick: 0,
     order: 0,
     bytes: [0xff, 0x51, 0x03, ...(() => {
@@ -158,7 +221,7 @@ export function buildRiffCycleMidiFile(
     })()],
   });
 
-  events.push({
+  conductorEvents.push({
     tick: 0,
     order: 0,
     bytes: [
@@ -173,11 +236,44 @@ export function buildRiffCycleMidiFile(
   });
 
   for (let barIndex = 0; barIndex < exportBarCount; barIndex += 1) {
-    events.push({
+    conductorEvents.push({
       tick: barIndex * stepsPerBar * ticksPerStep,
       order: 0,
       bytes: textEventBytes(0x06, `Bar ${barIndex + 1}`),
     });
+  }
+
+  const cycleBoundarySteps = getRiffCycleBoundarySteps(study, mode, exportStepCount);
+  for (let index = 0; index < cycleBoundarySteps.length - 1; index += 1) {
+    const startStep = cycleBoundarySteps[index];
+    const endStep = cycleBoundarySteps[index + 1];
+    const startTick = startStep * ticksPerStep;
+    const endTick = endStep * ticksPerStep;
+    if (endTick <= startTick) {
+      continue;
+    }
+
+    const cycleLabel = mode === 'cycle' ? `Pattern ${index + 1}` : 'Pattern';
+    conductorEvents.push({
+      tick: startTick,
+      order: 0,
+      bytes: textEventBytes(0x06, `${cycleLabel} Start`),
+    });
+    conductorEvents.push({
+      tick: endTick,
+      order: 0,
+      bytes: textEventBytes(0x06, `${cycleLabel} End`),
+    });
+    cycleMarkerEvents.push(
+      ...createNoteEvents(
+        startTick,
+        1,
+        84,
+        index % 2 === 0 ? 70 : 58,
+        endTick - startTick,
+        2,
+      ),
+    );
   }
 
   for (let referenceStep = 0; referenceStep < exportStepCount; referenceStep += 1) {
@@ -200,7 +296,7 @@ export function buildRiffCycleMidiFile(
         : null;
 
     if (mode === 'cycle' && landingSlot === 0 && previousLandingSlot == null) {
-      events.push({
+      conductorEvents.push({
         tick,
         order: 0,
         bytes: textEventBytes(0x06, 'Ending Start'),
@@ -208,33 +304,50 @@ export function buildRiffCycleMidiFile(
     }
 
     if (referenceStep > 0 && isPhraseRestartAtReferenceStep(study, referenceStep)) {
-      events.push({
+      conductorEvents.push({
         tick,
         order: 0,
         bytes: textEventBytes(0x06, 'Phrase Restart'),
       });
     }
 
-    if (!stepState.active) {
-      continue;
+    if (referenceStep % stepsPerBeat === 0) {
+      const isDownbeat = referenceStep % stepsPerBar === 0;
+      metronomeEvents.push(
+        ...createNoteEvents(
+          tick,
+          9,
+          isDownbeat ? 76 : 77,
+          isDownbeat ? 112 : 86,
+          metronomeNoteLengthTicks,
+          3,
+        ),
+      );
     }
 
-    const midiNote = getRenderedRiffMidiNote(study, stepState.phraseIndex, stepState.accented);
-    const velocity = stepState.accented ? 116 : stepState.overridden ? 102 : 88;
+    if (getPulseLayerStepActive(study, referenceStep)) {
+      const groupSize = Math.max(1, Math.round(study.pulseLayerGroupSize || stepsPerBar));
+      const isGroupStart = referenceStep % groupSize === 0;
+      subdivisionEvents.push(
+        ...createNoteEvents(
+          tick,
+          9,
+          isGroupStart ? 38 : 37,
+          isGroupStart ? 84 : 62,
+          subdivisionNoteLengthTicks,
+          4,
+        ),
+      );
+    }
 
-    events.push({
-      tick,
-      order: 2,
-      bytes: [0x90, midiNote, velocity],
-    });
-    events.push({
-      tick: tick + noteLengthTicks,
-      order: 1,
-      bytes: [0x80, midiNote, 0],
-    });
+    if (stepState.active) {
+      const midiNote = getRenderedRiffMidiNote(study, stepState.phraseIndex, stepState.accented);
+      const velocity = stepState.accented ? 116 : stepState.overridden ? 102 : 88;
+      riffEvents.push(...createNoteEvents(tick, 0, midiNote, velocity, noteLengthTicks));
+    }
   }
 
-  events.push({
+  conductorEvents.push({
     tick: exportStepCount * ticksPerStep,
     order: 0,
     bytes: textEventBytes(0x06, mode === 'cycle' ? 'Cycle Return' : 'Pattern End'),
@@ -242,10 +355,16 @@ export function buildRiffCycleMidiFile(
 
   const header: number[] = [0x4d, 0x54, 0x68, 0x64];
   pushUint32(header, 6);
-  pushUint16(header, 0);
   pushUint16(header, 1);
+  pushUint16(header, 5);
   pushUint16(header, MIDI_PPQ);
 
-  const trackChunk = buildTrackChunk(events);
-  return new Uint8Array([...header, ...trackChunk]);
+  return new Uint8Array([
+    ...header,
+    ...buildTrackChunk(conductorEvents),
+    ...buildTrackChunk(riffEvents),
+    ...buildTrackChunk(metronomeEvents),
+    ...buildTrackChunk(subdivisionEvents),
+    ...buildTrackChunk(cycleMarkerEvents),
+  ]);
 }

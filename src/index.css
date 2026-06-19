@@ -240,6 +240,13 @@
     touch-action: manipulation;
     -webkit-text-size-adjust: 100%;
   }
+  @supports (height: 100svh) {
+    html,
+    body,
+    #root {
+      min-height: 100svh;
+    }
+  }
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
@@ -326,6 +333,35 @@
   transform: scale(1.12);
   box-shadow: 0 0 0 7px color-mix(in srgb, var(--slider-accent) 18%, transparent),
     0 0 18px color-mix(in srgb, var(--slider-accent) 65%, transparent);
+}
+
+.touch-slider.rg-compact-slider {
+  height: 0.85rem;
+  padding: 0.22rem 0;
+  margin: -0.08rem 0;
+}
+
+.touch-slider.rg-compact-slider::-webkit-slider-runnable-track {
+  height: 0.2rem;
+}
+
+.touch-slider.rg-compact-slider::-moz-range-track {
+  height: 0.2rem;
+}
+
+.touch-slider.rg-compact-slider::-webkit-slider-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: calc((0.2rem - 0.75rem) / 2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--slider-accent) 12%, transparent),
+    0 0 8px color-mix(in srgb, var(--slider-accent) 44%, transparent);
+}
+
+.touch-slider.rg-compact-slider::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--slider-accent) 12%, transparent),
+    0 0 8px color-mix(in srgb, var(--slider-accent) 44%, transparent);
 }
 
 .rg-transport-tempo-row {

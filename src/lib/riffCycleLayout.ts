@@ -1,10 +1,10 @@
 import {
   getDisplayStepCount,
+  getEffectiveResetBarCount,
   getReferenceStepsPerBar,
   getReferenceStepsPerBeat,
   getRiffPhrasePoints,
   getRiffStepIndexAtReferenceStep,
-  getResetBarCount,
   getResetStepCount,
   type RiffCycleStudy,
 } from './riffCycleStudy';
@@ -124,7 +124,7 @@ export function getRiffCycleCanvasMetrics(
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
   const maxVisibleStart = Math.max(0, totalDisplaySteps - visibleStepCount);
-  const resetBarCount = getResetBarCount(study.riff);
+  const resetBarCount = getEffectiveResetBarCount(study);
   const absoluteTimeline =
     showingTimeline &&
     (getResetStepCount(study) == null ||
@@ -149,6 +149,9 @@ export function getRiffCycleCanvasMetrics(
       isMobile ? 96 : 84,
       Math.min(safeWidth / 2 - (isMobile ? 6 : 10), availableTopHeight / 2 - (isMobile ? 8 : 8)),
     );
+    if (study.pulseLayerEnabled) {
+      outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
+    }
     circleCenterY = topPadding + availableTopHeight / 2;
     topLaneY = timelineY + (isMobile ? 10 : 16);
     bottomLaneY = topLaneY + laneHeight + (isMobile ? 14 : 20);
@@ -171,10 +174,20 @@ export function getRiffCycleCanvasMetrics(
       isMobile ? 96 : 84,
       Math.min(safeWidth / 2 - (isMobile ? 6 : 10), safeHeight / 2 - (isMobile ? 4 : 8)),
     );
+    if (study.pulseLayerEnabled) {
+      outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
+    }
     circleCenterY = topPadding + safeHeight / 2;
   }
 
-  const innerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
+  const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
+  const referenceSideCount = Math.max(2, study.reference.numerator);
+  const referenceInradius = outerRadius * Math.cos(Math.PI / referenceSideCount);
+  const containmentPadding = isMobile ? 4 : 6;
+  const innerRadius = Math.min(
+    defaultInnerRadius,
+    Math.max(32, referenceInradius - containmentPadding),
+  );
 
   const baseMetrics = {
     circleCenterX,

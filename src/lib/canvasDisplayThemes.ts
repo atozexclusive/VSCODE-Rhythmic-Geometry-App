@@ -18,6 +18,21 @@ export type CanvasAtmosphereId =
   | 'deep-field';
 
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
+export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
+export type CanvasSubdivisionGuideCycleBars = 4 | 8 | 16;
+export type CanvasInnerClockMode = 'off' | 'minimal' | 'full';
+
+export interface CanvasSubdivisionGuideAutomation {
+  enabled: boolean;
+  cycleBars: CanvasSubdivisionGuideCycleBars;
+  modes: CanvasSubdivisionGuideMode[];
+}
+
+export interface CanvasInnerClockAutomation {
+  enabled: boolean;
+  cycleBars: CanvasSubdivisionGuideCycleBars;
+  modes: CanvasInnerClockMode[];
+}
 
 export interface CanvasDisplaySettings {
   theme: CanvasDisplayThemeId;
@@ -25,6 +40,12 @@ export interface CanvasDisplaySettings {
   glow: CanvasGlowLevel;
   squareGrid?: boolean;
   centerAxes?: boolean;
+  subdivisionGuide?: CanvasSubdivisionGuideMode;
+  subdivisionGuideAutomation?: CanvasSubdivisionGuideAutomation;
+  innerClock?: CanvasInnerClockMode;
+  innerClockAutomation?: CanvasInnerClockAutomation;
+  subdivisionGrid?: boolean;
+  showCellStrip?: boolean;
 }
 
 interface CanvasDisplayTheme {
@@ -55,9 +76,28 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   glow: 'medium',
   squareGrid: true,
   centerAxes: true,
+  subdivisionGuide: 'off',
+  subdivisionGuideAutomation: {
+    enabled: false,
+    cycleBars: 8,
+    modes: ['off', 'minimal'],
+  },
+  innerClock: 'full',
+  innerClockAutomation: {
+    enabled: false,
+    cycleBars: 8,
+    modes: ['off', 'full'],
+  },
+  subdivisionGrid: false,
+  showCellStrip: true,
 };
 
-export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS;
+export const DEFAULT_RIFF_DISPLAY_SETTINGS: CanvasDisplaySettings = {
+  ...DEFAULT_CANVAS_DISPLAY_SETTINGS,
+  subdivisionGuide: 'off',
+  subdivisionGrid: false,
+  showCellStrip: true,
+};
 
 export const CANVAS_DISPLAY_THEMES: Record<CanvasDisplayThemeId, CanvasDisplayTheme> = {
   classic: {
@@ -272,16 +312,110 @@ function clampGlow(value: unknown): CanvasGlowLevel {
     : DEFAULT_CANVAS_DISPLAY_SETTINGS.glow;
 }
 
+function clampSubdivisionGuide(
+  value: unknown,
+  legacyGridValue: unknown,
+  fallback: CanvasSubdivisionGuideMode | undefined,
+): CanvasSubdivisionGuideMode {
+  if (value === 'off' || value === 'minimal' || value === 'subdivisions') {
+    return value;
+  }
+  if (typeof legacyGridValue === 'boolean') {
+    return legacyGridValue ? 'subdivisions' : 'off';
+  }
+  return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuide ?? 'off';
+}
+
+function clampSubdivisionGuideCycleBars(value: unknown): CanvasSubdivisionGuideCycleBars {
+  return value === 4 || value === 8 || value === 16 ? value : 8;
+}
+
+function clampInnerClockMode(value: unknown, fallback: CanvasInnerClockMode | undefined): CanvasInnerClockMode {
+  if (value === 'off' || value === 'minimal' || value === 'full') {
+    return value;
+  }
+  return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClock ?? 'full';
+}
+
+function normalizeSubdivisionGuideAutomation(
+  value: Partial<CanvasSubdivisionGuideAutomation> | null | undefined,
+  fallback: CanvasSubdivisionGuideAutomation | undefined,
+): CanvasSubdivisionGuideAutomation {
+  const fallbackAutomation =
+    fallback ??
+    DEFAULT_CANVAS_DISPLAY_SETTINGS.subdivisionGuideAutomation ?? {
+      enabled: false,
+      cycleBars: 8,
+      modes: ['off', 'minimal'],
+    };
+  const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
+  const normalizedModes = sourceModes
+    .slice(0, 8)
+    .map((mode, index) =>
+      clampSubdivisionGuide(
+        mode,
+        undefined,
+        fallbackAutomation.modes[index] ?? fallbackAutomation.modes[0] ?? 'off',
+      ),
+    );
+  return {
+    enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
+    cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
+    modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'minimal'],
+  };
+}
+
+function normalizeInnerClockAutomation(
+  value: Partial<CanvasInnerClockAutomation> | null | undefined,
+  fallback: CanvasInnerClockAutomation | undefined,
+): CanvasInnerClockAutomation {
+  const fallbackAutomation =
+    fallback ??
+    DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClockAutomation ?? {
+      enabled: false,
+      cycleBars: 8,
+      modes: ['off', 'full'],
+    };
+  const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
+  const normalizedModes = sourceModes
+    .slice(0, 8)
+    .map((mode, index) =>
+      clampInnerClockMode(mode, fallbackAutomation.modes[index] ?? fallbackAutomation.modes[0] ?? 'full'),
+    );
+  return {
+    enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
+    cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
+    modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'full'],
+  };
+}
+
 export function normalizeCanvasDisplaySettings(
   value: Partial<CanvasDisplaySettings> | null | undefined,
   fallback: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
 ): CanvasDisplaySettings {
+  const subdivisionGuide = clampSubdivisionGuide(
+    value?.subdivisionGuide,
+    value?.subdivisionGrid,
+    fallback.subdivisionGuide,
+  );
   return {
     theme: value?.theme ? clampDisplayTheme(value.theme) : fallback.theme,
     atmosphere: value?.atmosphere ? clampAtmosphere(value.atmosphere) : fallback.atmosphere,
     glow: value?.glow ? clampGlow(value.glow) : fallback.glow,
     squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
     centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
+    subdivisionGuide,
+    subdivisionGuideAutomation: normalizeSubdivisionGuideAutomation(
+      value?.subdivisionGuideAutomation,
+      fallback.subdivisionGuideAutomation,
+    ),
+    innerClock: clampInnerClockMode(value?.innerClock, fallback.innerClock),
+    innerClockAutomation: normalizeInnerClockAutomation(
+      value?.innerClockAutomation,
+      fallback.innerClockAutomation,
+    ),
+    subdivisionGrid: subdivisionGuide === 'subdivisions',
+    showCellStrip: typeof value?.showCellStrip === 'boolean' ? value.showCellStrip : fallback.showCellStrip,
   };
 }
 

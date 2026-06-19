@@ -19,6 +19,9 @@ export type ProFeature =
   | 'riff-ending-length'
   | 'riff-advanced-timing'
   | 'riff-pattern-tools'
+  | 'riff-cell-sequencer'
+  | 'riff-subdivisions'
+  | 'riff-custom-restart'
   | 'pro-scenes';
 
 export const FREE_SCENE_SAVE_LIMIT = 0;

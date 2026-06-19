@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Lock,
   MoreHorizontal,
@@ -49,6 +49,7 @@ interface PolyrhythmSidebarProps {
   onLoadPreset: (presetId: string) => void;
   onLoadSavedScene?: (sceneId: string) => void;
   onEditSavedScene?: (sceneId: string) => void;
+  onSaveScene: () => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
   onBpmChange: (bpm: number) => void;
@@ -74,15 +75,17 @@ interface PolyrhythmSidebarProps {
   onExportVideo: (options: { durationSeconds: VideoExportDuration; aspect: VideoExportAspect }) => Promise<void> | void;
   onExportMidi: (mode: PolyrhythmMidiExportMode) => void;
   onExportScene: () => void;
+  onImportScene: (file: File) => void;
   isRecordingVideo: boolean;
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
+    saveScenes?: boolean;
     soundEditing?: boolean;
     proScenes?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'pro-scenes') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'save-scenes' | 'sound-editing' | 'pro-scenes') => void;
 }
 
 type PolyrhythmSidebarTab = 'scenes' | 'layers' | 'sound' | 'export' | 'account';
@@ -244,6 +247,7 @@ export default function PolyrhythmSidebar({
   onLoadPreset,
   onLoadSavedScene,
   onEditSavedScene,
+  onSaveScene,
   onResetStudy,
   onTogglePlay,
   onBpmChange,
@@ -266,6 +270,7 @@ export default function PolyrhythmSidebar({
   onExportVideo,
   onExportMidi,
   onExportScene,
+  onImportScene,
   isRecordingVideo,
   onHardRefresh,
   lockedFeatures = {},
@@ -273,6 +278,7 @@ export default function PolyrhythmSidebar({
 }: PolyrhythmSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
   const [sceneTab, setSceneTab] = useState<PolyrhythmSidebarSceneTab>('standard');
   const [expandedSceneGroups, setExpandedSceneGroups] = useState<Record<PolyrhythmPresetGroup, boolean>>({
@@ -294,6 +300,10 @@ export default function PolyrhythmSidebar({
   };
   const promptLockedSound = () => {
     onLockedFeature?.('sound-editing');
+  };
+  const saveScenesLocked = Boolean(lockedFeatures.saveScenes);
+  const promptLockedSaveScenes = () => {
+    onLockedFeature?.('save-scenes');
   };
   const lockedExportStyle = exportLocked
     ? {
@@ -368,11 +378,9 @@ export default function PolyrhythmSidebar({
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ]
     : [
-        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
-        { id: 'layers', label: 'Layers', color: selectedLayer?.color ?? '#7FD7FF' },
-        { id: 'sound', label: 'Sound', color: '#88CCFF' },
+        { id: 'scenes', label: 'Scenes', color: '#7FD7FF' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
-        { id: 'account', label: 'Account', color: '#88CCFF' },
+        { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
   const groupedPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
@@ -395,13 +403,10 @@ export default function PolyrhythmSidebar({
   }, [exportNotice]);
 
   useEffect(() => {
-    if (!isMobile) {
-      return;
-    }
     if (activeTab === 'layers' || activeTab === 'sound') {
       setActiveTab('scenes');
     }
-  }, [activeTab, isMobile]);
+  }, [activeTab]);
 
   return (
     <>
@@ -624,6 +629,26 @@ export default function PolyrhythmSidebar({
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : onSaveScene())}
+                className="relative flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
+                style={{
+                  background: saveScenesLocked
+                    ? 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025))'
+                    : 'linear-gradient(180deg, rgba(0,255,170,0.18), rgba(0,255,170,0.09))',
+                  borderColor: saveScenesLocked ? 'rgba(255,255,255,0.1)' : 'rgba(0,255,170,0.28)',
+                  color: saveScenesLocked ? 'rgba(255,255,255,0.5)' : '#72F1B8',
+                  boxShadow: saveScenesLocked
+                    ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+                    : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px rgba(0,255,170,0.1)',
+                  filter: saveScenesLocked ? 'grayscale(0.45)' : undefined,
+                }}
+              >
+                Save Scene
+                {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
+              </button>
 
               {sceneTab === 'standard' ? groupedPresets.map(({ group, presets }) => {
                 const expanded = expandedSceneGroups[group];
@@ -1875,6 +1900,39 @@ export default function PolyrhythmSidebar({
                 >
                   {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export Scene'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.045)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: 'rgba(255, 255, 255, 0.68)',
+                    ...(saveScenesLocked
+                      ? {
+                          background: 'rgba(255,255,255,0.035)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.5)',
+                          filter: 'grayscale(0.45)',
+                        }
+                      : {}),
+                  }}
+                >
+                  {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
+                </button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      onImportScene(file);
+                    }
+                    event.target.value = '';
+                  }}
+                />
               </div>
 
               {exportNotice ? (

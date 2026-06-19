@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Lock,
   MoreHorizontal,
@@ -44,6 +44,7 @@ interface RiffCycleSidebarProps {
   onLoadPreset: (presetId: string) => void;
   onLoadSavedScene?: (sceneId: string) => void;
   onEditSavedScene?: (sceneId: string) => void;
+  onSaveScene: () => void;
   onResetStudy: () => void;
   onToggleSound: () => void;
   onToggleReferenceSound: () => void;
@@ -78,17 +79,19 @@ interface RiffCycleSidebarProps {
   onExportVideo: (options: { durationSeconds: VideoExportDuration; aspect: VideoExportAspect }) => Promise<void> | void;
   onExportMidi: (mode: RiffMidiExportMode) => void;
   onExportScene: () => void;
+  onImportScene: (file: File) => void;
   isRecordingVideo: boolean;
   onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
+    saveScenes?: boolean;
     soundEditing?: boolean;
     proScenes?: boolean;
     riffPatternTools?: boolean;
     riffExtendedPatterns?: boolean;
   };
-  onLockedFeature?: (feature: 'color-editing' | 'export' | 'sound-editing' | 'riff-pattern-tools' | 'riff-extended-patterns' | 'pro-scenes') => void;
+  onLockedFeature?: (feature: 'color-editing' | 'export' | 'save-scenes' | 'sound-editing' | 'riff-pattern-tools' | 'riff-extended-patterns' | 'pro-scenes') => void;
 }
 
 type RiffCycleSidebarTab =
@@ -288,6 +291,7 @@ export default function RiffCycleSidebar({
   onLoadPreset,
   onLoadSavedScene,
   onEditSavedScene,
+  onSaveScene,
   onToggleSound,
   onToggleReferenceSound,
   onToggleBackbeatSound,
@@ -312,6 +316,7 @@ export default function RiffCycleSidebar({
   onExportVideo,
   onExportMidi,
   onExportScene,
+  onImportScene,
   isRecordingVideo,
   onHardRefresh,
   lockedFeatures = {},
@@ -319,6 +324,7 @@ export default function RiffCycleSidebar({
 }: RiffCycleSidebarProps) {
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -338,6 +344,10 @@ export default function RiffCycleSidebar({
   const riffPatternToolsLocked = Boolean(lockedFeatures.riffPatternTools);
   const promptLockedPatternTools = () => {
     onLockedFeature?.('riff-pattern-tools');
+  };
+  const saveScenesLocked = Boolean(lockedFeatures.saveScenes);
+  const promptLockedSaveScenes = () => {
+    onLockedFeature?.('save-scenes');
   };
   const lockedExportStyle = exportLocked
     ? {
@@ -395,13 +405,9 @@ export default function RiffCycleSidebar({
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ]
     : [
-        { id: 'scenes', label: 'Scenes', color: '#72F1B8' },
-        { id: 'bar', label: 'Bar', color: '#FF88C2' },
-        { id: 'phrase', label: 'Pattern', color: study.riff.color },
-        { id: 'ending', label: 'Ending', color: '#7FD7FF' },
-        { id: 'sound', label: 'Sound', color: '#88CCFF' },
+        { id: 'scenes', label: 'Scenes', color: '#7FD7FF' },
         { id: 'export', label: 'Export', color: '#FFAA00' },
-        { id: 'account', label: 'Account', color: '#88CCFF' },
+        { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
   const standardPresets = RIFF_CYCLE_PRESETS.filter((preset) => !preset.pro);
   const proPresets = RIFF_CYCLE_PRESETS.filter((preset) => preset.pro);
@@ -412,25 +418,16 @@ export default function RiffCycleSidebar({
     }
   }, [isMobile, isOpen]);
 
-  useEffect(() => {
-    if (!isMobile && study.landingEditEnabled) {
-      setActiveTab('ending');
-    }
-  }, [isMobile, study.landingEditEnabled]);
-
   const pinEndingTab = () => {
     onSetEditMode('landing');
-    setActiveTab('ending');
+    setActiveTab('scenes');
   };
 
   useEffect(() => {
-    if (!isMobile) {
-      return;
-    }
     if (activeTab === 'bar' || activeTab === 'phrase' || activeTab === 'ending' || activeTab === 'sound') {
       setActiveTab('scenes');
     }
-  }, [activeTab, isMobile]);
+  }, [activeTab]);
 
   return (
     <>
@@ -663,6 +660,26 @@ export default function RiffCycleSidebar({
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : onSaveScene())}
+              className="relative flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
+              style={{
+                background: saveScenesLocked
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025))'
+                  : 'linear-gradient(180deg, rgba(0,255,170,0.18), rgba(0,255,170,0.09))',
+                borderColor: saveScenesLocked ? 'rgba(255,255,255,0.1)' : 'rgba(0,255,170,0.28)',
+                color: saveScenesLocked ? 'rgba(255,255,255,0.5)' : '#72F1B8',
+                boxShadow: saveScenesLocked
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px rgba(0,255,170,0.1)',
+                filter: saveScenesLocked ? 'grayscale(0.45)' : undefined,
+              }}
+            >
+              Save Scene
+              {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
+            </button>
 
             {sceneTab === 'standard' ? standardPresets.map((preset) => {
               const active = preset.id === activePresetId;
@@ -1398,10 +1415,10 @@ export default function RiffCycleSidebar({
                 <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
                   MIDI Export
                 </div>
-                <InfoTip text="MIDI exports the riff as note events for a DAW. Cycle includes the restart and ending behavior; Pattern is only the raw step pattern." />
+                <InfoTip text="MIDI exports separate DAW lanes: Riff, Metronome, Subdivision, and Cycle Markers. The marker lane spans each pattern cycle so starts and ends are easy to see." />
               </div>
               <div className="text-[11px] leading-relaxed text-white/52">
-                Send the Riff rhythm to a DAW as notes.
+                Send Riff, metronome, subdivision, and cycle marker lanes to a DAW.
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {([
@@ -1432,8 +1449,8 @@ export default function RiffCycleSidebar({
               </div>
               <div className="text-[11px] leading-relaxed text-white/52">
                 {exportMidiMode === 'cycle'
-                  ? 'Cycle includes bar timing, riff restart, and ending slots.'
-                  : 'Pattern exports the riff steps only, without restart or ending behavior.'}
+                  ? 'Cycle includes bar timing, riff restart, ending slots, metronome, subdivision hits, and pattern start/end markers.'
+                  : 'Pattern exports the raw riff length with matching metronome, selected subdivision hits, and start/end markers.'}
               </div>
               <button
                 type="button"
@@ -1457,7 +1474,7 @@ export default function RiffCycleSidebar({
                   ...lockedExportStyle,
                 }}
               >
-                {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
+                {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI Lanes'}
               </button>
             </div>
 
@@ -1491,6 +1508,39 @@ export default function RiffCycleSidebar({
               >
                 {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export Scene'}
               </button>
+              <button
+                type="button"
+                onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
+                className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.045)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'rgba(255, 255, 255, 0.68)',
+                  ...(saveScenesLocked
+                    ? {
+                        background: 'rgba(255,255,255,0.035)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.5)',
+                        filter: 'grayscale(0.45)',
+                      }
+                    : {}),
+                }}
+              >
+                {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    onImportScene(file);
+                  }
+                  event.target.value = '';
+                }}
+              />
             </div>
 
             {exportNotice ? (
