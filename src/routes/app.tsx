@@ -18379,22 +18379,247 @@ function OrbitalPolymeter() {
                   >
                     Restart
                   </StudyShellButton>
-	                  <StudyShellButton
-	                    tone="blue"
-	                    highlighted={riffMobileSection === 'audio'}
-	                    icon={<Volume2 size={15} />}
-	                    onClick={() => {
-	                      if (soundEditingLocked) {
-	                        openProPrompt('sound-editing');
-	                        return;
-	                      }
-	                      setRiffMobileSection((current) => (current === 'audio' ? null : 'audio'));
-	                    }}
-	                    data-guide="riff-mobile-mute"
-	                    className="w-full"
-	                  >
-	                    Audio
-	                  </StudyShellButton>
+	                  <div className="relative">
+	                    {riffAudioPanelOpen ? (
+	                      <StudyShellPanel
+	                        className="absolute right-0 top-[calc(100%+0.55rem)] z-50 w-[min(21rem,calc(100vw-2rem))] overflow-hidden px-0 py-0"
+	                        style={{
+	                          borderColor: 'rgba(127,215,255,0.2)',
+	                          background: `
+	                            radial-gradient(circle at 12% -12%, ${riffCycleStudy.riff.color}22, transparent 36%),
+	                            radial-gradient(circle at 92% 0%, rgba(127,215,255,0.16), transparent 34%),
+	                            linear-gradient(180deg, rgba(14,17,24,0.98), rgba(7,9,15,0.95))
+	                          `,
+	                          boxShadow: '0 24px 70px rgba(0,0,0,0.55), 0 0 38px rgba(127,215,255,0.12), inset 0 1px 0 rgba(255,255,255,0.09)',
+	                        }}
+	                      >
+	                        <div className="border-b border-white/8 px-3.5 py-3">
+	                          <div className="flex items-center justify-between gap-3">
+	                            <div className="flex items-center gap-2">
+	                              <div
+	                                className="flex h-8 w-8 items-center justify-center rounded-xl border"
+	                                style={{
+	                                  background: 'rgba(127,215,255,0.11)',
+	                                  borderColor: 'rgba(127,215,255,0.22)',
+	                                  color: '#7FD7FF',
+	                                }}
+	                              >
+	                                <Volume2 size={15} />
+	                              </div>
+	                              <div>
+	                                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#7FD7FF]">
+	                                  Audio Mix
+	                                </div>
+	                                <div className="mt-0.5 flex items-center gap-1.5">
+	                                  {[
+	                                    { active: riffCycleStudy.riff.soundEnabled, color: riffCycleStudy.riff.color },
+	                                    { active: riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled, color: '#FFFFFF' },
+	                                    { active: riffCycleStudy.subdivisionSoundEnabled, color: '#7FD7FF' },
+	                                  ].map((dot, index) => (
+	                                    <span
+	                                      key={`mobile-playback-audio-status-${index}`}
+	                                      className="block h-1.5 w-1.5 rounded-full"
+	                                      style={{
+	                                        background: dot.active ? dot.color : 'rgba(255,255,255,0.18)',
+	                                        boxShadow: dot.active ? `0 0 10px ${dot.color}66` : 'none',
+	                                      }}
+	                                    />
+	                                  ))}
+	                                </div>
+	                              </div>
+	                            </div>
+	                            <button
+	                              type="button"
+	                              onClick={handleToggleRiffCycleSound}
+	                              className="flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-[8px] font-mono uppercase tracking-[0.14em]"
+	                              style={{
+	                                background: riffCycleStudy.soundEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.04)',
+	                                borderColor: riffCycleStudy.soundEnabled ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.1)',
+	                                color: riffCycleStudy.soundEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.55)',
+	                              }}
+	                            >
+	                              {riffCycleStudy.soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+	                              {riffCycleStudy.soundEnabled ? 'On' : 'Off'}
+	                            </button>
+	                          </div>
+	                        </div>
+
+	                        <div className="px-3.5 py-2">
+	                          {([
+	                            {
+	                              id: 'riff',
+	                              label: 'Riff',
+	                              icon: <Music2 size={14} />,
+	                              enabled: riffCycleStudy.riff.soundEnabled,
+	                              value: riffCycleStudy.riff.gain,
+	                              max: 0.32,
+	                              color: riffCycleStudy.riff.color,
+	                              onToggle: () =>
+	                                handleUpdateRiffPhrase({
+	                                  soundEnabled: !riffCycleStudy.riff.soundEnabled,
+	                                }),
+	                              onChange: (gain: number) =>
+	                                handleUpdateRiffPhrase({
+	                                  gain,
+	                                  soundEnabled: gain > 0 ? true : riffCycleStudy.riff.soundEnabled,
+	                                }),
+	                            },
+	                            {
+	                              id: 'meter',
+	                              label: 'Meter',
+	                              icon: <CircleDot size={14} />,
+	                              enabled: riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled,
+	                              value: riffCycleStudy.referenceGain,
+	                              max: 0.18,
+	                              color: '#FFFFFF',
+	                              onToggle: () =>
+	                                handleUpdateRiffAudioMix({
+	                                  soundEnabled: true,
+	                                  referenceSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
+	                                  backbeatSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
+	                                }),
+	                              onChange: (referenceGain: number) =>
+	                                handleUpdateRiffAudioMix({
+	                                  soundEnabled: true,
+	                                  referenceGain,
+	                                  referenceSoundEnabled: referenceGain > 0 ? true : riffCycleStudy.referenceSoundEnabled,
+	                                  backbeatSoundEnabled: referenceGain > 0 ? true : riffCycleStudy.backbeatSoundEnabled,
+	                                }),
+	                            },
+	                            {
+	                              id: 'subdivision',
+	                              label: 'Subdivision',
+	                              icon: <Grid3X3 size={14} />,
+	                              enabled: riffCycleStudy.subdivisionSoundEnabled,
+	                              value: riffCycleStudy.subdivisionGain,
+	                              max: 0.12,
+	                              color: '#7FD7FF',
+	                              onToggle: () => {
+	                                const subdivisionSoundEnabled = !riffCycleStudy.subdivisionSoundEnabled;
+	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
+	                                handleUpdateRiffAudioMix({
+	                                  soundEnabled: subdivisionSoundEnabled ? true : riffCycleStudy.soundEnabled,
+	                                  pulseLayerEnabled: subdivisionSoundEnabled,
+	                                  pulseLayerGroupSize: stepsPerBar,
+	                                  pulseLayerSteps: Array.from(
+	                                    { length: stepsPerBar },
+	                                    (_, index) => riffCycleStudy.pulseLayerSteps?.[index] ?? true,
+	                                  ),
+	                                  subdivisionSoundEnabled,
+	                                });
+	                              },
+	                              onChange: (subdivisionGain: number) => {
+	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
+	                                handleUpdateRiffAudioMix({
+	                                  soundEnabled: true,
+	                                  pulseLayerEnabled: true,
+	                                  pulseLayerGroupSize: stepsPerBar,
+	                                  pulseLayerSteps: Array.from(
+	                                    { length: stepsPerBar },
+	                                    (_, index) => riffCycleStudy.pulseLayerSteps?.[index] ?? true,
+	                                  ),
+	                                  subdivisionGain,
+	                                  subdivisionSoundEnabled: subdivisionGain > 0 ? true : riffCycleStudy.subdivisionSoundEnabled,
+	                                });
+	                              },
+	                            },
+	                          ] as const).map((control, index) => {
+	                            const level = Math.max(0, Math.min(1, control.value / control.max));
+	                            return (
+	                              <div
+	                                key={`mobile-playback-audio-${control.id}`}
+	                                className="relative py-3 pl-3 pr-1"
+	                                style={{ borderTop: index === 0 ? 'none' : '1px solid rgba(255,255,255,0.07)' }}
+	                              >
+	                                <div
+	                                  className="absolute bottom-3 left-0 top-3 w-1 rounded-full"
+	                                  style={{
+	                                    background: control.enabled ? control.color : 'rgba(255,255,255,0.16)',
+	                                    boxShadow: control.enabled ? `0 0 14px ${control.color}55` : 'none',
+	                                  }}
+	                                />
+	                                <div className="mb-2 flex items-center gap-2">
+	                                  <div
+	                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
+	                                    style={{
+	                                      background: control.enabled ? `${control.color}14` : 'rgba(255,255,255,0.035)',
+	                                      borderColor: control.enabled ? `${control.color}30` : 'rgba(255,255,255,0.08)',
+	                                      color: control.enabled ? control.color : 'rgba(255,255,255,0.42)',
+	                                    }}
+	                                  >
+	                                    {control.icon}
+	                                  </div>
+	                                  <div className="min-w-0 flex-1">
+	                                    <div className="flex items-center justify-between gap-2">
+	                                      <div
+	                                        className="text-[10px] font-mono uppercase tracking-[0.16em]"
+	                                        style={{ color: control.enabled ? control.color : 'rgba(255,255,255,0.48)' }}
+	                                      >
+	                                        {control.label}
+	                                      </div>
+	                                      <div className="text-[9px] font-mono uppercase tracking-[0.14em] text-white/42">
+	                                        {Math.round(level * 100)}%
+	                                      </div>
+	                                    </div>
+	                                    <div className="mt-1 flex items-center gap-1">
+	                                      {Array.from({ length: 8 }).map((_, meterIndex) => {
+	                                        const active = meterIndex < Math.round(level * 8);
+	                                        return (
+	                                          <span
+	                                            key={`mobile-playback-${control.id}-meter-${meterIndex}`}
+	                                            className="h-1 flex-1 rounded-full"
+	                                            style={{
+	                                              background: active ? control.color : 'rgba(255,255,255,0.09)',
+	                                              opacity: active ? 0.46 + meterIndex * 0.06 : 1,
+	                                            }}
+	                                          />
+	                                        );
+	                                      })}
+	                                    </div>
+	                                  </div>
+	                                  <button
+	                                    type="button"
+	                                    onClick={control.onToggle}
+	                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
+	                                    style={{
+	                                      background: control.enabled ? `${control.color}16` : 'rgba(255,255,255,0.04)',
+	                                      borderColor: control.enabled ? `${control.color}36` : 'rgba(255,255,255,0.09)',
+	                                      color: control.enabled ? control.color : 'rgba(255,255,255,0.5)',
+	                                    }}
+	                                    aria-label={`${control.enabled ? 'Mute' : 'Enable'} ${control.label}`}
+	                                    title={`${control.enabled ? 'Mute' : 'Enable'} ${control.label}`}
+	                                  >
+	                                    {control.enabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+	                                  </button>
+	                                </div>
+	                                <input
+	                                  type="range"
+	                                  min="0"
+	                                  max={control.max}
+	                                  step="0.001"
+	                                  value={control.value}
+	                                  onChange={(event) => control.onChange(parseFloat(event.target.value) || 0)}
+	                                  className="touch-slider rg-transport-tempo-track w-full"
+	                                  style={{ ['--slider-accent' as string]: control.color }}
+	                                  aria-label={`${control.label} volume`}
+	                                />
+	                              </div>
+	                            );
+	                          })}
+	                        </div>
+	                      </StudyShellPanel>
+	                    ) : null}
+	                    <StudyShellButton
+	                      tone="blue"
+	                      highlighted={riffAudioPanelOpen}
+	                      icon={<Volume2 size={15} />}
+	                      onClick={() => setRiffAudioPanelOpen((open) => !open)}
+	                      data-guide="riff-mobile-mute"
+	                      className="w-full"
+	                    >
+	                      Audio
+	                    </StudyShellButton>
+	                  </div>
                 </div>
 
                 <div data-guide="riff-mobile-tempo" className="space-y-2">
