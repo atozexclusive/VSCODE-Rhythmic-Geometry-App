@@ -897,11 +897,11 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-mobile-lane-settings',
-    title: 'Lane Settings',
+    title: 'Read Aids',
     kicker: 'Riff Guide',
-    text: 'Lane Settings shows the riff as a straight strip under the shape. This makes it easier to see where the pattern sits in 1, 2, 4 bars, or just the pattern length.',
-    doThis: 'Use Show Lane when the circle feels too abstract.',
-    notice: 'Read Aids can show Numbers, Start Lines, and Riff Bounds when you need more orientation.',
+    text: 'Read Aids add just enough reference when the shape needs more context.',
+    doThis: 'Turn on Numbers or Bounds when you need orientation.',
+    notice: 'Subdivisions, Fill, and Contour change what the canvas emphasizes without changing the riff.',
   },
   {
     target: 'riff-mobile-pattern-tools',
@@ -19378,82 +19378,14 @@ function OrbitalPolymeter() {
 	                        </div>
 
                         <div data-guide="riff-mobile-lane-settings" className="rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <InlineInfoLabel
-                              infoId="riff_lane_settings"
-                              label="Lane Settings"
-                              labelClassName={mobileRiffMenuSectionTitleClass}
-                              labelStyle={mobileRiffAmberTitleStyle}
-                            />
-                            <div className="rounded-lg border border-white/8 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/62">
-                              {riffMobileLaneHidden ? 'Lane Off' : 'Lane On'}
-                            </div>
-                          </div>
-                          <div className="mt-3">
-                            <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
-                              Lane View
-                            </div>
-                          </div>
-                          <div className="mt-2 grid grid-cols-2 gap-2">
-                            <StudyShellButton
-                              size="compact"
-                              tone="blue"
-                              highlighted={!riffMobileLaneHidden}
-                              onClick={() => {
-                                if (riffMobileLaneHidden) {
-                                  setRiffMobileLaneBarsPerPage(4);
-                                  setRiffMobileLanePage(0);
-                                }
-                              }}
-                              className="min-w-0 px-2 text-[9px] tracking-[0.1em]"
-                            >
-                              Show Lane
-                            </StudyShellButton>
-                            <StudyShellButton
-                              size="compact"
-                              highlighted={riffMobileLaneHidden}
-                              onClick={() => setRiffMobileLaneBarsPerPage('none')}
-                              className="min-w-0 px-2 text-[9px] tracking-[0.1em]"
-                            >
-                              Hide Lane
-                            </StudyShellButton>
-                          </div>
-                          <div className="mt-2 grid grid-cols-4 gap-1.5">
-                            {([
-                              { value: 1 as const, label: '1 Bar' },
-                              { value: 2 as const, label: '2 Bars' },
-                              { value: 4 as const, label: '4 Bars' },
-                              { value: 'pattern' as const, label: 'Pattern' },
-                            ]).map((option) => (
-                              <StudyShellButton
-                                key={`riff-mobile-lane-${option.value}`}
-                                size="compact"
-                                tone="blue"
-                                highlighted={riffMobileLaneBarsPerPage === option.value}
-                                disabled={riffMobileLaneHidden}
-                                onClick={() => {
-                                  setRiffMobileLaneBarsPerPage(option.value);
-                                  setRiffMobileLanePage(0);
-                                }}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
-                              >
-                                {option.label}
-                              </StudyShellButton>
-                            ))}
-                          </div>
-                          <div className="mt-2 rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.055] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
-                            {riffMobileLaneHidden
-                              ? 'Lane hidden. Show it when you want to read the riff as straight time.'
-                              : riffMobileRiffResolveHint}
-                          </div>
-                          <div className="mt-3 space-y-2">
+                          <div className="space-y-2">
                             <InlineInfoLabel
                               infoId="riff_read_aids"
                               label="Read Aids"
                               labelClassName={mobileRiffMenuTitleClass}
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-1.5">
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
@@ -19470,7 +19402,7 @@ function OrbitalPolymeter() {
                                 locked={riffSubdivisionsLocked}
                                 onLockedClick={() => openProPrompt('riff-subdivisions')}
                                 onClick={handleToggleRiffPulseLayer}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                                className="min-w-0 px-1 text-[7.5px] tracking-[0.06em]"
                               >
                                 Subdivisions
                               </StudyShellButton>
@@ -19479,9 +19411,9 @@ function OrbitalPolymeter() {
                                 tone="blue"
                                 highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
                                 onClick={handleToggleRiffPhraseBounds}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                                className="min-w-0 px-1 text-[7.5px] tracking-[0.06em]"
                               >
-                                Riff Bounds
+                                Bounds
                               </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
