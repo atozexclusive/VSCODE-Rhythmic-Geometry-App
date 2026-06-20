@@ -250,14 +250,7 @@ const FREE_RIFF_STEP_LIMIT = 12;
 const FREE_RIFF_ENDING_SLOT_LIMIT = 4;
 const FREE_RIFF_METERS = [3, 4] as const;
 const FREE_RIFF_SUBDIVISIONS = [8, 12, 16] as const;
-const RIFF_RESTART_SLIDER_OPTIONS: Array<{ value: RiffPhrase['resetMode']; label: string; bars: number | null }> = [
-  { value: 'free', label: 'Free', bars: null },
-  { value: 'per-bar', label: '1 Bar', bars: 1 },
-  { value: 'every-2-bars', label: '2 Bars', bars: 2 },
-  { value: 'every-4-bars', label: '4 Bars', bars: 4 },
-  { value: 'every-8-bars', label: '8 Bars', bars: 8 },
-  { value: 'every-16-bars', label: '16 Bars', bars: 16 },
-];
+const RIFF_RESTART_SLIDER_MAX_BARS = 32;
 function canUseFreeRiffMeter(numerator: number): boolean {
   return FREE_RIFF_METERS.includes(Math.round(numerator) as (typeof FREE_RIFF_METERS)[number]);
 }
@@ -2258,28 +2251,44 @@ function getNaturalRiffResolutionCopy(study: RiffCycleStudy): string {
   return `Naturally resolves after ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}.`;
 }
 
-function getRiffRestartSliderIndex(riff: RiffPhrase): number {
-  const optionIndex = RIFF_RESTART_SLIDER_OPTIONS.findIndex((option) => option.value === riff.resetMode);
-  if (optionIndex >= 0) {
-    return optionIndex;
+function getRiffRestartBarValue(riff: RiffPhrase): number {
+  if (riff.resetMode === 'free') {
+    return 0;
   }
-  if (riff.resetMode !== 'custom-cycle') {
-    return 3;
+  return Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(getResetBarCount(riff) ?? riff.resetBars ?? 4)));
+}
+
+function getRiffRestartLabel(value: number): string {
+  if (value <= 0) {
+    return 'Off';
   }
-  const customBars = Math.max(1, Math.round(riff.resetBars || 4));
-  let closestIndex = 1;
-  let closestDistance = Number.POSITIVE_INFINITY;
-  RIFF_RESTART_SLIDER_OPTIONS.forEach((option, index) => {
-    if (option.bars == null) {
-      return;
-    }
-    const distance = Math.abs(option.bars - customBars);
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  });
-  return closestIndex;
+  return `${value.toLocaleString()} bar${value === 1 ? '' : 's'}`;
+}
+
+function getRiffRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
+  const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
+  if (bars <= 0) {
+    return { resetMode: 'free' };
+  }
+  if (bars === 1) {
+    return { resetMode: 'per-bar' };
+  }
+  if (bars === 2) {
+    return { resetMode: 'every-2-bars' };
+  }
+  if (bars === 4) {
+    return { resetMode: 'every-4-bars' };
+  }
+  if (bars === 8) {
+    return { resetMode: 'every-8-bars' };
+  }
+  if (bars === 16) {
+    return { resetMode: 'every-16-bars' };
+  }
+  if (bars === 32) {
+    return { resetMode: 'every-32-bars' };
+  }
+  return { resetMode: 'custom-cycle', resetBars: bars };
 }
 
 function getRiffPatternBarMarkerCopy(study: RiffCycleStudy): string {
@@ -2799,6 +2808,66 @@ function CanvasDisplayControls({
         </div>
       </div>
 
+      <div
+        className={canvasCardClass}
+        style={{
+          background: 'rgba(127,215,255,0.032)',
+          borderColor: 'rgba(127,215,255,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
+        }}
+      >
+        <InlineInfoLabel
+          infoId="canvas_atmosphere"
+          label="Atmosphere"
+          labelClassName={canvasSubheaderClass}
+          labelStyle={canvasSubheaderStyle}
+        />
+        <div className="grid grid-cols-3 gap-1.5">
+          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => (
+            <StudyShellButton
+              key={option.id}
+              size="compact"
+              tone="blue"
+              highlighted={settings.atmosphere === option.id}
+              onClick={() => onChange({ atmosphere: option.id as CanvasAtmosphereId })}
+              className="px-1.5 tracking-[0.11em]"
+              title={option.summary}
+            >
+              {option.label}
+            </StudyShellButton>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className={canvasCardClass}
+        style={{
+          background: 'rgba(255,184,107,0.038)',
+          borderColor: 'rgba(255,184,107,0.14)',
+          boxShadow: 'inset 0 1px 0 rgba(255,184,107,0.04)',
+        }}
+      >
+        <InlineInfoLabel
+          infoId="canvas_glow"
+          label="Glow"
+          labelClassName={canvasSubheaderClass}
+          labelStyle={canvasSubheaderStyle}
+        />
+        <div className="grid grid-cols-3 gap-1.5">
+          {CANVAS_GLOW_OPTIONS.map((option) => (
+            <StudyShellButton
+              key={option.id}
+              size="compact"
+              tone="amber"
+              highlighted={settings.glow === option.id}
+              onClick={() => onChange({ glow: option.id as CanvasGlowLevel })}
+            >
+              {option.label}
+            </StudyShellButton>
+          ))}
+        </div>
+      </div>
+
       {showInnerClockControls ? (
         <div
           className={canvasCardClass}
@@ -3077,65 +3146,6 @@ function CanvasDisplayControls({
         ) : null}
       </div>
 
-      <div
-        className={canvasCardClass}
-        style={{
-          background: 'rgba(127,215,255,0.032)',
-          borderColor: 'rgba(127,215,255,0.12)',
-          boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
-        }}
-      >
-        <InlineInfoLabel
-          infoId="canvas_atmosphere"
-          label="Atmosphere"
-          labelClassName={canvasSubheaderClass}
-          labelStyle={canvasSubheaderStyle}
-        />
-        <div className="grid grid-cols-3 gap-1.5">
-          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => (
-            <StudyShellButton
-              key={option.id}
-              size="compact"
-              tone="blue"
-              highlighted={settings.atmosphere === option.id}
-              onClick={() => onChange({ atmosphere: option.id as CanvasAtmosphereId })}
-              className="px-1.5 tracking-[0.11em]"
-              title={option.summary}
-            >
-              {option.label}
-            </StudyShellButton>
-          ))}
-        </div>
-      </div>
-
-      <div
-        className={canvasCardClass}
-        style={{
-          background: 'rgba(255,184,107,0.038)',
-          borderColor: 'rgba(255,184,107,0.14)',
-          boxShadow: 'inset 0 1px 0 rgba(255,184,107,0.04)',
-        }}
-      >
-        <InlineInfoLabel
-          infoId="canvas_glow"
-          label="Glow"
-          labelClassName={canvasSubheaderClass}
-          labelStyle={canvasSubheaderStyle}
-        />
-        <div className="grid grid-cols-3 gap-1.5">
-          {CANVAS_GLOW_OPTIONS.map((option) => (
-            <StudyShellButton
-              key={option.id}
-              size="compact"
-              tone="amber"
-              highlighted={settings.glow === option.id}
-              onClick={() => onChange({ glow: option.id as CanvasGlowLevel })}
-            >
-              {option.label}
-            </StudyShellButton>
-          ))}
-        </div>
-      </div>
       {!compact ? (
         <div className="text-[10px] leading-relaxed text-white/38">
           Display changes the canvas mood without changing the rhythm.
@@ -3298,9 +3308,13 @@ function RiffRestartSliderControl({
   compact?: boolean;
   onBeforeChange?: () => void;
 }) {
-  const sliderIndex = getRiffRestartSliderIndex(study.riff);
-  const currentOption = RIFF_RESTART_SLIDER_OPTIONS[sliderIndex] ?? RIFF_RESTART_SLIDER_OPTIONS[0];
+  const restartBars = getRiffRestartBarValue(study.riff);
+  const sliderValue = Math.min(RIFF_RESTART_SLIDER_MAX_BARS, restartBars);
   const naturalCopy = getNaturalRiffResolutionCopy(study);
+  const applyRestartBars = (value: number) => {
+    onBeforeChange?.();
+    onUpdateRiff(getRiffRestartUpdatesForBars(value));
+  };
 
   return (
     <div
@@ -3326,28 +3340,8 @@ function RiffRestartSliderControl({
             color: accentColor,
           }}
         >
-          {currentOption.label}
+          {getRiffRestartLabel(restartBars)}
         </div>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={RIFF_RESTART_SLIDER_OPTIONS.length - 1}
-        step={1}
-        value={sliderIndex}
-        onChange={(event) => {
-          const option = RIFF_RESTART_SLIDER_OPTIONS[Number.parseInt(event.target.value, 10)] ?? RIFF_RESTART_SLIDER_OPTIONS[0];
-          onBeforeChange?.();
-          onUpdateRiff({ resetMode: option.value });
-        }}
-        className="touch-slider rg-compact-slider w-full"
-        style={{ accentColor }}
-        aria-label={`${label} slider`}
-      />
-      <div className="grid grid-cols-6 gap-1 text-center text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
-        {RIFF_RESTART_SLIDER_OPTIONS.map((option) => (
-          <span key={option.value}>{option.bars == null ? 'Free' : option.bars}</span>
-        ))}
       </div>
       <div
         className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
@@ -3359,6 +3353,114 @@ function RiffRestartSliderControl({
       >
         {naturalCopy}
       </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={0}
+          max={RIFF_RESTART_SLIDER_MAX_BARS}
+          step={1}
+          value={sliderValue}
+          onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
+          className="touch-slider rg-compact-slider min-w-0 flex-1"
+          style={{ accentColor }}
+          aria-label={`${label} slider`}
+        />
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={RIFF_MAX_RESET_BARS}
+          value={restartBars}
+          onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
+          className="h-8 w-16 rounded-lg border bg-white/[0.045] px-2 text-center text-[13px] font-light text-white outline-none"
+          style={{
+            borderColor: `${accentColor}26`,
+            boxShadow: `inset 0 0 0 1px ${accentColor}0a`,
+          }}
+          aria-label={`${label} bars`}
+        />
+      </div>
+    </div>
+  );
+}
+
+const RIFF_BAR_CUE_SLIDER_OPTIONS: readonly { value: RiffBarMarkerInterval; label: string }[] = [
+  { value: 'none', label: 'Off' },
+  { value: 'pattern', label: 'Pattern' },
+  { value: 1, label: '1 Bar' },
+  { value: 2, label: '2 Bars' },
+  { value: 4, label: '4 Bars' },
+  { value: 8, label: '8 Bars' },
+];
+
+function getBarCueSliderIndex(value: RiffBarMarkerInterval | undefined): number {
+  const index = RIFF_BAR_CUE_SLIDER_OPTIONS.findIndex((option) => option.value === (value ?? 'none'));
+  return index >= 0 ? index : 0;
+}
+
+function BarCueSliderControl({
+  value,
+  onChange,
+  label = 'Bar Cues',
+  labelClassName = 'text-[9px] font-mono uppercase tracking-[0.18em] text-white/46',
+  labelStyle,
+  accentColor = '#FF88C2',
+  compact = false,
+}: {
+  value: RiffBarMarkerInterval | undefined;
+  onChange: (value: RiffBarMarkerInterval) => void;
+  label?: string;
+  labelClassName?: string;
+  labelStyle?: CSSProperties;
+  accentColor?: string;
+  compact?: boolean;
+}) {
+  const activeIndex = getBarCueSliderIndex(value);
+  const activeOption = RIFF_BAR_CUE_SLIDER_OPTIONS[activeIndex] ?? RIFF_BAR_CUE_SLIDER_OPTIONS[0];
+
+  return (
+    <div
+      className={`rounded-xl border ${compact ? 'space-y-1.5 px-2.5 py-2' : 'space-y-2 px-3 py-2.5'}`}
+      style={{
+        background: `linear-gradient(180deg, ${accentColor}10, rgba(255,255,255,0.025))`,
+        borderColor: `${accentColor}24`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px ${accentColor}0d`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <InlineInfoLabel
+          infoId="riff_bar_markers"
+          label={label}
+          labelClassName={labelClassName}
+          labelStyle={labelStyle}
+        />
+        <div
+          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
+          style={{
+            background: `${accentColor}12`,
+            borderColor: `${accentColor}2e`,
+            color: accentColor,
+          }}
+        >
+          {activeOption.label}
+        </div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={RIFF_BAR_CUE_SLIDER_OPTIONS.length - 1}
+        step={1}
+        value={activeIndex}
+        onChange={(event) => {
+          const nextIndex = Number.parseInt(event.target.value, 10) || 0;
+          const nextOption = RIFF_BAR_CUE_SLIDER_OPTIONS[nextIndex] ?? RIFF_BAR_CUE_SLIDER_OPTIONS[0];
+          onChange(nextOption.value);
+        }}
+        className="touch-slider rg-compact-slider w-full"
+        style={{ accentColor }}
+        aria-label={`${label} slider`}
+      />
     </div>
   );
 }
@@ -19097,6 +19199,20 @@ function OrbitalPolymeter() {
                             labelClassName={`${mobileRiffMenuSectionTitleClass} pt-0.5`}
                             labelStyle={mobileRiffAmberTitleStyle}
                           />
+                          <div>
+                            <BarCueSliderControl
+                              value={riffCycleStudy.barMarkerInterval}
+                              onChange={handleSetRiffBarMarkerInterval}
+                              labelClassName={mobileRiffMenuTitleClass}
+                              labelStyle={mobileRiffWhiteTitleStyle}
+                              compact
+                            />
+                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                                {riffPatternBarMarkerCopy}
+                              </div>
+                            ) : null}
+                          </div>
                           <div className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                             <InlineInfoLabel
                               infoId="riff_backbeat"
@@ -19168,41 +19284,6 @@ function OrbitalPolymeter() {
                                 </div>
                               );
                             })()}
-                          </div>
-
-                          <div className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
-                            <InlineInfoLabel
-                              infoId="riff_bar_markers"
-                              label="Bar Cues"
-                              labelClassName={mobileRiffMenuTitleClass}
-                              labelStyle={mobileRiffWhiteTitleStyle}
-                            />
-                            <div className="grid grid-cols-3 gap-2">
-                              {([
-                                { value: 'none' as const, label: 'No Cue' },
-                                { value: 'pattern' as const, label: 'Pattern' },
-                                { value: 1 as const, label: '1 Bar' },
-                                { value: 2 as const, label: '2 Bars' },
-                                { value: 4 as const, label: '4 Bars' },
-                                { value: 8 as const, label: '8 Bars' },
-                              ]).map((option) => (
-                                <StudyShellButton
-                                  key={option.label}
-                                  size="compact"
-                                  tone="pink"
-                                  className={mobileRiffBarCompactButtonClass}
-                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
-                                  onClick={() => handleSetRiffBarMarkerInterval(option.value)}
-                                >
-                                  {option.label}
-                                </StudyShellButton>
-                              ))}
-                            </div>
-                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                              <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                                {riffPatternBarMarkerCopy}
-                              </div>
-                            ) : null}
                           </div>
                         </div>
 
@@ -19817,47 +19898,6 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
-                      <InlineInfoLabel
-                        infoId="riff_part_focus"
-                        label="Listen"
-                        labelClassName={mobileRiffMenuSectionTitleClass}
-                        labelStyle={mobileRiffAmberTitleStyle}
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { id: 'bar', label: 'Bar', tone: 'pink' },
-                          { id: 'riff', label: 'Riff', tone: 'blue' },
-                          { id: 'full', label: 'Both', tone: 'green' },
-                        ] as const).map((focus) => (
-                          <StudyShellButton
-                            key={focus.id}
-                            size="compact"
-                            tone={focus.tone}
-                            highlighted={riffSoundFocus === focus.id}
-                            onClick={() => handleSetRiffSoundFocus(focus.id)}
-                          >
-                            {focus.label}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={riffCycleStudy.subdivisionSoundEnabled && !riffSubdivisionsLocked}
-                          locked={riffSubdivisionsLocked}
-                          onLockedClick={() => openProPrompt('riff-subdivisions')}
-                          onClick={handleToggleRiffSubdivisionSound}
-                        >
-                          Subdivision Click
-                        </StudyShellButton>
-                        <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
-                          {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
-                        </div>
-                      </div>
-                    </div>
-
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <InlineInfoLabel
@@ -19888,7 +19928,7 @@ function OrbitalPolymeter() {
                             Upgrade For Voice Controls
                           </div>
                           <div className="mt-1 text-[11px] leading-relaxed text-white/45">
-                            Unlock palette, register, key, and note family. Listen stays free.
+                            Unlock palette, register, key, and note family.
                           </div>
                         </button>
                       ) : (
@@ -20944,34 +20984,14 @@ function OrbitalPolymeter() {
                               setRiffMobileEditTab('return');
                             }}
                           />
-                          <div className="space-y-1.5">
-                            <InlineInfoLabel
-                              infoId="riff_bar_markers"
-                              label="Bar Markers"
-                              labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
-                            />
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {([
-                                { value: 'none' as const, label: 'No Cue' },
-                                { value: 'pattern' as const, label: 'Pattern' },
-                                { value: 1 as const, label: '1 Bar' },
-                                { value: 2 as const, label: '2 Bars' },
-                                { value: 4 as const, label: '4 Bars' },
-                                { value: 8 as const, label: '8 Bars' },
-                              ]).map((option) => (
-                                <StudyShellButton
-                                  key={option.label}
-                                  size="compact"
-                                  tone="blue"
-                                  highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
-                                  onClick={() => handleSetRiffBarMarkerInterval(option.value)}
-                                  className="min-w-0 px-1.5 text-[8px] tracking-[0.07em]"
-                                >
-                                  {option.label}
-                                </StudyShellButton>
-                              ))}
-                            </div>
-                          </div>
+                          <BarCueSliderControl
+                            value={riffCycleStudy.barMarkerInterval}
+                            onChange={handleSetRiffBarMarkerInterval}
+                            label="Bar Markers"
+                            labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
+                            accentColor="#7FD7FF"
+                            compact
+                          />
                         </div>
                         <div className="space-y-1.5">
                           <InlineInfoLabel
@@ -21518,12 +21538,26 @@ function OrbitalPolymeter() {
                       borderColor: 'rgba(255,255,255,0.08)',
                     }}
                   >
-                    <InlineInfoLabel
-                      infoId="riff_secondary_cues"
-                      label="Secondary Cues"
-                      labelClassName="pt-0.5 text-[9px] font-mono font-semibold uppercase tracking-[0.18em]"
-                      labelStyle={{ color: '#FFAA00', textShadow: '0 0 12px rgba(255,170,0,0.22)' }}
-                    />
+                  <InlineInfoLabel
+                    infoId="riff_secondary_cues"
+                    label="Secondary Cues"
+                    labelClassName="pt-0.5 text-[9px] font-mono font-semibold uppercase tracking-[0.18em]"
+                    labelStyle={{ color: '#FFAA00', textShadow: '0 0 12px rgba(255,170,0,0.22)' }}
+                  />
+                    <div>
+                      <BarCueSliderControl
+                        value={riffCycleStudy.barMarkerInterval}
+                        onChange={handleSetRiffBarMarkerInterval}
+                        labelClassName={riffQuickControlLabelClass}
+                        labelStyle={desktopMenuSubheaderStyle}
+                        compact
+                      />
+                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                          {riffPatternBarMarkerCopy}
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                       <InlineInfoLabel
                         infoId="riff_backbeat"
@@ -21596,41 +21630,6 @@ function OrbitalPolymeter() {
                           </div>
                         );
                       })()}
-                    </div>
-
-                    <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
-                      <InlineInfoLabel
-                        infoId="riff_bar_markers"
-                        label="Bar Cues"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { value: 'none' as const, label: 'No Cue' },
-                          { value: 'pattern' as const, label: 'Pattern' },
-                          { value: 1 as const, label: '1 Bar' },
-                          { value: 2 as const, label: '2 Bars' },
-                          { value: 4 as const, label: '4 Bars' },
-                          { value: 8 as const, label: '8 Bars' },
-                        ]).map((option) => (
-                          <StudyShellButton
-                            key={option.label}
-                            size="compact"
-                            tone="pink"
-                            className={desktopRiffBarCompactButtonClass}
-                            highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
-                            onClick={() => handleSetRiffBarMarkerInterval(option.value)}
-                          >
-                            {option.label}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                        <div className="rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                          {riffPatternBarMarkerCopy}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -23234,32 +23233,15 @@ function OrbitalPolymeter() {
                     }}
                   />
                   <StudyShellPanel className="space-y-2">
-                    <InlineInfoLabel
-                      infoId="riff_bar_markers"
+                    <BarCueSliderControl
+                      value={riffCycleStudy.barMarkerInterval}
+                      onChange={handleSetRiffBarMarkerInterval}
                       label="Bar Markers"
                       labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                       labelStyle={desktopMenuSubheaderStyle}
+                      accentColor="#7FD7FF"
+                      compact
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      {([
-                        { value: 'none' as const, label: 'No Cue' },
-                        { value: 'pattern' as const, label: 'Pattern' },
-                        { value: 1 as const, label: '1 Bar' },
-                        { value: 2 as const, label: '2 Bars' },
-                        { value: 4 as const, label: '4 Bars' },
-                        { value: 8 as const, label: '8 Bars' },
-                      ]).map((option) => (
-                        <StudyShellButton
-                          key={option.label}
-                          size="compact"
-                          tone="blue"
-                          highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
-                          onClick={() => handleSetRiffBarMarkerInterval(option.value)}
-                        >
-                          {option.label}
-                        </StudyShellButton>
-                      ))}
-                    </div>
                     {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
                       <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                         {riffPatternBarMarkerCopy}
@@ -23470,6 +23452,15 @@ function OrbitalPolymeter() {
                         compact
                       />
                       <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                        <BarCueSliderControl
+                          value={riffCycleStudy.barMarkerInterval}
+                          onChange={handleSetRiffBarMarkerInterval}
+                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                          labelStyle={desktopMenuSubheaderStyle}
+                          compact
+                        />
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
                         <InlineInfoLabel
                           infoId="riff_backbeat"
                           label="Backbeat"
@@ -23507,35 +23498,6 @@ function OrbitalPolymeter() {
                               }
                             >
                               {beat}
-                            </StudyShellButton>
-                          ))}
-                        </div>
-                      </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
-                        <InlineInfoLabel
-                          infoId="riff_bar_markers"
-                          label="Bar Cues"
-                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {([
-                            { value: 'none' as const, label: 'No Cue' },
-                            { value: 'pattern' as const, label: 'Pattern' },
-                            { value: 1 as const, label: '1 Bar' },
-                            { value: 2 as const, label: '2 Bars' },
-                            { value: 4 as const, label: '4 Bars' },
-                            { value: 8 as const, label: '8 Bars' },
-                          ]).map((option) => (
-                            <StudyShellButton
-                              key={option.label}
-                              size="compact"
-                              tone="pink"
-                              className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                              highlighted={(riffCycleStudy.barMarkerInterval ?? 'none') === option.value}
-                              onClick={() => handleSetRiffBarMarkerInterval(option.value)}
-                            >
-                              {option.label}
                             </StudyShellButton>
                           ))}
                         </div>

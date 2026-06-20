@@ -13,7 +13,9 @@ import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEn
 import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
+  RIFF_MAX_RESET_BARS,
   RIFF_MAX_STEP_COUNT,
+  getResetBarCount,
   getReferenceStepsPerBar,
   type ReferenceMeter,
   type RiffCyclePreset,
@@ -24,14 +26,7 @@ import {
 import type { RiffMidiExportMode } from '../lib/riffCycleMidi';
 import { VIDEO_EXPORT_ASPECTS, VIDEO_EXPORT_DURATIONS, type VideoExportAspect, type VideoExportDuration } from '../lib/videoExport';
 
-const RIFF_RESTART_SLIDER_OPTIONS: Array<{ value: RiffPhrase['resetMode']; label: string; bars: number | null }> = [
-  { value: 'free', label: 'Free', bars: null },
-  { value: 'per-bar', label: '1 Bar', bars: 1 },
-  { value: 'every-2-bars', label: '2 Bars', bars: 2 },
-  { value: 'every-4-bars', label: '4 Bars', bars: 4 },
-  { value: 'every-8-bars', label: '8 Bars', bars: 8 },
-  { value: 'every-16-bars', label: '16 Bars', bars: 16 },
-];
+const RIFF_RESTART_SLIDER_MAX_BARS = 32;
 
 function gcd(a: number, b: number): number {
   let x = Math.abs(Math.round(a));
@@ -44,25 +39,44 @@ function gcd(a: number, b: number): number {
   return x || 1;
 }
 
-function getRestartSliderIndex(riff: RiffPhrase): number {
-  const directIndex = RIFF_RESTART_SLIDER_OPTIONS.findIndex((option) => option.value === riff.resetMode);
-  if (directIndex >= 0) {
-    return directIndex;
+function getRestartBarValue(riff: RiffPhrase): number {
+  if (riff.resetMode === 'free') {
+    return 0;
   }
-  const resetBars = Math.max(1, Math.round(riff.resetBars || 4));
-  let closestIndex = 1;
-  let closestDistance = Number.POSITIVE_INFINITY;
-  RIFF_RESTART_SLIDER_OPTIONS.forEach((option, index) => {
-    if (option.bars == null) {
-      return;
-    }
-    const distance = Math.abs(option.bars - resetBars);
-    if (distance < closestDistance) {
-      closestIndex = index;
-      closestDistance = distance;
-    }
-  });
-  return closestIndex;
+  return Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(getResetBarCount(riff) ?? riff.resetBars ?? 4)));
+}
+
+function getRestartLabel(value: number): string {
+  if (value <= 0) {
+    return 'Off';
+  }
+  return `${value.toLocaleString()} bar${value === 1 ? '' : 's'}`;
+}
+
+function getRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
+  const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
+  if (bars <= 0) {
+    return { resetMode: 'free' };
+  }
+  if (bars === 1) {
+    return { resetMode: 'per-bar' };
+  }
+  if (bars === 2) {
+    return { resetMode: 'every-2-bars' };
+  }
+  if (bars === 4) {
+    return { resetMode: 'every-4-bars' };
+  }
+  if (bars === 8) {
+    return { resetMode: 'every-8-bars' };
+  }
+  if (bars === 16) {
+    return { resetMode: 'every-16-bars' };
+  }
+  if (bars === 32) {
+    return { resetMode: 'every-32-bars' };
+  }
+  return { resetMode: 'custom-cycle', resetBars: bars };
 }
 
 function getNaturalResolutionBars(study: RiffCycleStudy): number {
@@ -1244,31 +1258,41 @@ export default function RiffCycleSidebar({
             <div className="flex items-center justify-between gap-3">
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/45">Riff Restart</div>
               <div className="rounded-full border border-[#FFD166]/24 bg-[#FFD166]/10 px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#FFD166]">
-                {RIFF_RESTART_SLIDER_OPTIONS[getRestartSliderIndex(study.riff)]?.label ?? 'Free'}
+                {getRestartLabel(getRestartBarValue(study.riff))}
               </div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={RIFF_RESTART_SLIDER_OPTIONS.length - 1}
-              step={1}
-              value={getRestartSliderIndex(study.riff)}
-              onChange={(event) => {
-                const option = RIFF_RESTART_SLIDER_OPTIONS[Number.parseInt(event.target.value, 10)] ?? RIFF_RESTART_SLIDER_OPTIONS[0];
-                pinEndingTab();
-                onUpdateRiff({ resetMode: option.value });
-              }}
-              className="touch-slider rg-compact-slider w-full"
-              style={{ accentColor: '#FFD166' }}
-              aria-label="Riff Restart slider"
-            />
-            <div className="grid grid-cols-6 gap-1 text-center text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
-              {RIFF_RESTART_SLIDER_OPTIONS.map((option) => (
-                <span key={option.value}>{option.bars == null ? 'Free' : option.bars}</span>
-              ))}
             </div>
             <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#BFEAFF]">
               Naturally resolves after {getNaturalResolutionBars(study).toLocaleString()} bar{getNaturalResolutionBars(study) === 1 ? '' : 's'}.
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min={0}
+                max={RIFF_RESTART_SLIDER_MAX_BARS}
+                step={1}
+                value={Math.min(RIFF_RESTART_SLIDER_MAX_BARS, getRestartBarValue(study.riff))}
+                onChange={(event) => {
+                  pinEndingTab();
+                  onUpdateRiff(getRestartUpdatesForBars(Number.parseInt(event.target.value, 10) || 0));
+                }}
+                className="touch-slider rg-compact-slider min-w-0 flex-1"
+                style={{ accentColor: '#FFD166' }}
+                aria-label="Riff Restart slider"
+              />
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={RIFF_MAX_RESET_BARS}
+                value={getRestartBarValue(study.riff)}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => {
+                  pinEndingTab();
+                  onUpdateRiff(getRestartUpdatesForBars(Number.parseInt(event.target.value, 10) || 0));
+                }}
+                className="h-8 w-16 rounded-lg border border-[#FFD166]/24 bg-white/[0.045] px-2 text-center text-[13px] font-light text-white outline-none"
+                aria-label="Riff Restart bars"
+              />
             </div>
           </section>
           </>
