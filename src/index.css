@@ -276,7 +276,8 @@
   margin: -0.5rem 0;
   background: transparent;
   border-radius: 999px;
-  touch-action: pan-y;
+  touch-action: none;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -336,9 +337,9 @@
 }
 
 .touch-slider.rg-compact-slider {
-  height: 0.85rem;
-  padding: 0.22rem 0;
-  margin: -0.08rem 0;
+  height: 2rem;
+  padding: 0.85rem 0;
+  margin: -0.45rem 0;
 }
 
 .touch-slider.rg-compact-slider::-webkit-slider-runnable-track {

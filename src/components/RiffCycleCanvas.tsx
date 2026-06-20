@@ -101,6 +101,7 @@ interface RiffCycleCanvasProps {
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
   onToggleAccent: (stepIndex: number) => void;
+  onToggleMeterBeat?: (beat: number) => void;
   onTogglePulseLayerStep?: (stepIndex: number) => void;
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
   onToggleLandingAccent: (slotIndex: number) => void;
@@ -482,6 +483,7 @@ export default function RiffCycleCanvas({
   onSelectStep,
   onSetStepActive,
   onToggleAccent,
+  onToggleMeterBeat,
   onTogglePulseLayerStep,
   onSetLandingStepActive,
   onToggleLandingAccent,
@@ -2646,6 +2648,28 @@ export default function RiffCycleCanvas({
     [],
   );
 
+  const findMeterBeatHit = useCallback(
+    (
+      metrics: ReturnType<typeof getRiffCycleCanvasMetrics>,
+      x: number,
+      y: number,
+    ): number | null => {
+      const currentStudy = studyRef.current;
+      if (!currentStudy.showReferenceRing) {
+        return null;
+      }
+
+      for (let index = 0; index < metrics.referenceVertices.length; index += 1) {
+        const vertex = metrics.referenceVertices[index];
+        if (Math.hypot(x - vertex.x, y - vertex.y) <= (isMobileRef.current ? 26 : 18)) {
+          return index + 1;
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
@@ -2672,6 +2696,13 @@ export default function RiffCycleCanvas({
       );
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
+      const meterBeatHit = findMeterBeatHit(metrics, localX, localY);
+      if (meterBeatHit != null && onToggleMeterBeat) {
+        onToggleMeterBeat(meterBeatHit);
+        onSelectStep(null);
+        clearPointerPaint(event);
+        return;
+      }
       const pulseHit = findPulseLayerHit(metrics, localX, localY);
       if (pulseHit != null && onTogglePulseLayerStep) {
         onTogglePulseLayerStep(pulseHit);
@@ -2769,7 +2800,9 @@ export default function RiffCycleCanvas({
       onSelectStep,
       onToggleAccent,
       onToggleLandingAccent,
+      onToggleMeterBeat,
       onTogglePulseLayerStep,
+      findMeterBeatHit,
       findPulseLayerHit,
     ],
   );
@@ -2812,11 +2845,13 @@ export default function RiffCycleCanvas({
         localY,
       );
       const pulseHit = findPulseLayerHit(metrics, localX, localY);
+      const meterBeatHit = findMeterBeatHit(metrics, localX, localY);
 
       if (activePointerId == null) {
         if (!isMobileRef.current) {
           hoveredStepRef.current = hit?.stepIndex ?? null;
-          canvas.style.cursor = hit?.stepIndex != null || pulseHit != null ? 'pointer' : 'default';
+          canvas.style.cursor =
+            hit?.stepIndex != null || pulseHit != null || meterBeatHit != null ? 'pointer' : 'default';
         }
         return;
       }
@@ -2849,7 +2884,7 @@ export default function RiffCycleCanvas({
         }
       }
     },
-    [applyLandingPaint, applyStepPaint, clearLongPressTimer, findPulseLayerHit],
+    [applyLandingPaint, applyStepPaint, clearLongPressTimer, findMeterBeatHit, findPulseLayerHit],
   );
 
   const handlePointerLeave = useCallback(() => {

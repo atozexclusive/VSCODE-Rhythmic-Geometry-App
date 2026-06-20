@@ -552,7 +552,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   riff_read_aids: {
     title: 'Read Aids',
-    body: 'Adds visual helpers to the lane and canvas. Numbers show step position, Subdivisions show the subdivision surface, Riff Bounds show phrase edges, and Contour shows the spaces between hits.',
+    body: 'Adds visual helpers to the lane and canvas. Numbers show step position, Subdivisions show the subdivision surface, Groupings show phrase group edges, and Contour shows the spaces between hits.',
   },
   riff_playback_output: {
     title: 'Output',
@@ -583,7 +583,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
     body: 'These controls change how the riff reads visually. Riff Shape draws the body, Fill controls the inside color, and Contour bends the outline inward to show the gaps between hits.',
   },
   riff_phrase_bounds: {
-    title: 'Riff Bounds',
+    title: 'Groupings',
     body: 'Draws bracket guides around each visible riff cycle in the lane. Use it when you want to see exactly where the riff starts, ends, and repeats.',
   },
   riff_offset_pattern: {
@@ -894,7 +894,7 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     title: 'Read Aids',
     kicker: 'Riff Guide',
     text: 'Read Aids add just enough reference when the shape needs more context.',
-    doThis: 'Turn on Numbers or Bounds when you need orientation.',
+    doThis: 'Turn on Numbers or Groupings when you need orientation.',
     notice: 'Subdivisions, Fill, and Contour change what the canvas emphasizes without changing the riff.',
   },
   {
@@ -3353,21 +3353,40 @@ function RiffRestartSliderControl({
           labelStyle={labelStyle}
         />
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="range"
-          min={0}
-          max={RIFF_BAR_SLIDER_STOPS.length - 1}
-          step={1}
-          value={sliderValue}
-          onChange={(event) => {
-            const stopIndex = Number.parseInt(event.target.value, 10) || 0;
-            applyRestartBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
-          }}
-          className="touch-slider rg-compact-slider h-8 min-w-0 flex-1"
-          style={{ accentColor }}
-          aria-label={`${label} slider`}
-        />
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <input
+            type="range"
+            min={0}
+            max={RIFF_BAR_SLIDER_STOPS.length - 1}
+            step={1}
+            value={sliderValue}
+            onChange={(event) => {
+              const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+              applyRestartBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
+            }}
+            className="touch-slider rg-compact-slider min-w-0"
+            style={{ accentColor, '--slider-accent': accentColor } as CSSProperties}
+            aria-label={`${label} slider`}
+          />
+          <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+            <span>Off</span>
+            <span className="text-center">2</span>
+            <span className="text-center">4</span>
+            <span className="text-center">8</span>
+            <span className="text-right">16</span>
+          </div>
+          <div
+            className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+            style={{
+              background: `${accentColor}0f`,
+              borderColor: `${accentColor}24`,
+              color: accentColor,
+            }}
+          >
+            {getBarsControlLabel('Restart', restartBars)}
+          </div>
+        </div>
         <div
           className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
           style={{
@@ -3390,23 +3409,6 @@ function RiffRestartSliderControl({
             bars
           </span>
         </div>
-      </div>
-      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-        <span>Off</span>
-        <span className="text-center">2</span>
-        <span className="text-center">4</span>
-        <span className="text-center">8</span>
-        <span className="text-right">16</span>
-      </div>
-      <div
-        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
-        style={{
-          background: `${accentColor}0f`,
-          borderColor: `${accentColor}24`,
-          color: accentColor,
-        }}
-      >
-        {getBarsControlLabel('Restart', restartBars)}
       </div>
       <div
         className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
@@ -3480,21 +3482,40 @@ function BarCueSliderControl({
           labelStyle={labelStyle}
         />
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="range"
-          min={0}
-          max={RIFF_BAR_SLIDER_STOPS.length - 1}
-          step={1}
-          value={sliderValue}
-          onChange={(event) => {
-            const stopIndex = Number.parseInt(event.target.value, 10) || 0;
-            applyCueBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
-          }}
-          className="touch-slider rg-compact-slider h-8 min-w-0 flex-1"
-          style={{ accentColor }}
-          aria-label={`${label} slider`}
-        />
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <input
+            type="range"
+            min={0}
+            max={RIFF_BAR_SLIDER_STOPS.length - 1}
+            step={1}
+            value={sliderValue}
+            onChange={(event) => {
+              const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+              applyCueBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
+            }}
+            className="touch-slider rg-compact-slider min-w-0"
+            style={{ accentColor, '--slider-accent': accentColor } as CSSProperties}
+            aria-label={`${label} slider`}
+          />
+          <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+            <span>Off</span>
+            <span className="text-center">2</span>
+            <span className="text-center">4</span>
+            <span className="text-center">8</span>
+            <span className="text-right">16</span>
+          </div>
+          <div
+            className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+            style={{
+              background: `${accentColor}0f`,
+              borderColor: `${accentColor}24`,
+              color: accentColor,
+            }}
+          >
+            {getBarsControlLabel('Cue', cueBars)}
+          </div>
+        </div>
         <div
           className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
           style={{
@@ -3517,23 +3538,6 @@ function BarCueSliderControl({
             bars
           </span>
         </div>
-      </div>
-      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-        <span>Off</span>
-        <span className="text-center">2</span>
-        <span className="text-center">4</span>
-        <span className="text-center">8</span>
-        <span className="text-right">16</span>
-      </div>
-      <div
-        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
-        style={{
-          background: `${accentColor}0f`,
-          borderColor: `${accentColor}24`,
-          color: accentColor,
-        }}
-      >
-        {getBarsControlLabel('Cue', cueBars)}
       </div>
     </div>
   );
@@ -18588,6 +18592,7 @@ function OrbitalPolymeter() {
                 onSelectStep={handleSelectRiffCycleStep}
                 onSetStepActive={handleSetRiffCycleStepActive}
                 onToggleAccent={handleToggleRiffCycleAccent}
+                onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                 onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
                 onToggleLandingAccent={handleToggleRiffLandingAccent}
@@ -19553,7 +19558,8 @@ function OrbitalPolymeter() {
                                 tone="blue"
                                 highlighted={Boolean(riffCycleStudy.showStepLabels)}
                                 onClick={handleToggleRiffStepLabels}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                                icon={<span className="text-[10px] leading-none">#</span>}
+                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
                               >
                                 Numbers
                               </StudyShellButton>
@@ -19564,7 +19570,8 @@ function OrbitalPolymeter() {
                                 locked={riffSubdivisionsLocked}
                                 onLockedClick={() => openProPrompt('riff-subdivisions')}
                                 onClick={handleToggleRiffPulseLayer}
-                                className="min-w-0 px-1 text-[7.5px] tracking-[0.06em]"
+                                icon={<Grid3X3 size={11} strokeWidth={2.2} />}
+                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                               >
                                 Subdivisions
                               </StudyShellButton>
@@ -19573,16 +19580,18 @@ function OrbitalPolymeter() {
                                 tone="blue"
                                 highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
                                 onClick={handleToggleRiffPhraseBounds}
-                                className="min-w-0 px-1 text-[7.5px] tracking-[0.06em]"
+                                icon={<CircleDot size={11} strokeWidth={2.2} />}
+                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                               >
-                                Bounds
+                                Groupings
                               </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
                                 tone="green"
                                 highlighted={Boolean(riffCycleStudy.showPhraseFill)}
                                 onClick={handleToggleRiffPhraseFill}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                                icon={<Palette size={11} strokeWidth={2.2} />}
+                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
                               >
                                 Fill
                               </StudyShellButton>
@@ -19591,7 +19600,8 @@ function OrbitalPolymeter() {
                                 tone="green"
                                 highlighted={Boolean(riffCycleStudy.showStructureView)}
                                 onClick={handleToggleRiffStructureView}
-                                className="min-w-0 px-1.5 text-[8px] tracking-[0.08em]"
+                                icon={<Zap size={11} strokeWidth={2.2} />}
+                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
                               >
                                 Contour
                               </StudyShellButton>
@@ -19601,7 +19611,7 @@ function OrbitalPolymeter() {
 
                         <div
                           data-guide="riff-mobile-pattern-tools"
-                          className="relative space-y-3.5 overflow-hidden rounded-2xl border px-3 py-3.5"
+                          className="relative space-y-4 overflow-hidden rounded-2xl border px-3 py-4"
                           style={{
                             background: riffPatternToolsLocked
                               ? 'linear-gradient(135deg, rgba(255,255,255,0.022), rgba(255,255,255,0.01))'
@@ -19612,7 +19622,7 @@ function OrbitalPolymeter() {
                           }}
                         >
                           <div
-                            className={`${riffPatternToolsLocked ? 'pointer-events-none opacity-30' : ''} space-y-3.5`}
+                            className={`${riffPatternToolsLocked ? 'pointer-events-none opacity-30' : ''} space-y-4`}
                             style={{
                               filter: riffPatternToolsLocked ? 'blur(0.65px) grayscale(0.55)' : undefined,
                             }}
@@ -19633,7 +19643,7 @@ function OrbitalPolymeter() {
                                 Pro
                               </span>
                             </div>
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                               <InlineInfoLabel
                                 infoId="riff_offset_pattern"
                                 label="Offset"
@@ -19662,7 +19672,7 @@ function OrbitalPolymeter() {
                               </div>
                             </div>
 
-                            <div className="pt-1">
+                            <div className="pt-1.5">
                               <StudyShellButton
                                 size="compact"
                                 tone="amber"
@@ -20908,6 +20918,7 @@ function OrbitalPolymeter() {
                             onSelectStep={handleSelectRiffCycleStep}
                             onSetStepActive={handleSetRiffCycleStepActive}
                             onToggleAccent={handleToggleRiffCycleAccent}
+                            onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                             onSetLandingStepActive={handleSetRiffLandingStepActive}
                             onToggleLandingAccent={handleToggleRiffLandingAccent}
@@ -21258,6 +21269,7 @@ function OrbitalPolymeter() {
             onSelectStep={handleSelectRiffCycleStep}
             onSetStepActive={handleSetRiffCycleStepActive}
             onToggleAccent={handleToggleRiffCycleAccent}
+            onToggleMeterBeat={handleToggleRiffBackbeatBeat}
             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
             onSetLandingStepActive={handleSetRiffLandingStepActive}
             onToggleLandingAccent={handleToggleRiffLandingAccent}
@@ -21880,14 +21892,14 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                   <div
-                    className="space-y-2 rounded-lg border px-1.5 py-2"
+                    className="space-y-2.5 rounded-lg border px-1.5 py-2.5"
                     style={{
                       background: 'rgba(127,215,255,0.028)',
                       borderColor: 'rgba(127,215,255,0.1)',
                       boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.035)',
                     }}
                   >
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <InlineInfoLabel
                         infoId="riff_offset_pattern"
                         label="Offset"
@@ -22333,9 +22345,10 @@ function OrbitalPolymeter() {
                           tone="blue"
                           highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
                           onClick={handleToggleRiffPhraseBounds}
-                          className={`w-full ${utilityButtonClass}`}
+                          icon={<CircleDot size={12} strokeWidth={2.2} />}
+                          className={`w-full ${utilityButtonClass} gap-1.5`}
                         >
-                          Riff Bounds
+                          Groupings
                         </StudyShellButton>
                       </div>
                     </div>
@@ -22714,7 +22727,8 @@ function OrbitalPolymeter() {
 	                          tone="amber"
 	                          highlighted={Boolean(riffCycleStudy.showStepLabels)}
 	                          onClick={handleToggleRiffStepLabels}
-	                          className={utilityButtonClass}
+	                          icon={<span className="text-[10px] leading-none">#</span>}
+	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Numbers
 	                        </StudyShellButton>
@@ -22725,7 +22739,8 @@ function OrbitalPolymeter() {
                             locked={riffSubdivisionsLocked}
                             onLockedClick={() => openProPrompt('riff-subdivisions')}
 	                          onClick={handleToggleRiffPulseLayer}
-	                          className={utilityButtonClass}
+	                          icon={<Grid3X3 size={12} strokeWidth={2.2} />}
+	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Subdivisions
 	                        </StudyShellButton>
@@ -22749,7 +22764,8 @@ function OrbitalPolymeter() {
 	                          tone="green"
 	                          highlighted={Boolean(riffCycleStudy.showPhraseRing)}
 	                          onClick={handleToggleRiffPhraseBody}
-	                          className={utilityButtonClass}
+	                          icon={<CircleDot size={12} strokeWidth={2.2} />}
+	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Riff Shape
 	                        </StudyShellButton>
@@ -22758,7 +22774,8 @@ function OrbitalPolymeter() {
 	                          tone="green"
 	                          highlighted={Boolean(riffCycleStudy.showPhraseFill)}
 	                          onClick={handleToggleRiffPhraseFill}
-	                          className={utilityButtonClass}
+	                          icon={<Palette size={12} strokeWidth={2.2} />}
+	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Fill
 	                        </StudyShellButton>
@@ -22767,7 +22784,8 @@ function OrbitalPolymeter() {
 	                          tone="green"
 	                          highlighted={Boolean(riffCycleStudy.showStructureView)}
 	                          onClick={handleToggleRiffStructureView}
-	                          className={utilityButtonClass}
+	                          icon={<Zap size={12} strokeWidth={2.2} />}
+	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Contour
 	                        </StudyShellButton>
@@ -23278,6 +23296,7 @@ function OrbitalPolymeter() {
                   onSelectStep={handleSelectRiffCycleStep}
                   onSetStepActive={handleSetRiffCycleStepActive}
                   onToggleAccent={handleToggleRiffCycleAccent}
+                  onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                   onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
                   onToggleLandingAccent={handleToggleRiffLandingAccent}
