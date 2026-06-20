@@ -6697,6 +6697,22 @@ function launchLoadedState(
   rerender();
 }
 
+function isKeyboardShortcutTextTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  return Boolean(
+    target.closest(
+      'input, textarea, select, button, a, [contenteditable="true"], [role="button"], [role="textbox"]',
+    ),
+  );
+}
+
 function OrbitalPolymeter() {
   usePreventBrowserZoom();
   const { user, enabled: authEnabled, loading: authLoading, effectivePlan, refreshAccount } = useAuth();
@@ -12142,6 +12158,73 @@ function OrbitalPolymeter() {
     },
     [buildCurrentSceneSnapshot, captureSceneThumbnail, effectivePlan, isSignedIn, openProPrompt, savedScenes.length, user?.id],
   );
+
+  useEffect(() => {
+    if (isMobile || captureMode) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || isKeyboardShortcutTextTarget(event.target)) {
+        return;
+      }
+      if (proPrompt || helpOpen || tutorialOpen) {
+        return;
+      }
+
+      if (event.code === 'Space' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        if (appSurface === 'polyrhythm-study') {
+          handleTutorialAwareStudyPlaybackToggle();
+          return;
+        }
+        if (appSurface === 'riff-cycle-study') {
+          handleTutorialAwareRiffPlaybackToggle();
+          return;
+        }
+        if (appSurface === 'flow') {
+          handleToggleFlowPlayback();
+          return;
+        }
+        handleTogglePlay();
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (appSurface === 'polyrhythm-study') {
+          handleSavePolyrhythmScene();
+          return;
+        }
+        if (appSurface === 'riff-cycle-study') {
+          handleSaveRiffCycleScene();
+          return;
+        }
+        if (appSurface === 'flow') {
+          toast.message('Flow scenes do not save yet.');
+          return;
+        }
+        handleSaveScene();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    appSurface,
+    captureMode,
+    handleSavePolyrhythmScene,
+    handleSaveRiffCycleScene,
+    handleSaveScene,
+    handleToggleFlowPlayback,
+    handleTogglePlay,
+    handleTutorialAwareRiffPlaybackToggle,
+    handleTutorialAwareStudyPlaybackToggle,
+    helpOpen,
+    isMobile,
+    proPrompt,
+    tutorialOpen,
+  ]);
 
   const handleLoadScene = useCallback(
     (sceneId: string) => {
