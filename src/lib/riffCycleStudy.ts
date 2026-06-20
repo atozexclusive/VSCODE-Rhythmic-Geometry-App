@@ -20,7 +20,25 @@ export type RiffCycleSoundPalette =
 export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
-export type RiffBarMarkerInterval = 'none' | 'pattern' | 1 | 2 | 4 | 8;
+export type RiffBarMarkerInterval =
+  | 'none'
+  | 'pattern'
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5
+  | 6
+  | 7
+  | 8
+  | 9
+  | 10
+  | 11
+  | 12
+  | 13
+  | 14
+  | 15
+  | 16;
 export type RiffBackbeatBarInterval = 1 | 2 | 4;
 export type RiffPhraseResetMode =
   | 'free'
@@ -914,10 +932,10 @@ export function createRiffCycleStudy(
     barMarkerInterval:
       overrides.barMarkerInterval === 'none' ||
       overrides.barMarkerInterval === 'pattern' ||
-      overrides.barMarkerInterval === 1 ||
-      overrides.barMarkerInterval === 2 ||
-      overrides.barMarkerInterval === 4 ||
-      overrides.barMarkerInterval === 8
+      (typeof overrides.barMarkerInterval === 'number' &&
+        overrides.barMarkerInterval >= 1 &&
+        overrides.barMarkerInterval <= 16 &&
+        Number.isInteger(overrides.barMarkerInterval))
         ? overrides.barMarkerInterval
         : 'none',
     showDriftTrail: overrides.showDriftTrail ?? true,
@@ -1487,6 +1505,39 @@ export function setRiffSequenceEnabled(
     ...study,
     riffSequenceEnabled: enabled,
     riffCells,
+    riffSequence: sequence,
+    riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
+    riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),
+    riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(study.riffSequenceEntryDurationModes, sequence),
+  };
+}
+
+export function syncFirstRiffSequenceCellFromRiff(study: RiffCycleStudy): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const existingFirstCell = riffCells[0] ?? null;
+  const firstLabel = existingFirstCell?.label ?? 'A';
+  const syncedCell = createRiffSequenceCellFromState(
+    firstLabel,
+    study.riff.stepCount,
+    study.riff.activeSteps,
+    study.riff.accents,
+    existingFirstCell?.id,
+    study.riff.color,
+    {
+      numerator: study.reference.numerator,
+      denominator: study.reference.denominator,
+      subdivision: study.reference.subdivision,
+      backbeatBeat: study.reference.backbeatBeat,
+      backbeatBeats: study.reference.backbeatBeats,
+      backbeatBarInterval: study.reference.backbeatBarInterval,
+    },
+  );
+  const nextCells = [syncedCell, ...riffCells.slice(1)];
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, nextCells);
+  const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  return {
+    ...study,
+    riffCells: nextCells,
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence),

@@ -171,6 +171,7 @@ import {
   setRiffSequenceEntryBars,
   setRiffSequenceEntryDurationMode,
   setRiffSequenceEntryRepeats,
+  syncFirstRiffSequenceCellFromRiff,
   updateRiffSequenceCellColor,
   setRiffSequenceCellStepActive,
   setRiffStepActive,
@@ -2258,13 +2259,6 @@ function getRiffRestartBarValue(riff: RiffPhrase): number {
   return Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(getResetBarCount(riff) ?? riff.resetBars ?? 4)));
 }
 
-function getRiffRestartLabel(value: number): string {
-  if (value <= 0) {
-    return 'Off';
-  }
-  return `${value.toLocaleString()} bar${value === 1 ? '' : 's'}`;
-}
-
 function getRiffRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
   const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
   if (bars <= 0) {
@@ -3332,26 +3326,6 @@ function RiffRestartSliderControl({
           labelClassName={labelClassName}
           labelStyle={labelStyle}
         />
-        <div
-          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
-          style={{
-            background: `${accentColor}12`,
-            borderColor: `${accentColor}2e`,
-            color: accentColor,
-          }}
-        >
-          {getRiffRestartLabel(restartBars)}
-        </div>
-      </div>
-      <div
-        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
-        style={{
-          background: 'rgba(127,215,255,0.07)',
-          borderColor: 'rgba(127,215,255,0.2)',
-          color: '#BFEAFF',
-        }}
-      >
-        {naturalCopy}
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -3365,38 +3339,61 @@ function RiffRestartSliderControl({
           style={{ accentColor }}
           aria-label={`${label} slider`}
         />
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={RIFF_MAX_RESET_BARS}
-          value={restartBars}
-          onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
-          className="h-8 w-16 rounded-lg border bg-white/[0.045] px-2 text-center text-[13px] font-light text-white outline-none"
+        <div
+          className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
           style={{
             borderColor: `${accentColor}26`,
             boxShadow: `inset 0 0 0 1px ${accentColor}0a`,
           }}
-          aria-label={`${label} bars`}
-        />
+        >
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={RIFF_MAX_RESET_BARS}
+            value={restartBars}
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
+            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
+            aria-label={`${label} bars`}
+          />
+          <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
+            bars
+          </span>
+        </div>
+      </div>
+      <div
+        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+        style={{
+          background: 'rgba(127,215,255,0.07)',
+          borderColor: 'rgba(127,215,255,0.2)',
+          color: '#BFEAFF',
+        }}
+      >
+        {naturalCopy}
       </div>
     </div>
   );
 }
 
-const RIFF_BAR_CUE_SLIDER_OPTIONS: readonly { value: RiffBarMarkerInterval; label: string }[] = [
-  { value: 'none', label: 'Off' },
-  { value: 'pattern', label: 'Pattern' },
-  { value: 1, label: '1 Bar' },
-  { value: 2, label: '2 Bars' },
-  { value: 4, label: '4 Bars' },
-  { value: 8, label: '8 Bars' },
-];
+const RIFF_BAR_CUE_SLIDER_MAX_BARS = 16;
 
-function getBarCueSliderIndex(value: RiffBarMarkerInterval | undefined): number {
-  const index = RIFF_BAR_CUE_SLIDER_OPTIONS.findIndex((option) => option.value === (value ?? 'none'));
-  return index >= 0 ? index : 0;
+function getBarCueBarValue(value: RiffBarMarkerInterval | undefined): number {
+  if (value == null || value === 'none') {
+    return 0;
+  }
+  if (value === 'pattern') {
+    return 1;
+  }
+  return Math.max(0, Math.min(RIFF_BAR_CUE_SLIDER_MAX_BARS, Math.round(value)));
+}
+
+function getBarCueValueForBars(value: number): RiffBarMarkerInterval {
+  const bars = Math.max(0, Math.min(RIFF_BAR_CUE_SLIDER_MAX_BARS, Math.round(value)));
+  if (bars <= 0) {
+    return 'none';
+  }
+  return bars as RiffBarMarkerInterval;
 }
 
 function BarCueSliderControl({
@@ -3416,8 +3413,9 @@ function BarCueSliderControl({
   accentColor?: string;
   compact?: boolean;
 }) {
-  const activeIndex = getBarCueSliderIndex(value);
-  const activeOption = RIFF_BAR_CUE_SLIDER_OPTIONS[activeIndex] ?? RIFF_BAR_CUE_SLIDER_OPTIONS[0];
+  const cueBars = getBarCueBarValue(value);
+  const sliderValue = cueBars;
+  const applyCueBars = (nextValue: number) => onChange(getBarCueValueForBars(nextValue));
 
   return (
     <div
@@ -3435,32 +3433,50 @@ function BarCueSliderControl({
           labelClassName={labelClassName}
           labelStyle={labelStyle}
         />
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={0}
+          max={RIFF_BAR_CUE_SLIDER_MAX_BARS}
+          step={1}
+          value={sliderValue}
+          onChange={(event) => applyCueBars(Number.parseInt(event.target.value, 10) || 0)}
+          className="touch-slider rg-compact-slider min-w-0 flex-1"
+          style={{ accentColor }}
+          aria-label={`${label} slider`}
+        />
         <div
-          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
+          className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
           style={{
-            background: `${accentColor}12`,
-            borderColor: `${accentColor}2e`,
-            color: accentColor,
+            borderColor: `${accentColor}26`,
+            boxShadow: `inset 0 0 0 1px ${accentColor}0a`,
           }}
         >
-          {activeOption.label}
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={RIFF_BAR_CUE_SLIDER_MAX_BARS}
+            value={cueBars}
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => applyCueBars(Number.parseInt(event.target.value, 10) || 0)}
+            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
+            aria-label={`${label} bars`}
+          />
+          <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
+            bars
+          </span>
         </div>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={RIFF_BAR_CUE_SLIDER_OPTIONS.length - 1}
-        step={1}
-        value={activeIndex}
-        onChange={(event) => {
-          const nextIndex = Number.parseInt(event.target.value, 10) || 0;
-          const nextOption = RIFF_BAR_CUE_SLIDER_OPTIONS[nextIndex] ?? RIFF_BAR_CUE_SLIDER_OPTIONS[0];
-          onChange(nextOption.value);
-        }}
-        className="touch-slider rg-compact-slider w-full"
-        style={{ accentColor }}
-        aria-label={`${label} slider`}
-      />
+      <div className="flex items-center justify-between px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+        <span>Off</span>
+        <span>1</span>
+        <span>2</span>
+        <span>4</span>
+        <span>8</span>
+        <span>16</span>
+      </div>
     </div>
   );
 }
@@ -8300,7 +8316,14 @@ function OrbitalPolymeter() {
       showProPrompt('riff-cell-sequencer');
       return;
     }
-    setRiffCycleStudy((current) => setRiffSequenceEnabled(current, enabled));
+    setRiffCycleStudy((current) => {
+      const seeded = enabled ? syncFirstRiffSequenceCellFromRiff(current) : current;
+      return setRiffSequenceEnabled(seeded, enabled);
+    });
+    if (enabled) {
+      setSelectedRiffSequenceCellLabel('A');
+      setSelectedRiffCycleStep(null);
+    }
     setRiffCycleRestartToken((value) => value + 1);
   }, [effectivePlan, requireEditableRiffCycleStudy]);
 
@@ -19552,7 +19575,7 @@ function OrbitalPolymeter() {
                                 Pro
                               </span>
                             </div>
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                               <InlineInfoLabel
                                 infoId="riff_offset_pattern"
                                 label="Offset"
@@ -19581,7 +19604,7 @@ function OrbitalPolymeter() {
                               </div>
                             </div>
 
-                            <div>
+                            <div className="pt-0.5">
                               <StudyShellButton
                                 size="compact"
                                 tone="amber"
@@ -21799,14 +21822,14 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                   <div
-                    className="space-y-1 rounded-lg border px-1.5 py-1"
+                    className="space-y-1.5 rounded-lg border px-1.5 py-1.5"
                     style={{
                       background: 'rgba(127,215,255,0.028)',
                       borderColor: 'rgba(127,215,255,0.1)',
                       boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.035)',
                     }}
                   >
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <InlineInfoLabel
                         infoId="riff_offset_pattern"
                         label="Offset"
