@@ -1208,6 +1208,32 @@ export function isForcedResetAtReferenceStep(
   return referenceStep % resetStepCount === 0;
 }
 
+export function isRiffSequenceBarBoundaryAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): boolean {
+  if (
+    !study.riffSequenceEnabled ||
+    normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode) !== 'per-cell' ||
+    referenceStep <= 0
+  ) {
+    return false;
+  }
+  const timeline = getRiffSequenceTimeline(study);
+  if (timeline.totalSteps <= 0) {
+    return false;
+  }
+  const normalizedStep = Math.floor(referenceStep);
+  const stepWithinSequence = ((normalizedStep % timeline.totalSteps) + timeline.totalSteps) % timeline.totalSteps;
+  return timeline.entries.some((entry) => {
+    if (entry.durationMode !== 'bars') {
+      return false;
+    }
+    const boundaryStep = entry.endStep % timeline.totalSteps;
+    return stepWithinSequence === boundaryStep;
+  });
+}
+
 export function isReferenceBeatStart(
   study: RiffCycleStudy,
   referenceStep: number,

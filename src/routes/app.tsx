@@ -251,7 +251,7 @@ const FREE_RIFF_STEP_LIMIT = 12;
 const FREE_RIFF_ENDING_SLOT_LIMIT = 4;
 const FREE_RIFF_METERS = [3, 4] as const;
 const FREE_RIFF_SUBDIVISIONS = [8, 12, 16] as const;
-const RIFF_RESTART_SLIDER_MAX_BARS = 32;
+const RIFF_BAR_SLIDER_STOPS = [0, 2, 4, 8, 16] as const;
 function canUseFreeRiffMeter(numerator: number): boolean {
   return FREE_RIFF_METERS.includes(Math.round(numerator) as (typeof FREE_RIFF_METERS)[number]);
 }
@@ -2259,6 +2259,32 @@ function getRiffRestartBarValue(riff: RiffPhrase): number {
   return Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(getResetBarCount(riff) ?? riff.resetBars ?? 4)));
 }
 
+function getRiffBarSliderStopIndex(value: number): number {
+  if (value <= 0) {
+    return 0;
+  }
+  let closestIndex = 1;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  RIFF_BAR_SLIDER_STOPS.forEach((stop, index) => {
+    if (stop <= 0) {
+      return;
+    }
+    const distance = Math.abs(stop - value);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+  return closestIndex;
+}
+
+function getBarsControlLabel(prefix: string, bars: number): string {
+  if (bars <= 0) {
+    return `${prefix}: off`;
+  }
+  return `${prefix}: ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}`;
+}
+
 function getRiffRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
   const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
   if (bars <= 0) {
@@ -3303,7 +3329,7 @@ function RiffRestartSliderControl({
   onBeforeChange?: () => void;
 }) {
   const restartBars = getRiffRestartBarValue(study.riff);
-  const sliderValue = Math.min(RIFF_RESTART_SLIDER_MAX_BARS, restartBars);
+  const sliderValue = getRiffBarSliderStopIndex(restartBars);
   const naturalCopy = getNaturalRiffResolutionCopy(study);
   const applyRestartBars = (value: number) => {
     onBeforeChange?.();
@@ -3331,11 +3357,14 @@ function RiffRestartSliderControl({
         <input
           type="range"
           min={0}
-          max={RIFF_RESTART_SLIDER_MAX_BARS}
+          max={RIFF_BAR_SLIDER_STOPS.length - 1}
           step={1}
           value={sliderValue}
-          onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
-          className="touch-slider rg-compact-slider min-w-0 flex-1"
+          onChange={(event) => {
+            const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+            applyRestartBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
+          }}
+          className="touch-slider rg-compact-slider h-8 min-w-0 flex-1"
           style={{ accentColor }}
           aria-label={`${label} slider`}
         />
@@ -3361,6 +3390,23 @@ function RiffRestartSliderControl({
             bars
           </span>
         </div>
+      </div>
+      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+        <span>Off</span>
+        <span className="text-center">2</span>
+        <span className="text-center">4</span>
+        <span className="text-center">8</span>
+        <span className="text-right">16</span>
+      </div>
+      <div
+        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+        style={{
+          background: `${accentColor}0f`,
+          borderColor: `${accentColor}24`,
+          color: accentColor,
+        }}
+      >
+        {getBarsControlLabel('Restart', restartBars)}
       </div>
       <div
         className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
@@ -3414,7 +3460,7 @@ function BarCueSliderControl({
   compact?: boolean;
 }) {
   const cueBars = getBarCueBarValue(value);
-  const sliderValue = cueBars;
+  const sliderValue = getRiffBarSliderStopIndex(cueBars);
   const applyCueBars = (nextValue: number) => onChange(getBarCueValueForBars(nextValue));
 
   return (
@@ -3438,11 +3484,14 @@ function BarCueSliderControl({
         <input
           type="range"
           min={0}
-          max={RIFF_BAR_CUE_SLIDER_MAX_BARS}
+          max={RIFF_BAR_SLIDER_STOPS.length - 1}
           step={1}
           value={sliderValue}
-          onChange={(event) => applyCueBars(Number.parseInt(event.target.value, 10) || 0)}
-          className="touch-slider rg-compact-slider min-w-0 flex-1"
+          onChange={(event) => {
+            const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+            applyCueBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
+          }}
+          className="touch-slider rg-compact-slider h-8 min-w-0 flex-1"
           style={{ accentColor }}
           aria-label={`${label} slider`}
         />
@@ -3469,13 +3518,22 @@ function BarCueSliderControl({
           </span>
         </div>
       </div>
-      <div className="flex items-center justify-between px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
         <span>Off</span>
-        <span>1</span>
-        <span>2</span>
-        <span>4</span>
-        <span>8</span>
-        <span>16</span>
+        <span className="text-center">2</span>
+        <span className="text-center">4</span>
+        <span className="text-center">8</span>
+        <span className="text-right">16</span>
+      </div>
+      <div
+        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+        style={{
+          background: `${accentColor}0f`,
+          borderColor: `${accentColor}24`,
+          color: accentColor,
+        }}
+      >
+        {getBarsControlLabel('Cue', cueBars)}
       </div>
     </div>
   );
@@ -19543,7 +19601,7 @@ function OrbitalPolymeter() {
 
                         <div
                           data-guide="riff-mobile-pattern-tools"
-                          className="relative space-y-3 overflow-hidden rounded-2xl border px-3 py-3"
+                          className="relative space-y-3.5 overflow-hidden rounded-2xl border px-3 py-3.5"
                           style={{
                             background: riffPatternToolsLocked
                               ? 'linear-gradient(135deg, rgba(255,255,255,0.022), rgba(255,255,255,0.01))'
@@ -19554,7 +19612,7 @@ function OrbitalPolymeter() {
                           }}
                         >
                           <div
-                            className={riffPatternToolsLocked ? 'pointer-events-none opacity-30' : undefined}
+                            className={`${riffPatternToolsLocked ? 'pointer-events-none opacity-30' : ''} space-y-3.5`}
                             style={{
                               filter: riffPatternToolsLocked ? 'blur(0.65px) grayscale(0.55)' : undefined,
                             }}
@@ -19575,7 +19633,7 @@ function OrbitalPolymeter() {
                                 Pro
                               </span>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-2.5">
                               <InlineInfoLabel
                                 infoId="riff_offset_pattern"
                                 label="Offset"
@@ -19604,7 +19662,7 @@ function OrbitalPolymeter() {
                               </div>
                             </div>
 
-                            <div className="pt-0.5">
+                            <div className="pt-1">
                               <StudyShellButton
                                 size="compact"
                                 tone="amber"
@@ -21822,14 +21880,14 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                   <div
-                    className="space-y-1.5 rounded-lg border px-1.5 py-1.5"
+                    className="space-y-2 rounded-lg border px-1.5 py-2"
                     style={{
                       background: 'rgba(127,215,255,0.028)',
                       borderColor: 'rgba(127,215,255,0.1)',
                       boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.035)',
                     }}
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <InlineInfoLabel
                         infoId="riff_offset_pattern"
                         label="Offset"

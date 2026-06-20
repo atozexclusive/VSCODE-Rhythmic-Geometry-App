@@ -26,7 +26,7 @@ import {
 import type { RiffMidiExportMode } from '../lib/riffCycleMidi';
 import { VIDEO_EXPORT_ASPECTS, VIDEO_EXPORT_DURATIONS, type VideoExportAspect, type VideoExportDuration } from '../lib/videoExport';
 
-const RIFF_RESTART_SLIDER_MAX_BARS = 32;
+const RIFF_BAR_SLIDER_STOPS = [0, 2, 4, 8, 16] as const;
 
 function gcd(a: number, b: number): number {
   let x = Math.abs(Math.round(a));
@@ -44,6 +44,32 @@ function getRestartBarValue(riff: RiffPhrase): number {
     return 0;
   }
   return Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(getResetBarCount(riff) ?? riff.resetBars ?? 4)));
+}
+
+function getBarSliderStopIndex(value: number): number {
+  if (value <= 0) {
+    return 0;
+  }
+  let closestIndex = 1;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  RIFF_BAR_SLIDER_STOPS.forEach((stop, index) => {
+    if (stop <= 0) {
+      return;
+    }
+    const distance = Math.abs(stop - value);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+  return closestIndex;
+}
+
+function getRestartControlLabel(bars: number): string {
+  if (bars <= 0) {
+    return 'Restart: off';
+  }
+  return `Restart: ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}`;
 }
 
 function getRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
@@ -1248,6 +1274,10 @@ export default function RiffCycleSidebar({
           </section>
           <section className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-3">
             <div className="text-xs font-mono uppercase tracking-[0.2em] text-[#FFD166]">Return</div>
+            {(() => {
+              const restartBars = getRestartBarValue(study.riff);
+              return (
+                <>
             <div className="flex items-center justify-between gap-3">
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/45">Riff Restart</div>
             </div>
@@ -1255,14 +1285,15 @@ export default function RiffCycleSidebar({
               <input
                 type="range"
                 min={0}
-                max={RIFF_RESTART_SLIDER_MAX_BARS}
+                max={RIFF_BAR_SLIDER_STOPS.length - 1}
                 step={1}
-                value={Math.min(RIFF_RESTART_SLIDER_MAX_BARS, getRestartBarValue(study.riff))}
+                value={getBarSliderStopIndex(restartBars)}
                 onChange={(event) => {
                   pinEndingTab();
-                  onUpdateRiff(getRestartUpdatesForBars(Number.parseInt(event.target.value, 10) || 0));
+                  const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+                  onUpdateRiff(getRestartUpdatesForBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0));
                 }}
-                className="touch-slider rg-compact-slider min-w-0 flex-1"
+                className="touch-slider rg-compact-slider h-8 min-w-0 flex-1"
                 style={{ accentColor: '#FFD166' }}
                 aria-label="Riff Restart slider"
               />
@@ -1272,7 +1303,7 @@ export default function RiffCycleSidebar({
                   inputMode="numeric"
                   min={0}
                   max={RIFF_MAX_RESET_BARS}
-                  value={getRestartBarValue(study.riff)}
+                  value={restartBars}
                   onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => {
                     pinEndingTab();
@@ -1286,9 +1317,22 @@ export default function RiffCycleSidebar({
                 </span>
               </div>
             </div>
+            <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+              <span>Off</span>
+              <span className="text-center">2</span>
+              <span className="text-center">4</span>
+              <span className="text-center">8</span>
+              <span className="text-right">16</span>
+            </div>
+            <div className="rounded-xl border border-[#FFD166]/18 bg-[#FFD166]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#FFD166]">
+              {getRestartControlLabel(restartBars)}
+            </div>
             <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#BFEAFF]">
               Naturally resolves after {getNaturalResolutionBars(study).toLocaleString()} bar{getNaturalResolutionBars(study) === 1 ? '' : 's'}.
             </div>
+                </>
+              );
+            })()}
           </section>
           </>
           ) : null}

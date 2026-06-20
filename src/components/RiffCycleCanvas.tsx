@@ -42,6 +42,7 @@ import {
   isForcedResetAtReferenceStep,
   isPhraseRestartAtReferenceStep,
   isReferenceBeatStart,
+  isRiffSequenceBarBoundaryAtReferenceStep,
   type RiffCycleStudy,
   type RiffCycleViewMode,
 } from '../lib/riffCycleStudy';
@@ -2371,6 +2372,9 @@ export default function RiffCycleCanvas({
           if (audioEnabledRef.current && currentStudy.soundEnabled) {
             triggerResetCue(currentStudy.soundSettings);
           }
+        } else if (isRiffSequenceBarBoundaryAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)) {
+          resetFlashUntilRef.current =
+            (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
         }
 
         playbackState.previousReferenceStep = currentAbsoluteReferenceStep;
