@@ -403,7 +403,7 @@ function OrbitalPolymeterLanding() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link to="/" className="group block">
             <div className="text-[15px] font-medium uppercase tracking-[0.34em] text-white/82 transition-colors group-hover:text-white sm:text-[17px]">
-              Rhythmic Geometry
+              Rhythmic Geometry<span className="align-super text-[0.52em] tracking-[0.08em]">™</span>
             </div>
           </Link>
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
@@ -649,7 +649,7 @@ function OrbitalPolymeterLanding() {
                   Not a visualization. A system.
                 </p>
                 <p className="mt-4 max-w-2xl text-sm leading-8 text-white/48 sm:text-base">
-                  Rhythmic Geometry is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
+                  Rhythmic Geometry™ is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
                 </p>
                 <p className="mt-4 max-w-2xl text-sm leading-8 text-white/42 sm:text-base">
                   Set constraints. Watch structure appear.
@@ -801,7 +801,7 @@ function OrbitalPolymeterLanding() {
                 Save, edit, capture, and watch fullscreen.
               </h2>
               <p className="mt-5 text-sm leading-8 text-white/48 sm:text-base">
-                Rhythmic Geometry is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
+                Rhythmic Geometry™ is a space for discovery. Simple inputs create complex results - patterns that emerge, repeat, and transform over time.
               </p>
               <p className="mt-5 text-sm leading-8 text-white/42 sm:text-base">
                 Set constraints. Watch structure appear.
@@ -992,6 +992,11 @@ function OrbitalPolymeterLanding() {
           </div>
           </div>
         </section>
+        <footer className="border-t border-white/10 px-5 py-8 text-center sm:px-8">
+          <p className="mx-auto max-w-3xl text-[11px] font-mono uppercase tracking-[0.14em] text-white/34">
+            Rhythmic Geometry™ is a trademark of Marc DeBlasie. The original rhythm geometry app.
+          </p>
+        </footer>
       </main>
     </div>
   );
