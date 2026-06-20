@@ -12905,6 +12905,7 @@ function OrbitalPolymeter() {
     : 'Riff';
   const riffCellEditPreviewActive =
     Boolean(riffSelectedSequenceCell) &&
+    !recordingVideo &&
     !riffCycleStudy.playing &&
     (
       riffQuickPanel === 'bar' ||
