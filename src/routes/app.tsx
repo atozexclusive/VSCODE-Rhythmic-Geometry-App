@@ -3433,7 +3433,7 @@ function RiffRestartSliderControl({
   label = 'Riff Restart',
   labelClassName = 'text-[9px] font-mono uppercase tracking-[0.18em] text-white/46',
   labelStyle,
-  accentColor = '#FF88C2',
+  accentColor = '#7FD7FF',
   compact = false,
   onBeforeChange,
 }: {
@@ -19445,20 +19445,6 @@ function OrbitalPolymeter() {
                             labelClassName={`${mobileRiffMenuSectionTitleClass} pt-0.5`}
                             labelStyle={mobileRiffAmberTitleStyle}
                           />
-                          <div>
-                            <BarCueSliderControl
-                              value={riffCycleStudy.barMarkerInterval}
-                              onChange={handleSetRiffBarMarkerInterval}
-                              labelClassName={mobileRiffMenuTitleClass}
-                              labelStyle={mobileRiffWhiteTitleStyle}
-                              compact
-                            />
-                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                                {riffPatternBarMarkerCopy}
-                              </div>
-                            ) : null}
-                          </div>
                           <div className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                             <InlineInfoLabel
                               infoId="riff_backbeat"
@@ -19530,6 +19516,20 @@ function OrbitalPolymeter() {
                                 </div>
                               );
                             })()}
+                          </div>
+                          <div>
+                            <BarCueSliderControl
+                              value={riffCycleStudy.barMarkerInterval}
+                              onChange={handleSetRiffBarMarkerInterval}
+                              labelClassName={mobileRiffMenuTitleClass}
+                              labelStyle={mobileRiffWhiteTitleStyle}
+                              compact
+                            />
+                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                                {riffPatternBarMarkerCopy}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -19787,22 +19787,6 @@ function OrbitalPolymeter() {
                               filter: riffPatternToolsLocked ? 'blur(0.65px) grayscale(0.55)' : undefined,
                             }}
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <InlineInfoLabel
-                                infoId="riff_pattern_tools"
-                                label="Pattern Tools"
-                                labelClassName={mobileRiffMenuTitleClass}
-                                labelStyle={
-                                  riffPatternToolsLocked
-                                    ? { color: 'rgba(255,255,255,0.54)', textShadow: 'none' }
-                                    : mobileRiffWhiteTitleStyle
-                                }
-                              />
-                              <span className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.025] px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/36">
-                                <Lock size={10} strokeWidth={2.4} />
-                                Pro
-                              </span>
-                            </div>
                             <div className="space-y-3">
                               <InlineInfoLabel
                                 infoId="riff_offset_pattern"
@@ -21797,20 +21781,6 @@ function OrbitalPolymeter() {
                     labelClassName="pt-0.5 text-[9px] font-mono font-semibold uppercase tracking-[0.18em]"
                     labelStyle={{ color: '#FFAA00', textShadow: '0 0 12px rgba(255,170,0,0.22)' }}
                   />
-                    <div>
-                      <BarCueSliderControl
-                        value={riffCycleStudy.barMarkerInterval}
-                        onChange={handleSetRiffBarMarkerInterval}
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                        compact
-                      />
-                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                          {riffPatternBarMarkerCopy}
-                        </div>
-                      ) : null}
-                    </div>
                     <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                       <InlineInfoLabel
                         infoId="riff_backbeat"
@@ -21883,6 +21853,20 @@ function OrbitalPolymeter() {
                           </div>
                         );
                       })()}
+                    </div>
+                    <div>
+                      <BarCueSliderControl
+                        value={riffCycleStudy.barMarkerInterval}
+                        onChange={handleSetRiffBarMarkerInterval}
+                        labelClassName={riffQuickControlLabelClass}
+                        labelStyle={desktopMenuSubheaderStyle}
+                        compact
+                      />
+                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                          {riffPatternBarMarkerCopy}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -23712,15 +23696,6 @@ function OrbitalPolymeter() {
                         compact
                       />
                       <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
-                        <BarCueSliderControl
-                          value={riffCycleStudy.barMarkerInterval}
-                          onChange={handleSetRiffBarMarkerInterval}
-                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                          labelStyle={desktopMenuSubheaderStyle}
-                          compact
-                        />
-                      </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
                         <InlineInfoLabel
                           infoId="riff_backbeat"
                           label="Backbeat"
@@ -23761,6 +23736,15 @@ function OrbitalPolymeter() {
                             </StudyShellButton>
                           ))}
                         </div>
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                        <BarCueSliderControl
+                          value={riffCycleStudy.barMarkerInterval}
+                          onChange={handleSetRiffBarMarkerInterval}
+                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                          labelStyle={desktopMenuSubheaderStyle}
+                          compact
+                        />
                       </StudyShellPanel>
                     </div>
                   </>
