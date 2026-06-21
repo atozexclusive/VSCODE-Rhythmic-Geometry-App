@@ -2351,7 +2351,7 @@ function RiffBarStopSlider({
   );
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div
         ref={sliderRef}
         role="slider"
@@ -2364,31 +2364,31 @@ function RiffBarStopSlider({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={handleKeyDown}
-        className="relative h-9 cursor-pointer touch-none select-none rounded-full"
+        className="relative h-7 cursor-pointer touch-none select-none rounded-full"
       >
-        <div className="absolute left-0 right-0 top-1/2 h-[0.28rem] -translate-y-1/2 rounded-full bg-white/12" />
+        <div className="absolute left-0 right-0 top-1/2 h-[0.22rem] -translate-y-1/2 rounded-full bg-white/12" />
         <div
-          className="absolute left-0 top-1/2 h-[0.28rem] -translate-y-1/2 rounded-full"
+          className="absolute left-0 top-1/2 h-[0.22rem] -translate-y-1/2 rounded-full"
           style={{ width: `${activePercent}%`, background: `${accentColor}88` }}
         />
         {RIFF_BAR_SLIDER_STOPS.map((stop, index) => (
           <span
             key={stop}
-            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+            className="absolute top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border"
             style={{
               left: `${(index / Math.max(1, RIFF_BAR_SLIDER_STOPS.length - 1)) * 100}%`,
               background: index <= activeIndex ? accentColor : 'rgba(255,255,255,0.18)',
               borderColor: index <= activeIndex ? `${accentColor}aa` : 'rgba(255,255,255,0.18)',
-              boxShadow: index === activeIndex ? `0 0 0 5px ${accentColor}24, 0 0 14px ${accentColor}66` : 'none',
+              boxShadow: index === activeIndex ? `0 0 0 4px ${accentColor}20, 0 0 10px ${accentColor}4d` : 'none',
             }}
           />
         ))}
         <span
-          className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#101014]"
+          className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#101014]"
           style={{
             left: `${activePercent}%`,
             background: accentColor,
-            boxShadow: `0 0 0 6px ${accentColor}22, 0 0 18px ${accentColor}66`,
+            boxShadow: `0 0 0 5px ${accentColor}1c, 0 0 12px ${accentColor}4d`,
           }}
         />
       </div>
@@ -3455,7 +3455,7 @@ function RiffRestartSliderControl({
 
   return (
     <div
-      className={`rounded-xl border ${compact ? 'space-y-1.5 px-2.5 py-2' : 'space-y-2 px-3 py-2.5'}`}
+      className={`rounded-xl border ${compact ? 'space-y-1 px-2.5 py-1.5' : 'space-y-1.5 px-3 py-2'}`}
       style={{
         background: 'rgba(0,0,0,0.12)',
         borderColor: 'rgba(255,255,255,0.1)',
@@ -3480,7 +3480,7 @@ function RiffRestartSliderControl({
           />
         </div>
         <div
-          className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
+          className="flex h-7 w-[5.25rem] items-center overflow-hidden rounded-lg border bg-white/[0.04]"
           style={{
             borderColor: `${accentColor}26`,
             boxShadow: `inset 0 0 0 1px ${accentColor}0a`,
@@ -3494,16 +3494,16 @@ function RiffRestartSliderControl({
             value={restartBars}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
-            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
+            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[12px] font-light text-white outline-none"
             aria-label={`${label} bars`}
           />
-          <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
+          <span className="border-l border-white/10 px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
             bars
           </span>
         </div>
       </div>
       <div
-        className="rounded-md border px-2 py-1 text-center text-[8px] font-mono uppercase tracking-[0.11em]"
+        className="rounded-md border px-2 py-0.5 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
         style={{
           background: 'rgba(127,215,255,0.035)',
           borderColor: 'rgba(127,215,255,0.12)',
@@ -3558,11 +3558,11 @@ function BarCueSliderControl({
 
   return (
     <div
-      className={`rounded-xl border ${compact ? 'space-y-1.5 px-2.5 py-2' : 'space-y-2 px-3 py-2.5'}`}
+      className={`rounded-xl border ${compact ? 'space-y-1 px-2.5 py-1.5' : 'space-y-1.5 px-3 py-2'}`}
       style={{
-        background: `linear-gradient(180deg, ${accentColor}10, rgba(255,255,255,0.025))`,
-        borderColor: `${accentColor}24`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px ${accentColor}0d`,
+        background: `linear-gradient(180deg, ${accentColor}08, rgba(255,255,255,0.018))`,
+        borderColor: `${accentColor}18`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       <div className="flex items-center justify-between gap-3">
@@ -3574,7 +3574,7 @@ function BarCueSliderControl({
         />
       </div>
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <RiffBarStopSlider
             value={cueBars}
             onChange={applyCueBars}
@@ -3583,7 +3583,7 @@ function BarCueSliderControl({
           />
           {cueBars > 0 ? (
             <div
-              className="rounded-md border px-2 py-1 text-center text-[8px] font-mono uppercase tracking-[0.11em]"
+              className="rounded-md border px-2 py-0.5 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
               style={{
                 background: `${accentColor}09`,
                 borderColor: `${accentColor}18`,
@@ -3595,7 +3595,7 @@ function BarCueSliderControl({
           ) : null}
         </div>
         <div
-          className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
+          className="flex h-7 w-[5.25rem] items-center overflow-hidden rounded-lg border bg-white/[0.04]"
           style={{
             borderColor: `${accentColor}26`,
             boxShadow: `inset 0 0 0 1px ${accentColor}0a`,
@@ -3609,10 +3609,10 @@ function BarCueSliderControl({
             value={cueBars}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => applyCueBars(Number.parseInt(event.target.value, 10) || 0)}
-            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
+            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[12px] font-light text-white outline-none"
             aria-label={`${label} bars`}
           />
-          <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
+          <span className="border-l border-white/10 px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
             bars
           </span>
         </div>
@@ -19447,10 +19447,10 @@ function OrbitalPolymeter() {
 
                         <div
                           data-guide="riff-mobile-secondary-cues"
-                          className="space-y-2.5 rounded-[1.35rem] border px-2.5 py-2.5"
+                          className="space-y-1.5 rounded-xl border px-2 py-2"
                           style={{
-                            background: 'rgba(255,255,255,0.025)',
-                            borderColor: 'rgba(255,255,255,0.08)',
+                            background: 'rgba(255,255,255,0.018)',
+                            borderColor: 'rgba(255,255,255,0.065)',
                           }}
                         >
                           <InlineInfoLabel
@@ -19468,12 +19468,12 @@ function OrbitalPolymeter() {
                               compact
                             />
                             {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                              <div className="mt-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
                                 {riffPatternBarMarkerCopy}
                               </div>
                             ) : null}
                           </div>
-                          <div className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
+                          <div className="space-y-1 rounded-xl border border-white/8 bg-white/[0.018] px-2 py-1.5">
                             <InlineInfoLabel
                               infoId="riff_backbeat"
                               label="Backbeat"
@@ -19487,11 +19487,11 @@ function OrbitalPolymeter() {
                                 riffEditableReference.backbeatBeat,
                               );
                               return (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-1 rounded-xl border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
                                     <button
                                       type="button"
-                                      className="h-8 rounded-lg px-2.5 text-[9px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                       style={{
                                         background: activeBackbeatBeats.length === 0 ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
                                         border: `1px solid ${activeBackbeatBeats.length === 0 ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
@@ -19509,7 +19509,7 @@ function OrbitalPolymeter() {
                                       <button
                                         key={beat}
                                         type="button"
-                                        className="h-8 min-w-0 flex-1 rounded-lg text-[10px] font-mono font-semibold transition"
+                                        className="h-7 min-w-0 flex-1 rounded-md text-[9px] font-mono font-semibold transition"
                                         style={{
                                           background: activeBackbeatBeats.includes(beat) ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
                                           border: `1px solid ${activeBackbeatBeats.includes(beat) ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
@@ -21800,10 +21800,10 @@ function OrbitalPolymeter() {
 
                   <div
                     data-guide="riff-mobile-secondary-cues"
-                    className="space-y-2 rounded-xl border px-2.5 py-2.5"
+                    className="space-y-1.5 rounded-xl border px-2 py-2"
                     style={{
-                      background: 'rgba(255,255,255,0.025)',
-                      borderColor: 'rgba(255,255,255,0.08)',
+                      background: 'rgba(255,255,255,0.018)',
+                      borderColor: 'rgba(255,255,255,0.065)',
                     }}
                   >
                   <InlineInfoLabel
@@ -21821,12 +21821,12 @@ function OrbitalPolymeter() {
                         compact
                       />
                       {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                        <div className="mt-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
                           {riffPatternBarMarkerCopy}
                         </div>
                       ) : null}
                     </div>
-                    <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
+                    <div className="space-y-1 rounded-xl border border-white/8 bg-white/[0.018] px-2 py-1.5">
                       <InlineInfoLabel
                         infoId="riff_backbeat"
                         label="Backbeat"
@@ -21840,11 +21840,11 @@ function OrbitalPolymeter() {
                           riffEditableReference.backbeatBeat,
                         );
                         return (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
                               <button
                                 type="button"
-                                className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                 style={{
                                   background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
                                   border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
@@ -21862,7 +21862,7 @@ function OrbitalPolymeter() {
                                 <button
                                   key={beat}
                                   type="button"
-                                  className="h-7 min-w-0 flex-1 rounded-md text-[9px] font-mono font-semibold transition"
+                                  className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                                   style={{
                                     background:
                                       riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
@@ -23648,7 +23648,7 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
                     <div className="grid gap-2 xl:grid-cols-[0.95fr_0.9fr_0.95fr_1.2fr_0.95fr_1.2fr]">
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                      <StudyShellPanel className="space-y-1 px-2 py-1.5">
                         <InlineInfoLabel
                           infoId="riff_meter"
                           label="Meter"
@@ -23683,7 +23683,7 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         </div>
                       </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                      <StudyShellPanel className="space-y-1 px-2 py-1.5">
                         <InlineInfoLabel
                           infoId="riff_reference_grid"
                           label="Bar Grid"
@@ -23766,10 +23766,10 @@ function OrbitalPolymeter() {
                           labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                           labelStyle={desktopMenuSubheaderStyle}
                         />
-                        <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                        <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
                           <button
                             type="button"
-                            className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                            className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                             style={{
                               background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
                               border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
@@ -23787,7 +23787,7 @@ function OrbitalPolymeter() {
                             <button
                               key={beat}
                               type="button"
-                              className="h-7 min-w-0 flex-1 rounded-md text-[9px] font-mono font-semibold transition"
+                              className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                               style={{
                                 background:
                                   riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
