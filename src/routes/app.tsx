@@ -3503,11 +3503,11 @@ function RiffRestartSliderControl({
         </div>
       </div>
       <div
-        className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
+        className="rounded-md border px-2 py-1 text-center text-[8px] font-mono uppercase tracking-[0.11em]"
         style={{
-          background: 'rgba(127,215,255,0.07)',
-          borderColor: 'rgba(127,215,255,0.2)',
-          color: '#BFEAFF',
+          background: 'rgba(127,215,255,0.035)',
+          borderColor: 'rgba(127,215,255,0.12)',
+          color: 'rgba(191,234,255,0.78)',
         }}
       >
         {naturalCopy}
@@ -3581,16 +3581,18 @@ function BarCueSliderControl({
             accentColor={accentColor}
             ariaLabel={`${label} slider`}
           />
-          <div
-            className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
-            style={{
-              background: `${accentColor}0f`,
-              borderColor: `${accentColor}24`,
-              color: accentColor,
-            }}
-          >
-            {getBarsControlLabel('Cue', cueBars)}
-          </div>
+          {cueBars > 0 ? (
+            <div
+              className="rounded-md border px-2 py-1 text-center text-[8px] font-mono uppercase tracking-[0.11em]"
+              style={{
+                background: `${accentColor}09`,
+                borderColor: `${accentColor}18`,
+                color: `${accentColor}cc`,
+              }}
+            >
+              {getBarsControlLabel('Cue', cueBars)}
+            </div>
+          ) : null}
         </div>
         <div
           className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
@@ -19520,10 +19522,10 @@ function OrbitalPolymeter() {
                                       </button>
                                     ))}
                                   </div>
-                                  <div className="grid grid-cols-2 gap-1.5">
+                                  <div className="grid grid-cols-2 gap-1">
                                     <button
                                       type="button"
-                                      className="h-7 rounded-lg border text-[8.5px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                       style={{
                                         background: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
                                         borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
@@ -19535,7 +19537,7 @@ function OrbitalPolymeter() {
                                     </button>
                                     <button
                                       type="button"
-                                      className="h-7 rounded-lg border text-[8.5px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                       style={{
                                         background: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
                                         borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
@@ -19547,7 +19549,7 @@ function OrbitalPolymeter() {
                                     </button>
                                   </div>
                                   {(riffEditableReference.backbeatBarInterval ?? 1) > 1 ? (
-                                    <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                                    <div className="rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
                                       Superbackbeat: the selected beat only lands every other bar.
                                     </div>
                                   ) : null}
@@ -21886,10 +21888,10 @@ function OrbitalPolymeter() {
                                 </button>
                               ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="grid grid-cols-2 gap-1">
                               <button
                                 type="button"
-                                className="h-7 rounded-lg border text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                 style={{
                                   background: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
                                   borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
@@ -21901,7 +21903,7 @@ function OrbitalPolymeter() {
                               </button>
                               <button
                                 type="button"
-                                className="h-7 rounded-lg border text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                 style={{
                                   background: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
                                   borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
@@ -21913,7 +21915,7 @@ function OrbitalPolymeter() {
                               </button>
                             </div>
                             {(riffEditableReference.backbeatBarInterval ?? 1) > 1 ? (
-                              <div className="rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                              <div className="rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
                                 Superbackbeat: the selected beat only lands every other bar.
                               </div>
                             ) : null}
