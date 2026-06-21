@@ -4,7 +4,7 @@ const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
 export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
 export const RIFF_MAX_STEP_COUNT = 96;
-export const RIFF_MAX_RESET_BARS = 128;
+export const RIFF_MAX_RESET_BARS = 256;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
 export type RiffCycleViewMode = 'circular' | 'unwrapped';

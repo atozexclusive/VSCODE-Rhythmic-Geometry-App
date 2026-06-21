@@ -1271,57 +1271,57 @@ export default function RiffCycleSidebar({
               const restartBars = getRestartBarValue(study.riff);
               return (
                 <>
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/45">Riff Restart</div>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <input
-                  type="range"
-                  min={0}
-                  max={RIFF_BAR_SLIDER_STOPS.length - 1}
-                  step={1}
-                  value={getBarSliderStopIndex(restartBars)}
-                  onChange={(event) => {
-                    pinEndingTab();
-                    const stopIndex = Number.parseInt(event.target.value, 10) || 0;
-                    onUpdateRiff(getRestartUpdatesForBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0));
-                  }}
-                  className="touch-slider rg-compact-slider min-w-0"
-                  style={{ accentColor: '#FFD166', '--slider-accent': '#FFD166' } as CSSProperties}
-                  aria-label="Riff Restart slider"
-                />
-                <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-                  <span>Off</span>
-                  <span className="text-center">2</span>
-                  <span className="text-center">4</span>
-                  <span className="text-center">8</span>
-                  <span className="text-right">16</span>
-                </div>
-              </div>
-              <div className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border border-[#FFD166]/24 bg-white/[0.045]">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={RIFF_MAX_RESET_BARS}
-                  value={restartBars}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => {
-                    pinEndingTab();
-                    onUpdateRiff(getRestartUpdatesForBars(Number.parseInt(event.target.value, 10) || 0));
-                  }}
-                  className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
-                  aria-label="Riff Restart bars"
-                />
-                <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
-                  bars
-                </span>
-              </div>
-            </div>
-            <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#BFEAFF]">
-              Naturally resolves after {getNaturalResolutionBars(study).toLocaleString()} bar{getNaturalResolutionBars(study) === 1 ? '' : 's'}.
-            </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/45">Riff Restart</div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <input
+                        type="range"
+                        min={0}
+                        max={RIFF_BAR_SLIDER_STOPS.length - 1}
+                        step={1}
+                        value={getBarSliderStopIndex(restartBars)}
+                        onChange={(event) => {
+                          pinEndingTab();
+                          const stopIndex = Number.parseInt(event.target.value, 10) || 0;
+                          onUpdateRiff(getRestartUpdatesForBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0));
+                        }}
+                        className="touch-slider rg-compact-slider min-w-0"
+                        style={{ accentColor: '#FFD166', '--slider-accent': '#FFD166' } as CSSProperties}
+                        aria-label="Riff Restart slider"
+                      />
+                      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+                        <span>Off</span>
+                        <span className="text-center">2</span>
+                        <span className="text-center">4</span>
+                        <span className="text-center">8</span>
+                        <span className="text-right">16</span>
+                      </div>
+                    </div>
+                    <div className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border border-[#FFD166]/24 bg-white/[0.045]">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={RIFF_MAX_RESET_BARS}
+                        value={restartBars}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onChange={(event) => {
+                          pinEndingTab();
+                          onUpdateRiff(getRestartUpdatesForBars(Number.parseInt(event.target.value, 10) || 0));
+                        }}
+                        className="min-w-0 flex-1 bg-transparent px-2 text-center text-[13px] font-light text-white outline-none"
+                        aria-label="Riff Restart bars"
+                      />
+                      <span className="border-l border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.1em] text-white/38">
+                        bars
+                      </span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#BFEAFF]">
+                    Naturally resolves after {getNaturalResolutionBars(study).toLocaleString()} bar{getNaturalResolutionBars(study) === 1 ? '' : 's'}.
+                  </div>
                 </>
               );
             })()}

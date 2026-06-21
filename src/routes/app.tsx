@@ -225,7 +225,7 @@ const MOBILE_GUIDES_AUTO_OPEN = false;
 const MOBILE_GUIDE_INTRO_CARD_ENABLED = false;
 const CREATOR_TOOLS_ENABLED =
   import.meta.env.VITE_CREATOR_TOOLS === 'true' || __CREATOR_LAB_BRANCH__;
-const RIFF_CELL_SEQUENCE_FEATURE_ENABLED = CREATOR_TOOLS_ENABLED;
+const RIFF_CELL_SEQUENCE_FEATURE_ENABLED = true;
 const DEFAULT_STUDY_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   theme: 'deep-space',
   atmosphere: 'stars',
