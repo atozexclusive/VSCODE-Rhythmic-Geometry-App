@@ -3457,8 +3457,8 @@ function RiffRestartSliderControl({
     <div
       className={`rounded-xl border ${compact ? 'space-y-1.5 px-2.5 py-2' : 'space-y-2 px-3 py-2.5'}`}
       style={{
-        background: `linear-gradient(180deg, ${accentColor}10, rgba(255,255,255,0.025))`,
-        borderColor: `${accentColor}24`,
+        background: 'rgba(0,0,0,0.12)',
+        borderColor: 'rgba(255,255,255,0.1)',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
       }}
     >
@@ -3633,6 +3633,18 @@ function getSubdivisionName(count: number): string {
   };
 
   return names[count] ?? `${count}-tuplets`;
+}
+
+function getRiffSubdivisionButtonLabel(count: number): string {
+  const labels: Record<number, string> = {
+    8: '8th',
+    12: 'Trip',
+    16: '16th',
+    20: 'Quint',
+    32: '32nd',
+  };
+
+  return labels[count] ?? `${count}`;
 }
 
 function getStudyCountHelpText(layers: readonly Pick<PolyrhythmLayer, 'beatCount'>[], sharedStepCount: number): string {
@@ -19396,12 +19408,12 @@ function OrbitalPolymeter() {
                                   labelStyle={mobileRiffWhiteTitleStyle}
                                 />
 	                          </div>
-	                          <div className="grid grid-cols-5 gap-2">
+	                          <div className="grid grid-cols-5 gap-1 rounded-xl border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] p-1">
 	                            {[8, 12, 16, 20, 32].map((value) => (
 	                              <StudyShellButton
 	                                key={value}
 	                                size="compact"
-                                  className={mobileRiffBarCompactButtonClass}
+                                  className="min-w-0 flex-1 rounded-lg px-1 text-[8px] tracking-[0.08em]"
 	                                tone="blue"
 	                                highlighted={riffEditableReference.subdivision === value && !(
                                       riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
@@ -19414,7 +19426,7 @@ function OrbitalPolymeter() {
 	                                  })
 	                                }
 	                              >
-	                                {value}
+	                                {getRiffSubdivisionButtonLabel(value)}
 	                              </StudyShellButton>
 	                            ))}
 	                          </div>
@@ -19724,17 +19736,7 @@ function OrbitalPolymeter() {
                               labelClassName={mobileRiffMenuTitleClass}
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
-                            <div className="grid grid-cols-3 gap-1.5">
-                              <StudyShellButton
-                                size="compact"
-                                tone="blue"
-                                highlighted={Boolean(riffCycleStudy.showStepLabels)}
-                                onClick={handleToggleRiffStepLabels}
-                                icon={<span className="text-[10px] leading-none">#</span>}
-                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
-                              >
-                                Numbers
-                              </StudyShellButton>
+                            <div className="grid grid-cols-2 gap-2">
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
@@ -19743,7 +19745,7 @@ function OrbitalPolymeter() {
                                 onLockedClick={() => openProPrompt('riff-subdivisions')}
                                 onClick={handleToggleRiffPulseLayer}
                                 icon={<Grid3X3 size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                className="min-w-0 gap-1.5 px-2 text-[8px] tracking-[0.07em]"
                               >
                                 Subdivisions
                               </StudyShellButton>
@@ -19753,7 +19755,7 @@ function OrbitalPolymeter() {
                                 highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
                                 onClick={handleToggleRiffPhraseBounds}
                                 icon={<CircleDot size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                className="min-w-0 gap-1.5 px-2 text-[8px] tracking-[0.07em]"
                               >
                                 Groupings
                               </StudyShellButton>
@@ -19763,7 +19765,7 @@ function OrbitalPolymeter() {
                                 highlighted={Boolean(riffCycleStudy.showPhraseFill)}
                                 onClick={handleToggleRiffPhraseFill}
                                 icon={<Palette size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
+                                className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
                               >
                                 Fill
                               </StudyShellButton>
@@ -19773,7 +19775,7 @@ function OrbitalPolymeter() {
                                 highlighted={Boolean(riffCycleStudy.showStructureView)}
                                 onClick={handleToggleRiffStructureView}
                                 icon={<Zap size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1.5 text-[8px] tracking-[0.08em]"
+                                className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
                               >
                                 Contour
                               </StudyShellButton>
@@ -20887,12 +20889,13 @@ function OrbitalPolymeter() {
                                 labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-[#FF88C2]/80"
                               />
                             </div>
-                            <div className="grid grid-cols-5 gap-2">
+                            <div className="grid grid-cols-5 gap-1 rounded-xl border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] p-1">
                               {[8, 12, 16, 20, 32].map((value) => (
                                 <StudyShellButton
                                   key={value}
                                   size="compact"
                                   tone="blue"
+                                  className="min-w-0 flex-1 rounded-lg px-1 text-[8px] tracking-[0.08em]"
                                   highlighted={riffEditableReference.subdivision === value && !(
                                     riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
                                   )}
@@ -20904,7 +20907,7 @@ function OrbitalPolymeter() {
                                     })
                                   }
                                 >
-                                  {value}
+                                  {getRiffSubdivisionButtonLabel(value)}
                                 </StudyShellButton>
                               ))}
                             </div>
@@ -21744,13 +21747,13 @@ function OrbitalPolymeter() {
                         labelClassName={riffQuickControlLabelClass}
                         labelStyle={desktopMenuSubheaderStyle}
                       />
-                      <div className="grid grid-cols-5 gap-1.5">
+                      <div className="grid grid-cols-5 gap-1 rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] p-1">
                         {[8, 12, 16, 20, 32].map((value) => (
                           <StudyShellButton
                             key={value}
                             size="compact"
                             tone="blue"
-                            className={desktopRiffBarCompactButtonClass}
+                            className="!h-7 min-w-0 flex-1 rounded-md px-1 text-[7.5px] tracking-[0.06em]"
                             highlighted={riffEditableReference.subdivision === value && !(
                               riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
                             )}
@@ -21762,7 +21765,7 @@ function OrbitalPolymeter() {
                               })
                             }
                           >
-                            {value}
+                            {getRiffSubdivisionButtonLabel(value)}
                           </StudyShellButton>
                         ))}
                       </div>
@@ -23701,13 +23704,13 @@ function OrbitalPolymeter() {
                             labelStyle={desktopMenuSubheaderStyle}
                           />
                         </div>
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-5 gap-1 rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] p-1">
                           {[8, 12, 16, 20, 32].map((value) => (
                             <StudyShellButton
                               key={value}
                               size="compact"
                               tone="blue"
-                              className="!h-8 rounded-lg px-1.5 text-[8.5px]"
+                              className="!h-7 min-w-0 flex-1 rounded-md px-1 text-[7.5px] tracking-[0.06em]"
                               highlighted={riffEditableReference.subdivision === value && !(
                                 riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
                               )}
@@ -23719,7 +23722,7 @@ function OrbitalPolymeter() {
                                 })
                               }
                             >
-                              {value}
+                              {getRiffSubdivisionButtonLabel(value)}
                             </StudyShellButton>
                           ))}
                         </div>
