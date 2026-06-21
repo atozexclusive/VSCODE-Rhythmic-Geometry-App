@@ -3459,7 +3459,7 @@ function RiffRestartSliderControl({
       style={{
         background: `linear-gradient(180deg, ${accentColor}10, rgba(255,255,255,0.025))`,
         borderColor: `${accentColor}24`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 0 24px ${accentColor}0d`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
       }}
     >
       <div className="flex items-center justify-between gap-3">
@@ -19445,6 +19445,20 @@ function OrbitalPolymeter() {
                             labelClassName={`${mobileRiffMenuSectionTitleClass} pt-0.5`}
                             labelStyle={mobileRiffAmberTitleStyle}
                           />
+                          <div>
+                            <BarCueSliderControl
+                              value={riffCycleStudy.barMarkerInterval}
+                              onChange={handleSetRiffBarMarkerInterval}
+                              labelClassName={mobileRiffMenuTitleClass}
+                              labelStyle={mobileRiffWhiteTitleStyle}
+                              compact
+                            />
+                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                                {riffPatternBarMarkerCopy}
+                              </div>
+                            ) : null}
+                          </div>
                           <div className="space-y-1.5 rounded-[1.05rem] border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                             <InlineInfoLabel
                               infoId="riff_backbeat"
@@ -19460,53 +19474,65 @@ function OrbitalPolymeter() {
                               );
                               return (
                                 <div className="space-y-2">
-                                  <div className="grid grid-cols-4 gap-2">
-                                    <StudyShellButton
-                                      size="compact"
-                                      tone="pink"
-                                      className={mobileRiffBarCompactButtonClass}
-                                      highlighted={activeBackbeatBeats.length === 0}
+                                  <div className="flex items-center gap-1 rounded-xl border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                                    <button
+                                      type="button"
+                                      className="h-8 rounded-lg px-2.5 text-[9px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      style={{
+                                        background: activeBackbeatBeats.length === 0 ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                                        border: `1px solid ${activeBackbeatBeats.length === 0 ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                                        color: activeBackbeatBeats.length === 0 ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                                        boxShadow: activeBackbeatBeats.length === 0 ? '0 0 16px rgba(255,136,194,0.16)' : 'none',
+                                      }}
                                       onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
                                     >
                                       Off
-                                    </StudyShellButton>
+                                    </button>
                                     {Array.from(
                                       { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
                                       (_, index) => index + 1,
                                     ).map((beat) => (
-                                      <StudyShellButton
+                                      <button
                                         key={beat}
-                                        size="compact"
-                                        tone="pink"
-                                        className={mobileRiffBarCompactButtonClass}
-                                        highlighted={
-                                          activeBackbeatBeats.includes(beat)
-                                        }
+                                        type="button"
+                                        className="h-8 min-w-0 flex-1 rounded-lg text-[10px] font-mono font-semibold transition"
+                                        style={{
+                                          background: activeBackbeatBeats.includes(beat) ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                                          border: `1px solid ${activeBackbeatBeats.includes(beat) ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                                          color: activeBackbeatBeats.includes(beat) ? '#FFD3E9' : 'rgba(255,255,255,0.5)',
+                                          boxShadow: activeBackbeatBeats.includes(beat) ? '0 0 16px rgba(255,136,194,0.16)' : 'none',
+                                        }}
                                         onClick={() => handleToggleRiffBackbeatBeat(beat)}
                                       >
                                         {beat}
-                                      </StudyShellButton>
+                                      </button>
                                     ))}
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <StudyShellButton
-                                      size="compact"
-                                      tone="pink"
-                                      className={mobileRiffBarCompactButtonClass}
-                                      highlighted={(riffEditableReference.backbeatBarInterval ?? 1) === 1}
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <button
+                                      type="button"
+                                      className="h-7 rounded-lg border text-[8.5px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      style={{
+                                        background: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
+                                        borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
+                                        color: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
+                                      }}
                                       onClick={() => handleSetRiffBackbeatBarInterval(1)}
                                     >
                                       Every Bar
-                                    </StudyShellButton>
-                                    <StudyShellButton
-                                      size="compact"
-                                      tone="pink"
-                                      className={mobileRiffBarCompactButtonClass}
-                                      highlighted={(riffEditableReference.backbeatBarInterval ?? 1) === 2}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="h-7 rounded-lg border text-[8.5px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                      style={{
+                                        background: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
+                                        borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
+                                        color: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
+                                      }}
                                       onClick={() => handleSetRiffBackbeatBarInterval(2)}
                                     >
                                       Every 2 Bars
-                                    </StudyShellButton>
+                                    </button>
                                   </div>
                                   {(riffEditableReference.backbeatBarInterval ?? 1) > 1 ? (
                                     <div className="rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
@@ -19516,20 +19542,6 @@ function OrbitalPolymeter() {
                                 </div>
                               );
                             })()}
-                          </div>
-                          <div>
-                            <BarCueSliderControl
-                              value={riffCycleStudy.barMarkerInterval}
-                              onChange={handleSetRiffBarMarkerInterval}
-                              labelClassName={mobileRiffMenuTitleClass}
-                              labelStyle={mobileRiffWhiteTitleStyle}
-                              compact
-                            />
-                            {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                              <div className="mt-1.5 rounded-xl border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                                {riffPatternBarMarkerCopy}
-                              </div>
-                            ) : null}
                           </div>
                         </div>
 
@@ -21781,6 +21793,20 @@ function OrbitalPolymeter() {
                     labelClassName="pt-0.5 text-[9px] font-mono font-semibold uppercase tracking-[0.18em]"
                     labelStyle={{ color: '#FFAA00', textShadow: '0 0 12px rgba(255,170,0,0.22)' }}
                   />
+                    <div>
+                      <BarCueSliderControl
+                        value={riffCycleStudy.barMarkerInterval}
+                        onChange={handleSetRiffBarMarkerInterval}
+                        labelClassName={riffQuickControlLabelClass}
+                        labelStyle={desktopMenuSubheaderStyle}
+                        compact
+                      />
+                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
+                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
+                          {riffPatternBarMarkerCopy}
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.025] px-2.5 py-2.5">
                       <InlineInfoLabel
                         infoId="riff_backbeat"
@@ -21796,54 +21822,78 @@ function OrbitalPolymeter() {
                         );
                         return (
                           <div className="space-y-2">
-                            <div className="grid grid-cols-4 gap-2">
-                              <StudyShellButton
-                                size="compact"
-                                tone="pink"
-                                className={desktopRiffBarCompactButtonClass}
-                                highlighted={!riffCycleStudy.reference.showBackbeat}
+                            <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                              <button
+                                type="button"
+                                className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                style={{
+                                  background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                                  border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                                  color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                                  boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                                }}
                                 onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
                               >
                                 Off
-                              </StudyShellButton>
+                              </button>
                               {Array.from(
                                 { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
                                 (_, index) => index + 1,
                               ).map((beat) => (
-                                <StudyShellButton
+                                <button
                                   key={beat}
-                                  size="compact"
-                                  tone="pink"
-                                  className={desktopRiffBarCompactButtonClass}
-                                  highlighted={
-                                    riffCycleStudy.reference.showBackbeat &&
-                                    activeBackbeatBeats.includes(beat)
-                                  }
+                                  type="button"
+                                  className="h-7 min-w-0 flex-1 rounded-md text-[9px] font-mono font-semibold transition"
+                                  style={{
+                                    background:
+                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                        ? 'rgba(255,136,194,0.18)'
+                                        : 'rgba(255,255,255,0.025)',
+                                    border: `1px solid ${
+                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                        ? 'rgba(255,136,194,0.42)'
+                                        : 'rgba(255,255,255,0.07)'
+                                    }`,
+                                    color:
+                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                        ? '#FFD3E9'
+                                        : 'rgba(255,255,255,0.5)',
+                                    boxShadow:
+                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                        ? '0 0 14px rgba(255,136,194,0.14)'
+                                        : 'none',
+                                  }}
                                   onClick={() => handleToggleRiffBackbeatBeat(beat)}
                                 >
                                   {beat}
-                                </StudyShellButton>
+                                </button>
                               ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <StudyShellButton
-                                size="compact"
-                                tone="pink"
-                                className={desktopRiffBarCompactButtonClass}
-                                highlighted={(riffEditableReference.backbeatBarInterval ?? 1) === 1}
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <button
+                                type="button"
+                                className="h-7 rounded-lg border text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                style={{
+                                  background: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
+                                  borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
+                                  color: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
+                                }}
                                 onClick={() => handleSetRiffBackbeatBarInterval(1)}
                               >
                                 Every Bar
-                              </StudyShellButton>
-                              <StudyShellButton
-                                size="compact"
-                                tone="pink"
-                                className={desktopRiffBarCompactButtonClass}
-                                highlighted={(riffEditableReference.backbeatBarInterval ?? 1) === 2}
+                              </button>
+                              <button
+                                type="button"
+                                className="h-7 rounded-lg border text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                                style={{
+                                  background: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
+                                  borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
+                                  color: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
+                                }}
                                 onClick={() => handleSetRiffBackbeatBarInterval(2)}
                               >
                                 Every 2 Bars
-                              </StudyShellButton>
+                              </button>
                             </div>
                             {(riffEditableReference.backbeatBarInterval ?? 1) > 1 ? (
                               <div className="rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
@@ -21853,20 +21903,6 @@ function OrbitalPolymeter() {
                           </div>
                         );
                       })()}
-                    </div>
-                    <div>
-                      <BarCueSliderControl
-                        value={riffCycleStudy.barMarkerInterval}
-                        onChange={handleSetRiffBarMarkerInterval}
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                        compact
-                      />
-                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                        <div className="mt-1.5 rounded-lg border border-[#FF88C2]/16 bg-[#FF88C2]/[0.055] px-2.5 py-1.5 text-[9px] leading-relaxed text-[#FFD3E9]">
-                          {riffPatternBarMarkerCopy}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -23696,35 +23732,62 @@ function OrbitalPolymeter() {
                         compact
                       />
                       <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                        <BarCueSliderControl
+                          value={riffCycleStudy.barMarkerInterval}
+                          onChange={handleSetRiffBarMarkerInterval}
+                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+                          labelStyle={desktopMenuSubheaderStyle}
+                          compact
+                        />
+                      </StudyShellPanel>
+                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
                         <InlineInfoLabel
                           infoId="riff_backbeat"
                           label="Backbeat"
                           labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                           labelStyle={desktopMenuSubheaderStyle}
                         />
-                        <div className="grid grid-cols-4 gap-1.5">
-                          <StudyShellButton
-                            size="compact"
-                            tone="pink"
-                            className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                            highlighted={!riffCycleStudy.reference.showBackbeat}
+                        <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/14 bg-[#FF88C2]/[0.045] p-1">
+                          <button
+                            type="button"
+                            className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.12em] transition"
+                            style={{
+                              background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                              border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                              color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                              boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                            }}
                             onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
                           >
                             Off
-                          </StudyShellButton>
+                          </button>
                           {Array.from(
                             { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
                             (_, index) => index + 1,
                           ).map((beat) => (
-                            <StudyShellButton
+                            <button
                               key={beat}
-                              size="compact"
-                              tone="pink"
-                              className="!h-8 rounded-lg px-1.5 text-[8.5px]"
-                              highlighted={
-                                riffCycleStudy.reference.showBackbeat &&
-                                riffEditableReference.backbeatBeat === beat
-                              }
+                              type="button"
+                              className="h-7 min-w-0 flex-1 rounded-md text-[9px] font-mono font-semibold transition"
+                              style={{
+                                background:
+                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                    ? 'rgba(255,136,194,0.18)'
+                                    : 'rgba(255,255,255,0.025)',
+                                border: `1px solid ${
+                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                    ? 'rgba(255,136,194,0.42)'
+                                    : 'rgba(255,255,255,0.07)'
+                                }`,
+                                color:
+                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                    ? '#FFD3E9'
+                                    : 'rgba(255,255,255,0.5)',
+                                boxShadow:
+                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                    ? '0 0 14px rgba(255,136,194,0.14)'
+                                    : 'none',
+                              }}
                               onClick={() =>
                                 handleUpdateRiffReference({
                                   showBackbeat: true,
@@ -23733,18 +23796,9 @@ function OrbitalPolymeter() {
                               }
                             >
                               {beat}
-                            </StudyShellButton>
+                            </button>
                           ))}
                         </div>
-                      </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
-                        <BarCueSliderControl
-                          value={riffCycleStudy.barMarkerInterval}
-                          onChange={handleSetRiffBarMarkerInterval}
-                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                          labelStyle={desktopMenuSubheaderStyle}
-                          compact
-                        />
                       </StudyShellPanel>
                     </div>
                   </>
