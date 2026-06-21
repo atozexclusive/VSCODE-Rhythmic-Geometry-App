@@ -2285,6 +2285,124 @@ function getBarsControlLabel(prefix: string, bars: number): string {
   return `${prefix}: ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}`;
 }
 
+function RiffBarStopSlider({
+  value,
+  onChange,
+  accentColor,
+  ariaLabel,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  accentColor: string;
+  ariaLabel: string;
+}) {
+  const sliderRef = useRef<HTMLDivElement | null>(null);
+  const activeIndex = getRiffBarSliderStopIndex(value);
+  const activePercent = (activeIndex / Math.max(1, RIFF_BAR_SLIDER_STOPS.length - 1)) * 100;
+
+  const applyClientX = useCallback(
+    (clientX: number) => {
+      const slider = sliderRef.current;
+      if (!slider) {
+        return;
+      }
+      const bounds = slider.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - bounds.left) / Math.max(1, bounds.width)));
+      const nextIndex = Math.max(
+        0,
+        Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, Math.round(ratio * (RIFF_BAR_SLIDER_STOPS.length - 1))),
+      );
+      onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
+    },
+    [onChange],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      applyClientX(event.clientX);
+    },
+    [applyClientX],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+        return;
+      }
+      event.preventDefault();
+      applyClientX(event.clientX);
+    },
+    [applyClientX],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+        return;
+      }
+      event.preventDefault();
+      const delta = event.key === 'ArrowRight' ? 1 : -1;
+      const nextIndex = Math.max(0, Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, activeIndex + delta));
+      onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
+    },
+    [activeIndex, onChange],
+  );
+
+  return (
+    <div className="space-y-1.5">
+      <div
+        ref={sliderRef}
+        role="slider"
+        tabIndex={0}
+        aria-label={ariaLabel}
+        aria-valuemin={0}
+        aria-valuemax={RIFF_BAR_SLIDER_STOPS.length - 1}
+        aria-valuenow={activeIndex}
+        aria-valuetext={value <= 0 ? 'Off' : `${value} bars`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onKeyDown={handleKeyDown}
+        className="relative h-9 cursor-pointer touch-none select-none rounded-full"
+      >
+        <div className="absolute left-0 right-0 top-1/2 h-[0.28rem] -translate-y-1/2 rounded-full bg-white/12" />
+        <div
+          className="absolute left-0 top-1/2 h-[0.28rem] -translate-y-1/2 rounded-full"
+          style={{ width: `${activePercent}%`, background: `${accentColor}88` }}
+        />
+        {RIFF_BAR_SLIDER_STOPS.map((stop, index) => (
+          <span
+            key={stop}
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+            style={{
+              left: `${(index / Math.max(1, RIFF_BAR_SLIDER_STOPS.length - 1)) * 100}%`,
+              background: index <= activeIndex ? accentColor : 'rgba(255,255,255,0.18)',
+              borderColor: index <= activeIndex ? `${accentColor}aa` : 'rgba(255,255,255,0.18)',
+              boxShadow: index === activeIndex ? `0 0 0 5px ${accentColor}24, 0 0 14px ${accentColor}66` : 'none',
+            }}
+          />
+        ))}
+        <span
+          className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#101014]"
+          style={{
+            left: `${activePercent}%`,
+            background: accentColor,
+            boxShadow: `0 0 0 6px ${accentColor}22, 0 0 18px ${accentColor}66`,
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
+        <span>Off</span>
+        <span className="text-center">2</span>
+        <span className="text-center">4</span>
+        <span className="text-center">8</span>
+        <span className="text-right">16</span>
+      </div>
+    </div>
+  );
+}
+
 function getRiffRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
   const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
   if (bars <= 0) {
@@ -3329,7 +3447,6 @@ function RiffRestartSliderControl({
   onBeforeChange?: () => void;
 }) {
   const restartBars = getRiffRestartBarValue(study.riff);
-  const sliderValue = getRiffBarSliderStopIndex(restartBars);
   const naturalCopy = getNaturalRiffResolutionCopy(study);
   const applyRestartBars = (value: number) => {
     onBeforeChange?.();
@@ -3354,38 +3471,13 @@ function RiffRestartSliderControl({
         />
       </div>
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <input
-            type="range"
-            min={0}
-            max={RIFF_BAR_SLIDER_STOPS.length - 1}
-            step={1}
-            value={sliderValue}
-            onChange={(event) => {
-              const stopIndex = Number.parseInt(event.target.value, 10) || 0;
-              applyRestartBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
-            }}
-            className="touch-slider rg-compact-slider min-w-0"
-            style={{ accentColor, '--slider-accent': accentColor } as CSSProperties}
-            aria-label={`${label} slider`}
+        <div className="min-w-0 flex-1">
+          <RiffBarStopSlider
+            value={restartBars}
+            onChange={applyRestartBars}
+            accentColor={accentColor}
+            ariaLabel={`${label} slider`}
           />
-          <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-            <span>Off</span>
-            <span className="text-center">2</span>
-            <span className="text-center">4</span>
-            <span className="text-center">8</span>
-            <span className="text-right">16</span>
-          </div>
-          <div
-            className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
-            style={{
-              background: `${accentColor}0f`,
-              borderColor: `${accentColor}24`,
-              color: accentColor,
-            }}
-          >
-            {getBarsControlLabel('Restart', restartBars)}
-          </div>
         </div>
         <div
           className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border bg-white/[0.045]"
@@ -3462,7 +3554,6 @@ function BarCueSliderControl({
   compact?: boolean;
 }) {
   const cueBars = getBarCueBarValue(value);
-  const sliderValue = getRiffBarSliderStopIndex(cueBars);
   const applyCueBars = (nextValue: number) => onChange(getBarCueValueForBars(nextValue));
 
   return (
@@ -3484,27 +3575,12 @@ function BarCueSliderControl({
       </div>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1 space-y-1.5">
-          <input
-            type="range"
-            min={0}
-            max={RIFF_BAR_SLIDER_STOPS.length - 1}
-            step={1}
-            value={sliderValue}
-            onChange={(event) => {
-              const stopIndex = Number.parseInt(event.target.value, 10) || 0;
-              applyCueBars(RIFF_BAR_SLIDER_STOPS[stopIndex] ?? 0);
-            }}
-            className="touch-slider rg-compact-slider min-w-0"
-            style={{ accentColor, '--slider-accent': accentColor } as CSSProperties}
-            aria-label={`${label} slider`}
+          <RiffBarStopSlider
+            value={cueBars}
+            onChange={applyCueBars}
+            accentColor={accentColor}
+            ariaLabel={`${label} slider`}
           />
-          <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-            <span>Off</span>
-            <span className="text-center">2</span>
-            <span className="text-center">4</span>
-            <span className="text-center">8</span>
-            <span className="text-right">16</span>
-          </div>
           <div
             className="rounded-lg border px-2.5 py-1.5 text-center text-[9px] font-mono uppercase tracking-[0.12em]"
             style={{

@@ -65,13 +65,6 @@ function getBarSliderStopIndex(value: number): number {
   return closestIndex;
 }
 
-function getRestartControlLabel(bars: number): string {
-  if (bars <= 0) {
-    return 'Restart: off';
-  }
-  return `Restart: ${bars.toLocaleString()} bar${bars === 1 ? '' : 's'}`;
-}
-
 function getRestartUpdatesForBars(value: number): Partial<RiffPhrase> {
   const bars = Math.max(0, Math.min(RIFF_MAX_RESET_BARS, Math.round(value)));
   if (bars <= 0) {
@@ -1304,9 +1297,6 @@ export default function RiffCycleSidebar({
                   <span className="text-center">4</span>
                   <span className="text-center">8</span>
                   <span className="text-right">16</span>
-                </div>
-                <div className="rounded-xl border border-[#FFD166]/18 bg-[#FFD166]/[0.06] px-3 py-2 text-center text-[9px] font-mono uppercase tracking-[0.12em] text-[#FFD166]">
-                  {getRestartControlLabel(restartBars)}
                 </div>
               </div>
               <div className="flex h-8 w-[5.6rem] items-center overflow-hidden rounded-lg border border-[#FFD166]/24 bg-white/[0.045]">
