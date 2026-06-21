@@ -19736,7 +19736,18 @@ function OrbitalPolymeter() {
                               labelClassName={mobileRiffMenuTitleClass}
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="blue"
+                                  highlighted={Boolean(riffCycleStudy.showStepLabels)}
+                                  onClick={handleToggleRiffStepLabels}
+                                  icon={<span className="text-[10px] leading-none">#</span>}
+                                  className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                >
+                                  Numbers
+                                </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
@@ -19745,7 +19756,7 @@ function OrbitalPolymeter() {
                                 onLockedClick={() => openProPrompt('riff-subdivisions')}
                                 onClick={handleToggleRiffPulseLayer}
                                 icon={<Grid3X3 size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1.5 px-2 text-[8px] tracking-[0.07em]"
+                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                               >
                                 Subdivisions
                               </StudyShellButton>
@@ -19755,10 +19766,12 @@ function OrbitalPolymeter() {
                                 highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
                                 onClick={handleToggleRiffPhraseBounds}
                                 icon={<CircleDot size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1.5 px-2 text-[8px] tracking-[0.07em]"
+                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                               >
-                                Groupings
+                                Grouping
                               </StudyShellButton>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
                               <StudyShellButton
                                 size="compact"
                                 tone="green"
@@ -19779,6 +19792,7 @@ function OrbitalPolymeter() {
                               >
                                 Contour
                               </StudyShellButton>
+                              </div>
                             </div>
                           </div>
                         </div>
