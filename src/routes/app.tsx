@@ -129,6 +129,7 @@ import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
   RIFF_MAX_RESET_BARS,
   RIFF_MAX_SEQUENCE_REPEATS,
+  RIFF_MAX_METER_NUMERATOR,
   RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
@@ -265,8 +266,12 @@ function normalizeRiffBackbeatBeats(
   numerator: number,
   fallbackBeat: number | null | undefined,
 ): number[] {
-  const normalizedNumerator = Math.max(2, Math.min(32, Math.round(numerator || 0)));
-  const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
+  const normalizedNumerator = Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, Math.round(numerator || 0)));
+  const source = Array.isArray(beats)
+    ? beats
+    : fallbackBeat != null
+      ? [fallbackBeat]
+      : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
       source.map((beat) => Math.max(1, Math.min(normalizedNumerator, Math.round(beat || 0)))),
@@ -8241,7 +8246,7 @@ function OrbitalPolymeter() {
       const nextNumerator =
         updates.numerator == null
           ? targetReference.numerator
-          : Math.max(2, Math.min(32, Math.round(updates.numerator)));
+          : Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, Math.round(updates.numerator)));
       if (
         updates.numerator != null &&
         !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
@@ -8628,7 +8633,7 @@ function OrbitalPolymeter() {
         if (!followTargetMeter) {
           return next;
         }
-        const targetNumerator = Math.max(2, Math.min(32, targetStepCount));
+        const targetNumerator = Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, targetStepCount));
         const nextBackbeatBeat = Math.min(next.reference.backbeatBeat ?? 1, targetNumerator);
         return {
           ...next,
@@ -19361,12 +19366,12 @@ function OrbitalPolymeter() {
                                 className={mobileRiffBarSquareButtonClass}
                                 locked={
                                   riffAdvancedTimingLocked &&
-                                  !canUseFreeRiffMeter(Math.min(32, riffEditableReference.numerator + 1))
+                                  !canUseFreeRiffMeter(Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1))
                                 }
                                 onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                    numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                                   })
                                 }
                               >
@@ -20888,7 +20893,7 @@ function OrbitalPolymeter() {
                                 size="square"
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                    numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                                   })
                                 }
                               >
@@ -21712,7 +21717,7 @@ function OrbitalPolymeter() {
                           className={desktopRiffBarSquareButtonClass}
                           onClick={() =>
                             handleUpdateRiffReference({
-                              numerator: Math.min(32, riffEditableReference.numerator + 1),
+                              numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                             })
                           }
                           aria-label="Increase bar numerator"
@@ -23675,7 +23680,7 @@ function OrbitalPolymeter() {
                             className="!h-8 !w-8 rounded-lg"
                             onClick={() =>
                               handleUpdateRiffReference({
-                                numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                               })
                             }
                           >

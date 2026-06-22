@@ -4,6 +4,7 @@ const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
 export const RIFF_REFERENCE_TEMPO_MAX_BPM = 320;
 export const RIFF_MAX_STEP_COUNT = 96;
+export const RIFF_MAX_METER_NUMERATOR = 52;
 export const RIFF_MAX_RESET_BARS = 256;
 
 export type RiffCycleSubdivision = 8 | 12 | 16 | 20 | 32;
@@ -268,8 +269,12 @@ function normalizeBackbeatBeats(
   numerator: number,
   fallbackBeat: number | null | undefined,
 ): number[] {
-  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, 32);
-  const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
+  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, RIFF_MAX_METER_NUMERATOR);
+  const source = Array.isArray(beats)
+    ? beats
+    : fallbackBeat != null
+      ? [fallbackBeat]
+      : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
       source
@@ -450,7 +455,7 @@ export function createRiffSequenceCell(
   const mask = buildCellMaskFromGroups(normalizedGroups);
   const activeSteps = normalizeCellActiveSteps(overrides.activeSteps ?? mask.activeSteps, mask.stepCount);
   const accents = normalizeCellAccents(overrides.accents ?? mask.accents, mask.stepCount);
-  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 32);
+  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, RIFF_MAX_METER_NUMERATOR);
   const backbeatBeats = normalizeBackbeatBeats(
     overrides.backbeatBeats,
     numerator,
@@ -484,7 +489,7 @@ function createRiffSequenceCellFromState(
 ): RiffSequenceCell {
   const normalizedStepCount = normalizeCellStepCount(stepCount);
   const normalizedActiveSteps = normalizeCellActiveSteps(activeSteps, normalizedStepCount);
-  const numerator = clamp(Math.round(timing?.numerator ?? 4), 2, 32);
+  const numerator = clamp(Math.round(timing?.numerator ?? 4), 2, RIFF_MAX_METER_NUMERATOR);
   const backbeatBeats = normalizeBackbeatBeats(
     timing?.backbeatBeats,
     numerator,
@@ -813,7 +818,7 @@ export function createEvenMask(stepCount: number, activeCount: number, offset = 
 export function createReferenceMeter(
   overrides: Partial<ReferenceMeter> = {},
 ): ReferenceMeter {
-  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, 32);
+  const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, RIFF_MAX_METER_NUMERATOR);
   const backbeatBeats = normalizeBackbeatBeats(
     overrides.backbeatBeats,
     numerator,
@@ -1693,7 +1698,7 @@ export function updateRiffSequenceCellReference(
     const nextNumerator =
       updates.numerator == null
         ? cell.numerator
-        : clamp(Math.round(updates.numerator || 0), 2, 32);
+        : clamp(Math.round(updates.numerator || 0), 2, RIFF_MAX_METER_NUMERATOR);
     const nextBackbeatBeats = normalizeBackbeatBeats(
       updates.backbeatBeats ?? (updates.backbeatBeat != null ? [updates.backbeatBeat] : cell.backbeatBeats),
       nextNumerator,
