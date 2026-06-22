@@ -2827,12 +2827,14 @@ function CanvasDisplayControls({
   compact = false,
   showInnerClockControls = false,
   showCellStripControl = false,
+  showMeterNumberControl = false,
 }: {
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
   compact?: boolean;
   showInnerClockControls?: boolean;
   showCellStripControl?: boolean;
+  showMeterNumberControl?: boolean;
 }) {
   const activeTheme = getCanvasDisplayTheme(settings.theme);
   const canvasSubheaderClass =
@@ -3264,26 +3266,50 @@ function CanvasDisplayControls({
             </StudyShellButton>
           </div>
         ) : null}
-        {showCellStripControl ? (
+        {showMeterNumberControl || showCellStripControl ? (
           <>
             <div className="h-px bg-white/6" />
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
-                  Cell Strip
+            <div className="space-y-2">
+              {showMeterNumberControl ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                      Meter Numbers
+                    </div>
+                    <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                      Hide outer meter labels
+                    </div>
+                  </div>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={settings.showMeterNumbers !== false}
+                    onClick={() => onChange({ showMeterNumbers: settings.showMeterNumbers === false })}
+                  >
+                    {settings.showMeterNumbers === false ? 'Hidden' : 'Shown'}
+                  </StudyShellButton>
                 </div>
-                <div className="mt-0.5 text-[8px] leading-snug text-white/32">
-                  Canvas and export overlay
+              ) : null}
+              {showCellStripControl ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                      Cell Strip
+                    </div>
+                    <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                      Canvas and export overlay
+                    </div>
+                  </div>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={settings.showCellStrip !== false}
+                    onClick={() => onChange({ showCellStrip: settings.showCellStrip === false })}
+                  >
+                    {settings.showCellStrip === false ? 'Hidden' : 'Shown'}
+                  </StudyShellButton>
                 </div>
-              </div>
-              <StudyShellButton
-                size="compact"
-                tone="blue"
-                highlighted={settings.showCellStrip !== false}
-                onClick={() => onChange({ showCellStrip: settings.showCellStrip === false })}
-              >
-                {settings.showCellStrip === false ? 'Hidden' : 'Shown'}
-              </StudyShellButton>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -20726,6 +20752,7 @@ function OrbitalPolymeter() {
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showMeterNumberControl
                       compact
                     />
                   </div>
@@ -23043,6 +23070,7 @@ function OrbitalPolymeter() {
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showMeterNumberControl
                       compact
                     />
                   </div>

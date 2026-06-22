@@ -653,8 +653,9 @@ export default function RiffCycleCanvas({
           ] ?? manualSubdivisionGuideMode
         : manualSubdivisionGuideMode;
     const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
+    const denseReferenceMeter = renderStudy.reference.numerator > 32;
     const meterSubdivisionMarksVisible =
-      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled;
+      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled && !denseReferenceMeter;
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
     const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
@@ -954,6 +955,12 @@ export default function RiffCycleCanvas({
       ctx.restore();
 
       metrics.referenceVertices.forEach((vertex, index) => {
+        const meterCount = metrics.referenceVertices.length;
+        const labelDensityFade = Math.max(0, Math.min(1, (meterCount - 12) / 40));
+        const labelAlpha = currentDisplaySettings.showMeterNumbers === false
+          ? 0
+          : Math.max(0.32, 0.7 - labelDensityFade * 0.22);
+        const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
         const backbeatBeats =
           renderStudy.reference.backbeatBeats?.length
             ? renderStudy.reference.backbeatBeats
@@ -1012,18 +1019,25 @@ export default function RiffCycleCanvas({
           ctx.restore();
         }
 
-        ctx.save();
-        ctx.fillStyle =
-          isBackbeatVertex
-            ? 'rgba(255,136,194,0.92)'
-            : index === 0
-              ? 'rgba(255,255,255,0.82)'
-              : 'rgba(255,255,255,0.66)';
-        ctx.font = `${11 * shellScale * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${index + 1}`, vertex.x, vertex.y - 19 * shellScale * exportLabelScale);
-        ctx.restore();
+        if (labelAlpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = labelAlpha;
+          ctx.font = `${Math.max(7.2, 11 * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const labelY = vertex.y - (17 + Math.max(0, 1 - labelScale) * 7) * shellScale * exportLabelScale;
+          ctx.lineWidth = 2.4 * shellScale;
+          ctx.strokeStyle = 'rgba(5,6,10,0.74)';
+          ctx.strokeText(`${index + 1}`, vertex.x, labelY);
+          ctx.fillStyle =
+            isBackbeatVertex
+              ? 'rgba(255,136,194,0.92)'
+              : index === 0
+                ? 'rgba(255,255,255,0.86)'
+                : 'rgba(255,255,255,0.7)';
+          ctx.fillText(`${index + 1}`, vertex.x, labelY);
+          ctx.restore();
+        }
       });
 
       if (meterSubdivisionMarksVisible) {
@@ -1078,6 +1092,9 @@ export default function RiffCycleCanvas({
         const isDownbeat = renderStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(renderStudy, index);
         const isBackbeat = isBackbeatStep(renderStudy, index);
+        if (denseReferenceMeter && !isBeat && !isDownbeat && !isBackbeat) {
+          return;
+        }
         if (currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
