@@ -120,6 +120,8 @@ export function getRiffCycleCanvasMetrics(
   const circleCenterX = width / 2;
   const laneHeight = isMobile ? 32 : 30;
   const totalDisplaySteps = getDisplayStepCount(study);
+  const referenceSideCount = Math.max(2, study.reference.numerator);
+  const triangleReferenceFrame = referenceSideCount === 3;
   const visibleStepCount = showingTimeline
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
@@ -144,10 +146,19 @@ export function getRiffCycleCanvasMetrics(
   if (showingTimeline) {
     const timelineY = height - bottomPadding - timelineHeight;
     const availableTopHeight = Math.max(1, timelineY - topPadding - verticalGap);
+    const triangleWidthLimit = triangleReferenceFrame
+      ? safeWidth / Math.sqrt(3) - (isMobile ? 5 : 8)
+      : Number.POSITIVE_INFINITY;
+    const triangleHeightLimit = triangleReferenceFrame
+      ? availableTopHeight / 1.5 - (isMobile ? 8 : 10)
+      : Number.POSITIVE_INFINITY;
 
     outerRadius = Math.max(
       isMobile ? 96 : 84,
-      Math.min(safeWidth / 2 - (isMobile ? 6 : 10), availableTopHeight / 2 - (isMobile ? 8 : 8)),
+      Math.min(
+        triangleReferenceFrame ? triangleWidthLimit : safeWidth / 2 - (isMobile ? 6 : 10),
+        triangleReferenceFrame ? triangleHeightLimit : availableTopHeight / 2 - (isMobile ? 8 : 8),
+      ),
     );
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
@@ -170,9 +181,18 @@ export function getRiffCycleCanvasMetrics(
     };
   } else {
     const safeHeight = Math.max(1, height - topPadding - bottomPadding);
+    const triangleWidthLimit = triangleReferenceFrame
+      ? safeWidth / Math.sqrt(3) - (isMobile ? 5 : 8)
+      : Number.POSITIVE_INFINITY;
+    const triangleHeightLimit = triangleReferenceFrame
+      ? safeHeight / 1.5 - (isMobile ? 8 : 10)
+      : Number.POSITIVE_INFINITY;
     outerRadius = Math.max(
       isMobile ? 96 : 84,
-      Math.min(safeWidth / 2 - (isMobile ? 6 : 10), safeHeight / 2 - (isMobile ? 4 : 8)),
+      Math.min(
+        triangleReferenceFrame ? triangleWidthLimit : safeWidth / 2 - (isMobile ? 6 : 10),
+        triangleReferenceFrame ? triangleHeightLimit : safeHeight / 2 - (isMobile ? 4 : 8),
+      ),
     );
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
@@ -181,9 +201,8 @@ export function getRiffCycleCanvasMetrics(
   }
 
   const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
-  const referenceSideCount = Math.max(2, study.reference.numerator);
   const referenceInradius = outerRadius * Math.cos(Math.PI / referenceSideCount);
-  const containmentPadding = isMobile ? 4 : 6;
+  const containmentPadding = triangleReferenceFrame ? (isMobile ? 14 : 18) : isMobile ? 4 : 6;
   const innerRadius = Math.min(
     defaultInnerRadius,
     Math.max(32, referenceInradius - containmentPadding),
