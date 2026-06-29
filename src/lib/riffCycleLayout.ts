@@ -147,10 +147,10 @@ export function getRiffCycleCanvasMetrics(
     const timelineY = height - bottomPadding - timelineHeight;
     const availableTopHeight = Math.max(1, timelineY - topPadding - verticalGap);
     const triangleWidthLimit = triangleReferenceFrame
-      ? safeWidth / Math.sqrt(3) - (isMobile ? 5 : 8)
+      ? (safeWidth - (isMobile ? 22 : 28)) / Math.sqrt(3)
       : Number.POSITIVE_INFINITY;
     const triangleHeightLimit = triangleReferenceFrame
-      ? availableTopHeight / 1.5 - (isMobile ? 8 : 10)
+      ? (availableTopHeight - (isMobile ? 30 : 36)) / 1.5
       : Number.POSITIVE_INFINITY;
 
     outerRadius = Math.max(
@@ -163,7 +163,9 @@ export function getRiffCycleCanvasMetrics(
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
-    circleCenterY = topPadding + availableTopHeight / 2;
+    circleCenterY = triangleReferenceFrame
+      ? topPadding + Math.max(0, availableTopHeight - outerRadius * 1.5) / 2 + outerRadius
+      : topPadding + availableTopHeight / 2;
     topLaneY = timelineY + (isMobile ? 10 : 16);
     bottomLaneY = topLaneY + laneHeight + (isMobile ? 14 : 20);
 
@@ -182,10 +184,10 @@ export function getRiffCycleCanvasMetrics(
   } else {
     const safeHeight = Math.max(1, height - topPadding - bottomPadding);
     const triangleWidthLimit = triangleReferenceFrame
-      ? safeWidth / Math.sqrt(3) - (isMobile ? 5 : 8)
+      ? (safeWidth - (isMobile ? 22 : 28)) / Math.sqrt(3)
       : Number.POSITIVE_INFINITY;
     const triangleHeightLimit = triangleReferenceFrame
-      ? safeHeight / 1.5 - (isMobile ? 8 : 10)
+      ? (safeHeight - (isMobile ? 30 : 36)) / 1.5
       : Number.POSITIVE_INFINITY;
     outerRadius = Math.max(
       isMobile ? 96 : 84,
@@ -197,7 +199,9 @@ export function getRiffCycleCanvasMetrics(
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
-    circleCenterY = topPadding + safeHeight / 2;
+    circleCenterY = triangleReferenceFrame
+      ? topPadding + Math.max(0, safeHeight - outerRadius * 1.5) / 2 + outerRadius
+      : topPadding + safeHeight / 2;
   }
 
   const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
