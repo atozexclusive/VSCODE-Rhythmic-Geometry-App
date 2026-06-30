@@ -3886,7 +3886,6 @@ function RiffCellSequenceEditor({
   onSetSequenceEntryRepeats,
   onSetSequenceEntryDurationMode,
   onSetCellColor,
-  onSetCellBackbeatOverride,
   onRandomizeCells,
   colorEditingLocked = false,
   onLockedColorClick,
@@ -3909,7 +3908,6 @@ function RiffCellSequenceEditor({
   onSetSequenceEntryRepeats: (sequenceIndex: number, repeats: number) => void;
   onSetSequenceEntryDurationMode: (sequenceIndex: number, mode: RiffSequenceEntryDurationMode) => void;
   onSetCellColor: (label: RiffSequenceCellLabel, color: string) => void;
-  onSetCellBackbeatOverride: (label: RiffSequenceCellLabel, beats: number[] | null) => void;
   onRandomizeCells: () => void;
   colorEditingLocked?: boolean;
   onLockedColorClick?: () => void;
@@ -3964,17 +3962,6 @@ function RiffCellSequenceEditor({
   const canAddCell = cells.length < RIFF_SEQUENCE_CELL_LABELS.length;
   const getCellVisualColor = (label: RiffSequenceCellLabel): string =>
     cells.find((cell) => cell.label === label)?.color ?? study.riff.color;
-  const selectedBackbeatOverride = selectedCell?.backbeatOverrideBeats ?? null;
-  const globalBackbeatBeats = study.reference.showBackbeat
-    ? normalizeRiffBackbeatBeats(
-        study.reference.backbeatBeats,
-        study.reference.numerator,
-        study.reference.backbeatBeat,
-      )
-    : [];
-  const backbeatOptions = [1, 2, 3, 4].filter((beat) => beat <= study.reference.numerator);
-  const isBackbeatOptionActive = (beats: number[] | null, beat: number): boolean =>
-    beats != null && beats.length === 1 && beats[0] === beat;
 
   return (
     <div
@@ -4138,76 +4125,6 @@ function RiffCellSequenceEditor({
               </div>
             </div>
           </div>
-
-          {selectedCell ? (
-            <div
-              className="rounded-lg border px-2 py-1.5"
-              style={{
-                background: 'rgba(255,136,194,0.045)',
-                borderColor: selectedBackbeatOverride == null ? 'rgba(255,255,255,0.09)' : 'rgba(255,136,194,0.2)',
-              }}
-            >
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <InlineInfoLabel
-                  infoId="riff_backbeat"
-                  label="Cell Backbeat"
-                  labelClassName="text-[8px] font-mono uppercase tracking-[0.14em]"
-                  labelStyle={{ color: selectedBackbeatOverride == null ? 'rgba(255,255,255,0.42)' : '#FFD3E9' }}
-                />
-                <span className="truncate text-right text-[7px] font-mono uppercase tracking-[0.1em] text-white/32">
-                  {selectedBackbeatOverride == null
-                    ? `Global ${globalBackbeatBeats.length ? globalBackbeatBeats.join('+') : 'Off'}`
-                    : selectedBackbeatOverride.length
-                      ? `Cell ${selectedBackbeatOverride.join('+')}`
-                      : 'Cell Off'}
-                </span>
-              </div>
-              <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${2 + backbeatOptions.length}, minmax(0, 1fr))` }}>
-                <button
-                  type="button"
-                  onClick={() => onSetCellBackbeatOverride(selectedCell.label, null)}
-                  className="h-7 rounded-md border text-[7px] font-mono uppercase tracking-[0.1em] transition active:scale-[0.97]"
-                  style={{
-                    background: selectedBackbeatOverride == null ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.025)',
-                    borderColor: selectedBackbeatOverride == null ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
-                    color: selectedBackbeatOverride == null ? 'rgba(255,255,255,0.78)' : 'rgba(255,255,255,0.38)',
-                  }}
-                >
-                  Global
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSetCellBackbeatOverride(selectedCell.label, [])}
-                  className="h-7 rounded-md border text-[7px] font-mono uppercase tracking-[0.1em] transition active:scale-[0.97]"
-                  style={{
-                    background: selectedBackbeatOverride?.length === 0 ? 'rgba(255,136,194,0.13)' : 'rgba(255,255,255,0.025)',
-                    borderColor: selectedBackbeatOverride?.length === 0 ? 'rgba(255,136,194,0.28)' : 'rgba(255,255,255,0.08)',
-                    color: selectedBackbeatOverride?.length === 0 ? '#FFD3E9' : 'rgba(255,255,255,0.38)',
-                  }}
-                >
-                  Off
-                </button>
-                {backbeatOptions.map((beat) => {
-                  const active = isBackbeatOptionActive(selectedBackbeatOverride, beat);
-                  return (
-                    <button
-                      key={`cell-backbeat-${selectedCell.label}-${beat}`}
-                      type="button"
-                      onClick={() => onSetCellBackbeatOverride(selectedCell.label, [beat])}
-                      className="h-7 rounded-md border text-[8px] font-mono uppercase tracking-[0.08em] transition active:scale-[0.97]"
-                      style={{
-                        background: active ? 'rgba(255,136,194,0.15)' : 'rgba(255,255,255,0.025)',
-                        borderColor: active ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
-                        color: active ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
-                      }}
-                    >
-                      {beat}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
 
           <div className="space-y-1.5 rounded-lg border border-white/10 bg-black/[0.12] px-2 py-2">
             <div className="flex items-center justify-between gap-3">
@@ -8448,6 +8365,17 @@ function OrbitalPolymeter() {
       return;
     }
     setRiffCycleStudy((current) => {
+      if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
+        const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
+        if (cell) {
+          const currentOverride = cell.backbeatOverrideBeats;
+          const nextBeats =
+            currentOverride != null && currentOverride.length === 1 && currentOverride[0] === beat
+              ? []
+              : [beat];
+          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextBeats);
+        }
+      }
       const sourceNumerator = current.reference.numerator;
       const sourceBackbeatBeat = current.reference.backbeatBeat;
       const currentBeats = normalizeRiffBackbeatBeats(
@@ -8473,31 +8401,30 @@ function OrbitalPolymeter() {
         },
       };
     });
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
 
-  const handleSetRiffBackbeatBeats = useCallback((beats: number[]) => {
+  const handleSetRiffBackbeatOff = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
     setRiffCycleStudy((current) => {
-      const sourceNumerator = current.reference.numerator;
-      const sourceBackbeatBeat = current.reference.backbeatBeat;
-      const normalizedBeats = normalizeRiffBackbeatBeats(
-        beats,
-        sourceNumerator,
-        sourceBackbeatBeat,
-      );
+      if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
+        const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
+        if (cell) {
+          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, []);
+        }
+      }
       return {
         ...current,
         reference: {
           ...current.reference,
-          showBackbeat: normalizedBeats.length > 0,
-          backbeatBeat: normalizedBeats[0] ?? null,
-          backbeatBeats: normalizedBeats,
+          showBackbeat: false,
+          backbeatBeat: null,
+          backbeatBeats: [],
         },
       };
     });
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
 
   const handleSetRiffBackbeatBarInterval = useCallback((interval: RiffBackbeatBarInterval) => {
     handleUpdateRiffReference({ backbeatBarInterval: interval });
@@ -8568,16 +8495,6 @@ function OrbitalPolymeter() {
         return;
       }
       setRiffCycleStudy((current) => updateRiffSequenceCellColor(current, label, color));
-    },
-    [requireEditableRiffCycleStudy],
-  );
-
-  const handleSetRiffSequenceCellBackbeatOverride = useCallback(
-    (label: RiffSequenceCellLabel, beats: number[] | null) => {
-      if (!requireEditableRiffCycleStudy()) {
-        return;
-      }
-      setRiffCycleStudy((current) => updateRiffSequenceCellBackbeatOverride(current, label, beats));
     },
     [requireEditableRiffCycleStudy],
   );
@@ -13127,6 +13044,25 @@ function OrbitalPolymeter() {
   const riffEditableLabel = riffSelectedSequenceCell
     ? `Cell ${riffSelectedSequenceCell.label}`
     : 'Riff';
+  const riffCellBackbeatEditingActive = Boolean(
+    RIFF_CELL_SEQUENCE_FEATURE_ENABLED &&
+    riffCycleStudy.riffSequenceEnabled &&
+    riffSelectedSequenceCell,
+  );
+  const riffGlobalBackbeatBeats = riffCycleStudy.reference.showBackbeat
+    ? normalizeRiffBackbeatBeats(
+        riffEditableReference.backbeatBeats,
+        riffEditableReference.numerator,
+        riffEditableReference.backbeatBeat,
+      )
+    : [];
+  const riffCellBackbeatOverride = riffSelectedSequenceCell?.backbeatOverrideBeats ?? null;
+  const riffEditableBackbeatBeats = riffCellBackbeatEditingActive
+    ? riffCellBackbeatOverride == null
+      ? riffGlobalBackbeatBeats
+      : riffCellBackbeatOverride
+    : riffGlobalBackbeatBeats;
+  const riffEditableBackbeatEnabled = riffEditableBackbeatBeats.length > 0;
   const riffCellEditPreviewActive =
     Boolean(riffSelectedSequenceCell) &&
     !recordingVideo &&
@@ -19625,11 +19561,7 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             {(() => {
-                              const activeBackbeatBeats = normalizeRiffBackbeatBeats(
-                                riffEditableReference.backbeatBeats,
-                                riffEditableReference.numerator,
-                                riffEditableReference.backbeatBeat,
-                              );
+                              const activeBackbeatBeats = riffEditableBackbeatBeats;
                               return (
                                 <div className="space-y-1.5">
                                   <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
@@ -19642,7 +19574,7 @@ function OrbitalPolymeter() {
                                         color: activeBackbeatBeats.length === 0 ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
                                         boxShadow: activeBackbeatBeats.length === 0 ? '0 0 16px rgba(255,136,194,0.16)' : 'none',
                                       }}
-                                      onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                      onClick={handleSetRiffBackbeatOff}
                                     >
                                       Off
                                     </button>
@@ -19762,7 +19694,6 @@ function OrbitalPolymeter() {
                               onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                               onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
                               onSetCellColor={handleSetRiffSequenceCellColor}
-                              onSetCellBackbeatOverride={handleSetRiffSequenceCellBackbeatOverride}
                               onRandomizeCells={handleRandomizeRiffSequenceCells}
                               colorEditingLocked={colorEditingLocked}
                               onLockedColorClick={() => openProPrompt('color-editing')}
@@ -21109,8 +21040,8 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="compact"
                                 tone="pink"
-                                highlighted={!riffCycleStudy.reference.showBackbeat}
-                                onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                highlighted={!riffEditableBackbeatEnabled}
+                                onClick={handleSetRiffBackbeatOff}
                               >
                                 Off
                               </StudyShellButton>
@@ -21123,15 +21054,10 @@ function OrbitalPolymeter() {
                                   size="compact"
                                   tone="pink"
                                   highlighted={
-                                    riffCycleStudy.reference.showBackbeat &&
-                                    riffEditableReference.backbeatBeat === beat
+                                    riffEditableBackbeatEnabled &&
+                                    riffEditableBackbeatBeats.includes(beat)
                                   }
-                                  onClick={() =>
-                                    handleUpdateRiffReference({
-                                      showBackbeat: true,
-                                      backbeatBeat: beat,
-                                    })
-                                  }
+                                  onClick={() => handleToggleRiffBackbeatBeat(beat)}
                                 >
                                   {beat}
                                 </StudyShellButton>
@@ -21980,11 +21906,7 @@ function OrbitalPolymeter() {
                         labelStyle={desktopMenuSubheaderStyle}
                       />
                       {(() => {
-                        const activeBackbeatBeats = normalizeRiffBackbeatBeats(
-                          riffEditableReference.backbeatBeats,
-                          riffEditableReference.numerator,
-                          riffEditableReference.backbeatBeat,
-                        );
+                        const activeBackbeatBeats = riffEditableBackbeatBeats;
                         return (
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
@@ -21992,12 +21914,12 @@ function OrbitalPolymeter() {
                                 type="button"
                                 className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                 style={{
-                                  background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
-                                  border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
-                                  color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
-                                  boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                                  background: !riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                                  border: `1px solid ${!riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                                  color: !riffEditableBackbeatEnabled ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                                  boxShadow: !riffEditableBackbeatEnabled ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
                                 }}
-                                onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                onClick={handleSetRiffBackbeatOff}
                               >
                                 Off
                               </button>
@@ -22011,20 +21933,20 @@ function OrbitalPolymeter() {
                                   className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                                   style={{
                                     background:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? 'rgba(255,136,194,0.18)'
                                         : 'rgba(255,255,255,0.025)',
                                     border: `1px solid ${
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? 'rgba(255,136,194,0.42)'
                                         : 'rgba(255,255,255,0.07)'
                                     }`,
                                     color:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? '#FFD3E9'
                                         : 'rgba(255,255,255,0.5)',
                                     boxShadow:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? '0 0 14px rgba(255,136,194,0.14)'
                                         : 'none',
                                   }}
@@ -22110,7 +22032,6 @@ function OrbitalPolymeter() {
                     onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                     onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
                     onSetCellColor={handleSetRiffSequenceCellColor}
-                    onSetCellBackbeatOverride={handleSetRiffSequenceCellBackbeatOverride}
                     onRandomizeCells={handleRandomizeRiffSequenceCells}
                     colorEditingLocked={colorEditingLocked}
                     onLockedColorClick={() => openProPrompt('color-editing')}
@@ -23919,12 +23840,12 @@ function OrbitalPolymeter() {
                             type="button"
                             className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                             style={{
-                              background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
-                              border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
-                              color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
-                              boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                              background: !riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                              border: `1px solid ${!riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                              color: !riffEditableBackbeatEnabled ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                              boxShadow: !riffEditableBackbeatEnabled ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
                             }}
-                            onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                            onClick={handleSetRiffBackbeatOff}
                           >
                             Off
                           </button>
@@ -23938,29 +23859,24 @@ function OrbitalPolymeter() {
                               className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                               style={{
                                 background:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? 'rgba(255,136,194,0.18)'
                                     : 'rgba(255,255,255,0.025)',
                                 border: `1px solid ${
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? 'rgba(255,136,194,0.42)'
                                     : 'rgba(255,255,255,0.07)'
                                 }`,
                                 color:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? '#FFD3E9'
                                     : 'rgba(255,255,255,0.5)',
                                 boxShadow:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? '0 0 14px rgba(255,136,194,0.14)'
                                     : 'none',
                               }}
-                              onClick={() =>
-                                handleUpdateRiffReference({
-                                  showBackbeat: true,
-                                  backbeatBeat: beat,
-                                })
-                              }
+                              onClick={() => handleToggleRiffBackbeatBeat(beat)}
                             >
                               {beat}
                             </button>
@@ -24000,7 +23916,6 @@ function OrbitalPolymeter() {
                           onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
                           onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
                           onSetCellColor={handleSetRiffSequenceCellColor}
-                          onSetCellBackbeatOverride={handleSetRiffSequenceCellBackbeatOverride}
                           onRandomizeCells={handleRandomizeRiffSequenceCells}
                           colorEditingLocked={colorEditingLocked}
                           onLockedColorClick={() => openProPrompt('color-editing')}
