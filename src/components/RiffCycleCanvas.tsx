@@ -731,6 +731,10 @@ export default function RiffCycleCanvas({
     const currentStepWithinBar =
       ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const currentBarStartStep = currentAbsoluteReferenceStep - currentStepWithinBar;
+    const activeBackbeatStepPositions = getEffectiveBackbeatStepPositionsAtReferenceStep(
+      renderStudy,
+      currentAbsoluteReferenceStep,
+    );
     const outerReferenceHitHighlights = meterSubdivisionMarksVisible
       ? metrics.referencePerimeterPoints
           .map((point, index) => {
@@ -962,12 +966,8 @@ export default function RiffCycleCanvas({
           ? 0
           : Math.max(0.32, 0.7 - labelDensityFade * 0.22);
         const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
-        const backbeatStepPositions = getEffectiveBackbeatStepPositionsAtReferenceStep(
-          renderStudy,
-          currentAbsoluteReferenceStep,
-        );
         const isBackbeatVertex =
-          backbeatStepPositions.includes(index * stepsPerBeat + 1);
+          activeBackbeatStepPositions.includes(index * stepsPerBeat + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
@@ -1089,7 +1089,7 @@ export default function RiffCycleCanvas({
       metrics.referencePerimeterPoints.forEach((point, index) => {
         const isDownbeat = renderStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(renderStudy, index);
-        const isBackbeat = isBackbeatStep(renderStudy, index);
+        const isBackbeat = activeBackbeatStepPositions.includes(index + 1);
         if (denseReferenceMeter && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
