@@ -8148,9 +8148,8 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleToggleRiffCyclePlayback = useCallback(() => {
-    resumeRiffCycleAudio();
-    if (riffCycleStudy.playing) {
-      setRiffCycleRestartToken((value) => value + 1);
+    if (!riffCycleStudy.playing) {
+      resumeRiffCycleAudio();
     }
     setRiffCycleStudy((current) => ({
       ...current,
@@ -8159,12 +8158,14 @@ function OrbitalPolymeter() {
   }, [riffCycleStudy.playing]);
 
   const handleToggleRiffCycleSound = useCallback(() => {
-    resumeRiffCycleAudio();
+    if (!riffCycleStudy.soundEnabled) {
+      resumeRiffCycleAudio();
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       soundEnabled: !current.soundEnabled,
     }));
-  }, []);
+  }, [riffCycleStudy.soundEnabled]);
 
   const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
     setRiffCycleStudy((current) => {
