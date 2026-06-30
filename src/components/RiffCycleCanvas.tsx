@@ -24,6 +24,7 @@ import {
   canEditRiffStep,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
+  getEffectiveBackbeatBeatsAtReferenceStep,
   getEffectiveResetBarCount,
   getLandingStepCount,
   getLandingWindowLength,
@@ -961,14 +962,8 @@ export default function RiffCycleCanvas({
           ? 0
           : Math.max(0.32, 0.7 - labelDensityFade * 0.22);
         const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
-        const backbeatBeats =
-          renderStudy.reference.backbeatBeats?.length
-            ? renderStudy.reference.backbeatBeats
-            : renderStudy.reference.backbeatBeat != null
-              ? [renderStudy.reference.backbeatBeat]
-              : [];
+        const backbeatBeats = getEffectiveBackbeatBeatsAtReferenceStep(renderStudy, currentAbsoluteReferenceStep);
         const isBackbeatVertex =
-          renderStudy.reference.showBackbeat &&
           backbeatBeats.includes(index + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
