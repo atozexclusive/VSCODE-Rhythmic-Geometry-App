@@ -285,19 +285,19 @@ function normalizeBackbeatBeats(
   ).sort((a, b) => a - b);
 }
 
-function normalizeBackbeatOverrideBeats(
-  beats: number[] | null | undefined,
-  numerator: number,
+function normalizeBackbeatOverrideSteps(
+  steps: number[] | null | undefined,
+  stepsPerBar: number,
 ): number[] | null {
-  if (beats == null) {
+  if (steps == null) {
     return null;
   }
-  const normalizedNumerator = clamp(Math.round(numerator || 0), 2, RIFF_MAX_METER_NUMERATOR);
+  const normalizedStepsPerBar = clamp(Math.round(stepsPerBar || 0), 1, RIFF_MAX_METER_NUMERATOR * 4);
   return Array.from(
     new Set(
-      beats
-        .map((beat) => clamp(Math.round(beat || 0), 1, normalizedNumerator))
-        .filter((beat) => Number.isFinite(beat)),
+      steps
+        .map((step) => clamp(Math.round(step || 0), 1, normalizedStepsPerBar))
+        .filter((step) => Number.isFinite(step)),
     ),
   ).sort((a, b) => a - b);
 }
@@ -474,6 +474,9 @@ export function createRiffSequenceCell(
   const activeSteps = normalizeCellActiveSteps(overrides.activeSteps ?? mask.activeSteps, mask.stepCount);
   const accents = normalizeCellAccents(overrides.accents ?? mask.accents, mask.stepCount);
   const numerator = clamp(Math.round(overrides.numerator ?? 4), 2, RIFF_MAX_METER_NUMERATOR);
+  const denominator = overrides.denominator === 8 ? 8 : 4;
+  const subdivision = normalizeSubdivision(overrides.subdivision ?? 16);
+  const overrideStepsPerBar = numerator * Math.max(1, Math.round(subdivision / denominator));
   const backbeatBeats = normalizeBackbeatBeats(
     overrides.backbeatBeats,
     numerator,
@@ -484,11 +487,11 @@ export function createRiffSequenceCell(
     label,
     color: normalizeRiffColor(overrides.color, getRiffSequenceCellDefaultColor(label)),
     numerator,
-    denominator: overrides.denominator === 8 ? 8 : 4,
-    subdivision: normalizeSubdivision(overrides.subdivision ?? 16),
+    denominator,
+    subdivision,
     backbeatBeat: backbeatBeats[0] ?? null,
     backbeatBeats,
-    backbeatOverrideBeats: normalizeBackbeatOverrideBeats(overrides.backbeatOverrideBeats, numerator),
+    backbeatOverrideBeats: normalizeBackbeatOverrideSteps(overrides.backbeatOverrideBeats, overrideStepsPerBar),
     backbeatBarInterval: normalizeBackbeatBarInterval(overrides.backbeatBarInterval),
     groups: deriveGroupsFromMask(activeSteps, mask.stepCount),
     stepCount: mask.stepCount,
@@ -510,6 +513,9 @@ function createRiffSequenceCellFromState(
   const normalizedStepCount = normalizeCellStepCount(stepCount);
   const normalizedActiveSteps = normalizeCellActiveSteps(activeSteps, normalizedStepCount);
   const numerator = clamp(Math.round(timing?.numerator ?? 4), 2, RIFF_MAX_METER_NUMERATOR);
+  const denominator = timing?.denominator === 8 ? 8 : 4;
+  const subdivision = normalizeSubdivision(timing?.subdivision ?? 16);
+  const overrideStepsPerBar = numerator * Math.max(1, Math.round(subdivision / denominator));
   const backbeatBeats = normalizeBackbeatBeats(
     timing?.backbeatBeats,
     numerator,
@@ -520,11 +526,11 @@ function createRiffSequenceCellFromState(
     label,
     color: normalizeRiffColor(color, getRiffSequenceCellDefaultColor(label)),
     numerator,
-    denominator: timing?.denominator === 8 ? 8 : 4,
-    subdivision: normalizeSubdivision(timing?.subdivision ?? 16),
+    denominator,
+    subdivision,
     backbeatBeat: backbeatBeats[0] ?? null,
     backbeatBeats,
-    backbeatOverrideBeats: normalizeBackbeatOverrideBeats(backbeatOverrideBeats, numerator),
+    backbeatOverrideBeats: normalizeBackbeatOverrideSteps(backbeatOverrideBeats, overrideStepsPerBar),
     backbeatBarInterval: normalizeBackbeatBarInterval(timing?.backbeatBarInterval),
     groups: deriveGroupsFromMask(normalizedActiveSteps, normalizedStepCount),
     stepCount: normalizedStepCount,
@@ -1192,10 +1198,13 @@ export function getEffectiveBackbeatBeatsAtReferenceStep(
 ): number[] {
   const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
   if (sequenceState?.cell.backbeatOverrideBeats != null) {
-    return normalizeBackbeatOverrideBeats(
+    const stepsPerBeat = getReferenceStepsPerBeat(study.reference);
+    return (normalizeBackbeatOverrideSteps(
       sequenceState.cell.backbeatOverrideBeats,
-      study.reference.numerator,
-    ) ?? [];
+      getReferenceStepsPerBar(study.reference),
+    ) ?? [])
+      .filter((step) => (step - 1) % stepsPerBeat === 0)
+      .map((step) => Math.floor((step - 1) / stepsPerBeat) + 1);
   }
   if (!study.reference.showBackbeat) {
     return [];
@@ -1205,6 +1214,26 @@ export function getEffectiveBackbeatBeatsAtReferenceStep(
     study.reference.numerator,
     study.reference.backbeatBeat,
   );
+}
+
+export function getEffectiveBackbeatStepPositionsAtReferenceStep(
+  study: RiffCycleStudy,
+  referenceStep: number,
+): number[] {
+  const stepsPerBar = getReferenceStepsPerBar(study.reference);
+  const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
+  if (sequenceState?.cell.backbeatOverrideBeats != null) {
+    return normalizeBackbeatOverrideSteps(sequenceState.cell.backbeatOverrideBeats, stepsPerBar) ?? [];
+  }
+  if (!study.reference.showBackbeat) {
+    return [];
+  }
+  const stepsPerBeat = getReferenceStepsPerBeat(study.reference);
+  return normalizeBackbeatBeats(
+    study.reference.backbeatBeats,
+    study.reference.numerator,
+    study.reference.backbeatBeat,
+  ).map((beat) => (beat - 1) * stepsPerBeat + 1);
 }
 
 export function getRiffStepIndexAtReferenceStep(
@@ -1306,8 +1335,8 @@ export function isBackbeatStep(
   study: RiffCycleStudy,
   referenceStep: number,
 ): boolean {
-  const backbeatBeats = getEffectiveBackbeatBeatsAtReferenceStep(study, referenceStep);
-  if (backbeatBeats.length === 0) {
+  const backbeatStepPositions = getEffectiveBackbeatStepPositionsAtReferenceStep(study, referenceStep);
+  if (backbeatStepPositions.length === 0) {
     return false;
   }
   const stepsPerBar = getReferenceStepsPerBar(study.reference);
@@ -1316,10 +1345,8 @@ export function isBackbeatStep(
   if (barIndex % barInterval !== 0) {
     return false;
   }
-  return (
-    isReferenceBeatStart(study, referenceStep) &&
-    backbeatBeats.includes(getBeatIndexWithinBar(study, referenceStep) + 1)
-  );
+  const stepWithinBar = ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+  return backbeatStepPositions.includes(stepWithinBar + 1);
 }
 
 export function getDownbeatSteps(study: RiffCycleStudy): number[] {
@@ -1765,11 +1792,11 @@ export function updateRiffSequenceCellReference(
 export function updateRiffSequenceCellBackbeatOverride(
   study: RiffCycleStudy,
   label: RiffSequenceCellLabel,
-  beats: number[] | null,
+  steps: number[] | null,
 ): RiffCycleStudy {
   return updateRiffSequenceCell(study, label, (cell) => ({
     ...cell,
-    backbeatOverrideBeats: normalizeBackbeatOverrideBeats(beats, study.reference.numerator),
+    backbeatOverrideBeats: normalizeBackbeatOverrideSteps(steps, getReferenceStepsPerBar(study.reference)),
   }));
 }
 

@@ -24,7 +24,7 @@ import {
   canEditRiffStep,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
-  getEffectiveBackbeatBeatsAtReferenceStep,
+  getEffectiveBackbeatStepPositionsAtReferenceStep,
   getEffectiveResetBarCount,
   getLandingStepCount,
   getLandingWindowLength,
@@ -962,9 +962,12 @@ export default function RiffCycleCanvas({
           ? 0
           : Math.max(0.32, 0.7 - labelDensityFade * 0.22);
         const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
-        const backbeatBeats = getEffectiveBackbeatBeatsAtReferenceStep(renderStudy, currentAbsoluteReferenceStep);
+        const backbeatStepPositions = getEffectiveBackbeatStepPositionsAtReferenceStep(
+          renderStudy,
+          currentAbsoluteReferenceStep,
+        );
         const isBackbeatVertex =
-          backbeatBeats.includes(index + 1);
+          backbeatStepPositions.includes(index * stepsPerBeat + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
@@ -2671,10 +2674,22 @@ export default function RiffCycleCanvas({
         return null;
       }
 
+      if (currentStudy.riffSequenceEnabled) {
+        const hitRadius = isMobileRef.current ? 24 : 16;
+        for (let index = 0; index < metrics.referencePerimeterPoints.length; index += 1) {
+          const point = metrics.referencePerimeterPoints[index];
+          if (Math.hypot(x - point.x, y - point.y) <= hitRadius) {
+            return index + 1;
+          }
+        }
+      }
+
       for (let index = 0; index < metrics.referenceVertices.length; index += 1) {
         const vertex = metrics.referenceVertices[index];
         if (Math.hypot(x - vertex.x, y - vertex.y) <= (isMobileRef.current ? 26 : 18)) {
-          return index + 1;
+          return currentStudy.riffSequenceEnabled
+            ? index * getReferenceStepsPerBeat(currentStudy.reference) + 1
+            : index + 1;
         }
       }
       return null;

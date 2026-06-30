@@ -153,6 +153,7 @@ import {
   getLandingWindowLength,
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBar,
+  getReferenceStepsPerBeat,
   getResetBarCount,
   getResetStepCount,
   getRiffSequenceTimeline,
@@ -276,6 +277,21 @@ function normalizeRiffBackbeatBeats(
   return Array.from(
     new Set(
       source.map((beat) => Math.max(1, Math.min(normalizedNumerator, Math.round(beat || 0)))),
+    ),
+  ).sort((a, b) => a - b);
+}
+
+function normalizeRiffBackbeatStepPositions(
+  steps: number[] | null | undefined,
+  stepsPerBar: number,
+): number[] {
+  const normalizedStepsPerBar = Math.max(1, Math.min(RIFF_MAX_METER_NUMERATOR * 4, Math.round(stepsPerBar || 0)));
+  if (!Array.isArray(steps)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      steps.map((step) => Math.max(1, Math.min(normalizedStepsPerBar, Math.round(step || 0)))),
     ),
   ).sort((a, b) => a - b);
 }
@@ -8368,12 +8384,14 @@ function OrbitalPolymeter() {
       if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
         const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
         if (cell) {
-          const currentOverride = cell.backbeatOverrideBeats;
-          const nextBeats =
-            currentOverride != null && currentOverride.length === 1 && currentOverride[0] === beat
-              ? []
-              : [beat];
-          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextBeats);
+          const currentOverride = normalizeRiffBackbeatStepPositions(
+            cell.backbeatOverrideBeats,
+            getReferenceStepsPerBar(current.reference),
+          );
+          const nextSteps = currentOverride.includes(beat)
+            ? currentOverride.filter((entry) => entry !== beat)
+            : [...currentOverride, beat];
+          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextSteps);
         }
       }
       const sourceNumerator = current.reference.numerator;
@@ -13049,6 +13067,8 @@ function OrbitalPolymeter() {
     riffCycleStudy.riffSequenceEnabled &&
     riffSelectedSequenceCell,
   );
+  const riffEditableStepsPerBeat = getReferenceStepsPerBeat(riffEditableReference);
+  const riffEditableStepsPerBar = getReferenceStepsPerBar(riffEditableReference);
   const riffGlobalBackbeatBeats = riffCycleStudy.reference.showBackbeat
     ? normalizeRiffBackbeatBeats(
         riffEditableReference.backbeatBeats,
@@ -13056,13 +13076,19 @@ function OrbitalPolymeter() {
         riffEditableReference.backbeatBeat,
       )
     : [];
+  const riffGlobalBackbeatStepPositions = riffGlobalBackbeatBeats.map(
+    (beat) => (beat - 1) * riffEditableStepsPerBeat + 1,
+  );
   const riffCellBackbeatOverride = riffSelectedSequenceCell?.backbeatOverrideBeats ?? null;
   const riffEditableBackbeatBeats = riffCellBackbeatEditingActive
     ? riffCellBackbeatOverride == null
-      ? riffGlobalBackbeatBeats
-      : riffCellBackbeatOverride
+      ? riffGlobalBackbeatStepPositions
+      : normalizeRiffBackbeatStepPositions(riffCellBackbeatOverride, riffEditableStepsPerBar)
     : riffGlobalBackbeatBeats;
   const riffEditableBackbeatEnabled = riffEditableBackbeatBeats.length > 0;
+  const riffBackbeatPickerCount = riffCellBackbeatEditingActive
+    ? riffEditableStepsPerBar
+    : Math.max(0, Math.min(6, riffEditableReference.numerator));
   const riffCellEditPreviewActive =
     Boolean(riffSelectedSequenceCell) &&
     !recordingVideo &&
@@ -13079,21 +13105,12 @@ function OrbitalPolymeter() {
     if (!riffCellEditPreviewActive || !riffSelectedSequenceCell) {
       return riffCycleStudy;
     }
-    const selectedBackbeatOverride = riffSelectedSequenceCell.backbeatOverrideBeats;
-    const previewReference =
-      selectedBackbeatOverride == null
-        ? riffEditableReference
-        : {
-            ...riffEditableReference,
-            showBackbeat: selectedBackbeatOverride.length > 0,
-            backbeatBeat: selectedBackbeatOverride[0] ?? null,
-            backbeatBeats: selectedBackbeatOverride,
-          };
-
     return {
       ...riffCycleStudy,
-      riffSequenceEnabled: false,
-      reference: previewReference,
+      riffSequenceEnabled: true,
+      riffCells: [riffSelectedSequenceCell],
+      riffSequence: [riffSelectedSequenceCell.label],
+      reference: riffEditableReference,
       riff: {
         ...riffCycleStudy.riff,
         stepCount: riffSelectedSequenceCell.stepCount,
@@ -19564,7 +19581,7 @@ function OrbitalPolymeter() {
                               const activeBackbeatBeats = riffEditableBackbeatBeats;
                               return (
                                 <div className="space-y-1.5">
-                                  <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                                  <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                                     <button
                                       type="button"
                                       className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.1em] transition"
@@ -19579,7 +19596,7 @@ function OrbitalPolymeter() {
                                       Off
                                     </button>
                                     {Array.from(
-                                      { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                      { length: riffBackbeatPickerCount },
                                       (_, index) => index + 1,
                                     ).map((beat) => (
                                       <button
@@ -21046,7 +21063,7 @@ function OrbitalPolymeter() {
                                 Off
                               </StudyShellButton>
                               {Array.from(
-                                { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                { length: riffBackbeatPickerCount },
                                 (_, index) => index + 1,
                               ).map((beat) => (
                                 <StudyShellButton
@@ -21909,7 +21926,7 @@ function OrbitalPolymeter() {
                         const activeBackbeatBeats = riffEditableBackbeatBeats;
                         return (
                           <div className="space-y-1.5">
-                            <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                            <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                               <button
                                 type="button"
                                 className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
@@ -21924,7 +21941,7 @@ function OrbitalPolymeter() {
                                 Off
                               </button>
                               {Array.from(
-                                { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                { length: riffBackbeatPickerCount },
                                 (_, index) => index + 1,
                               ).map((beat) => (
                                 <button
@@ -23835,7 +23852,7 @@ function OrbitalPolymeter() {
                           labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                           labelStyle={desktopMenuSubheaderStyle}
                         />
-                        <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                        <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                           <button
                             type="button"
                             className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
@@ -23850,7 +23867,7 @@ function OrbitalPolymeter() {
                             Off
                           </button>
                           {Array.from(
-                            { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                            { length: riffBackbeatPickerCount },
                             (_, index) => index + 1,
                           ).map((beat) => (
                             <button
