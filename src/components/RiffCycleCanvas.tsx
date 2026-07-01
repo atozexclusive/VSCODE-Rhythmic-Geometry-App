@@ -964,7 +964,7 @@ export default function RiffCycleCanvas({
         const labelDensityFade = Math.max(0, Math.min(1, (meterCount - 12) / 40));
         const labelAlpha = currentDisplaySettings.showMeterNumbers === false
           ? 0
-          : Math.max(0.32, 0.7 - labelDensityFade * 0.22);
+          : Math.max(0.48, 0.86 - labelDensityFade * 0.2);
         const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
         const isBackbeatVertex =
           activeBackbeatStepPositions.includes(index * stepsPerBeat + 1);
@@ -1029,10 +1029,10 @@ export default function RiffCycleCanvas({
           ctx.strokeText(`${index + 1}`, vertex.x, labelY);
           ctx.fillStyle =
             isBackbeatVertex
-              ? 'rgba(255,136,194,0.92)'
+              ? 'rgba(255,136,194,0.96)'
               : index === 0
-                ? 'rgba(255,255,255,0.86)'
-                : 'rgba(255,255,255,0.7)';
+                ? 'rgba(255,255,255,0.96)'
+                : 'rgba(255,255,255,0.84)';
           ctx.fillText(`${index + 1}`, vertex.x, labelY);
           ctx.restore();
         }
