@@ -121,6 +121,7 @@ export function getRiffCycleCanvasMetrics(
   const laneHeight = isMobile ? 32 : 30;
   const totalDisplaySteps = getDisplayStepCount(study);
   const referenceSideCount = Math.max(2, study.reference.numerator);
+  const dupleReferenceFrame = referenceSideCount === 2;
   const triangleReferenceFrame = referenceSideCount === 3;
   const visibleStepCount = showingTimeline
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
@@ -193,7 +194,9 @@ export function getRiffCycleCanvasMetrics(
   }
 
   const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
-  const referenceInradius = outerRadius * Math.cos(Math.PI / referenceSideCount);
+  const referenceInradius = dupleReferenceFrame
+    ? outerRadius
+    : outerRadius * Math.cos(Math.PI / referenceSideCount);
   const containmentPadding = triangleReferenceFrame ? (isMobile ? 26 : 34) : isMobile ? 4 : 6;
   const innerRadius = Math.min(
     defaultInnerRadius,
