@@ -34,6 +34,7 @@ import {
   getReferenceStepsPerBeat,
   getReferenceStepsPerSecond,
   getResetStepCount,
+  getRiffSequencePhrases,
   getRiffSequenceStateAtReferenceStep,
   getRiffSequenceTimeline,
   getRiffStepIndexAtReferenceStep,
@@ -46,6 +47,7 @@ import {
   isRiffSequenceBarBoundaryAtReferenceStep,
   type RiffCycleStudy,
   type RiffCycleViewMode,
+  type RiffSequenceCellLabel,
 } from '../lib/riffCycleStudy';
 import {
   addAudioToCanvasStream,
@@ -133,6 +135,69 @@ type RiffCanvasPoint = {
   x: number;
   y: number;
 };
+
+type RiffCellStripPhraseEntry = {
+  label: RiffSequenceCellLabel;
+  color: string;
+  suffix: string | null;
+  sequenceIndex: number;
+};
+
+type RiffCellStripPhrase = {
+  id: string;
+  repeatCount: number;
+  entries: RiffCellStripPhraseEntry[];
+};
+
+function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
+  const cells = study.riffCells ?? [];
+  const validLabels = new Set(cells.map((cell) => cell.label));
+  const fallbackLabel = cells[0]?.label ?? 'A';
+  const sequenceSource = study.riffSequence && study.riffSequence.length > 0
+    ? study.riffSequence
+    : [fallbackLabel];
+  const sequence = sequenceSource
+    .map((label) => label.toUpperCase() as RiffSequenceCellLabel)
+    .filter((label) => validLabels.has(label))
+    .slice(0, 24);
+  const normalizedSequence = sequence.length > 0 ? sequence : [fallbackLabel];
+  const phrases = getRiffSequencePhrases(study);
+  const sequenceBarsMode = study.riffSequenceBarsMode === 'per-cell' ? 'per-cell' : 'global';
+  let cursor = 0;
+
+  return phrases
+    .map((phrase, phraseIndex) => {
+      const startIndex = cursor;
+      const endIndex = Math.min(normalizedSequence.length, startIndex + phrase.entryCount);
+      const entries = normalizedSequence.slice(startIndex, endIndex).map((label, indexOffset) => {
+        const sequenceIndex = startIndex + indexOffset;
+        const cell = cells.find((candidate) => candidate.label === label);
+        const durationMode =
+          study.riffSequenceEntryDurationModes?.[sequenceIndex] === 'bars' ? 'bars' : 'patterns';
+        const rawValue =
+          durationMode === 'bars'
+            ? study.riffSequenceEntryBars?.[sequenceIndex] ?? study.riffSequenceBars ?? 1
+            : study.riffSequenceEntryRepeats?.[sequenceIndex] ?? 1;
+        const value = Math.max(1, Math.round(rawValue));
+        const suffix =
+          sequenceBarsMode === 'per-cell' ? (durationMode === 'bars' ? `${value}B` : `x${value}`) : null;
+
+        return {
+          label,
+          color: cell?.color ?? study.riff.color,
+          suffix,
+          sequenceIndex,
+        };
+      });
+      cursor = endIndex;
+      return {
+        id: phrase.id || `phrase-${phraseIndex + 1}`,
+        repeatCount: Math.max(1, Math.round(phrase.repeatCount || 1)),
+        entries,
+      };
+    })
+    .filter((phrase) => phrase.entries.length > 0);
+}
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -843,14 +908,27 @@ export default function RiffCycleCanvas({
     ctx.stroke();
     ctx.restore();
 
-    if (currentDisplaySettings.showCellStrip !== false && sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
-      const visibleEntries = sequenceTimeline.entries.slice(0, exportLayoutMode ? 9 : 12);
-      const chipWidth = exportLayoutMode ? 62 : 29;
-      const chipHeight = exportLayoutMode ? 34 : 17;
-      const gap = exportLayoutMode ? 9 : 4;
+    if (
+      currentDisplaySettings.showCellStrip !== false &&
+      sequenceState &&
+      sequenceTimeline &&
+      sequenceTimeline.entries.length > 0
+    ) {
+      const stripPhrases = getRiffCellStripPhrases(currentStudy);
+      const expandedBaseSequenceIndices = stripPhrases.flatMap((phrase) =>
+        Array.from({ length: phrase.repeatCount }, () =>
+          phrase.entries.map((entry) => entry.sequenceIndex),
+        ).flat(),
+      );
+      const activeBaseSequenceIndex =
+        expandedBaseSequenceIndices[sequenceState.sequenceIndex] ?? sequenceState.sequenceIndex;
+      const chipHeight = exportLayoutMode ? 32 : 18;
       const chipRadius = exportLayoutMode ? 12 : 7;
-      const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
-      const startX = metrics.circleCenterX - totalWidth / 2;
+      const chipGap = exportLayoutMode ? 7 : 4;
+      const phrasePaddingX = exportLayoutMode ? 10 : 5;
+      const phraseGap = exportLayoutMode ? 14 : 8;
+      const plusWidth = exportLayoutMode ? 20 : 10;
+      const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
       const bottomStripY = metrics.timelineRect
         ? Math.max(
             metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 72 : 58),
@@ -873,28 +951,125 @@ export default function RiffCycleCanvas({
         metrics.circleCenterX,
         stripY - (exportLayoutMode ? 18 : 8),
       );
-      ctx.font = `${exportLayoutMode ? 20 : 9}px "SF Mono", "Fira Code", monospace`;
-      visibleEntries.forEach((entry, index) => {
-        const active = entry.sequenceIndex === sequenceState.sequenceIndex;
-        const chipColor = entry.cell.color;
-        const x = startX + index * (chipWidth + gap);
-        drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, chipRadius);
-        ctx.fillStyle = active
-          ? `${chipColor}${exportLayoutMode ? '44' : '2E'}`
-          : `${chipColor}${exportLayoutMode ? '18' : '10'}`;
-        ctx.fill();
-        ctx.strokeStyle = active ? `${chipColor}C4` : `${chipColor}2A`;
-        ctx.lineWidth = active ? (exportLayoutMode ? 2.35 : 1.45) : (exportLayoutMode ? 1.2 : 0.9);
-        ctx.stroke();
-        ctx.fillStyle = active ? chipColor : `${chipColor}B8`;
-        ctx.shadowBlur = active ? (exportLayoutMode ? 15 : 9) * glowMultiplier : 0;
-        ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
-        ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
+
+      ctx.font = `${exportLayoutMode ? 17 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      const entryPaddingX = exportLayoutMode ? 13 : 7;
+      const repeatPaddingX = exportLayoutMode ? 10 : 6;
+      const displayedPhrases: RiffCellStripPhrase[] = [];
+      const phraseWidths: number[] = [];
+      let stripWidth = 0;
+      let hiddenPhraseCount = 0;
+
+      const getEntryText = (entry: RiffCellStripPhraseEntry) =>
+        entry.suffix ? `${entry.label} ${entry.suffix}` : entry.label;
+
+      const measureEntryWidth = (entry: RiffCellStripPhraseEntry) =>
+        Math.max(exportLayoutMode ? 46 : 24, ctx.measureText(getEntryText(entry)).width + entryPaddingX * 2);
+
+      const measurePhraseWidth = (phrase: RiffCellStripPhrase, phraseIndex: number) => {
+        const singleTail = phraseIndex > 0 && phrase.entries.length === 1 && phrase.repeatCount === 1;
+        const entryWidths = phrase.entries.map(measureEntryWidth);
+        if (singleTail) {
+          return entryWidths[0] ?? 0;
+        }
+        const entriesWidth =
+          entryWidths.reduce((sum, width) => sum + width, 0) +
+          Math.max(0, entryWidths.length - 1) * chipGap;
+        const bracketWidth = exportLayoutMode ? 20 : 10;
+        const repeatText = phrase.repeatCount > 1 ? `x${phrase.repeatCount}` : '';
+        const repeatWidth = repeatText
+          ? ctx.measureText(repeatText).width + repeatPaddingX * 2
+          : 0;
+        return phrasePaddingX * 2 + bracketWidth * 2 + entriesWidth + repeatWidth;
+      };
+
+      stripPhrases.forEach((phrase, phraseIndex) => {
+        const phraseWidth = measurePhraseWidth(phrase, phraseIndex);
+        const separatorWidth = displayedPhrases.length > 0 ? plusWidth + phraseGap : 0;
+        const nextWidth = stripWidth + separatorWidth + phraseWidth;
+        if (nextWidth <= maxStripWidth || displayedPhrases.length === 0) {
+          displayedPhrases.push(phrase);
+          phraseWidths.push(phraseWidth);
+          stripWidth = nextWidth;
+        } else {
+          hiddenPhraseCount += 1;
+        }
       });
-      if (sequenceTimeline.entries.length > visibleEntries.length) {
+
+      const ellipsisWidth = hiddenPhraseCount > 0 ? (exportLayoutMode ? 34 : 18) : 0;
+      const totalWidth = Math.min(maxStripWidth, stripWidth + ellipsisWidth);
+      let drawX = metrics.circleCenterX - totalWidth / 2;
+
+      displayedPhrases.forEach((phrase, phraseIndex) => {
+        if (phraseIndex > 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.34)';
+          ctx.shadowBlur = 0;
+          ctx.fillText('+', drawX + plusWidth / 2, stripY + chipHeight / 2);
+          drawX += plusWidth + phraseGap;
+        }
+
+        const phraseWidth = phraseWidths[phraseIndex] ?? measurePhraseWidth(phrase, phraseIndex);
+        const singleTail = phraseIndex > 0 && phrase.entries.length === 1 && phrase.repeatCount === 1;
+
+        if (!singleTail) {
+          drawRoundedRect(ctx, drawX, stripY - 2, phraseWidth, chipHeight + 4, chipRadius + 3);
+          ctx.fillStyle = 'rgba(255,255,255,0.025)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = exportLayoutMode ? 1.1 : 0.75;
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(255,255,255,0.44)';
+          ctx.shadowBlur = 0;
+          ctx.fillText('[', drawX + phrasePaddingX + (exportLayoutMode ? 5 : 3), stripY + chipHeight / 2);
+          drawX += phrasePaddingX + (exportLayoutMode ? 14 : 8);
+        }
+
+        phrase.entries.forEach((entry, entryIndex) => {
+          const active = entry.sequenceIndex === activeBaseSequenceIndex;
+          const chipColor = entry.color;
+          const chipWidth = measureEntryWidth(entry);
+          drawRoundedRect(ctx, drawX, stripY, chipWidth, chipHeight, chipRadius);
+          ctx.fillStyle = active
+            ? `${chipColor}${exportLayoutMode ? '44' : '30'}`
+            : `${chipColor}${exportLayoutMode ? '1B' : '12'}`;
+          ctx.fill();
+          ctx.strokeStyle = active ? `${chipColor}C8` : `${chipColor}30`;
+          ctx.lineWidth = active ? (exportLayoutMode ? 2.25 : 1.35) : (exportLayoutMode ? 1.1 : 0.85);
+          ctx.stroke();
+          ctx.fillStyle = active ? chipColor : `${chipColor}C0`;
+          ctx.shadowBlur = active ? (exportLayoutMode ? 13 : 7) * glowMultiplier : 0;
+          ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
+          ctx.fillText(getEntryText(entry), drawX + chipWidth / 2, stripY + chipHeight / 2);
+          drawX += chipWidth + (entryIndex < phrase.entries.length - 1 ? chipGap : 0);
+        });
+
+        if (!singleTail) {
+          ctx.fillStyle = 'rgba(255,255,255,0.44)';
+          ctx.shadowBlur = 0;
+          ctx.fillText(']', drawX + (exportLayoutMode ? 7 : 4), stripY + chipHeight / 2);
+          drawX += (exportLayoutMode ? 18 : 10);
+
+          if (phrase.repeatCount > 1) {
+            const repeatText = `x${phrase.repeatCount}`;
+            const repeatWidth = ctx.measureText(repeatText).width + repeatPaddingX * 2;
+            drawRoundedRect(ctx, drawX, stripY, repeatWidth, chipHeight, chipRadius);
+            ctx.fillStyle = exportLayoutMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.055)';
+            ctx.fill();
+            ctx.strokeStyle = exportLayoutMode ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.16)';
+            ctx.lineWidth = exportLayoutMode ? 1.1 : 0.75;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.72)';
+            ctx.fillText(repeatText, drawX + repeatWidth / 2, stripY + chipHeight / 2);
+            drawX += repeatWidth;
+          }
+        }
+      });
+
+      if (hiddenPhraseCount > 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.34)';
         ctx.shadowBlur = 0;
-        ctx.fillText('...', startX + totalWidth + (exportLayoutMode ? 22 : 13), stripY + chipHeight / 2);
+        ctx.fillText('...', drawX + (exportLayoutMode ? 18 : 10), stripY + chipHeight / 2);
       }
       ctx.restore();
     }
