@@ -140,6 +140,7 @@ export interface RiffCycleStudy {
   showPhraseRing: boolean;
   showPhraseFill: boolean;
   showStepLabels: boolean;
+  showCountLabels: boolean;
   showAlignmentMarkers: boolean;
   showPhraseBounds: boolean;
   showStructureView: boolean;
@@ -956,6 +957,7 @@ export function createRiffCycleStudy(
     showPhraseRing: overrides.showPhraseRing ?? true,
     showPhraseFill: overrides.showPhraseFill ?? true,
     showStepLabels: overrides.showStepLabels ?? true,
+    showCountLabels: overrides.showCountLabels ?? false,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
     showPhraseBounds: overrides.showPhraseBounds ?? false,
     showStructureView: overrides.showStructureView ?? false,

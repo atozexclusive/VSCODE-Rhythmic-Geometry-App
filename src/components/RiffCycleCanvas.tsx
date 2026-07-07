@@ -188,6 +188,32 @@ function getPulseLayerPoint(
   };
 }
 
+function formatSubdivisionCountLabel(stepIndex: number, stepsPerBeat: number): string {
+  const normalizedStepsPerBeat = Math.max(1, Math.round(stepsPerBeat || 1));
+  const beat = Math.floor(stepIndex / normalizedStepsPerBeat) + 1;
+  const subdivisionIndex = ((stepIndex % normalizedStepsPerBeat) + normalizedStepsPerBeat) % normalizedStepsPerBeat;
+
+  if (normalizedStepsPerBeat === 2) {
+    return subdivisionIndex === 0 ? String(beat) : '&';
+  }
+  if (normalizedStepsPerBeat === 3) {
+    return subdivisionIndex === 0 ? String(beat) : subdivisionIndex === 1 ? '&' : 'a';
+  }
+  if (normalizedStepsPerBeat === 4) {
+    const labels = ['', 'e', '&', 'a'];
+    return subdivisionIndex === 0 ? String(beat) : labels[subdivisionIndex] ?? String(subdivisionIndex + 1);
+  }
+  if (normalizedStepsPerBeat === 5) {
+    return subdivisionIndex === 0 ? String(beat) : String(subdivisionIndex + 1);
+  }
+  if (normalizedStepsPerBeat === 8) {
+    const labels = ['', 'e', '&', 'a', '+', '+e', '+&', '+a'];
+    return subdivisionIndex === 0 ? String(beat) : labels[subdivisionIndex] ?? String(subdivisionIndex + 1);
+  }
+
+  return subdivisionIndex === 0 ? String(beat) : String(subdivisionIndex + 1);
+}
+
 function drawRiffCarves(
   ctx: CanvasRenderingContext2D,
   points: RiffCanvasPoint[],
@@ -1562,6 +1588,9 @@ export default function RiffCycleCanvas({
       }
 
       if (currentStudy.showStepLabels && (!circularPhraseBoundsActive || carveViewActive)) {
+        const stepLabel = currentStudy.showCountLabels
+          ? formatSubdivisionCountLabel(point.index, getReferenceStepsPerBeat(renderStudy.reference))
+          : String(point.index + 1);
         const densityLabelScale =
           carveViewActive
             ? visibleRiff.stepCount > 56
@@ -1594,7 +1623,7 @@ export default function RiffCycleCanvas({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
-          String(point.index + 1),
+          stepLabel,
           metrics.circleCenterX + Math.cos(point.angle) * labelRadius,
           metrics.circleCenterY + Math.sin(point.angle) * labelRadius,
         );
@@ -2018,7 +2047,9 @@ export default function RiffCycleCanvas({
           ctx.textBaseline = 'middle';
           ctx.fillStyle = phraseActive ? 'rgba(17,17,22,0.72)' : 'rgba(255,255,255,0.34)';
           ctx.fillText(
-            String((phraseIndex % visibleRiff.stepCount) + 1),
+            currentStudy.showCountLabels
+              ? formatSubdivisionCountLabel(phraseIndex % visibleRiff.stepCount, stepsPerBeat)
+              : String((phraseIndex % visibleRiff.stepCount) + 1),
             stepCenterX,
             bottomLaneY + laneHeight * 0.52,
           );
