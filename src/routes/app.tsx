@@ -136,6 +136,7 @@ import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
   RIFF_SEQUENCE_CELL_LABELS,
+  addRiffSequencePhrase,
   addRiffSequenceCell,
   appendRiffSequenceOrderCell,
   applyLandingStateToLastSlots,
@@ -156,6 +157,7 @@ import {
   getReferenceStepsPerBeat,
   getResetBarCount,
   getResetStepCount,
+  getRiffSequencePhrases,
   getRiffSequenceTimeline,
   invertRiffSteps,
   invertRiffSequenceCellSteps,
@@ -173,6 +175,7 @@ import {
   setRiffSequenceEntryBars,
   setRiffSequenceEntryDurationMode,
   setRiffSequenceEntryRepeats,
+  setRiffSequencePhraseRepeats,
   syncFirstRiffSequenceCellFromRiff,
   updateRiffSequenceCellBackbeatOverride,
   updateRiffSequenceCellColor,
@@ -3921,6 +3924,8 @@ function RiffCellSequenceEditor({
   onSelectCell,
   onAddCell,
   onAppendCell,
+  onAddPhrase,
+  onSetPhraseRepeats,
   onRemoveLastCell,
   onDeleteCell,
   onResetSequence,
@@ -3942,7 +3947,9 @@ function RiffCellSequenceEditor({
   onSetEnabled: (enabled: boolean) => void;
   onSelectCell: (label: RiffSequenceCellLabel) => void;
   onAddCell: () => void;
-  onAppendCell: (label: RiffSequenceCellLabel) => void;
+  onAppendCell: (label: RiffSequenceCellLabel, phraseIndex?: number) => void;
+  onAddPhrase: (label: RiffSequenceCellLabel) => void;
+  onSetPhraseRepeats: (phraseIndex: number, repeats: number) => void;
   onRemoveLastCell: () => void;
   onDeleteCell: (label: RiffSequenceCellLabel) => void;
   onResetSequence: () => void;
@@ -3973,32 +3980,59 @@ function RiffCellSequenceEditor({
   const sequenceEntryDurationModes = sequence.map((_, index): RiffSequenceEntryDurationMode =>
     study.riffSequenceEntryDurationModes?.[index] === 'bars' ? 'bars' : 'patterns',
   );
+  const sequencePhrases = getRiffSequencePhrases(study);
+  let phraseCursor = 0;
+  const phraseRanges = sequencePhrases.map((phrase, phraseIndex) => {
+    const startIndex = phraseCursor;
+    const endIndex = Math.min(sequence.length, startIndex + phrase.entryCount);
+    const indices = Array.from(
+      { length: Math.max(0, endIndex - startIndex) },
+      (_, index) => startIndex + index,
+    );
+    phraseCursor = endIndex;
+    return { phrase, phraseIndex, indices };
+  }).filter((range) => range.indices.length > 0);
   const sequenceTotalBars =
     sequenceBarsMode === 'per-cell'
-      ? sequence.reduce((sum, label, index) => {
-          const cell = cells.find((candidate) => candidate.label === label);
-          const mode = sequenceEntryDurationModes[index] ?? 'patterns';
-          if (mode === 'bars') {
-            return sum + (sequenceEntryBars[index] ?? sequenceResetBars);
-          }
-          const stepCount = Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount));
-          const repeats = sequenceEntryRepeats[index] ?? 1;
-          return sum + (stepCount * repeats) / Math.max(1, getReferenceStepsPerBar(study.reference));
+      ? phraseRanges.reduce((phraseSum, range) => {
+          const phraseBars = range.indices.reduce((sum, index) => {
+            const label = sequence[index];
+            const cell = cells.find((candidate) => candidate.label === label);
+            const mode = sequenceEntryDurationModes[index] ?? 'patterns';
+            if (mode === 'bars') {
+              return sum + (sequenceEntryBars[index] ?? sequenceResetBars);
+            }
+            const stepCount = Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount));
+            const repeats = sequenceEntryRepeats[index] ?? 1;
+            return sum + (stepCount * repeats) / Math.max(1, getReferenceStepsPerBar(study.reference));
+          }, 0);
+          return phraseSum + phraseBars * Math.max(1, range.phrase.repeatCount);
         }, 0)
       : sequenceResetBars;
   const sequenceTotalBarsLabel = sequenceTotalBars.toLocaleString(undefined, {
     maximumFractionDigits: 2,
   });
-  const sequenceLabel = sequence.length > 0 ? sequence.join(' ') : 'A';
+  const sequenceLabel =
+    phraseRanges.length > 0
+      ? phraseRanges
+          .map((range) => range.indices.map((index) => sequence[index]).join(''))
+          .join(' | ')
+      : sequence.length > 0
+        ? sequence.join(' ')
+        : 'A';
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
   const selectedCellColor = selectedCell?.color ?? study.riff.color;
   const sequenceStepTotal = Math.max(
     1,
-    sequence.reduce((sum, label, index) => {
-      const cell = cells.find((candidate) => candidate.label === label);
-      const repeatCount = sequenceEntryRepeats[index] ?? 1;
-      return sum + Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount)) * repeatCount;
+    phraseRanges.reduce((phraseSum, range) => {
+      const phraseSteps = range.indices.reduce((sum, index) => {
+        const label = sequence[index];
+        const cell = cells.find((candidate) => candidate.label === label);
+        const repeatCount = sequenceEntryRepeats[index] ?? 1;
+        return sum + Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount)) * repeatCount;
+      }, 0);
+      return phraseSum + phraseSteps * Math.max(1, range.phrase.repeatCount);
     }, 0),
   );
   const sequenceNaturalResolveBars =
@@ -4182,123 +4216,195 @@ function RiffCellSequenceEditor({
               </div>
             </div>
 
-            <div className="flex min-h-8 flex-wrap items-stretch gap-1">
-              {sequence.map((label, index) => {
-                const exists = cells.some((cell) => cell.label === label);
-                const cellColor = getCellVisualColor(label);
-                const entryBars = sequenceEntryBars[index] ?? sequenceResetBars;
-                const entryRepeats = sequenceEntryRepeats[index] ?? 1;
-                const entryDurationMode = sequenceEntryDurationModes[index] ?? 'patterns';
-                const entryValue = entryDurationMode === 'bars' ? entryBars : entryRepeats;
-                const entrySpan =
-                  sequenceBarsMode === 'per-cell'
-                    ? entryDurationMode === 'bars'
-                      ? `${entryBars}b`
-                      : `${entryRepeats}x`
-                    : null;
-              return (
-                <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1">
-                  <div className="inline-flex flex-col items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (exists) {
-                          onSelectCell(label);
-                        }
-                      }}
-                      className="inline-flex min-h-8 min-w-10 flex-col items-center justify-center rounded-md border px-1.5 font-mono uppercase transition-transform active:scale-[0.97]"
-                      style={{
-                        background:
-                          exists && label === selectedCell?.label
-                            ? `${cellColor}18`
-                            : 'rgba(255,255,255,0.04)',
-                        borderColor:
-                          exists && label === selectedCell?.label
-                            ? `${cellColor}52`
-                            : 'rgba(255,255,255,0.09)',
-                        color: exists ? (label === selectedCell?.label ? cellColor : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
-                      }}
-                    >
-                      <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
-                      <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
-                      {entrySpan != null ? (
-                        <span className="mt-0.5 text-[6.5px] leading-none tracking-[0.08em] opacity-56">
-                          {entrySpan}
-                        </span>
-                      ) : null}
-                    </button>
-                    {sequenceBarsMode === 'per-cell' ? (
-                      <div className="flex overflow-hidden rounded-md border border-white/8 bg-white/[0.035]">
-                        <label className="flex items-center gap-0.5 px-1 py-0.5">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            max={entryDurationMode === 'bars' ? RIFF_MAX_RESET_BARS : RIFF_MAX_SEQUENCE_REPEATS}
-                            value={entryValue}
-                            onFocus={(event) => event.currentTarget.select()}
-                            onChange={(event) => {
-                              const nextValue = Number.parseInt(event.currentTarget.value, 10) || entryValue;
-                              if (entryDurationMode === 'bars') {
-                                onSetSequenceEntryBars(index, nextValue);
-                              } else {
-                                onSetSequenceEntryRepeats(index, nextValue);
-                              }
-                            }}
-                            className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
-                            aria-label={
-                              entryDurationMode === 'bars'
-                                ? `Set bars for sequence ${index + 1} cell ${label}`
-                                : `Set cell plays for sequence ${index + 1} cell ${label}`
-                            }
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onSetSequenceEntryDurationMode(index, entryDurationMode === 'bars' ? 'patterns' : 'bars')
-                          }
-                          className="border-l border-white/8 px-1.5 text-[6.5px] font-mono uppercase tracking-[0.08em] transition"
-                          style={{
-                            color: entryDurationMode === 'bars' ? 'rgba(255,255,255,0.42)' : cellColor,
-                            background: entryDurationMode === 'patterns' ? `${cellColor}10` : 'rgba(255,255,255,0.025)',
-                          }}
-                          aria-label={`Use ${entryDurationMode === 'bars' ? 'cell pattern plays' : 'bars'} for sequence ${index + 1}`}
-                        >
-                          {entryDurationMode === 'bars' ? 'Bar' : 'Cell'}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                  {index < sequence.length - 1 ? (
-                    <span className="text-[10px] text-white/24 self-center">-&gt;</span>
-                  ) : null}
-                </div>
-              );
-            })}
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                Add To Sequence
-              </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
-                {cells.map((cell) => (
-                  <button
-                    key={`append-${cell.label}`}
-                    type="button"
-                    onClick={() => onAppendCell(cell.label)}
-                    className="rounded-lg border px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] transition-transform active:scale-[0.97]"
+            <div className="space-y-2">
+              {phraseRanges.map(({ phrase, phraseIndex, indices }) => {
+                const firstLabel = sequence[indices[0]] ?? selectedCell?.label ?? 'A';
+                const phraseColor = getCellVisualColor(firstLabel);
+                const phraseText = indices.map((index) => sequence[index]).join(' ');
+                return (
+                  <div
+                    key={phrase.id}
+                    className="rounded-lg border px-1.5 py-1.5"
                     style={{
-                      background: `${cell.color}0f`,
-                      borderColor: `${cell.color}24`,
-                      color: cell.color,
+                      background: `${phraseColor}08`,
+                      borderColor: `${phraseColor}22`,
                     }}
                   >
-                    +{cell.label}
-                  </button>
-                ))}
-              </div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div
+                          className="text-[7.5px] font-mono uppercase tracking-[0.14em]"
+                          style={{ color: phraseColor }}
+                        >
+                          Phrase {phraseIndex + 1}
+                        </div>
+                        <div className="truncate text-[7px] font-mono uppercase tracking-[0.1em] text-white/30">
+                          {phraseText}
+                        </div>
+                      </div>
+                      <label
+                        className="flex items-center overflow-hidden rounded-md border bg-white/[0.035]"
+                        style={{ borderColor: `${phraseColor}24` }}
+                      >
+                        <span className="px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
+                          x
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={RIFF_MAX_SEQUENCE_REPEATS}
+                          value={phrase.repeatCount}
+                          onFocus={(event) => event.currentTarget.select()}
+                          onChange={(event) =>
+                            onSetPhraseRepeats(
+                              phraseIndex,
+                              Number.parseInt(event.currentTarget.value, 10) || phrase.repeatCount,
+                            )
+                          }
+                          className="h-6 w-9 bg-transparent text-center text-[10px] font-mono outline-none"
+                          style={{ color: phraseColor }}
+                          aria-label={`Set Phrase ${phraseIndex + 1} repeats`}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex min-h-8 flex-wrap items-stretch gap-1">
+                      {indices.map((index, localIndex) => {
+                        const label = sequence[index];
+                        const exists = cells.some((cell) => cell.label === label);
+                        const cellColor = getCellVisualColor(label);
+                        const entryBars = sequenceEntryBars[index] ?? sequenceResetBars;
+                        const entryRepeats = sequenceEntryRepeats[index] ?? 1;
+                        const entryDurationMode = sequenceEntryDurationModes[index] ?? 'patterns';
+                        const entryValue = entryDurationMode === 'bars' ? entryBars : entryRepeats;
+                        const entrySpan =
+                          sequenceBarsMode === 'per-cell'
+                            ? entryDurationMode === 'bars'
+                              ? `${entryBars}b`
+                              : `${entryRepeats}x`
+                            : null;
+                        return (
+                          <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1">
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (exists) {
+                                    onSelectCell(label);
+                                  }
+                                }}
+                                className="inline-flex min-h-8 min-w-10 flex-col items-center justify-center rounded-md border px-1.5 font-mono uppercase transition-transform active:scale-[0.97]"
+                                style={{
+                                  background:
+                                    exists && label === selectedCell?.label
+                                      ? `${cellColor}18`
+                                      : 'rgba(255,255,255,0.04)',
+                                  borderColor:
+                                    exists && label === selectedCell?.label
+                                      ? `${cellColor}52`
+                                      : 'rgba(255,255,255,0.09)',
+                                  color: exists
+                                    ? label === selectedCell?.label
+                                      ? cellColor
+                                      : 'rgba(255,255,255,0.62)'
+                                    : 'rgba(255,255,255,0.24)',
+                                }}
+                              >
+                                <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">
+                                  {index + 1}
+                                </span>
+                                <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
+                                {entrySpan != null ? (
+                                  <span className="mt-0.5 text-[6.5px] leading-none tracking-[0.08em] opacity-56">
+                                    {entrySpan}
+                                  </span>
+                                ) : null}
+                              </button>
+                              {sequenceBarsMode === 'per-cell' ? (
+                                <div className="flex overflow-hidden rounded-md border border-white/8 bg-white/[0.035]">
+                                  <label className="flex items-center gap-0.5 px-1 py-0.5">
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={1}
+                                      max={entryDurationMode === 'bars' ? RIFF_MAX_RESET_BARS : RIFF_MAX_SEQUENCE_REPEATS}
+                                      value={entryValue}
+                                      onFocus={(event) => event.currentTarget.select()}
+                                      onChange={(event) => {
+                                        const nextValue = Number.parseInt(event.currentTarget.value, 10) || entryValue;
+                                        if (entryDurationMode === 'bars') {
+                                          onSetSequenceEntryBars(index, nextValue);
+                                        } else {
+                                          onSetSequenceEntryRepeats(index, nextValue);
+                                        }
+                                      }}
+                                      className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
+                                      aria-label={
+                                        entryDurationMode === 'bars'
+                                          ? `Set bars for sequence ${index + 1} cell ${label}`
+                                          : `Set cell plays for sequence ${index + 1} cell ${label}`
+                                      }
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSetSequenceEntryDurationMode(index, entryDurationMode === 'bars' ? 'patterns' : 'bars')
+                                    }
+                                    className="border-l border-white/8 px-1.5 text-[6.5px] font-mono uppercase tracking-[0.08em] transition"
+                                    style={{
+                                      color: entryDurationMode === 'bars' ? 'rgba(255,255,255,0.42)' : cellColor,
+                                      background: entryDurationMode === 'patterns' ? `${cellColor}10` : 'rgba(255,255,255,0.025)',
+                                    }}
+                                    aria-label={`Use ${entryDurationMode === 'bars' ? 'cell pattern plays' : 'bars'} for sequence ${index + 1}`}
+                                  >
+                                    {entryDurationMode === 'bars' ? 'Bar' : 'Cell'}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                            {localIndex < indices.length - 1 ? (
+                              <span className="self-center text-[10px] text-white/24">-&gt;</span>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-1.5 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
+                      {cells.map((cell) => (
+                        <button
+                          key={`append-phrase-${phrase.id}-${cell.label}`}
+                          type="button"
+                          onClick={() => onAppendCell(cell.label, phraseIndex)}
+                          className="rounded-md border px-1.5 py-1 text-[7.5px] font-mono uppercase tracking-[0.1em] transition-transform active:scale-[0.97]"
+                          style={{
+                            background: `${cell.color}0f`,
+                            borderColor: `${cell.color}22`,
+                            color: cell.color,
+                          }}
+                        >
+                          +{cell.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => onAddPhrase(selectedCell?.label ?? cells[0]?.label ?? 'A')}
+                className="w-full rounded-lg border px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.13em] transition-transform active:scale-[0.98]"
+                style={{
+                  background: 'rgba(255,255,255,0.035)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.58)',
+                }}
+              >
+                + Phrase
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-1">
@@ -8688,12 +8794,29 @@ function OrbitalPolymeter() {
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy, riffCycleStudy.riffCells, selectedRiffSequenceCellLabel]);
 
-  const handleAppendRiffSequenceCell = useCallback((label: RiffSequenceCellLabel) => {
+  const handleAppendRiffSequenceCell = useCallback((label: RiffSequenceCellLabel, phraseIndex?: number) => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
-    setRiffCycleStudy((current) => appendRiffSequenceOrderCell(current, label));
+    setRiffCycleStudy((current) => appendRiffSequenceOrderCell(current, label, phraseIndex));
     setSelectedRiffSequenceCellLabel(label);
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleAddRiffSequencePhrase = useCallback((label: RiffSequenceCellLabel) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => addRiffSequencePhrase(current, label));
+    setSelectedRiffSequenceCellLabel(label);
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleSetRiffSequencePhraseRepeats = useCallback((phraseIndex: number, repeats: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => setRiffSequencePhraseRepeats(current, phraseIndex, repeats));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
 
@@ -19825,6 +19948,8 @@ function OrbitalPolymeter() {
                               onSelectCell={handleSelectRiffSequenceCell}
                               onAddCell={handleAddRiffSequenceCell}
                               onAppendCell={handleAppendRiffSequenceCell}
+                              onAddPhrase={handleAddRiffSequencePhrase}
+                              onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onDeleteCell={handleDeleteRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
@@ -22174,6 +22299,8 @@ function OrbitalPolymeter() {
                     onSelectCell={handleSelectRiffSequenceCell}
                     onAddCell={handleAddRiffSequenceCell}
                     onAppendCell={handleAppendRiffSequenceCell}
+                    onAddPhrase={handleAddRiffSequencePhrase}
+                    onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onDeleteCell={handleDeleteRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
@@ -24069,6 +24196,8 @@ function OrbitalPolymeter() {
                           onSelectCell={handleSelectRiffSequenceCell}
                           onAddCell={handleAddRiffSequenceCell}
                           onAppendCell={handleAppendRiffSequenceCell}
+                          onAddPhrase={handleAddRiffSequencePhrase}
+                          onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                           onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                           onDeleteCell={handleDeleteRiffSequenceCell}
                           onResetSequence={handleResetRiffSequence}
