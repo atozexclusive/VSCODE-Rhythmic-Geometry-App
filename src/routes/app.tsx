@@ -8150,6 +8150,8 @@ function OrbitalPolymeter() {
   const handleToggleRiffCyclePlayback = useCallback(() => {
     if (!riffCycleStudy.playing) {
       resumeRiffCycleAudio();
+    } else {
+      setRiffCycleRestartToken((value) => value + 1);
     }
     setRiffCycleStudy((current) => ({
       ...current,
