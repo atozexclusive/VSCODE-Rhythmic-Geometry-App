@@ -266,7 +266,11 @@ function normalizeRiffBackbeatBeats(
   fallbackBeat: number | null | undefined,
 ): number[] {
   const normalizedNumerator = Math.max(2, Math.min(32, Math.round(numerator || 0)));
-  const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
+  const source = Array.isArray(beats)
+    ? beats
+    : fallbackBeat != null
+      ? [fallbackBeat]
+      : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
       source.map((beat) => Math.max(1, Math.min(normalizedNumerator, Math.round(beat || 0)))),
@@ -3696,6 +3700,7 @@ function RiffRollEditor({
   compact?: boolean;
   stretchToFill?: boolean;
 }) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const longPressTimeoutRef = useRef<number | null>(null);
   const longPressStepRef = useRef<number | null>(null);
@@ -3710,20 +3715,28 @@ function RiffRollEditor({
   }, []);
 
   useEffect(() => {
-    if (selectedStepIndex == null) {
+    if (selectedStepIndex == null || stretchToFill) {
       return;
     }
-    buttonRefs.current[selectedStepIndex]?.scrollIntoView({
-      block: 'nearest',
-      inline: 'center',
+    const container = scrollContainerRef.current;
+    const button = buttonRefs.current[selectedStepIndex];
+    if (!container || !button) {
+      return;
+    }
+    const targetLeft = button.offsetLeft - (container.clientWidth - button.offsetWidth) / 2;
+    container.scrollTo({
+      left: Math.max(0, targetLeft),
       behavior: 'smooth',
     });
-  }, [activeSteps.length, selectedStepIndex]);
+  }, [activeSteps.length, selectedStepIndex, stretchToFill]);
 
   useEffect(() => clearLongPress, [clearLongPress]);
 
   return (
-    <div className={stretchToFill ? 'w-full' : '-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]'}>
+    <div
+      ref={scrollContainerRef}
+      className={stretchToFill ? 'w-full' : '-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]'}
+    >
       <div
         className={stretchToFill ? 'grid w-full gap-2' : 'flex gap-2 px-1'}
         style={

@@ -269,7 +269,11 @@ function normalizeBackbeatBeats(
   fallbackBeat: number | null | undefined,
 ): number[] {
   const normalizedNumerator = clamp(Math.round(numerator || 0), 2, 32);
-  const source = beats && beats.length > 0 ? beats : fallbackBeat != null ? [fallbackBeat] : [Math.min(3, normalizedNumerator)];
+  const source = Array.isArray(beats)
+    ? beats
+    : fallbackBeat != null
+      ? [fallbackBeat]
+      : [Math.min(3, normalizedNumerator)];
   return Array.from(
     new Set(
       source
