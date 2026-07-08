@@ -931,10 +931,10 @@ export default function RiffCycleCanvas({
       const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
       const bottomStripY = metrics.timelineRect
         ? Math.max(
-            metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 72 : 58),
-            metrics.timelineRect.y - (exportLayoutMode ? 28 : 20),
+            metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 38 : 58),
+            metrics.timelineRect.y - (exportLayoutMode ? 64 : 20),
           )
-        : metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 86 : 72);
+        : metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 48 : 72);
       const stripY = Math.min(
         rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
         Math.max(metrics.topPadding + 8, bottomStripY),
