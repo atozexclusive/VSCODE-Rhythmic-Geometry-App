@@ -929,12 +929,11 @@ export default function RiffCycleCanvas({
       const phraseGap = exportLayoutMode ? 14 : 8;
       const plusWidth = exportLayoutMode ? 20 : 10;
       const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
-      const bottomStripY = metrics.timelineRect
-        ? Math.max(
-            metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 38 : 58),
-            metrics.timelineRect.y - (exportLayoutMode ? 64 : 20),
-          )
-        : metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 48 : 72);
+      const bottomStripY = exportLayoutMode
+        ? metrics.circleCenterY + metrics.outerRadius + 14
+        : metrics.timelineRect
+          ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
+          : metrics.circleCenterY + metrics.outerRadius + 72;
       const stripY = Math.min(
         rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
         Math.max(metrics.topPadding + 8, bottomStripY),
