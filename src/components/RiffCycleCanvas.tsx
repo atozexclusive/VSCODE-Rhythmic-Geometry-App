@@ -614,6 +614,7 @@ export default function RiffCycleCanvas({
   const playbackDriverRef = useRef(playbackDriver);
   const audioEnabledRef = useRef(audioEnabled);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const exportRecordingActiveRef = useRef(false);
   const onReferenceStepChangeRef = useRef(onReferenceStepChange);
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
@@ -678,6 +679,7 @@ export default function RiffCycleCanvas({
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const exportLayoutMode = Boolean(exportVideoSize);
+    const exportRecordingMode = exportRecordingActiveRef.current;
     const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE * 1.16 : 1;
     const shellScale = exportLayoutMode ? 1.45 : 1;
     const exportLabelScale = exportLayoutMode ? 1.55 : 1;
@@ -929,8 +931,13 @@ export default function RiffCycleCanvas({
       const phraseGap = exportLayoutMode ? 14 : 8;
       const plusWidth = exportLayoutMode ? 20 : 10;
       const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
-      const bottomStripY = exportLayoutMode
-        ? metrics.circleCenterY + metrics.outerRadius + 14
+      const referenceShapeBottomY = Math.max(
+        metrics.circleCenterY + metrics.innerRadius,
+        ...metrics.referenceVertices.map((point) => point.y),
+        ...metrics.referencePerimeterPoints.map((point) => point.y),
+      );
+      const bottomStripY = exportRecordingMode
+        ? referenceShapeBottomY + (exportLayoutMode ? 18 : 14)
         : metrics.timelineRect
           ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
           : metrics.circleCenterY + metrics.outerRadius + 72;
@@ -2690,6 +2697,7 @@ export default function RiffCycleCanvas({
       }
 
       exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
+      exportRecordingActiveRef.current = true;
       let stream: MediaStream | null = null;
       try {
         const playbackState = playbackStateHandleRef.current.current;
@@ -2760,6 +2768,7 @@ export default function RiffCycleCanvas({
         URL.revokeObjectURL(url);
       } finally {
         stream?.getTracks().forEach((track) => track.stop());
+        exportRecordingActiveRef.current = false;
         exportVideoSizeRef.current = null;
         draw();
       }
