@@ -937,7 +937,7 @@ export default function RiffCycleCanvas({
         ...metrics.referencePerimeterPoints.map((point) => point.y),
       );
       const bottomStripY = exportRecordingMode
-        ? referenceShapeBottomY + (exportLayoutMode ? 18 : 14)
+        ? referenceShapeBottomY + (exportLayoutMode ? 42 : 30)
         : metrics.timelineRect
           ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
           : metrics.circleCenterY + metrics.outerRadius + 72;
