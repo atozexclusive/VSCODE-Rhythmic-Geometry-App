@@ -928,8 +928,9 @@ export default function RiffCycleCanvas({
       const chipRadius = exportLayoutMode ? 12 : 7;
       const chipGap = exportLayoutMode ? 7 : 4;
       const phrasePaddingX = exportLayoutMode ? 10 : 5;
-      const phraseGap = exportLayoutMode ? 14 : 8;
       const plusWidth = exportLayoutMode ? 20 : 10;
+      const plusLeftGap = exportLayoutMode ? 10 : 6;
+      const plusRightGap = exportLayoutMode ? 8 : 5;
       const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
       const referenceShapeBottomY = Math.max(
         metrics.circleCenterY + metrics.innerRadius,
@@ -972,6 +973,10 @@ export default function RiffCycleCanvas({
 
       const measureEntryWidth = (entry: RiffCellStripPhraseEntry) =>
         Math.max(exportLayoutMode ? 46 : 24, ctx.measureText(getEntryText(entry)).width + entryPaddingX * 2);
+      const entryFont = `${exportLayoutMode ? 17 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      const bracketFont = `${exportLayoutMode ? 20 : 10}px "SF Mono", "Fira Code", monospace`;
+      const openBracketAdvance = exportLayoutMode ? 18 : 10;
+      const closeBracketAdvance = exportLayoutMode ? 20 : 12;
 
       const measurePhraseWidth = (phrase: RiffCellStripPhrase, phraseIndex: number) => {
         const singlePhrase = phrase.entries.length === 1;
@@ -986,13 +991,18 @@ export default function RiffCycleCanvas({
         const entriesWidth =
           entryWidths.reduce((sum, width) => sum + width, 0) +
           Math.max(0, entryWidths.length - 1) * chipGap;
-        const bracketWidth = exportLayoutMode ? 20 : 10;
-        return phrasePaddingX * 2 + bracketWidth * 2 + entriesWidth + (repeatText ? repeatGap + repeatWidth : 0);
+        return (
+          phrasePaddingX * 2 +
+          openBracketAdvance +
+          closeBracketAdvance +
+          entriesWidth +
+          (repeatText ? repeatGap + repeatWidth : 0)
+        );
       };
 
       stripPhrases.forEach((phrase, phraseIndex) => {
         const phraseWidth = measurePhraseWidth(phrase, phraseIndex);
-        const separatorWidth = displayedPhrases.length > 0 ? plusWidth + phraseGap : 0;
+        const separatorWidth = displayedPhrases.length > 0 ? plusLeftGap + plusWidth + plusRightGap : 0;
         const nextWidth = stripWidth + separatorWidth + phraseWidth;
         if (nextWidth <= maxStripWidth || displayedPhrases.length === 0) {
           displayedPhrases.push(phrase);
@@ -1009,10 +1019,11 @@ export default function RiffCycleCanvas({
 
       displayedPhrases.forEach((phrase, phraseIndex) => {
         if (phraseIndex > 0) {
+          drawX += plusLeftGap;
           ctx.fillStyle = 'rgba(255,255,255,0.34)';
           ctx.shadowBlur = 0;
           ctx.fillText('+', drawX + plusWidth / 2, stripY + chipHeight / 2);
-          drawX += plusWidth + phraseGap;
+          drawX += plusWidth + plusRightGap;
         }
 
         const phraseWidth = phraseWidths[phraseIndex] ?? measurePhraseWidth(phrase, phraseIndex);
@@ -1028,8 +1039,10 @@ export default function RiffCycleCanvas({
 
           ctx.fillStyle = 'rgba(255,255,255,0.44)';
           ctx.shadowBlur = 0;
-          ctx.fillText('[', drawX + phrasePaddingX + (exportLayoutMode ? 5 : 3), stripY + chipHeight / 2);
-          drawX += phrasePaddingX + (exportLayoutMode ? 14 : 8);
+          ctx.font = bracketFont;
+          ctx.fillText('[', drawX + phrasePaddingX + openBracketAdvance / 2, stripY + chipHeight / 2);
+          ctx.font = entryFont;
+          drawX += phrasePaddingX + openBracketAdvance;
         }
 
         phrase.entries.forEach((entry, entryIndex) => {
@@ -1054,8 +1067,10 @@ export default function RiffCycleCanvas({
         if (!singlePhrase) {
           ctx.fillStyle = 'rgba(255,255,255,0.44)';
           ctx.shadowBlur = 0;
-          ctx.fillText(']', drawX + (exportLayoutMode ? 7 : 4), stripY + chipHeight / 2);
-          drawX += (exportLayoutMode ? 18 : 10);
+          ctx.font = bracketFont;
+          ctx.fillText(']', drawX + closeBracketAdvance / 2, stripY + chipHeight / 2);
+          ctx.font = entryFont;
+          drawX += closeBracketAdvance;
         }
 
         if (phrase.repeatCount > 1) {
