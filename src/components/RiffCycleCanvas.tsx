@@ -961,6 +961,7 @@ export default function RiffCycleCanvas({
       ctx.font = `${exportLayoutMode ? 17 : 8.5}px "SF Mono", "Fira Code", monospace`;
       const entryPaddingX = exportLayoutMode ? 13 : 7;
       const repeatPaddingX = exportLayoutMode ? 10 : 6;
+      const repeatGap = exportLayoutMode ? 8 : 5;
       const displayedPhrases: RiffCellStripPhrase[] = [];
       const phraseWidths: number[] = [];
       let stripWidth = 0;
@@ -973,20 +974,20 @@ export default function RiffCycleCanvas({
         Math.max(exportLayoutMode ? 46 : 24, ctx.measureText(getEntryText(entry)).width + entryPaddingX * 2);
 
       const measurePhraseWidth = (phrase: RiffCellStripPhrase, phraseIndex: number) => {
-        const singleTail = phraseIndex > 0 && phrase.entries.length === 1 && phrase.repeatCount === 1;
+        const singlePhrase = phrase.entries.length === 1;
         const entryWidths = phrase.entries.map(measureEntryWidth);
-        if (singleTail) {
-          return entryWidths[0] ?? 0;
+        const repeatText = phrase.repeatCount > 1 ? `${phrase.repeatCount}x` : '';
+        const repeatWidth = repeatText
+          ? ctx.measureText(repeatText).width + repeatPaddingX
+          : 0;
+        if (singlePhrase) {
+          return (entryWidths[0] ?? 0) + (repeatText ? repeatGap + repeatWidth : 0);
         }
         const entriesWidth =
           entryWidths.reduce((sum, width) => sum + width, 0) +
           Math.max(0, entryWidths.length - 1) * chipGap;
         const bracketWidth = exportLayoutMode ? 20 : 10;
-        const repeatText = phrase.repeatCount > 1 ? `x${phrase.repeatCount}` : '';
-        const repeatWidth = repeatText
-          ? ctx.measureText(repeatText).width + repeatPaddingX * 2
-          : 0;
-        return phrasePaddingX * 2 + bracketWidth * 2 + entriesWidth + repeatWidth;
+        return phrasePaddingX * 2 + bracketWidth * 2 + entriesWidth + (repeatText ? repeatGap + repeatWidth : 0);
       };
 
       stripPhrases.forEach((phrase, phraseIndex) => {
@@ -1015,9 +1016,9 @@ export default function RiffCycleCanvas({
         }
 
         const phraseWidth = phraseWidths[phraseIndex] ?? measurePhraseWidth(phrase, phraseIndex);
-        const singleTail = phraseIndex > 0 && phrase.entries.length === 1 && phrase.repeatCount === 1;
+        const singlePhrase = phrase.entries.length === 1;
 
-        if (!singleTail) {
+        if (!singlePhrase) {
           drawRoundedRect(ctx, drawX, stripY - 2, phraseWidth, chipHeight + 4, chipRadius + 3);
           ctx.fillStyle = 'rgba(255,255,255,0.025)';
           ctx.fill();
@@ -1050,25 +1051,21 @@ export default function RiffCycleCanvas({
           drawX += chipWidth + (entryIndex < phrase.entries.length - 1 ? chipGap : 0);
         });
 
-        if (!singleTail) {
+        if (!singlePhrase) {
           ctx.fillStyle = 'rgba(255,255,255,0.44)';
           ctx.shadowBlur = 0;
           ctx.fillText(']', drawX + (exportLayoutMode ? 7 : 4), stripY + chipHeight / 2);
           drawX += (exportLayoutMode ? 18 : 10);
+        }
 
-          if (phrase.repeatCount > 1) {
-            const repeatText = `x${phrase.repeatCount}`;
-            const repeatWidth = ctx.measureText(repeatText).width + repeatPaddingX * 2;
-            drawRoundedRect(ctx, drawX, stripY, repeatWidth, chipHeight, chipRadius);
-            ctx.fillStyle = exportLayoutMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.055)';
-            ctx.fill();
-            ctx.strokeStyle = exportLayoutMode ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.16)';
-            ctx.lineWidth = exportLayoutMode ? 1.1 : 0.75;
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(255,255,255,0.72)';
-            ctx.fillText(repeatText, drawX + repeatWidth / 2, stripY + chipHeight / 2);
-            drawX += repeatWidth;
-          }
+        if (phrase.repeatCount > 1) {
+          const repeatText = `${phrase.repeatCount}x`;
+          const repeatWidth = ctx.measureText(repeatText).width + repeatPaddingX;
+          drawX += repeatGap;
+          ctx.fillStyle = singlePhrase ? 'rgba(255,255,255,0.58)' : 'rgba(255,255,255,0.72)';
+          ctx.shadowBlur = 0;
+          ctx.fillText(repeatText, drawX + repeatWidth / 2, stripY + chipHeight / 2);
+          drawX += repeatWidth;
         }
       });
 
