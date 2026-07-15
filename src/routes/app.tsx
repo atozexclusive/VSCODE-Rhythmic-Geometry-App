@@ -1810,9 +1810,65 @@ const DESKTOP_RIFF_EDITOR_GUIDE: StartGuideStep[] = [
     notice: 'Changing one cell updates both views.',
   },
   {
+    target: 'riff-editor-bar-tab',
+    title: 'Bar Frame',
+    kicker: 'Focus Editor · Bar',
+    text: 'Bar defines the steady frame behind the riff. Meter sets the number of beats, Bar Grid sets the note-value frame, and Subdivision controls the smaller positions inside it.',
+    doThis: 'Open Bar when you need to change what the riff is playing against.',
+    notice: 'Bar settings change the timing frame, not the written Riff hits.',
+  },
+  {
+    target: 'riff-editor-bar-meter',
+    title: 'Meter',
+    kicker: 'Focus Editor · Bar',
+    text: 'Meter sets how many beats belong to one bar. The top number changes the number of beats; Bar Grid chooses whether that frame is based on quarter notes or eighth notes.',
+    doThis: 'Choose the meter first. Everything else in Bar is interpreted inside this frame.',
+    notice: 'For example, 5/4 has five quarter-note beats in each bar.',
+  },
+  {
+    target: 'riff-editor-bar-grid',
+    title: 'Bar Grid',
+    kicker: 'Focus Editor · Bar',
+    text: 'Bar Grid chooses the note value used by the meter. Quarter-note grid gives meters such as 4/4; eighth-note grid gives meters such as 7/8 without changing the written riff pattern.',
+    doThis: 'Choose the denominator that matches the pulse frame you want to show.',
+    notice: 'Meter and Bar Grid work together as one time signature.',
+  },
+  {
+    target: 'riff-editor-bar-subdivision',
+    title: 'Subdivision',
+    kicker: 'Focus Editor · Bar',
+    text: 'Subdivision divides the bar into the smaller positions used by the riff, lane, and subdivision layer. Eighths are broad; triplets create three-part beats; sixteenths create four positions per quarter note.',
+    doThis: 'Pick the subdivision that matches how you count the riff.',
+    notice: 'Changing subdivision changes the timing grid, so the same step count can land differently against the bar.',
+  },
+  {
+    target: 'riff-editor-bar-restart',
+    title: 'Riff Restart',
+    kicker: 'Focus Editor · Bar',
+    text: 'Riff Restart decides when the moving riff is forced back to its first step. Leave it off for a natural cycle, or set a bar count to create a deliberate section length.',
+    doThis: 'Use the natural-resolution message when you want the full cycle to complete cleanly.',
+    notice: 'When Cell Sequencer is on, restart timing is controlled there instead.',
+  },
+  {
+    target: 'riff-editor-bar-cues',
+    title: 'Bar Cues',
+    kicker: 'Focus Editor · Bar',
+    text: 'Bar Cues mark larger intervals across a repeating section so you can hear where longer phrases begin again.',
+    doThis: 'Set a cue interval when the phrase spans several bars, or leave it off when the bar line is enough.',
+    notice: 'Bar Cues orient the section without changing its meter or riff.',
+  },
+  {
+    target: 'riff-editor-bar-backbeat',
+    title: 'Backbeat',
+    kicker: 'Focus Editor · Bar',
+    text: 'Backbeat adds one or more reference accents inside each bar. Select any beat positions you want emphasized, or use Off to clear them.',
+    doThis: 'Choose only the accents that help reveal the groove.',
+    notice: 'The available beat positions follow the current meter.',
+  },
+  {
     target: 'riff-editor-roll',
     title: 'Pattern Roll',
-    kicker: 'Riff Editor',
+    kicker: 'Focus Editor · Riff',
     text: 'The roll is the pattern flattened into boxes. Each box is one possible hit. Filled boxes play; empty boxes rest.',
     doThis: 'Tap one empty cell to turn it on.',
     notice: 'The shape above updates immediately.',
@@ -1823,7 +1879,7 @@ const DESKTOP_RIFF_EDITOR_GUIDE: StartGuideStep[] = [
   {
     target: 'riff-editor-offset',
     title: 'Offset',
-    kicker: 'Riff Editor',
+    kicker: 'Focus Editor · Riff',
     text: 'Offset moves the same pattern earlier or later against the bar grid. It does not add or remove hits.',
     doThis: 'Move it 1 step and compare where the pattern starts.',
     notice: 'Same hits. Different starting place.',
@@ -1834,10 +1890,42 @@ const DESKTOP_RIFF_EDITOR_GUIDE: StartGuideStep[] = [
   {
     target: 'riff-editor-step-states',
     title: 'Hit, Rest, Accent',
-    kicker: 'Riff Editor',
+    kicker: 'Focus Editor · Riff',
     text: 'Each selected step can be silent, on, or accented.',
     doThis: 'Select one step, then compare Rest, Hit, and Accent.',
     notice: 'Accent changes emphasis, not timing.',
+  },
+  {
+    target: 'riff-editor-ending-tab',
+    title: 'Ending',
+    kicker: 'Focus Editor · Ending',
+    text: 'Ending changes only the final slots before the riff returns to step 1. It lets the last pass resolve differently without duplicating or rewriting the main riff.',
+    doThis: 'Open Ending after the repeating Riff pattern is working.',
+    notice: 'The main Riff remains intact; Ending only overrides its final landing area.',
+  },
+  {
+    target: 'riff-editor-ending-length',
+    title: 'Ending Length',
+    kicker: 'Focus Editor · Ending',
+    text: 'Ending Length sets how many final subdivision slots can be replaced. A short ending changes only the last moment; a longer ending can reshape more of the final bar.',
+    doThis: 'Start short, then add slots only when the transition needs more space.',
+    notice: 'These slots occur immediately before the restart.',
+  },
+  {
+    target: 'riff-editor-ending-roll',
+    title: 'Ending Roll',
+    kicker: 'Focus Editor · Ending',
+    text: 'The blue cells are the editable ending slots. Tap a cell for hit or rest, and hold it for an accent. The base-colored cells show the original riff for context.',
+    doThis: 'Edit the blue cells while comparing them with the original pattern beside them.',
+    notice: 'Only the final pass uses these ending overrides.',
+  },
+  {
+    target: 'riff-editor-ending-window',
+    title: 'Return Window',
+    kicker: 'Focus Editor · Ending',
+    text: 'Return Window shows where the ending lives inside the restart cycle. The final highlighted block is where the editable ending slots play before the riff returns to step 1.',
+    doThis: 'Use this map to confirm which bar receives the ending.',
+    notice: 'If restart is free, there is no fixed multi-bar return window.',
   },
 ];
 
@@ -2693,6 +2781,7 @@ function MobilePresentActionButton({
   accent,
   active = true,
   locked = false,
+  compact = false,
   className = '',
   style,
   ...props
@@ -2702,11 +2791,12 @@ function MobilePresentActionButton({
   accent: string;
   active?: boolean;
   locked?: boolean;
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
-      className={`relative flex min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border px-1.5 py-2 text-center transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`relative flex min-w-0 items-center justify-center overflow-hidden border text-center transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${compact ? 'flex-row gap-1 rounded-lg px-1 py-1.5' : 'flex-col gap-1 rounded-xl px-1.5 py-2'} ${className}`}
       style={{
         background: active ? `${accent}14` : 'rgba(255,255,255,0.05)',
         borderColor: active ? `${accent}30` : 'rgba(255,255,255,0.1)',
@@ -2725,8 +2815,8 @@ function MobilePresentActionButton({
       }}
       {...props}
     >
-      {icon ? <span className="flex h-4 items-center justify-center">{icon}</span> : null}
-      <span className="min-w-0 truncate text-[8px] font-mono uppercase tracking-[0.12em]">
+      {icon ? <span className={`flex items-center justify-center ${compact ? 'h-3.5 scale-90' : 'h-4'}`}>{icon}</span> : null}
+      <span className={`min-w-0 truncate font-mono uppercase ${compact ? 'text-[7px] tracking-[0.08em]' : 'text-[8px] tracking-[0.12em]'}`}>
         {label}
       </span>
       {locked ? (
@@ -7594,7 +7684,7 @@ function OrbitalPolymeter() {
     (riffMobileLaneBarsPerPage === 'pattern' ||
       riffMobileLaneBarsPerPage === 'free' ||
       (riffCycleStudy.playing && presentationMode));
-  const riffMobilePresentBottomInset = riffMobileLaneHidden ? 112 : 248;
+  const riffMobilePresentBottomInset = riffMobileLaneHidden ? 56 : 168;
   const riffDesktopStepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
   const riffPatternBarMarkerCopy = getRiffPatternBarMarkerCopy(riffCycleStudy);
   const riffEndingPreviewStudy = riffCycleStudy.landingEditEnabled
@@ -10789,7 +10879,18 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('landing');
       return;
     }
-    if (currentGuideStep.target === 'riff-layer-1' || currentGuideStep.target === 'riff-editor-bar-tab') {
+    if (
+      currentGuideStep.target === 'riff-layer-1' ||
+      [
+        'riff-editor-bar-tab',
+        'riff-editor-bar-meter',
+        'riff-editor-bar-grid',
+        'riff-editor-bar-subdivision',
+        'riff-editor-bar-restart',
+        'riff-editor-bar-cues',
+        'riff-editor-bar-backbeat',
+      ].includes(currentGuideStep.target)
+    ) {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -10804,7 +10905,15 @@ function OrbitalPolymeter() {
       }
       return;
     }
-    if (currentGuideStep.target === 'riff-layer-2' || currentGuideStep.target === 'riff-editor-riff-tab') {
+    if (
+      currentGuideStep.target === 'riff-layer-2' ||
+      [
+        'riff-editor-riff-tab',
+        'riff-editor-roll',
+        'riff-editor-offset',
+        'riff-editor-step-states',
+      ].includes(currentGuideStep.target)
+    ) {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -10820,7 +10929,15 @@ function OrbitalPolymeter() {
       handleSetRiffEditMode('phrase');
       return;
     }
-    if (currentGuideStep.target === 'riff-ending' || currentGuideStep.target === 'riff-editor-ending-tab') {
+    if (
+      currentGuideStep.target === 'riff-ending' ||
+      [
+        'riff-editor-ending-tab',
+        'riff-editor-ending-length',
+        'riff-editor-ending-roll',
+        'riff-editor-ending-window',
+      ].includes(currentGuideStep.target)
+    ) {
       if (isMobile) {
         if (!riffMobileEditorOpen) {
           setRiffMobileSection('edit');
@@ -18818,10 +18935,11 @@ function OrbitalPolymeter() {
         ) : null}
 
         {isMobile && presentationMode ? (
-          <div className="fixed z-20 left-5 right-5 bottom-5">
-            <StudyShellPanel className="space-y-2.5">
-              <div className="grid grid-cols-5 gap-1.5">
+          <div className="fixed z-20 bottom-3 left-3 right-3">
+            <StudyShellPanel className="!rounded-2xl !p-2 space-y-1.5">
+              <div className="grid grid-cols-5 gap-1">
                 <MobilePresentActionButton
+                  compact
                   label={polyrhythmStudy.playing ? 'Pause' : 'Play'}
                   icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />}
                   accent={polyrhythmStudy.playing ? '#FF3366' : '#00FFAA'}
@@ -18830,6 +18948,7 @@ function OrbitalPolymeter() {
                   title={polyrhythmStudy.playing ? 'Pause' : 'Play'}
                 />
                 <MobilePresentActionButton
+                  compact
                   label="Restart"
                   icon={<RotateCcw size={15} />}
                   accent="#FFAA00"
@@ -18838,6 +18957,7 @@ function OrbitalPolymeter() {
                   title="Restart"
                 />
                 <MobilePresentActionButton
+                  compact
                   label="Random"
                   icon={<Shuffle size={15} />}
                   accent="#88CCFF"
@@ -18846,6 +18966,7 @@ function OrbitalPolymeter() {
                   title="Random"
                 />
                 <MobilePresentActionButton
+                  compact
                   label="Remix"
                   icon={<Zap size={15} />}
                   accent="#B6A0FF"
@@ -18855,6 +18976,7 @@ function OrbitalPolymeter() {
                   locked={remixLocked}
                 />
                 <MobilePresentActionButton
+                  compact
                   label="Random+"
                   icon={<Shuffle size={15} />}
                   accent="#FFAA00"
@@ -23927,6 +24049,7 @@ function OrbitalPolymeter() {
 
             {riffDesktopEditTab === 'return' ? (
               <div
+                data-guide="riff-editor-ending-window"
                 className="absolute bottom-5 right-5 z-20"
                 style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
               >
@@ -23995,7 +24118,7 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
                     <div className="grid gap-2 xl:grid-cols-[0.72fr_0.7fr_1.2fr_1.38fr_1.18fr_1.08fr]">
-                      <StudyShellPanel className="space-y-1 px-2 py-1.5">
+                      <StudyShellPanel data-guide="riff-editor-bar-meter" className="space-y-1 px-2 py-1.5">
                         <InlineInfoLabel
                           infoId="riff_meter"
                           label="Meter"
@@ -24030,7 +24153,7 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         </div>
                       </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1 px-2 py-1.5">
+                      <StudyShellPanel data-guide="riff-editor-bar-grid" className="space-y-1 px-2 py-1.5">
                         <InlineInfoLabel
                           infoId="riff_reference_grid"
                           label="Bar Grid"
@@ -24055,7 +24178,7 @@ function OrbitalPolymeter() {
                           ))}
                         </div>
                       </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                      <StudyShellPanel data-guide="riff-editor-bar-subdivision" className="space-y-1.5 px-2.5 py-2">
                         <div
                           className="text-[9px] font-mono uppercase tracking-[0.18em]"
                           style={desktopMenuSubheaderStyle}
@@ -24090,15 +24213,17 @@ function OrbitalPolymeter() {
                           ))}
                         </div>
                       </StudyShellPanel>
-                      <RiffRestartSliderControl
-                        study={riffCycleStudy}
-                        onUpdateRiff={handleUpdateRiffPhrase}
-	                        labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-	                        labelStyle={desktopMenuSubheaderStyle}
-	                        compact
-	                        controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
-	                      />
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                      <div data-guide="riff-editor-bar-restart">
+                        <RiffRestartSliderControl
+                          study={riffCycleStudy}
+                          onUpdateRiff={handleUpdateRiffPhrase}
+	                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+	                          labelStyle={desktopMenuSubheaderStyle}
+	                          compact
+	                          controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                        />
+                      </div>
+                      <StudyShellPanel data-guide="riff-editor-bar-cues" className="space-y-1.5 px-2.5 py-2">
                         <BarCueSliderControl
                           value={riffCycleStudy.barMarkerInterval}
                           onChange={handleSetRiffBarMarkerInterval}
@@ -24107,7 +24232,7 @@ function OrbitalPolymeter() {
                           compact
                         />
                       </StudyShellPanel>
-                      <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
+                      <StudyShellPanel data-guide="riff-editor-bar-backbeat" className="space-y-1.5 px-2.5 py-2">
                         <InlineInfoLabel
                           infoId="riff_backbeat"
                           label="Backbeat"
@@ -24389,7 +24514,7 @@ function OrbitalPolymeter() {
                   </>
                 ) : (
                   <>
-                    <div className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
+                    <div data-guide="riff-editor-ending-length" className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
                       <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
                         Ending Roll
                       </div>
@@ -24427,7 +24552,7 @@ function OrbitalPolymeter() {
                       <div className="xl:justify-self-end" aria-hidden="true" />
                     </div>
 
-                    <StudyShellPanel className="space-y-2 px-3 py-2">
+                    <StudyShellPanel data-guide="riff-editor-ending-roll" className="space-y-2 px-3 py-2">
                       <div className="flex items-center justify-between gap-2 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
                         <span>Last Bar</span>
                         <span>Blue cells are the editable ending slots</span>
@@ -24569,60 +24694,9 @@ function OrbitalPolymeter() {
                 />
               </div>
 
-              <div className="grid grid-cols-[minmax(0,1.55fr)_repeat(2,minmax(0,1fr))] gap-1.5">
-                <div
-                  className="grid grid-cols-2 gap-1 rounded-xl border p-1"
-                  style={{
-                    background:
-                      riffEditMode === 'landing'
-                        ? 'rgba(127,215,255,0.1)'
-                        : `${riffCycleStudy.riff.color}10`,
-                    borderColor:
-                      riffEditMode === 'landing'
-                        ? 'rgba(127,215,255,0.22)'
-                        : `${riffCycleStudy.riff.color}24`,
-                    boxShadow:
-                      riffEditMode === 'landing'
-                        ? '0 0 0 1px rgba(127,215,255,0.08) inset'
-                        : `0 0 0 1px ${riffCycleStudy.riff.color}10 inset`,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSetRiffEditMode('phrase');
-                      if (riffMobileLaneHidden) {
-                        setRiffMobileLaneBarsPerPage('pattern');
-                      }
-                      setRiffMobileLanePage(0);
-                    }}
-                    className="rounded-lg px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.12em] transition-all active:scale-[0.97]"
-                    style={{
-                      background: riffEditMode === 'landing' ? 'transparent' : `${riffCycleStudy.riff.color}18`,
-                      border: `1px solid ${riffEditMode === 'landing' ? 'transparent' : `${riffCycleStudy.riff.color}34`}`,
-                      color: riffEditMode === 'landing' ? 'rgba(255,255,255,0.62)' : riffCycleStudy.riff.color,
-                    }}
-                  >
-                    Riff
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSetRiffEditMode('landing');
-                      setRiffMobileLaneBarsPerPage('pattern');
-                      setRiffMobileLanePage(0);
-                    }}
-                    className="rounded-lg px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.12em] transition-all active:scale-[0.97]"
-                    style={{
-                      background: riffEditMode === 'landing' ? 'rgba(127,215,255,0.16)' : 'transparent',
-                      border: `1px solid ${riffEditMode === 'landing' ? 'rgba(127,215,255,0.3)' : 'transparent'}`,
-                      color: riffEditMode === 'landing' ? '#7FD7FF' : 'rgba(255,255,255,0.62)',
-                    }}
-                  >
-                    Ending
-                  </button>
-                </div>
+              <div className="grid grid-cols-2 gap-1">
                 <MobilePresentActionButton
+                  compact
                   label={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                   icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
                   accent="#88CCFF"
@@ -24633,6 +24707,7 @@ function OrbitalPolymeter() {
                   title={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
                 />
                 <MobilePresentActionButton
+                  compact
                   label="Exit"
                   icon={<Minimize2 size={15} />}
                   accent="#72F1B8"
@@ -24641,33 +24716,6 @@ function OrbitalPolymeter() {
                   aria-label="Exit fullscreen mode"
                   title="Exit Fullscreen"
                 />
-              </div>
-              <div className="space-y-1">
-                <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                  View
-                </div>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {([
-                    { value: 'none' as const, label: 'None' },
-                    { value: 1 as const, label: '1 Bar' },
-                    { value: 2 as const, label: '2 Bars' },
-                    { value: 4 as const, label: '4 Bars' },
-                    { value: 'pattern' as const, label: 'Pattern' },
-                  ]).map((option) => (
-                    <StudyShellButton
-                      key={option.label}
-                      size="compact"
-                      tone="blue"
-                      highlighted={riffMobileLaneBarsPerPage === option.value}
-                      onClick={() => {
-                        setRiffMobileLaneBarsPerPage(option.value);
-                        setRiffMobileLanePage(0);
-                      }}
-                    >
-                      {option.label}
-                    </StudyShellButton>
-                  ))}
-                </div>
               </div>
             </StudyShellPanel>
           </div>
