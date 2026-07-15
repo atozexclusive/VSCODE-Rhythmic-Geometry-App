@@ -9231,17 +9231,6 @@ function OrbitalPolymeter() {
     });
   }, [requireEditableRiffCycleStudy]);
 
-  const handleToggleRiffCountLabels = useCallback(() => {
-    if (!requireEditableRiffCycleStudy()) {
-      return;
-    }
-    setRiffCycleStudy((current) => ({
-      ...current,
-      showStepLabels: true,
-      showCountLabels: !current.showCountLabels,
-    }));
-  }, [requireEditableRiffCycleStudy]);
-
   const handleToggleRiffPhraseBounds = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
       return;
@@ -9420,23 +9409,24 @@ function OrbitalPolymeter() {
         nextStudy = updateRiffStepCount(nextStudy, randomItem([7, 8, 10, 12]));
       }
     }
-    setRiffCycleStudy({
+    setRiffCycleStudy((current) => ({
       ...nextStudy,
-      playing: riffCycleStudy.playing,
-      viewMode: riffCycleStudy.viewMode,
-      showStepLabels: riffCycleStudy.showStepLabels,
-      showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
-      showPhraseBounds: riffCycleStudy.showPhraseBounds,
-      showPhraseGroupings: riffCycleStudy.showPhraseGroupings,
-      showStructureView: riffCycleStudy.showStructureView,
-    });
+      playing: current.playing,
+      viewMode: current.viewMode,
+      showStepLabels: current.showStepLabels,
+      showCountLabels: false,
+      showAlignmentMarkers: current.showAlignmentMarkers,
+      showPhraseBounds: current.showPhraseBounds,
+      showPhraseGroupings: current.showPhraseGroupings,
+      showStructureView: current.showStructureView,
+    }));
     setActiveRiffCyclePresetId(null);
     setActiveRiffCycleSavedSceneId(null);
     setSelectedRiffCycleStep(null);
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showPhraseGroupings, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
+  }, [effectivePlan]);
 
   const handleRemixRiffCycleStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -9448,6 +9438,7 @@ function OrbitalPolymeter() {
         ...remixRiffCycleStudy(current),
         viewMode: current.viewMode,
         showStepLabels: current.showStepLabels,
+        showCountLabels: false,
         showAlignmentMarkers: current.showAlignmentMarkers,
         showPhraseBounds: current.showPhraseBounds,
         showPhraseGroupings: current.showPhraseGroupings,
@@ -9470,23 +9461,24 @@ function OrbitalPolymeter() {
       showProPrompt('random-plus');
       return;
     }
-    setRiffCycleStudy({
+    setRiffCycleStudy((current) => ({
       ...createRandomPlusRiffCycleStudy(),
-      playing: riffCycleStudy.playing,
-      viewMode: riffCycleStudy.viewMode,
-      showStepLabels: riffCycleStudy.showStepLabels,
-      showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
-      showPhraseBounds: riffCycleStudy.showPhraseBounds,
-      showPhraseGroupings: riffCycleStudy.showPhraseGroupings,
-      showStructureView: riffCycleStudy.showStructureView,
-    });
+      playing: current.playing,
+      viewMode: current.viewMode,
+      showStepLabels: current.showStepLabels,
+      showCountLabels: false,
+      showAlignmentMarkers: current.showAlignmentMarkers,
+      showPhraseBounds: current.showPhraseBounds,
+      showPhraseGroupings: current.showPhraseGroupings,
+      showStructureView: current.showStructureView,
+    }));
     setActiveRiffCyclePresetId(null);
     setActiveRiffCycleSavedSceneId(null);
     setSelectedRiffCycleStep(null);
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showPhraseGroupings, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
+  }, [effectivePlan]);
 
   const handleToggleFlowPlayback = useCallback(() => {
     resumeFlowAudio();
@@ -20220,7 +20212,7 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             <div className="space-y-2">
-                              <div className="grid grid-cols-4 gap-1.5">
+                              <div className="grid grid-cols-3 gap-1.5">
                                 <StudyShellButton
                                   size="compact"
                                   tone="blue"
@@ -20230,16 +20222,6 @@ function OrbitalPolymeter() {
                                   className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                                 >
                                   Numbers
-                                </StudyShellButton>
-                                <StudyShellButton
-                                  size="compact"
-                                  tone="blue"
-                                  highlighted={Boolean(riffCycleStudy.showCountLabels)}
-                                  onClick={handleToggleRiffCountLabels}
-                                  icon={<span className="text-[9px] leading-none">1e</span>}
-                                  className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
-                                >
-                                  Counts
                                 </StudyShellButton>
                                 <StudyShellButton
                                   size="compact"
@@ -23326,7 +23308,7 @@ function OrbitalPolymeter() {
 	                          Orientation
 	                        </div>
 	                      </div>
-	                      <div className="grid grid-cols-3 gap-2">
+	                      <div className="grid grid-cols-2 gap-2">
 	                        <StudyShellButton
 	                          size="compact"
 	                          tone="amber"
@@ -23336,16 +23318,6 @@ function OrbitalPolymeter() {
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Numbers
-	                        </StudyShellButton>
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="amber"
-	                          highlighted={Boolean(riffCycleStudy.showCountLabels)}
-	                          onClick={handleToggleRiffCountLabels}
-	                          icon={<span className="text-[10px] leading-none">1e</span>}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Counts
 	                        </StudyShellButton>
 	                        <StudyShellButton
 	                          size="compact"
