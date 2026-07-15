@@ -686,8 +686,7 @@ export default function RiffCycleCanvas({
     const exportSidePadding = exportLayoutMode ? 96 : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
-    const circularPhraseBoundsActive =
-      currentStudy.showPhraseGroupings && currentStudy.viewMode === 'circular';
+    const circularPhraseBoundsActive = Boolean(currentStudy.showPhraseGroupings);
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
@@ -1129,6 +1128,9 @@ export default function RiffCycleCanvas({
       ctx.stroke();
 
       for (let index = 0; index < pulseStepCount; index += 1) {
+        if (isReferenceBeatStart(currentStudy, index)) {
+          continue;
+        }
         const active = pulseLayerSteps[index];
         const current = index === currentPulseIndex;
         const point = getPulseLayerPoint(
@@ -1379,6 +1381,9 @@ export default function RiffCycleCanvas({
           ((Math.floor(referenceProgress) % stepsPerBar) + stepsPerBar) % stepsPerBar;
 
         metrics.referencePerimeterPoints.forEach((point, index) => {
+          if (isReferenceBeatStart(currentStudy, index)) {
+            return;
+          }
           const nodeX = point.x;
           const nodeY = point.y;
           const active = pulseLayerSteps[index] ?? true;
@@ -1544,13 +1549,13 @@ export default function RiffCycleCanvas({
         color: activeRiffColor,
         glowMultiplier,
         pointScale,
-        showLabels: circularPhraseBoundsActive,
+        showLabels: false,
         intensity: contourIntensity,
         fill: currentStudy.showPhraseFill,
       });
     }
 
-    if (innerClockVisible && !carveViewActive && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
+    if (innerClockVisible && circularPhraseBoundsActive && activeRiffPoints.length >= 2) {
       const activePoints = [...activeRiffPoints].sort((a, b) => a.index - b.index);
       const groupRadius = metrics.innerRadius;
       const labelRingRadius =
@@ -1688,7 +1693,7 @@ export default function RiffCycleCanvas({
                   ? 6.15
                   : 5.65
               : carveViewActive
-                ? 1.75
+                ? 3.8
                 : circularPhraseBoundsActive
                   ? 3.8
                   : 3.35) +
@@ -1726,7 +1731,7 @@ export default function RiffCycleCanvas({
       ctx.fillStyle = effectiveActive
         ? activeRiffColor
         : carveViewActive
-          ? 'rgba(255,255,255,0.18)'
+          ? 'rgba(255,255,255,0.38)'
         : circularPhraseBoundsActive
           ? 'rgba(255,255,255,0.38)'
           : 'rgba(255,255,255,0.24)';
@@ -1735,7 +1740,7 @@ export default function RiffCycleCanvas({
           ? Math.min(0.95, (isCurrent || isHovered ? 0.95 : 0.74) + attackRemaining * 0.24)
           : Math.min(1, (isCurrent || isHovered ? 1 : 0.88) + attackRemaining * 0.3)
         : carveViewActive
-          ? (isHovered ? 0.38 : 0.13) * inactiveAlpha
+          ? (isHovered ? 0.62 : 0.48) * inactiveAlpha
         : circularPhraseBoundsActive
           ? isHovered
             ? 0.62
@@ -1748,7 +1753,7 @@ export default function RiffCycleCanvas({
         : isHovered
           ? 10 * glowMultiplier * pointScale
           : carveViewActive
-            ? 0.4 * glowMultiplier * pointScale
+            ? 3 * glowMultiplier * pointScale
           : circularPhraseBoundsActive
             ? 3 * glowMultiplier * pointScale
             : 1.4 * glowMultiplier * pointScale;
@@ -2614,7 +2619,7 @@ export default function RiffCycleCanvas({
           const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
           const subdivisionStep =
             ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
-          if (currentStudy.pulseLayerSteps?.[subdivisionStep] ?? true) {
+          if (!referenceBeatStart && (currentStudy.pulseLayerSteps?.[subdivisionStep] ?? true)) {
             triggerSubdivisionPulse(currentStudy.soundSettings, currentStudy.subdivisionGain);
           }
         }
@@ -2924,6 +2929,9 @@ export default function RiffCycleCanvas({
       const pulseStepCount = Math.max(1, getReferenceStepsPerBar(currentStudy.reference));
       const pulseRadius = metrics.outerRadius;
       for (let index = 0; index < pulseStepCount; index += 1) {
+        if (isReferenceBeatStart(currentStudy, index)) {
+          continue;
+        }
         const point = currentStudy.pulseLayerEnabled
           ? getPulseLayerPoint(
               metrics.circleCenterX,

@@ -1172,6 +1172,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
     ),
     riffSequencePhrases,
     showPhraseFill: study.showPhraseFill ?? true,
+    showPhraseGroupings: Boolean(study.showPhraseGroupings),
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
     referenceGain: normalizeCueGain(study.referenceGain ?? 0.055, 0.055),
     subdivisionGain: normalizeCueGain(study.subdivisionGain ?? 0.014, 0.014),

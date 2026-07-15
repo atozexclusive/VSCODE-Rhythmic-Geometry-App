@@ -1991,6 +1991,10 @@ interface SavedRiffCycleScene {
   study: RiffCycleStudy;
 }
 
+type StoredStudySceneSnapshot =
+  | { kind: 'polyrhythm-study'; scene: SavedPolyrhythmScene }
+  | { kind: 'riff-cycle-study'; scene: SavedRiffCycleScene };
+
 interface ExportRecord {
   id: string;
   type: string;
@@ -6796,6 +6800,58 @@ function mapStoredSceneRecord(record: StoredSceneRecord): SavedScene | null {
   };
 }
 
+function mapStoredPolyrhythmSceneRecord(record: StoredSceneRecord): SavedPolyrhythmScene | null {
+  const payload = record.snapshot as Partial<StoredStudySceneSnapshot> | null;
+  if (payload?.kind !== 'polyrhythm-study' || !payload.scene) {
+    return null;
+  }
+
+  const scene = payload.scene as SavedPolyrhythmScene;
+  if (!scene.study || !Array.isArray(scene.study.layers)) {
+    return null;
+  }
+
+  return {
+    ...scene,
+    id: record.id,
+    name: record.name,
+    updatedAt: record.updated_at,
+  };
+}
+
+function mapStoredRiffCycleSceneRecord(record: StoredSceneRecord): SavedRiffCycleScene | null {
+  const payload = record.snapshot as Partial<StoredStudySceneSnapshot> | null;
+  if (payload?.kind !== 'riff-cycle-study' || !payload.scene) {
+    return null;
+  }
+
+  const scene = payload.scene as SavedRiffCycleScene;
+  if (!scene.study?.riff || !Array.isArray(scene.study.riff.activeSteps)) {
+    return null;
+  }
+
+  return {
+    ...scene,
+    id: record.id,
+    name: record.name,
+    updatedAt: record.updated_at,
+  };
+}
+
+function mergeSavedStudyScenes<T extends { id: string; updatedAt: string }>(
+  localScenes: T[],
+  accountScenes: T[],
+): T[] {
+  const merged = new Map(accountScenes.map((scene) => [scene.id, scene]));
+  localScenes.forEach((scene) => {
+    const accountScene = merged.get(scene.id);
+    if (!accountScene || scene.updatedAt > accountScene.updatedAt) {
+      merged.set(scene.id, scene);
+    }
+  });
+  return sortSavedStudyScenesByUpdatedAt([...merged.values()]);
+}
+
 function mapStoredExportRecord(record: StoredExportRecord): ExportRecord {
   return {
     id: record.id,
@@ -8310,10 +8366,11 @@ function OrbitalPolymeter() {
     }));
   }, [riffCycleStudy.soundEnabled]);
 
-  const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
+  const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerVisible' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
     setRiffCycleStudy((current) => {
       const enablingSubdivisionLayer =
         updates.subdivisionSoundEnabled === true ||
+        updates.pulseLayerVisible === true ||
         updates.pulseLayerEnabled === true ||
         (typeof updates.subdivisionGain === 'number' &&
           updates.subdivisionGain > 0 &&
@@ -8378,14 +8435,20 @@ function OrbitalPolymeter() {
     setRiffCycleStudy((current) => {
       const subdivisionSoundEnabled = !current.subdivisionSoundEnabled;
       const stepsPerBar = getReferenceStepsPerBar(current.reference);
+      const pulseLayerSteps = Array.from(
+        { length: stepsPerBar },
+        (_, index) => current.pulseLayerSteps?.[index] ?? true,
+      );
       return {
         ...current,
         soundEnabled: subdivisionSoundEnabled ? true : current.soundEnabled,
+        pulseLayerVisible: subdivisionSoundEnabled,
+        pulseLayerEnabled: subdivisionSoundEnabled ? true : current.pulseLayerEnabled,
         pulseLayerGroupSize: stepsPerBar,
-        pulseLayerSteps: Array.from(
-          { length: stepsPerBar },
-          (_, index) => current.pulseLayerSteps?.[index] ?? true,
-        ),
+        pulseLayerSteps:
+          subdivisionSoundEnabled && !pulseLayerSteps.some(Boolean)
+            ? pulseLayerSteps.map(() => true)
+            : pulseLayerSteps,
         subdivisionSoundEnabled,
       };
     });
@@ -9364,6 +9427,7 @@ function OrbitalPolymeter() {
       showStepLabels: riffCycleStudy.showStepLabels,
       showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
       showPhraseBounds: riffCycleStudy.showPhraseBounds,
+      showPhraseGroupings: riffCycleStudy.showPhraseGroupings,
       showStructureView: riffCycleStudy.showStructureView,
     });
     setActiveRiffCyclePresetId(null);
@@ -9372,7 +9436,7 @@ function OrbitalPolymeter() {
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showPhraseGroupings, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
 
   const handleRemixRiffCycleStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -9386,6 +9450,7 @@ function OrbitalPolymeter() {
         showStepLabels: current.showStepLabels,
         showAlignmentMarkers: current.showAlignmentMarkers,
         showPhraseBounds: current.showPhraseBounds,
+        showPhraseGroupings: current.showPhraseGroupings,
         showStructureView: current.showStructureView,
       };
       setActiveRiffCyclePresetId(null);
@@ -9412,6 +9477,7 @@ function OrbitalPolymeter() {
       showStepLabels: riffCycleStudy.showStepLabels,
       showAlignmentMarkers: riffCycleStudy.showAlignmentMarkers,
       showPhraseBounds: riffCycleStudy.showPhraseBounds,
+      showPhraseGroupings: riffCycleStudy.showPhraseGroupings,
       showStructureView: riffCycleStudy.showStructureView,
     });
     setActiveRiffCyclePresetId(null);
@@ -9420,7 +9486,7 @@ function OrbitalPolymeter() {
     setSelectedRiffLandingSlot(null);
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
-  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
+  }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.showAlignmentMarkers, riffCycleStudy.showPhraseBounds, riffCycleStudy.showPhraseGroupings, riffCycleStudy.showStepLabels, riffCycleStudy.showStructureView]);
 
   const handleToggleFlowPlayback = useCallback(() => {
     resumeFlowAudio();
@@ -9735,6 +9801,36 @@ function OrbitalPolymeter() {
     downloadPolyrhythmStudyFile(polyrhythmStudy.name || 'Polyrhythm Study', polyrhythmStudy);
     toast.success('Study scene exported.');
   }, [effectivePlan, polyrhythmStudy]);
+  const persistPolyrhythmSceneToAccount = useCallback(
+    async (scene: SavedPolyrhythmScene) => {
+      if (!isSignedIn || !user?.id) {
+        return;
+      }
+      await upsertSavedSceneRecord(user.id, {
+        id: scene.id,
+        name: scene.name,
+        snapshot: { kind: 'polyrhythm-study', scene } satisfies StoredStudySceneSnapshot,
+        updated_at: scene.updatedAt,
+      });
+    },
+    [isSignedIn, user?.id],
+  );
+
+  const persistRiffCycleSceneToAccount = useCallback(
+    async (scene: SavedRiffCycleScene) => {
+      if (!isSignedIn || !user?.id) {
+        return;
+      }
+      await upsertSavedSceneRecord(user.id, {
+        id: scene.id,
+        name: scene.name,
+        snapshot: { kind: 'riff-cycle-study', scene } satisfies StoredStudySceneSnapshot,
+        updated_at: scene.updatedAt,
+      });
+    },
+    [isSignedIn, user?.id],
+  );
+
   const handleImportPolyrhythmScene = useCallback(
     async (file: File) => {
       if (!canUseProFeature(effectivePlan, 'save-scenes')) {
@@ -9772,13 +9868,17 @@ function OrbitalPolymeter() {
         setActivePolyrhythmSavedSceneId(savedScene.id);
         setActivePolyrhythmPresetId(null);
         setPolyrhythmMobileSceneTab('saved');
+        void persistPolyrhythmSceneToAccount(savedScene).catch((error) => {
+          console.error(error);
+          toast.error('Study saved on this browser, but account sync failed.');
+        });
         toast.success('Study scene imported.');
       } catch (error) {
         console.error(error);
         toast.error('That file could not be imported as a Study scene.');
       }
     },
-    [effectivePlan, savedPolyrhythmScenes.length],
+    [effectivePlan, persistPolyrhythmSceneToAccount, savedPolyrhythmScenes.length],
   );
   const handleExportPolyrhythmMidi = useCallback(
     (mode: PolyrhythmMidiExportMode) => {
@@ -9834,8 +9934,12 @@ function OrbitalPolymeter() {
     setActivePolyrhythmSavedSceneId(savedScene.id);
     setActivePolyrhythmPresetId(null);
     setPolyrhythmMobileSceneTab('saved');
+    void persistPolyrhythmSceneToAccount(savedScene).catch((error) => {
+      console.error(error);
+      toast.error('Study saved on this browser, but account sync failed.');
+    });
     toast.success('Study saved to Saved.');
-  }, [activePolyrhythmPresetId, activePolyrhythmSavedSceneId, effectivePlan, polyrhythmStudy, savedPolyrhythmScenes]);
+  }, [activePolyrhythmPresetId, activePolyrhythmSavedSceneId, effectivePlan, persistPolyrhythmSceneToAccount, polyrhythmStudy, savedPolyrhythmScenes]);
   const handleLoadSavedPolyrhythmScene = useCallback(
     (sceneId: string) => {
       const scene = savedPolyrhythmScenes.find((entry) => entry.id === sceneId);
@@ -9881,23 +9985,23 @@ function OrbitalPolymeter() {
 
       const updatedAt = new Date().toISOString();
       const description = nextDescription.trim();
-      setSavedPolyrhythmScenes((current) =>
-        upsertSavedStudyScene(
-          current,
-          {
-            ...scene,
-            name: trimmedName,
-            description,
-            updatedAt,
-            study: {
-              ...cloneStudy(scene.study),
-              name: trimmedName,
-              description,
-              playing: false,
-            },
-          },
-        ),
-      );
+      const updatedScene: SavedPolyrhythmScene = {
+        ...scene,
+        name: trimmedName,
+        description,
+        updatedAt,
+        study: {
+          ...cloneStudy(scene.study),
+          name: trimmedName,
+          description,
+          playing: false,
+        },
+      };
+      setSavedPolyrhythmScenes((current) => upsertSavedStudyScene(current, updatedScene));
+      void persistPolyrhythmSceneToAccount(updatedScene).catch((error) => {
+        console.error(error);
+        toast.error('Scene updated on this browser, but account sync failed.');
+      });
       if (activePolyrhythmSavedSceneId === sceneId) {
         setPolyrhythmStudy((current) => ({
           ...current,
@@ -9907,7 +10011,7 @@ function OrbitalPolymeter() {
       }
       toast.success('Scene details updated.');
     },
-    [activePolyrhythmSavedSceneId, savedPolyrhythmScenes],
+    [activePolyrhythmSavedSceneId, persistPolyrhythmSceneToAccount, savedPolyrhythmScenes],
   );
 
   const handleSaveRiffCycleScene = useCallback(() => {
@@ -9942,8 +10046,12 @@ function OrbitalPolymeter() {
     setActiveRiffCycleSavedSceneId(savedScene.id);
     setActiveRiffCyclePresetId(null);
     setRiffMobileSceneTab('saved');
+    void persistRiffCycleSceneToAccount(savedScene).catch((error) => {
+      console.error(error);
+      toast.error('Riff saved on this browser, but account sync failed.');
+    });
     toast.success('Riff scene saved to Saved.');
-  }, [activeRiffCyclePresetId, activeRiffCycleSavedSceneId, effectivePlan, riffCycleStudy, savedRiffCycleScenes]);
+  }, [activeRiffCyclePresetId, activeRiffCycleSavedSceneId, effectivePlan, persistRiffCycleSceneToAccount, riffCycleStudy, savedRiffCycleScenes]);
   const handleImportRiffCycleScene = useCallback(
     async (file: File) => {
       if (!canUseProFeature(effectivePlan, 'save-scenes')) {
@@ -9980,13 +10088,17 @@ function OrbitalPolymeter() {
         setActiveRiffCycleSavedSceneId(savedScene.id);
         setActiveRiffCyclePresetId(null);
         setRiffMobileSceneTab('saved');
+        void persistRiffCycleSceneToAccount(savedScene).catch((error) => {
+          console.error(error);
+          toast.error('Riff saved on this browser, but account sync failed.');
+        });
         toast.success('Riff scene imported.');
       } catch (error) {
         console.error(error);
         toast.error('That file could not be imported as a Riff scene.');
       }
     },
-    [effectivePlan, savedRiffCycleScenes.length],
+    [effectivePlan, persistRiffCycleSceneToAccount, savedRiffCycleScenes.length],
   );
   const handleLoadSavedRiffCycleScene = useCallback(
     (sceneId: string) => {
@@ -10044,23 +10156,23 @@ function OrbitalPolymeter() {
 
       const updatedAt = new Date().toISOString();
       const description = nextDescription.trim();
-      setSavedRiffCycleScenes((current) =>
-        upsertSavedStudyScene(
-          current,
-          {
-            ...scene,
-            name: trimmedName,
-            description,
-            updatedAt,
-            study: {
-              ...cloneRiffCycleStudy(scene.study),
-              name: trimmedName,
-              description,
-              playing: false,
-            },
-          },
-        ),
-      );
+      const updatedScene: SavedRiffCycleScene = {
+        ...scene,
+        name: trimmedName,
+        description,
+        updatedAt,
+        study: {
+          ...cloneRiffCycleStudy(scene.study),
+          name: trimmedName,
+          description,
+          playing: false,
+        },
+      };
+      setSavedRiffCycleScenes((current) => upsertSavedStudyScene(current, updatedScene));
+      void persistRiffCycleSceneToAccount(updatedScene).catch((error) => {
+        console.error(error);
+        toast.error('Scene updated on this browser, but account sync failed.');
+      });
       if (activeRiffCycleSavedSceneId === sceneId) {
         setRiffCycleStudy((current) => ({
           ...current,
@@ -10070,7 +10182,7 @@ function OrbitalPolymeter() {
       }
       toast.success('Scene details updated.');
     },
-    [activeRiffCycleSavedSceneId, savedRiffCycleScenes],
+    [activeRiffCycleSavedSceneId, persistRiffCycleSceneToAccount, savedRiffCycleScenes],
   );
 
   const layoutViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
@@ -10413,13 +10525,44 @@ function OrbitalPolymeter() {
       listExportRecords(user.id),
     ]);
 
+    const accountPolyrhythmScenes = sceneRecords
+      .map(mapStoredPolyrhythmSceneRecord)
+      .filter((scene): scene is SavedPolyrhythmScene => Boolean(scene));
+    const accountRiffCycleScenes = sceneRecords
+      .map(mapStoredRiffCycleSceneRecord)
+      .filter((scene): scene is SavedRiffCycleScene => Boolean(scene));
+    const localPolyrhythmScenes = loadSavedPolyrhythmScenes();
+    const localRiffCycleScenes = loadSavedRiffCycleScenes();
+
+    const polyrhythmAccountById = new Map(
+      accountPolyrhythmScenes.map((scene) => [scene.id, scene]),
+    );
+    const riffAccountById = new Map(accountRiffCycleScenes.map((scene) => [scene.id, scene]));
+    const polyrhythmScenesToUpload = localPolyrhythmScenes.filter((scene) => {
+      const accountScene = polyrhythmAccountById.get(scene.id);
+      return !accountScene || scene.updatedAt > accountScene.updatedAt;
+    });
+    const riffScenesToUpload = localRiffCycleScenes.filter((scene) => {
+      const accountScene = riffAccountById.get(scene.id);
+      return !accountScene || scene.updatedAt > accountScene.updatedAt;
+    });
+
+    await Promise.all([
+      ...polyrhythmScenesToUpload.map(persistPolyrhythmSceneToAccount),
+      ...riffScenesToUpload.map(persistRiffCycleSceneToAccount),
+    ]);
+
     setSavedScenes(
       sceneRecords
         .map(mapStoredSceneRecord)
         .filter((scene): scene is SavedScene => Boolean(scene)),
     );
+    setSavedPolyrhythmScenes(
+      mergeSavedStudyScenes(localPolyrhythmScenes, accountPolyrhythmScenes),
+    );
+    setSavedRiffCycleScenes(mergeSavedStudyScenes(localRiffCycleScenes, accountRiffCycleScenes));
     setExportRecords(exportRows.map(mapStoredExportRecord));
-  }, [localSavedScenes, user?.id]);
+  }, [localSavedScenes, persistPolyrhythmSceneToAccount, persistRiffCycleSceneToAccount, user?.id]);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -19316,23 +19459,13 @@ function OrbitalPolymeter() {
 	                              value: riffCycleStudy.subdivisionGain,
 	                              max: 0.12,
 	                              color: '#7FD7FF',
-	                              onToggle: () => {
-	                                const subdivisionSoundEnabled = !riffCycleStudy.subdivisionSoundEnabled;
-	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
-	                                handleUpdateRiffAudioMix({
-	                                  soundEnabled: subdivisionSoundEnabled ? true : riffCycleStudy.soundEnabled,
-	                                  pulseLayerGroupSize: stepsPerBar,
-	                                  pulseLayerSteps: Array.from(
-	                                    { length: stepsPerBar },
-	                                    (_, index) => riffCycleStudy.pulseLayerSteps?.[index] ?? true,
-	                                  ),
-	                                  subdivisionSoundEnabled,
-	                                });
-	                              },
+	                              onToggle: handleToggleRiffSubdivisionSound,
 	                              onChange: (subdivisionGain: number) => {
 	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
 	                                handleUpdateRiffAudioMix({
 	                                  soundEnabled: true,
+	                                  pulseLayerVisible: subdivisionGain > 0 ? true : riffCycleStudy.pulseLayerVisible,
+	                                  pulseLayerEnabled: subdivisionGain > 0 ? true : riffCycleStudy.pulseLayerEnabled,
 	                                  pulseLayerGroupSize: stepsPerBar,
 	                                  pulseLayerSteps: Array.from(
 	                                    { length: stepsPerBar },
@@ -24841,23 +24974,13 @@ function OrbitalPolymeter() {
                           value: riffCycleStudy.subdivisionGain,
                           max: 0.12,
                           color: '#7FD7FF',
-                          onToggle: () => {
-                            const subdivisionSoundEnabled = !riffCycleStudy.subdivisionSoundEnabled;
-                            const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
-                            handleUpdateRiffAudioMix({
-                              soundEnabled: subdivisionSoundEnabled ? true : riffCycleStudy.soundEnabled,
-                              pulseLayerGroupSize: stepsPerBar,
-                              pulseLayerSteps: Array.from(
-                                { length: stepsPerBar },
-                                (_, index) => riffCycleStudy.pulseLayerSteps?.[index] ?? true,
-                              ),
-                              subdivisionSoundEnabled,
-                            });
-                          },
+                          onToggle: handleToggleRiffSubdivisionSound,
                           onChange: (subdivisionGain: number) => {
                             const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
                             handleUpdateRiffAudioMix({
                               soundEnabled: true,
+                              pulseLayerVisible: subdivisionGain > 0 ? true : riffCycleStudy.pulseLayerVisible,
+                              pulseLayerEnabled: subdivisionGain > 0 ? true : riffCycleStudy.pulseLayerEnabled,
                               pulseLayerGroupSize: stepsPerBar,
                               pulseLayerSteps: Array.from(
                                 { length: stepsPerBar },
