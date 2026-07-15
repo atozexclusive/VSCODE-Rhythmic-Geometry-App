@@ -20238,8 +20238,8 @@ function OrbitalPolymeter() {
                                 <StudyShellButton
                                   size="compact"
                                   tone="blue"
-                                  highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
-                                  onClick={handleToggleRiffPhraseBounds}
+                                  highlighted={Boolean(riffCycleStudy.showPhraseGroupings)}
+                                  onClick={handleToggleRiffPhraseGroupings}
                                   icon={<CircleDot size={11} strokeWidth={2.2} />}
                                   className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                                 >
