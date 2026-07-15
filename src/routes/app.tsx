@@ -298,6 +298,33 @@ function normalizeRiffBackbeatStepPositions(
     ),
   ).sort((a, b) => a - b);
 }
+
+function getRiffBackbeatStepPositionForBeat(reference: ReferenceMeter, beat: number): number {
+  const normalizedBeat = Math.max(1, Math.min(reference.numerator, Math.round(beat || 0)));
+  return (normalizedBeat - 1) * getReferenceStepsPerBeat(reference) + 1;
+}
+
+function normalizeRiffBackbeatBeatStepPositions(
+  steps: number[] | null | undefined,
+  reference: ReferenceMeter,
+): number[] {
+  const stepsPerBeat = getReferenceStepsPerBeat(reference);
+  const stepsPerBar = getReferenceStepsPerBar(reference);
+  return normalizeRiffBackbeatStepPositions(steps, stepsPerBar).filter((step) => {
+    const beat = (step - 1) / Math.max(1, stepsPerBeat) + 1;
+    return Number.isInteger(beat) && beat >= 1 && beat <= reference.numerator;
+  });
+}
+
+function riffBackbeatStepPositionsToBeats(
+  steps: number[] | null | undefined,
+  reference: ReferenceMeter,
+): number[] {
+  const stepsPerBeat = getReferenceStepsPerBeat(reference);
+  return normalizeRiffBackbeatBeatStepPositions(steps, reference).map(
+    (step) => Math.floor((step - 1) / Math.max(1, stepsPerBeat)) + 1,
+  );
+}
 const DEFAULT_ORBIT_TEMPO_ANCHOR_PULSE_COUNT = Math.max(
   1,
   DEFAULT_ORBITS.reduce((anchor, orbit) => (!anchor || orbit.radius > anchor.radius ? orbit : anchor), DEFAULT_ORBITS[0])?.pulseCount ?? 1,
@@ -8523,19 +8550,20 @@ function OrbitalPolymeter() {
       if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
         const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
         if (cell) {
-          const currentOverride = normalizeRiffBackbeatStepPositions(
+          const currentOverride = normalizeRiffBackbeatBeatStepPositions(
             cell.backbeatOverrideBeats,
-            getReferenceStepsPerBar(current.reference),
+            current.reference,
           );
-          const nextSteps = currentOverride.includes(beat)
-            ? currentOverride.filter((entry) => entry !== beat)
-            : [...currentOverride, beat];
+          const beatStep = getRiffBackbeatStepPositionForBeat(current.reference, beat);
+          const nextSteps = currentOverride.includes(beatStep)
+            ? currentOverride.filter((entry) => entry !== beatStep)
+            : [...currentOverride, beatStep];
           if (currentOverride.length > 0 && nextSteps.length === 0) {
             lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = currentOverride;
           } else if (nextSteps.length > 0) {
-            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = normalizeRiffBackbeatStepPositions(
+            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = normalizeRiffBackbeatBeatStepPositions(
               nextSteps,
-              getReferenceStepsPerBar(current.reference),
+              current.reference,
             );
           }
           return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextSteps);
@@ -8585,21 +8613,23 @@ function OrbitalPolymeter() {
       if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
         const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
         if (cell) {
-          const stepsPerBar = getReferenceStepsPerBar(current.reference);
-          const currentOverride = normalizeRiffBackbeatStepPositions(cell.backbeatOverrideBeats, stepsPerBar);
+          const currentOverride = normalizeRiffBackbeatBeatStepPositions(
+            cell.backbeatOverrideBeats,
+            current.reference,
+          );
           const inheritedSteps = normalizeRiffBackbeatBeats(
             current.reference.backbeatBeats,
             current.reference.numerator,
             current.reference.backbeatBeat,
-          ).map((entry) => (entry - 1) * getReferenceStepsPerBeat(current.reference) + 1);
+          ).map((entry) => getRiffBackbeatStepPositionForBeat(current.reference, entry));
           const activeSteps = cell.backbeatOverrideBeats == null ? inheritedSteps : currentOverride;
           if (activeSteps.length > 0) {
             lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = activeSteps;
             return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, []);
           }
-          const rememberedSteps = normalizeRiffBackbeatStepPositions(
+          const rememberedSteps = normalizeRiffBackbeatBeatStepPositions(
             lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel],
-            stepsPerBar,
+            current.reference,
           );
           const nextSteps = rememberedSteps.length > 0
             ? rememberedSteps
@@ -13327,13 +13357,11 @@ function OrbitalPolymeter() {
   const riffCellBackbeatOverride = riffSelectedSequenceCell?.backbeatOverrideBeats ?? null;
   const riffEditableBackbeatBeats = riffCellBackbeatEditingActive
     ? riffCellBackbeatOverride == null
-      ? riffGlobalBackbeatStepPositions
-      : normalizeRiffBackbeatStepPositions(riffCellBackbeatOverride, riffEditableStepsPerBar)
+      ? riffGlobalBackbeatBeats
+      : riffBackbeatStepPositionsToBeats(riffCellBackbeatOverride, riffEditableReference)
     : riffGlobalBackbeatBeats;
   const riffEditableBackbeatEnabled = riffEditableBackbeatBeats.length > 0;
-  const riffBackbeatPickerCount = riffCellBackbeatEditingActive
-    ? riffEditableStepsPerBar
-    : Math.max(0, Math.min(6, riffEditableReference.numerator));
+  const riffBackbeatPickerCount = Math.max(0, riffEditableReference.numerator);
   const riffCellEditPreviewActive =
     Boolean(riffSelectedSequenceCell) &&
     !recordingVideo &&
