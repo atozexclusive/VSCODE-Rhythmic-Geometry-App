@@ -24,6 +24,7 @@ import {
   canEditRiffStep,
   getDisplayStepCount,
   getEffectiveRiffStepStateAtReferenceStep,
+  getEffectiveBackbeatStepPositionsAtReferenceStep,
   getEffectiveResetBarCount,
   getLandingStepCount,
   getLandingWindowLength,
@@ -33,6 +34,7 @@ import {
   getReferenceStepsPerBeat,
   getReferenceStepsPerSecond,
   getResetStepCount,
+  getRiffSequencePhrases,
   getRiffSequenceStateAtReferenceStep,
   getRiffSequenceTimeline,
   getRiffStepIndexAtReferenceStep,
@@ -45,6 +47,7 @@ import {
   isRiffSequenceBarBoundaryAtReferenceStep,
   type RiffCycleStudy,
   type RiffCycleViewMode,
+  type RiffSequenceCellLabel,
 } from '../lib/riffCycleStudy';
 import {
   addAudioToCanvasStream,
@@ -133,6 +136,69 @@ type RiffCanvasPoint = {
   y: number;
 };
 
+type RiffCellStripPhraseEntry = {
+  label: RiffSequenceCellLabel;
+  color: string;
+  suffix: string | null;
+  sequenceIndex: number;
+};
+
+type RiffCellStripPhrase = {
+  id: string;
+  repeatCount: number;
+  entries: RiffCellStripPhraseEntry[];
+};
+
+function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
+  const cells = study.riffCells ?? [];
+  const validLabels = new Set(cells.map((cell) => cell.label));
+  const fallbackLabel = cells[0]?.label ?? 'A';
+  const sequenceSource = study.riffSequence && study.riffSequence.length > 0
+    ? study.riffSequence
+    : [fallbackLabel];
+  const sequence = sequenceSource
+    .map((label) => label.toUpperCase() as RiffSequenceCellLabel)
+    .filter((label) => validLabels.has(label))
+    .slice(0, 24);
+  const normalizedSequence = sequence.length > 0 ? sequence : [fallbackLabel];
+  const phrases = getRiffSequencePhrases(study);
+  const sequenceBarsMode = study.riffSequenceBarsMode === 'per-cell' ? 'per-cell' : 'global';
+  let cursor = 0;
+
+  return phrases
+    .map((phrase, phraseIndex) => {
+      const startIndex = cursor;
+      const endIndex = Math.min(normalizedSequence.length, startIndex + phrase.entryCount);
+      const entries = normalizedSequence.slice(startIndex, endIndex).map((label, indexOffset) => {
+        const sequenceIndex = startIndex + indexOffset;
+        const cell = cells.find((candidate) => candidate.label === label);
+        const durationMode =
+          study.riffSequenceEntryDurationModes?.[sequenceIndex] === 'bars' ? 'bars' : 'patterns';
+        const rawValue =
+          durationMode === 'bars'
+            ? study.riffSequenceEntryBars?.[sequenceIndex] ?? study.riffSequenceBars ?? 1
+            : study.riffSequenceEntryRepeats?.[sequenceIndex] ?? 1;
+        const value = Math.max(1, Math.round(rawValue));
+        const suffix =
+          sequenceBarsMode === 'per-cell' ? (durationMode === 'bars' ? `${value}B` : `x${value}`) : null;
+
+        return {
+          label,
+          color: cell?.color ?? study.riff.color,
+          suffix,
+          sequenceIndex,
+        };
+      });
+      cursor = endIndex;
+      return {
+        id: phrase.id || `phrase-${phraseIndex + 1}`,
+        repeatCount: Math.max(1, Math.round(phrase.repeatCount || 1)),
+        entries,
+      };
+    })
+    .filter((phrase) => phrase.entries.length > 0);
+}
+
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -185,6 +251,32 @@ function getPulseLayerPoint(
     y: centerY + Math.sin(angle) * radius,
     angle,
   };
+}
+
+function formatSubdivisionCountLabel(stepIndex: number, stepsPerBeat: number): string {
+  const normalizedStepsPerBeat = Math.max(1, Math.round(stepsPerBeat || 1));
+  const beat = Math.floor(stepIndex / normalizedStepsPerBeat) + 1;
+  const subdivisionIndex = ((stepIndex % normalizedStepsPerBeat) + normalizedStepsPerBeat) % normalizedStepsPerBeat;
+
+  if (normalizedStepsPerBeat === 2) {
+    return subdivisionIndex === 0 ? String(beat) : '&';
+  }
+  if (normalizedStepsPerBeat === 3) {
+    return subdivisionIndex === 0 ? String(beat) : subdivisionIndex === 1 ? '&' : 'a';
+  }
+  if (normalizedStepsPerBeat === 4) {
+    const labels = ['', 'e', '&', 'a'];
+    return subdivisionIndex === 0 ? String(beat) : labels[subdivisionIndex] ?? String(subdivisionIndex + 1);
+  }
+  if (normalizedStepsPerBeat === 5) {
+    return subdivisionIndex === 0 ? String(beat) : String(subdivisionIndex + 1);
+  }
+  if (normalizedStepsPerBeat === 8) {
+    const labels = ['', 'e', '&', 'a', '+', '+e', '+&', '+a'];
+    return subdivisionIndex === 0 ? String(beat) : labels[subdivisionIndex] ?? String(subdivisionIndex + 1);
+  }
+
+  return subdivisionIndex === 0 ? String(beat) : String(subdivisionIndex + 1);
 }
 
 function drawRiffCarves(
@@ -522,6 +614,7 @@ export default function RiffCycleCanvas({
   const playbackDriverRef = useRef(playbackDriver);
   const audioEnabledRef = useRef(audioEnabled);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const exportRecordingActiveRef = useRef(false);
   const onReferenceStepChangeRef = useRef(onReferenceStepChange);
   const activePointerIdRef = useRef<number | null>(null);
   const paintActiveRef = useRef<boolean | null>(null);
@@ -586,6 +679,7 @@ export default function RiffCycleCanvas({
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const exportLayoutMode = Boolean(exportVideoSize);
+    const exportRecordingMode = exportRecordingActiveRef.current;
     const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE * 1.16 : 1;
     const shellScale = exportLayoutMode ? 1.45 : 1;
     const exportLabelScale = exportLayoutMode ? 1.55 : 1;
@@ -653,8 +747,9 @@ export default function RiffCycleCanvas({
           ] ?? manualSubdivisionGuideMode
         : manualSubdivisionGuideMode;
     const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
+    const denseReferenceMeter = renderStudy.reference.numerator > 32;
     const meterSubdivisionMarksVisible =
-      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled;
+      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled && !denseReferenceMeter;
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
     const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
@@ -729,6 +824,10 @@ export default function RiffCycleCanvas({
     const currentStepWithinBar =
       ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const currentBarStartStep = currentAbsoluteReferenceStep - currentStepWithinBar;
+    const activeBackbeatStepPositions = getEffectiveBackbeatStepPositionsAtReferenceStep(
+      renderStudy,
+      currentAbsoluteReferenceStep,
+    );
     const outerReferenceHitHighlights = meterSubdivisionMarksVisible
       ? metrics.referencePerimeterPoints
           .map((point, index) => {
@@ -811,20 +910,38 @@ export default function RiffCycleCanvas({
     ctx.stroke();
     ctx.restore();
 
-    if (currentDisplaySettings.showCellStrip !== false && sequenceState && sequenceTimeline && sequenceTimeline.entries.length > 0) {
-      const visibleEntries = sequenceTimeline.entries.slice(0, exportLayoutMode ? 9 : 12);
-      const chipWidth = exportLayoutMode ? 62 : 29;
-      const chipHeight = exportLayoutMode ? 34 : 17;
-      const gap = exportLayoutMode ? 9 : 4;
+    if (
+      currentDisplaySettings.showCellStrip !== false &&
+      sequenceState &&
+      sequenceTimeline &&
+      sequenceTimeline.entries.length > 0
+    ) {
+      const stripPhrases = getRiffCellStripPhrases(currentStudy);
+      const expandedBaseSequenceIndices = stripPhrases.flatMap((phrase) =>
+        Array.from({ length: phrase.repeatCount }, () =>
+          phrase.entries.map((entry) => entry.sequenceIndex),
+        ).flat(),
+      );
+      const activeBaseSequenceIndex =
+        expandedBaseSequenceIndices[sequenceState.sequenceIndex] ?? sequenceState.sequenceIndex;
+      const chipHeight = exportLayoutMode ? 32 : 18;
       const chipRadius = exportLayoutMode ? 12 : 7;
-      const totalWidth = visibleEntries.length * chipWidth + (visibleEntries.length - 1) * gap;
-      const startX = metrics.circleCenterX - totalWidth / 2;
-      const bottomStripY = metrics.timelineRect
-        ? Math.max(
-            metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 72 : 58),
-            metrics.timelineRect.y - (exportLayoutMode ? 28 : 20),
-          )
-        : metrics.circleCenterY + metrics.outerRadius + (exportLayoutMode ? 86 : 72);
+      const chipGap = exportLayoutMode ? 7 : 4;
+      const phrasePaddingX = exportLayoutMode ? 10 : 5;
+      const plusWidth = exportLayoutMode ? 20 : 10;
+      const plusLeftGap = exportLayoutMode ? 10 : 6;
+      const plusRightGap = exportLayoutMode ? 8 : 5;
+      const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
+      const referenceShapeBottomY = Math.max(
+        metrics.circleCenterY + metrics.innerRadius,
+        ...metrics.referenceVertices.map((point) => point.y),
+        ...metrics.referencePerimeterPoints.map((point) => point.y),
+      );
+      const bottomStripY = exportRecordingMode
+        ? referenceShapeBottomY + (exportLayoutMode ? 70 : 52)
+        : metrics.timelineRect
+          ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
+          : metrics.circleCenterY + metrics.outerRadius + 72;
       const stripY = Math.min(
         rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
         Math.max(metrics.topPadding + 8, bottomStripY),
@@ -841,28 +958,136 @@ export default function RiffCycleCanvas({
         metrics.circleCenterX,
         stripY - (exportLayoutMode ? 18 : 8),
       );
-      ctx.font = `${exportLayoutMode ? 20 : 9}px "SF Mono", "Fira Code", monospace`;
-      visibleEntries.forEach((entry, index) => {
-        const active = entry.sequenceIndex === sequenceState.sequenceIndex;
-        const chipColor = entry.cell.color;
-        const x = startX + index * (chipWidth + gap);
-        drawRoundedRect(ctx, x, stripY, chipWidth, chipHeight, chipRadius);
-        ctx.fillStyle = active
-          ? `${chipColor}${exportLayoutMode ? '44' : '2E'}`
-          : `${chipColor}${exportLayoutMode ? '18' : '10'}`;
-        ctx.fill();
-        ctx.strokeStyle = active ? `${chipColor}C4` : `${chipColor}2A`;
-        ctx.lineWidth = active ? (exportLayoutMode ? 2.35 : 1.45) : (exportLayoutMode ? 1.2 : 0.9);
-        ctx.stroke();
-        ctx.fillStyle = active ? chipColor : `${chipColor}B8`;
-        ctx.shadowBlur = active ? (exportLayoutMode ? 15 : 9) * glowMultiplier : 0;
-        ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
-        ctx.fillText(entry.cell.label, x + chipWidth / 2, stripY + chipHeight / 2);
+
+      ctx.font = `${exportLayoutMode ? 17 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      const entryPaddingX = exportLayoutMode ? 13 : 7;
+      const repeatPaddingX = exportLayoutMode ? 10 : 6;
+      const repeatGap = exportLayoutMode ? 8 : 5;
+      const displayedPhrases: RiffCellStripPhrase[] = [];
+      const phraseWidths: number[] = [];
+      let stripWidth = 0;
+      let hiddenPhraseCount = 0;
+
+      const getEntryText = (entry: RiffCellStripPhraseEntry) =>
+        entry.suffix ? `${entry.label} ${entry.suffix}` : entry.label;
+
+      const measureEntryWidth = (entry: RiffCellStripPhraseEntry) =>
+        Math.max(exportLayoutMode ? 46 : 24, ctx.measureText(getEntryText(entry)).width + entryPaddingX * 2);
+      const entryFont = `${exportLayoutMode ? 17 : 8.5}px "SF Mono", "Fira Code", monospace`;
+      const bracketFont = `${exportLayoutMode ? 20 : 10}px "SF Mono", "Fira Code", monospace`;
+      const openBracketAdvance = exportLayoutMode ? 18 : 10;
+      const closeBracketAdvance = exportLayoutMode ? 20 : 12;
+
+      const measurePhraseWidth = (phrase: RiffCellStripPhrase, phraseIndex: number) => {
+        const singlePhrase = phrase.entries.length === 1;
+        const entryWidths = phrase.entries.map(measureEntryWidth);
+        const repeatText = phrase.repeatCount > 1 ? `${phrase.repeatCount}x` : '';
+        const repeatWidth = repeatText
+          ? ctx.measureText(repeatText).width + repeatPaddingX
+          : 0;
+        if (singlePhrase) {
+          return (entryWidths[0] ?? 0) + (repeatText ? repeatGap + repeatWidth : 0);
+        }
+        const entriesWidth =
+          entryWidths.reduce((sum, width) => sum + width, 0) +
+          Math.max(0, entryWidths.length - 1) * chipGap;
+        return (
+          phrasePaddingX * 2 +
+          openBracketAdvance +
+          closeBracketAdvance +
+          entriesWidth +
+          (repeatText ? repeatGap + repeatWidth : 0)
+        );
+      };
+
+      stripPhrases.forEach((phrase, phraseIndex) => {
+        const phraseWidth = measurePhraseWidth(phrase, phraseIndex);
+        const separatorWidth = displayedPhrases.length > 0 ? plusLeftGap + plusWidth + plusRightGap : 0;
+        const nextWidth = stripWidth + separatorWidth + phraseWidth;
+        if (nextWidth <= maxStripWidth || displayedPhrases.length === 0) {
+          displayedPhrases.push(phrase);
+          phraseWidths.push(phraseWidth);
+          stripWidth = nextWidth;
+        } else {
+          hiddenPhraseCount += 1;
+        }
       });
-      if (sequenceTimeline.entries.length > visibleEntries.length) {
+
+      const ellipsisWidth = hiddenPhraseCount > 0 ? (exportLayoutMode ? 34 : 18) : 0;
+      const totalWidth = Math.min(maxStripWidth, stripWidth + ellipsisWidth);
+      let drawX = metrics.circleCenterX - totalWidth / 2;
+
+      displayedPhrases.forEach((phrase, phraseIndex) => {
+        if (phraseIndex > 0) {
+          drawX += plusLeftGap;
+          ctx.fillStyle = 'rgba(255,255,255,0.34)';
+          ctx.shadowBlur = 0;
+          ctx.fillText('+', drawX + plusWidth / 2, stripY + chipHeight / 2);
+          drawX += plusWidth + plusRightGap;
+        }
+
+        const phraseWidth = phraseWidths[phraseIndex] ?? measurePhraseWidth(phrase, phraseIndex);
+        const singlePhrase = phrase.entries.length === 1;
+
+        if (!singlePhrase) {
+          drawRoundedRect(ctx, drawX, stripY - 2, phraseWidth, chipHeight + 4, chipRadius + 3);
+          ctx.fillStyle = 'rgba(255,255,255,0.025)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = exportLayoutMode ? 1.1 : 0.75;
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(255,255,255,0.44)';
+          ctx.shadowBlur = 0;
+          ctx.font = bracketFont;
+          ctx.fillText('[', drawX + phrasePaddingX + openBracketAdvance / 2, stripY + chipHeight / 2);
+          ctx.font = entryFont;
+          drawX += phrasePaddingX + openBracketAdvance;
+        }
+
+        phrase.entries.forEach((entry, entryIndex) => {
+          const active = entry.sequenceIndex === activeBaseSequenceIndex;
+          const chipColor = entry.color;
+          const chipWidth = measureEntryWidth(entry);
+          drawRoundedRect(ctx, drawX, stripY, chipWidth, chipHeight, chipRadius);
+          ctx.fillStyle = active
+            ? `${chipColor}${exportLayoutMode ? '44' : '30'}`
+            : `${chipColor}${exportLayoutMode ? '1B' : '12'}`;
+          ctx.fill();
+          ctx.strokeStyle = active ? `${chipColor}C8` : `${chipColor}30`;
+          ctx.lineWidth = active ? (exportLayoutMode ? 2.25 : 1.35) : (exportLayoutMode ? 1.1 : 0.85);
+          ctx.stroke();
+          ctx.fillStyle = active ? chipColor : `${chipColor}C0`;
+          ctx.shadowBlur = active ? (exportLayoutMode ? 13 : 7) * glowMultiplier : 0;
+          ctx.shadowColor = active ? `${chipColor}88` : 'transparent';
+          ctx.fillText(getEntryText(entry), drawX + chipWidth / 2, stripY + chipHeight / 2);
+          drawX += chipWidth + (entryIndex < phrase.entries.length - 1 ? chipGap : 0);
+        });
+
+        if (!singlePhrase) {
+          ctx.fillStyle = 'rgba(255,255,255,0.44)';
+          ctx.shadowBlur = 0;
+          ctx.font = bracketFont;
+          ctx.fillText(']', drawX + closeBracketAdvance / 2, stripY + chipHeight / 2);
+          ctx.font = entryFont;
+          drawX += closeBracketAdvance;
+        }
+
+        if (phrase.repeatCount > 1) {
+          const repeatText = `${phrase.repeatCount}x`;
+          const repeatWidth = ctx.measureText(repeatText).width + repeatPaddingX;
+          drawX += repeatGap;
+          ctx.fillStyle = singlePhrase ? 'rgba(255,255,255,0.58)' : 'rgba(255,255,255,0.72)';
+          ctx.shadowBlur = 0;
+          ctx.fillText(repeatText, drawX + repeatWidth / 2, stripY + chipHeight / 2);
+          drawX += repeatWidth;
+        }
+      });
+
+      if (hiddenPhraseCount > 0) {
         ctx.fillStyle = 'rgba(255,255,255,0.34)';
         ctx.shadowBlur = 0;
-        ctx.fillText('...', startX + totalWidth + (exportLayoutMode ? 22 : 13), stripY + chipHeight / 2);
+        ctx.fillText('...', drawX + (exportLayoutMode ? 18 : 10), stripY + chipHeight / 2);
       }
       ctx.restore();
     }
@@ -954,15 +1179,14 @@ export default function RiffCycleCanvas({
       ctx.restore();
 
       metrics.referenceVertices.forEach((vertex, index) => {
-        const backbeatBeats =
-          renderStudy.reference.backbeatBeats?.length
-            ? renderStudy.reference.backbeatBeats
-            : renderStudy.reference.backbeatBeat != null
-              ? [renderStudy.reference.backbeatBeat]
-              : [];
+        const meterCount = metrics.referenceVertices.length;
+        const labelDensityFade = Math.max(0, Math.min(1, (meterCount - 12) / 40));
+        const labelAlpha = currentDisplaySettings.showMeterNumbers === false
+          ? 0
+          : Math.max(0.48, 0.86 - labelDensityFade * 0.2);
+        const labelScale = Math.max(0.74, 1 - Math.max(0, meterCount - 32) * 0.012);
         const isBackbeatVertex =
-          renderStudy.reference.showBackbeat &&
-          backbeatBeats.includes(index + 1);
+          activeBackbeatStepPositions.includes(index * stepsPerBeat + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
@@ -1012,18 +1236,25 @@ export default function RiffCycleCanvas({
           ctx.restore();
         }
 
-        ctx.save();
-        ctx.fillStyle =
-          isBackbeatVertex
-            ? 'rgba(255,136,194,0.92)'
-            : index === 0
-              ? 'rgba(255,255,255,0.82)'
-              : 'rgba(255,255,255,0.66)';
-        ctx.font = `${11 * shellScale * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${index + 1}`, vertex.x, vertex.y - 19 * shellScale * exportLabelScale);
-        ctx.restore();
+        if (labelAlpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = labelAlpha;
+          ctx.font = `${Math.max(7.2, 11 * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const labelY = vertex.y - (17 + Math.max(0, 1 - labelScale) * 7) * shellScale * exportLabelScale;
+          ctx.lineWidth = 2.4 * shellScale;
+          ctx.strokeStyle = 'rgba(5,6,10,0.74)';
+          ctx.strokeText(`${index + 1}`, vertex.x, labelY);
+          ctx.fillStyle =
+            isBackbeatVertex
+              ? 'rgba(255,136,194,0.96)'
+              : index === 0
+                ? 'rgba(255,255,255,0.96)'
+                : 'rgba(255,255,255,0.84)';
+          ctx.fillText(`${index + 1}`, vertex.x, labelY);
+          ctx.restore();
+        }
       });
 
       if (meterSubdivisionMarksVisible) {
@@ -1077,7 +1308,10 @@ export default function RiffCycleCanvas({
       metrics.referencePerimeterPoints.forEach((point, index) => {
         const isDownbeat = renderStudy.reference.showDownbeats && index === 0;
         const isBeat = isReferenceBeatStart(renderStudy, index);
-        const isBackbeat = isBackbeatStep(renderStudy, index);
+        const isBackbeat = activeBackbeatStepPositions.includes(index + 1);
+        if (denseReferenceMeter && !isBeat && !isDownbeat && !isBackbeat) {
+          return;
+        }
         if (currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
@@ -1547,6 +1781,9 @@ export default function RiffCycleCanvas({
       }
 
       if (currentStudy.showStepLabels && (!circularPhraseBoundsActive || carveViewActive)) {
+        const stepLabel = currentStudy.showCountLabels
+          ? formatSubdivisionCountLabel(point.index, getReferenceStepsPerBeat(renderStudy.reference))
+          : String(point.index + 1);
         const densityLabelScale =
           carveViewActive
             ? visibleRiff.stepCount > 56
@@ -1579,7 +1816,7 @@ export default function RiffCycleCanvas({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
-          String(point.index + 1),
+          stepLabel,
           metrics.circleCenterX + Math.cos(point.angle) * labelRadius,
           metrics.circleCenterY + Math.sin(point.angle) * labelRadius,
         );
@@ -2003,7 +2240,9 @@ export default function RiffCycleCanvas({
           ctx.textBaseline = 'middle';
           ctx.fillStyle = phraseActive ? 'rgba(17,17,22,0.72)' : 'rgba(255,255,255,0.34)';
           ctx.fillText(
-            String((phraseIndex % visibleRiff.stepCount) + 1),
+            currentStudy.showCountLabels
+              ? formatSubdivisionCountLabel(phraseIndex % visibleRiff.stepCount, stepsPerBeat)
+              : String((phraseIndex % visibleRiff.stepCount) + 1),
             stepCenterX,
             bottomLaneY + laneHeight * 0.52,
           );
@@ -2470,6 +2709,7 @@ export default function RiffCycleCanvas({
       }
 
       exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
+      exportRecordingActiveRef.current = true;
       let stream: MediaStream | null = null;
       try {
         const playbackState = playbackStateHandleRef.current.current;
@@ -2540,6 +2780,7 @@ export default function RiffCycleCanvas({
         URL.revokeObjectURL(url);
       } finally {
         stream?.getTracks().forEach((track) => track.stop());
+        exportRecordingActiveRef.current = false;
         exportVideoSizeRef.current = null;
         draw();
       }
@@ -2659,10 +2900,22 @@ export default function RiffCycleCanvas({
         return null;
       }
 
+      if (currentStudy.riffSequenceEnabled) {
+        const hitRadius = isMobileRef.current ? 24 : 16;
+        for (let index = 0; index < metrics.referencePerimeterPoints.length; index += 1) {
+          const point = metrics.referencePerimeterPoints[index];
+          if (Math.hypot(x - point.x, y - point.y) <= hitRadius) {
+            return index + 1;
+          }
+        }
+      }
+
       for (let index = 0; index < metrics.referenceVertices.length; index += 1) {
         const vertex = metrics.referenceVertices[index];
         if (Math.hypot(x - vertex.x, y - vertex.y) <= (isMobileRef.current ? 26 : 18)) {
-          return index + 1;
+          return currentStudy.riffSequenceEnabled
+            ? index * getReferenceStepsPerBeat(currentStudy.reference) + 1
+            : index + 1;
         }
       }
       return null;

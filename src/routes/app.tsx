@@ -129,12 +129,14 @@ import {
   DEFAULT_RIFF_CYCLE_PRESET_ID,
   RIFF_MAX_RESET_BARS,
   RIFF_MAX_SEQUENCE_REPEATS,
+  RIFF_MAX_METER_NUMERATOR,
   RIFF_MAX_STEP_COUNT,
   RIFF_REFERENCE_TEMPO_MAX_BPM,
   RIFF_REFERENCE_TEMPO_MIN_BPM,
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
   RIFF_SEQUENCE_CELL_LABELS,
+  addRiffSequencePhrase,
   addRiffSequenceCell,
   appendRiffSequenceOrderCell,
   applyLandingStateToLastSlots,
@@ -152,8 +154,10 @@ import {
   getLandingWindowLength,
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBar,
+  getReferenceStepsPerBeat,
   getResetBarCount,
   getResetStepCount,
+  getRiffSequencePhrases,
   getRiffSequenceTimeline,
   invertRiffSteps,
   invertRiffSequenceCellSteps,
@@ -171,7 +175,9 @@ import {
   setRiffSequenceEntryBars,
   setRiffSequenceEntryDurationMode,
   setRiffSequenceEntryRepeats,
+  setRiffSequencePhraseRepeats,
   syncFirstRiffSequenceCellFromRiff,
+  updateRiffSequenceCellBackbeatOverride,
   updateRiffSequenceCellColor,
   setRiffSequenceCellStepActive,
   setRiffStepActive,
@@ -265,7 +271,7 @@ function normalizeRiffBackbeatBeats(
   numerator: number,
   fallbackBeat: number | null | undefined,
 ): number[] {
-  const normalizedNumerator = Math.max(2, Math.min(32, Math.round(numerator || 0)));
+  const normalizedNumerator = Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, Math.round(numerator || 0)));
   const source = Array.isArray(beats)
     ? beats
     : fallbackBeat != null
@@ -274,6 +280,21 @@ function normalizeRiffBackbeatBeats(
   return Array.from(
     new Set(
       source.map((beat) => Math.max(1, Math.min(normalizedNumerator, Math.round(beat || 0)))),
+    ),
+  ).sort((a, b) => a - b);
+}
+
+function normalizeRiffBackbeatStepPositions(
+  steps: number[] | null | undefined,
+  stepsPerBar: number,
+): number[] {
+  const normalizedStepsPerBar = Math.max(1, Math.min(RIFF_MAX_METER_NUMERATOR * 4, Math.round(stepsPerBar || 0)));
+  if (!Array.isArray(steps)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      steps.map((step) => Math.max(1, Math.min(normalizedStepsPerBar, Math.round(step || 0)))),
     ),
   ).sort((a, b) => a - b);
 }
@@ -2294,11 +2315,13 @@ function RiffBarStopSlider({
   onChange,
   accentColor,
   ariaLabel,
+  disabled = false,
 }: {
   value: number;
   onChange: (value: number) => void;
   accentColor: string;
   ariaLabel: string;
+  disabled?: boolean;
 }) {
   const sliderRef = useRef<HTMLDivElement | null>(null);
   const activeIndex = getRiffBarSliderStopIndex(value);
@@ -2306,6 +2329,9 @@ function RiffBarStopSlider({
 
   const applyClientX = useCallback(
     (clientX: number) => {
+      if (disabled) {
+        return;
+      }
       const slider = sliderRef.current;
       if (!slider) {
         return;
@@ -2318,7 +2344,7 @@ function RiffBarStopSlider({
       );
       onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
     },
-    [onChange],
+    [disabled, onChange],
   );
 
   const handlePointerDown = useCallback(
@@ -2346,12 +2372,15 @@ function RiffBarStopSlider({
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
         return;
       }
+      if (disabled) {
+        return;
+      }
       event.preventDefault();
       const delta = event.key === 'ArrowRight' ? 1 : -1;
       const nextIndex = Math.max(0, Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, activeIndex + delta));
       onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
     },
-    [activeIndex, onChange],
+    [activeIndex, disabled, onChange],
   );
 
   return (
@@ -2359,8 +2388,9 @@ function RiffBarStopSlider({
       <div
         ref={sliderRef}
         role="slider"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label={ariaLabel}
+        aria-disabled={disabled}
         aria-valuemin={0}
         aria-valuemax={RIFF_BAR_SLIDER_STOPS.length - 1}
         aria-valuenow={activeIndex}
@@ -2368,7 +2398,7 @@ function RiffBarStopSlider({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={handleKeyDown}
-        className="relative h-7 cursor-pointer touch-none select-none rounded-full"
+        className={`relative h-7 touch-none select-none rounded-full ${disabled ? 'cursor-not-allowed opacity-55' : 'cursor-pointer'}`}
       >
         <div className="absolute left-0 right-0 top-1/2 h-[0.22rem] -translate-y-1/2 rounded-full bg-white/12" />
         <div
@@ -2826,12 +2856,14 @@ function CanvasDisplayControls({
   compact = false,
   showInnerClockControls = false,
   showCellStripControl = false,
+  showMeterNumberControl = false,
 }: {
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
   compact?: boolean;
   showInnerClockControls?: boolean;
   showCellStripControl?: boolean;
+  showMeterNumberControl?: boolean;
 }) {
   const activeTheme = getCanvasDisplayTheme(settings.theme);
   const canvasSubheaderClass =
@@ -3263,26 +3295,50 @@ function CanvasDisplayControls({
             </StudyShellButton>
           </div>
         ) : null}
-        {showCellStripControl ? (
+        {showMeterNumberControl || showCellStripControl ? (
           <>
             <div className="h-px bg-white/6" />
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
-                  Cell Strip
+            <div className="space-y-2">
+              {showMeterNumberControl ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                      Meter Numbers
+                    </div>
+                    <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                      Hide outer meter labels
+                    </div>
+                  </div>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={settings.showMeterNumbers !== false}
+                    onClick={() => onChange({ showMeterNumbers: settings.showMeterNumbers === false })}
+                  >
+                    {settings.showMeterNumbers === false ? 'Hidden' : 'Shown'}
+                  </StudyShellButton>
                 </div>
-                <div className="mt-0.5 text-[8px] leading-snug text-white/32">
-                  Canvas and export overlay
+              ) : null}
+              {showCellStripControl ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                      Cell Strip
+                    </div>
+                    <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                      Canvas and export overlay
+                    </div>
+                  </div>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={settings.showCellStrip !== false}
+                    onClick={() => onChange({ showCellStrip: settings.showCellStrip === false })}
+                  >
+                    {settings.showCellStrip === false ? 'Hidden' : 'Shown'}
+                  </StudyShellButton>
                 </div>
-              </div>
-              <StudyShellButton
-                size="compact"
-                tone="blue"
-                highlighted={settings.showCellStrip !== false}
-                onClick={() => onChange({ showCellStrip: settings.showCellStrip === false })}
-              >
-                {settings.showCellStrip === false ? 'Hidden' : 'Shown'}
-              </StudyShellButton>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -3439,6 +3495,7 @@ function RiffRestartSliderControl({
   labelStyle,
   accentColor = '#7FD7FF',
   compact = false,
+  controlledByCellSequencer = false,
   onBeforeChange,
 }: {
   study: RiffCycleStudy;
@@ -3448,11 +3505,15 @@ function RiffRestartSliderControl({
   labelStyle?: CSSProperties;
   accentColor?: string;
   compact?: boolean;
+  controlledByCellSequencer?: boolean;
   onBeforeChange?: () => void;
 }) {
   const restartBars = getRiffRestartBarValue(study.riff);
   const naturalCopy = getNaturalRiffResolutionCopy(study);
   const applyRestartBars = (value: number) => {
+    if (controlledByCellSequencer) {
+      return;
+    }
     onBeforeChange?.();
     onUpdateRiff(getRiffRestartUpdatesForBars(value));
   };
@@ -3474,6 +3535,18 @@ function RiffRestartSliderControl({
           labelStyle={labelStyle}
         />
       </div>
+      {controlledByCellSequencer ? (
+        <div
+          className="rounded-md border px-2 py-1 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
+          style={{
+            background: 'rgba(255,170,0,0.055)',
+            borderColor: 'rgba(255,170,0,0.18)',
+            color: 'rgba(255,224,160,0.82)',
+          }}
+        >
+          Controlled in Cell Sequencer
+        </div>
+      ) : null}
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <RiffBarStopSlider
@@ -3481,6 +3554,7 @@ function RiffRestartSliderControl({
             onChange={applyRestartBars}
             accentColor={accentColor}
             ariaLabel={`${label} slider`}
+            disabled={controlledByCellSequencer}
           />
         </div>
         <div
@@ -3496,9 +3570,10 @@ function RiffRestartSliderControl({
             min={0}
             max={RIFF_MAX_RESET_BARS}
             value={restartBars}
+            disabled={controlledByCellSequencer}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
-            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[12px] font-light text-white outline-none"
+            className="min-w-0 flex-1 bg-transparent px-2 text-center text-[12px] font-light text-white outline-none disabled:cursor-not-allowed disabled:text-white/35"
             aria-label={`${label} bars`}
           />
           <span className="border-l border-white/10 px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
@@ -3849,6 +3924,8 @@ function RiffCellSequenceEditor({
   onSelectCell,
   onAddCell,
   onAppendCell,
+  onAddPhrase,
+  onSetPhraseRepeats,
   onRemoveLastCell,
   onDeleteCell,
   onResetSequence,
@@ -3870,7 +3947,9 @@ function RiffCellSequenceEditor({
   onSetEnabled: (enabled: boolean) => void;
   onSelectCell: (label: RiffSequenceCellLabel) => void;
   onAddCell: () => void;
-  onAppendCell: (label: RiffSequenceCellLabel) => void;
+  onAppendCell: (label: RiffSequenceCellLabel, phraseIndex?: number) => void;
+  onAddPhrase: (label: RiffSequenceCellLabel) => void;
+  onSetPhraseRepeats: (phraseIndex: number, repeats: number) => void;
   onRemoveLastCell: () => void;
   onDeleteCell: (label: RiffSequenceCellLabel) => void;
   onResetSequence: () => void;
@@ -3901,32 +3980,59 @@ function RiffCellSequenceEditor({
   const sequenceEntryDurationModes = sequence.map((_, index): RiffSequenceEntryDurationMode =>
     study.riffSequenceEntryDurationModes?.[index] === 'bars' ? 'bars' : 'patterns',
   );
+  const sequencePhrases = getRiffSequencePhrases(study);
+  let phraseCursor = 0;
+  const phraseRanges = sequencePhrases.map((phrase, phraseIndex) => {
+    const startIndex = phraseCursor;
+    const endIndex = Math.min(sequence.length, startIndex + phrase.entryCount);
+    const indices = Array.from(
+      { length: Math.max(0, endIndex - startIndex) },
+      (_, index) => startIndex + index,
+    );
+    phraseCursor = endIndex;
+    return { phrase, phraseIndex, indices };
+  }).filter((range) => range.indices.length > 0);
   const sequenceTotalBars =
     sequenceBarsMode === 'per-cell'
-      ? sequence.reduce((sum, label, index) => {
-          const cell = cells.find((candidate) => candidate.label === label);
-          const mode = sequenceEntryDurationModes[index] ?? 'patterns';
-          if (mode === 'bars') {
-            return sum + (sequenceEntryBars[index] ?? sequenceResetBars);
-          }
-          const stepCount = Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount));
-          const repeats = sequenceEntryRepeats[index] ?? 1;
-          return sum + (stepCount * repeats) / Math.max(1, getReferenceStepsPerBar(study.reference));
+      ? phraseRanges.reduce((phraseSum, range) => {
+          const phraseBars = range.indices.reduce((sum, index) => {
+            const label = sequence[index];
+            const cell = cells.find((candidate) => candidate.label === label);
+            const mode = sequenceEntryDurationModes[index] ?? 'patterns';
+            if (mode === 'bars') {
+              return sum + (sequenceEntryBars[index] ?? sequenceResetBars);
+            }
+            const stepCount = Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount));
+            const repeats = sequenceEntryRepeats[index] ?? 1;
+            return sum + (stepCount * repeats) / Math.max(1, getReferenceStepsPerBar(study.reference));
+          }, 0);
+          return phraseSum + phraseBars * Math.max(1, range.phrase.repeatCount);
         }, 0)
       : sequenceResetBars;
   const sequenceTotalBarsLabel = sequenceTotalBars.toLocaleString(undefined, {
     maximumFractionDigits: 2,
   });
-  const sequenceLabel = sequence.length > 0 ? sequence.join(' ') : 'A';
+  const sequenceLabel =
+    phraseRanges.length > 0
+      ? phraseRanges
+          .map((range) => range.indices.map((index) => sequence[index]).join(''))
+          .join(' | ')
+      : sequence.length > 0
+        ? sequence.join(' ')
+        : 'A';
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
   const selectedCellColor = selectedCell?.color ?? study.riff.color;
   const sequenceStepTotal = Math.max(
     1,
-    sequence.reduce((sum, label, index) => {
-      const cell = cells.find((candidate) => candidate.label === label);
-      const repeatCount = sequenceEntryRepeats[index] ?? 1;
-      return sum + Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount)) * repeatCount;
+    phraseRanges.reduce((phraseSum, range) => {
+      const phraseSteps = range.indices.reduce((sum, index) => {
+        const label = sequence[index];
+        const cell = cells.find((candidate) => candidate.label === label);
+        const repeatCount = sequenceEntryRepeats[index] ?? 1;
+        return sum + Math.max(1, Math.round(cell?.stepCount ?? study.riff.stepCount)) * repeatCount;
+      }, 0);
+      return phraseSum + phraseSteps * Math.max(1, range.phrase.repeatCount);
     }, 0),
   );
   const sequenceNaturalResolveBars =
@@ -4110,123 +4216,195 @@ function RiffCellSequenceEditor({
               </div>
             </div>
 
-            <div className="flex min-h-8 flex-wrap items-stretch gap-1">
-              {sequence.map((label, index) => {
-                const exists = cells.some((cell) => cell.label === label);
-                const cellColor = getCellVisualColor(label);
-                const entryBars = sequenceEntryBars[index] ?? sequenceResetBars;
-                const entryRepeats = sequenceEntryRepeats[index] ?? 1;
-                const entryDurationMode = sequenceEntryDurationModes[index] ?? 'patterns';
-                const entryValue = entryDurationMode === 'bars' ? entryBars : entryRepeats;
-                const entrySpan =
-                  sequenceBarsMode === 'per-cell'
-                    ? entryDurationMode === 'bars'
-                      ? `${entryBars}b`
-                      : `${entryRepeats}x`
-                    : null;
-              return (
-                <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1">
-                  <div className="inline-flex flex-col items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (exists) {
-                          onSelectCell(label);
-                        }
-                      }}
-                      className="inline-flex min-h-8 min-w-10 flex-col items-center justify-center rounded-md border px-1.5 font-mono uppercase transition-transform active:scale-[0.97]"
-                      style={{
-                        background:
-                          exists && label === selectedCell?.label
-                            ? `${cellColor}18`
-                            : 'rgba(255,255,255,0.04)',
-                        borderColor:
-                          exists && label === selectedCell?.label
-                            ? `${cellColor}52`
-                            : 'rgba(255,255,255,0.09)',
-                        color: exists ? (label === selectedCell?.label ? cellColor : 'rgba(255,255,255,0.62)') : 'rgba(255,255,255,0.24)',
-                      }}
-                    >
-                      <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">{index + 1}</span>
-                      <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
-                      {entrySpan != null ? (
-                        <span className="mt-0.5 text-[6.5px] leading-none tracking-[0.08em] opacity-56">
-                          {entrySpan}
-                        </span>
-                      ) : null}
-                    </button>
-                    {sequenceBarsMode === 'per-cell' ? (
-                      <div className="flex overflow-hidden rounded-md border border-white/8 bg-white/[0.035]">
-                        <label className="flex items-center gap-0.5 px-1 py-0.5">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            max={entryDurationMode === 'bars' ? RIFF_MAX_RESET_BARS : RIFF_MAX_SEQUENCE_REPEATS}
-                            value={entryValue}
-                            onFocus={(event) => event.currentTarget.select()}
-                            onChange={(event) => {
-                              const nextValue = Number.parseInt(event.currentTarget.value, 10) || entryValue;
-                              if (entryDurationMode === 'bars') {
-                                onSetSequenceEntryBars(index, nextValue);
-                              } else {
-                                onSetSequenceEntryRepeats(index, nextValue);
-                              }
-                            }}
-                            className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
-                            aria-label={
-                              entryDurationMode === 'bars'
-                                ? `Set bars for sequence ${index + 1} cell ${label}`
-                                : `Set cell plays for sequence ${index + 1} cell ${label}`
-                            }
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onSetSequenceEntryDurationMode(index, entryDurationMode === 'bars' ? 'patterns' : 'bars')
-                          }
-                          className="border-l border-white/8 px-1.5 text-[6.5px] font-mono uppercase tracking-[0.08em] transition"
-                          style={{
-                            color: entryDurationMode === 'bars' ? 'rgba(255,255,255,0.42)' : cellColor,
-                            background: entryDurationMode === 'patterns' ? `${cellColor}10` : 'rgba(255,255,255,0.025)',
-                          }}
-                          aria-label={`Use ${entryDurationMode === 'bars' ? 'cell pattern plays' : 'bars'} for sequence ${index + 1}`}
-                        >
-                          {entryDurationMode === 'bars' ? 'Bar' : 'Cell'}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                  {index < sequence.length - 1 ? (
-                    <span className="text-[10px] text-white/24 self-center">-&gt;</span>
-                  ) : null}
-                </div>
-              );
-            })}
-            </div>
-
-            <div className="space-y-1">
-              <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                Add To Sequence
-              </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
-                {cells.map((cell) => (
-                  <button
-                    key={`append-${cell.label}`}
-                    type="button"
-                    onClick={() => onAppendCell(cell.label)}
-                    className="rounded-lg border px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] transition-transform active:scale-[0.97]"
+            <div className="space-y-2">
+              {phraseRanges.map(({ phrase, phraseIndex, indices }) => {
+                const firstLabel = sequence[indices[0]] ?? selectedCell?.label ?? 'A';
+                const phraseColor = getCellVisualColor(firstLabel);
+                const phraseText = indices.map((index) => sequence[index]).join(' ');
+                return (
+                  <div
+                    key={phrase.id}
+                    className="rounded-lg border px-1.5 py-1.5"
                     style={{
-                      background: `${cell.color}0f`,
-                      borderColor: `${cell.color}24`,
-                      color: cell.color,
+                      background: `${phraseColor}08`,
+                      borderColor: `${phraseColor}22`,
                     }}
                   >
-                    +{cell.label}
-                  </button>
-                ))}
-              </div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div
+                          className="text-[7.5px] font-mono uppercase tracking-[0.14em]"
+                          style={{ color: phraseColor }}
+                        >
+                          Phrase {phraseIndex + 1}
+                        </div>
+                        <div className="truncate text-[7px] font-mono uppercase tracking-[0.1em] text-white/30">
+                          {phraseText}
+                        </div>
+                      </div>
+                      <label
+                        className="flex items-center overflow-hidden rounded-md border bg-white/[0.035]"
+                        style={{ borderColor: `${phraseColor}24` }}
+                      >
+                        <span className="px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
+                          x
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={RIFF_MAX_SEQUENCE_REPEATS}
+                          value={phrase.repeatCount}
+                          onFocus={(event) => event.currentTarget.select()}
+                          onChange={(event) =>
+                            onSetPhraseRepeats(
+                              phraseIndex,
+                              Number.parseInt(event.currentTarget.value, 10) || phrase.repeatCount,
+                            )
+                          }
+                          className="h-6 w-9 bg-transparent text-center text-[10px] font-mono outline-none"
+                          style={{ color: phraseColor }}
+                          aria-label={`Set Phrase ${phraseIndex + 1} repeats`}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="flex min-h-8 flex-wrap items-stretch gap-1">
+                      {indices.map((index, localIndex) => {
+                        const label = sequence[index];
+                        const exists = cells.some((cell) => cell.label === label);
+                        const cellColor = getCellVisualColor(label);
+                        const entryBars = sequenceEntryBars[index] ?? sequenceResetBars;
+                        const entryRepeats = sequenceEntryRepeats[index] ?? 1;
+                        const entryDurationMode = sequenceEntryDurationModes[index] ?? 'patterns';
+                        const entryValue = entryDurationMode === 'bars' ? entryBars : entryRepeats;
+                        const entrySpan =
+                          sequenceBarsMode === 'per-cell'
+                            ? entryDurationMode === 'bars'
+                              ? `${entryBars}b`
+                              : `${entryRepeats}x`
+                            : null;
+                        return (
+                          <div key={`sequence-cell-${index}-${label}`} className="inline-flex items-center gap-1">
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (exists) {
+                                    onSelectCell(label);
+                                  }
+                                }}
+                                className="inline-flex min-h-8 min-w-10 flex-col items-center justify-center rounded-md border px-1.5 font-mono uppercase transition-transform active:scale-[0.97]"
+                                style={{
+                                  background:
+                                    exists && label === selectedCell?.label
+                                      ? `${cellColor}18`
+                                      : 'rgba(255,255,255,0.04)',
+                                  borderColor:
+                                    exists && label === selectedCell?.label
+                                      ? `${cellColor}52`
+                                      : 'rgba(255,255,255,0.09)',
+                                  color: exists
+                                    ? label === selectedCell?.label
+                                      ? cellColor
+                                      : 'rgba(255,255,255,0.62)'
+                                    : 'rgba(255,255,255,0.24)',
+                                }}
+                              >
+                                <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">
+                                  {index + 1}
+                                </span>
+                                <span className="mt-0.5 text-[10px] leading-none tracking-[0.12em]">{label}</span>
+                                {entrySpan != null ? (
+                                  <span className="mt-0.5 text-[6.5px] leading-none tracking-[0.08em] opacity-56">
+                                    {entrySpan}
+                                  </span>
+                                ) : null}
+                              </button>
+                              {sequenceBarsMode === 'per-cell' ? (
+                                <div className="flex overflow-hidden rounded-md border border-white/8 bg-white/[0.035]">
+                                  <label className="flex items-center gap-0.5 px-1 py-0.5">
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min={1}
+                                      max={entryDurationMode === 'bars' ? RIFF_MAX_RESET_BARS : RIFF_MAX_SEQUENCE_REPEATS}
+                                      value={entryValue}
+                                      onFocus={(event) => event.currentTarget.select()}
+                                      onChange={(event) => {
+                                        const nextValue = Number.parseInt(event.currentTarget.value, 10) || entryValue;
+                                        if (entryDurationMode === 'bars') {
+                                          onSetSequenceEntryBars(index, nextValue);
+                                        } else {
+                                          onSetSequenceEntryRepeats(index, nextValue);
+                                        }
+                                      }}
+                                      className="h-5 w-6 bg-transparent text-center text-[9px] font-mono text-white/76 outline-none"
+                                      aria-label={
+                                        entryDurationMode === 'bars'
+                                          ? `Set bars for sequence ${index + 1} cell ${label}`
+                                          : `Set cell plays for sequence ${index + 1} cell ${label}`
+                                      }
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSetSequenceEntryDurationMode(index, entryDurationMode === 'bars' ? 'patterns' : 'bars')
+                                    }
+                                    className="border-l border-white/8 px-1.5 text-[6.5px] font-mono uppercase tracking-[0.08em] transition"
+                                    style={{
+                                      color: entryDurationMode === 'bars' ? 'rgba(255,255,255,0.42)' : cellColor,
+                                      background: entryDurationMode === 'patterns' ? `${cellColor}10` : 'rgba(255,255,255,0.025)',
+                                    }}
+                                    aria-label={`Use ${entryDurationMode === 'bars' ? 'cell pattern plays' : 'bars'} for sequence ${index + 1}`}
+                                  >
+                                    {entryDurationMode === 'bars' ? 'Bar' : 'Cell'}
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                            {localIndex < indices.length - 1 ? (
+                              <span className="self-center text-[10px] text-white/24">-&gt;</span>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-1.5 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
+                      {cells.map((cell) => (
+                        <button
+                          key={`append-phrase-${phrase.id}-${cell.label}`}
+                          type="button"
+                          onClick={() => onAppendCell(cell.label, phraseIndex)}
+                          className="rounded-md border px-1.5 py-1 text-[7.5px] font-mono uppercase tracking-[0.1em] transition-transform active:scale-[0.97]"
+                          style={{
+                            background: `${cell.color}0f`,
+                            borderColor: `${cell.color}22`,
+                            color: cell.color,
+                          }}
+                        >
+                          +{cell.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => onAddPhrase(selectedCell?.label ?? cells[0]?.label ?? 'A')}
+                className="w-full rounded-lg border px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.13em] transition-transform active:scale-[0.98]"
+                style={{
+                  background: 'rgba(255,255,255,0.035)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.58)',
+                }}
+              >
+                + Phrase
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-1">
@@ -6946,6 +7124,8 @@ function OrbitalPolymeter() {
   const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
   const [selectedRiffSequenceCellLabel, setSelectedRiffSequenceCellLabel] =
     useState<RiffSequenceCellLabel>('A');
+  const lastRiffGlobalBackbeatBeatsRef = useRef<number[]>([]);
+  const lastRiffCellBackbeatStepsRef = useRef<Record<string, number[]>>({});
   const [selectedRiffLandingSlot, setSelectedRiffLandingSlot] = useState<number | null>(null);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
@@ -8104,8 +8284,9 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleToggleRiffCyclePlayback = useCallback(() => {
-    resumeRiffCycleAudio();
-    if (riffCycleStudy.playing) {
+    if (!riffCycleStudy.playing) {
+      resumeRiffCycleAudio();
+    } else {
       setRiffCycleRestartToken((value) => value + 1);
     }
     setRiffCycleStudy((current) => ({
@@ -8115,12 +8296,14 @@ function OrbitalPolymeter() {
   }, [riffCycleStudy.playing]);
 
   const handleToggleRiffCycleSound = useCallback(() => {
-    resumeRiffCycleAudio();
+    if (!riffCycleStudy.soundEnabled) {
+      resumeRiffCycleAudio();
+    }
     setRiffCycleStudy((current) => ({
       ...current,
       soundEnabled: !current.soundEnabled,
     }));
-  }, []);
+  }, [riffCycleStudy.soundEnabled]);
 
   const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
     setRiffCycleStudy((current) => {
@@ -8254,7 +8437,7 @@ function OrbitalPolymeter() {
       const nextNumerator =
         updates.numerator == null
           ? targetReference.numerator
-          : Math.max(2, Math.min(32, Math.round(updates.numerator)));
+          : Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, Math.round(updates.numerator)));
       if (
         updates.numerator != null &&
         !canUseProFeature(effectivePlan, 'riff-advanced-timing') &&
@@ -8337,6 +8520,27 @@ function OrbitalPolymeter() {
       return;
     }
     setRiffCycleStudy((current) => {
+      if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
+        const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
+        if (cell) {
+          const currentOverride = normalizeRiffBackbeatStepPositions(
+            cell.backbeatOverrideBeats,
+            getReferenceStepsPerBar(current.reference),
+          );
+          const nextSteps = currentOverride.includes(beat)
+            ? currentOverride.filter((entry) => entry !== beat)
+            : [...currentOverride, beat];
+          if (currentOverride.length > 0 && nextSteps.length === 0) {
+            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = currentOverride;
+          } else if (nextSteps.length > 0) {
+            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = normalizeRiffBackbeatStepPositions(
+              nextSteps,
+              getReferenceStepsPerBar(current.reference),
+            );
+          }
+          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextSteps);
+        }
+      }
       const sourceNumerator = current.reference.numerator;
       const sourceBackbeatBeat = current.reference.backbeatBeat;
       const currentBeats = normalizeRiffBackbeatBeats(
@@ -8347,6 +8551,15 @@ function OrbitalPolymeter() {
       const nextBeats = currentBeats.includes(beat)
         ? currentBeats.filter((entry) => entry !== beat)
         : [...currentBeats, beat];
+      if (currentBeats.length > 0 && nextBeats.length === 0) {
+        lastRiffGlobalBackbeatBeatsRef.current = currentBeats;
+      } else if (nextBeats.length > 0) {
+        lastRiffGlobalBackbeatBeatsRef.current = normalizeRiffBackbeatBeats(
+          nextBeats,
+          sourceNumerator,
+          sourceBackbeatBeat,
+        );
+      }
       const normalizedBeats = normalizeRiffBackbeatBeats(
         nextBeats,
         sourceNumerator,
@@ -8362,31 +8575,80 @@ function OrbitalPolymeter() {
         },
       };
     });
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
 
-  const handleSetRiffBackbeatBeats = useCallback((beats: number[]) => {
+  const handleSetRiffBackbeatOff = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
     setRiffCycleStudy((current) => {
-      const sourceNumerator = current.reference.numerator;
-      const sourceBackbeatBeat = current.reference.backbeatBeat;
-      const normalizedBeats = normalizeRiffBackbeatBeats(
-        beats,
-        sourceNumerator,
-        sourceBackbeatBeat,
+      if (RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled) {
+        const cell = current.riffCells.find((candidate) => candidate.label === selectedRiffSequenceCellLabel);
+        if (cell) {
+          const stepsPerBar = getReferenceStepsPerBar(current.reference);
+          const currentOverride = normalizeRiffBackbeatStepPositions(cell.backbeatOverrideBeats, stepsPerBar);
+          const inheritedSteps = normalizeRiffBackbeatBeats(
+            current.reference.backbeatBeats,
+            current.reference.numerator,
+            current.reference.backbeatBeat,
+          ).map((entry) => (entry - 1) * getReferenceStepsPerBeat(current.reference) + 1);
+          const activeSteps = cell.backbeatOverrideBeats == null ? inheritedSteps : currentOverride;
+          if (activeSteps.length > 0) {
+            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = activeSteps;
+            return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, []);
+          }
+          const rememberedSteps = normalizeRiffBackbeatStepPositions(
+            lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel],
+            stepsPerBar,
+          );
+          const nextSteps = rememberedSteps.length > 0
+            ? rememberedSteps
+            : inheritedSteps.length > 0
+              ? inheritedSteps
+              : [1];
+          lastRiffCellBackbeatStepsRef.current[selectedRiffSequenceCellLabel] = nextSteps;
+          return updateRiffSequenceCellBackbeatOverride(current, selectedRiffSequenceCellLabel, nextSteps);
+        }
+      }
+      const currentBeats = current.reference.showBackbeat
+        ? normalizeRiffBackbeatBeats(
+            current.reference.backbeatBeats,
+            current.reference.numerator,
+            current.reference.backbeatBeat,
+          )
+        : [];
+      if (currentBeats.length > 0) {
+        lastRiffGlobalBackbeatBeatsRef.current = currentBeats;
+        return {
+          ...current,
+          reference: {
+            ...current.reference,
+            showBackbeat: false,
+            backbeatBeat: null,
+            backbeatBeats: [],
+          },
+        };
+      }
+      const fallbackBeat = Math.min(3, Math.max(1, current.reference.numerator));
+      const restoredBeats = normalizeRiffBackbeatBeats(
+        lastRiffGlobalBackbeatBeatsRef.current.length > 0
+          ? lastRiffGlobalBackbeatBeatsRef.current
+          : [fallbackBeat],
+        current.reference.numerator,
+        fallbackBeat,
       );
+      lastRiffGlobalBackbeatBeatsRef.current = restoredBeats;
       return {
         ...current,
         reference: {
           ...current.reference,
-          showBackbeat: normalizedBeats.length > 0,
-          backbeatBeat: normalizedBeats[0] ?? null,
-          backbeatBeats: normalizedBeats,
+          showBackbeat: restoredBeats.length > 0,
+          backbeatBeat: restoredBeats[0] ?? null,
+          backbeatBeats: restoredBeats,
         },
       };
     });
-  }, [requireEditableRiffCycleStudy]);
+  }, [requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
 
   const handleSetRiffBackbeatBarInterval = useCallback((interval: RiffBackbeatBarInterval) => {
     handleUpdateRiffReference({ backbeatBarInterval: interval });
@@ -8532,12 +8794,29 @@ function OrbitalPolymeter() {
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy, riffCycleStudy.riffCells, selectedRiffSequenceCellLabel]);
 
-  const handleAppendRiffSequenceCell = useCallback((label: RiffSequenceCellLabel) => {
+  const handleAppendRiffSequenceCell = useCallback((label: RiffSequenceCellLabel, phraseIndex?: number) => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
-    setRiffCycleStudy((current) => appendRiffSequenceOrderCell(current, label));
+    setRiffCycleStudy((current) => appendRiffSequenceOrderCell(current, label, phraseIndex));
     setSelectedRiffSequenceCellLabel(label);
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleAddRiffSequencePhrase = useCallback((label: RiffSequenceCellLabel) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => addRiffSequencePhrase(current, label));
+    setSelectedRiffSequenceCellLabel(label);
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleSetRiffSequencePhraseRepeats = useCallback((phraseIndex: number, repeats: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => setRiffSequencePhraseRepeats(current, phraseIndex, repeats));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
 
@@ -8641,7 +8920,7 @@ function OrbitalPolymeter() {
         if (!followTargetMeter) {
           return next;
         }
-        const targetNumerator = Math.max(2, Math.min(32, targetStepCount));
+        const targetNumerator = Math.max(2, Math.min(RIFF_MAX_METER_NUMERATOR, targetStepCount));
         const nextBackbeatBeat = Math.min(next.reference.backbeatBeat ?? 1, targetNumerator);
         return {
           ...next,
@@ -8843,9 +9122,31 @@ function OrbitalPolymeter() {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
+    setRiffCycleStudy((current) => {
+      if (current.showCountLabels) {
+        return {
+          ...current,
+          showStepLabels: true,
+          showCountLabels: false,
+        };
+      }
+
+      return {
+        ...current,
+        showStepLabels: !current.showStepLabels,
+        showCountLabels: false,
+      };
+    });
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffCountLabels = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
-      showStepLabels: !current.showStepLabels,
+      showStepLabels: true,
+      showCountLabels: !current.showCountLabels,
     }));
   }, [requireEditableRiffCycleStudy]);
 
@@ -13006,6 +13307,33 @@ function OrbitalPolymeter() {
   const riffEditableLabel = riffSelectedSequenceCell
     ? `Cell ${riffSelectedSequenceCell.label}`
     : 'Riff';
+  const riffCellBackbeatEditingActive = Boolean(
+    RIFF_CELL_SEQUENCE_FEATURE_ENABLED &&
+    riffCycleStudy.riffSequenceEnabled &&
+    riffSelectedSequenceCell,
+  );
+  const riffEditableStepsPerBeat = getReferenceStepsPerBeat(riffEditableReference);
+  const riffEditableStepsPerBar = getReferenceStepsPerBar(riffEditableReference);
+  const riffGlobalBackbeatBeats = riffCycleStudy.reference.showBackbeat
+    ? normalizeRiffBackbeatBeats(
+        riffEditableReference.backbeatBeats,
+        riffEditableReference.numerator,
+        riffEditableReference.backbeatBeat,
+      )
+    : [];
+  const riffGlobalBackbeatStepPositions = riffGlobalBackbeatBeats.map(
+    (beat) => (beat - 1) * riffEditableStepsPerBeat + 1,
+  );
+  const riffCellBackbeatOverride = riffSelectedSequenceCell?.backbeatOverrideBeats ?? null;
+  const riffEditableBackbeatBeats = riffCellBackbeatEditingActive
+    ? riffCellBackbeatOverride == null
+      ? riffGlobalBackbeatStepPositions
+      : normalizeRiffBackbeatStepPositions(riffCellBackbeatOverride, riffEditableStepsPerBar)
+    : riffGlobalBackbeatBeats;
+  const riffEditableBackbeatEnabled = riffEditableBackbeatBeats.length > 0;
+  const riffBackbeatPickerCount = riffCellBackbeatEditingActive
+    ? riffEditableStepsPerBar
+    : Math.max(0, Math.min(6, riffEditableReference.numerator));
   const riffCellEditPreviewActive =
     Boolean(riffSelectedSequenceCell) &&
     !recordingVideo &&
@@ -13022,10 +13350,11 @@ function OrbitalPolymeter() {
     if (!riffCellEditPreviewActive || !riffSelectedSequenceCell) {
       return riffCycleStudy;
     }
-
     return {
       ...riffCycleStudy,
-      riffSequenceEnabled: false,
+      riffSequenceEnabled: true,
+      riffCells: [riffSelectedSequenceCell],
+      riffSequence: [riffSelectedSequenceCell.label],
       reference: riffEditableReference,
       riff: {
         ...riffCycleStudy.riff,
@@ -19374,12 +19703,12 @@ function OrbitalPolymeter() {
                                 className={mobileRiffBarSquareButtonClass}
                                 locked={
                                   riffAdvancedTimingLocked &&
-                                  !canUseFreeRiffMeter(Math.min(32, riffEditableReference.numerator + 1))
+                                  !canUseFreeRiffMeter(Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1))
                                 }
                                 onLockedClick={() => openProPrompt('riff-advanced-timing')}
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                    numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                                   })
                                 }
                               >
@@ -19451,10 +19780,11 @@ function OrbitalPolymeter() {
                             <RiffRestartSliderControl
                               study={riffCycleStudy}
                               onUpdateRiff={handleUpdateRiffPhrase}
-                              labelClassName={mobileRiffMenuTitleClass}
-                              labelStyle={mobileRiffWhiteTitleStyle}
-                              compact
-                            />
+	                              labelClassName={mobileRiffMenuTitleClass}
+	                              labelStyle={mobileRiffWhiteTitleStyle}
+	                              compact
+	                              controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                            />
                           </div>
                         </div>
 
@@ -19494,14 +19824,10 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             {(() => {
-                              const activeBackbeatBeats = normalizeRiffBackbeatBeats(
-                                riffEditableReference.backbeatBeats,
-                                riffEditableReference.numerator,
-                                riffEditableReference.backbeatBeat,
-                              );
+                              const activeBackbeatBeats = riffEditableBackbeatBeats;
                               return (
                                 <div className="space-y-1.5">
-                                  <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                                  <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                                     <button
                                       type="button"
                                       className="h-7 rounded-md px-2 text-[8px] font-mono font-semibold uppercase tracking-[0.1em] transition"
@@ -19511,12 +19837,12 @@ function OrbitalPolymeter() {
                                         color: activeBackbeatBeats.length === 0 ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
                                         boxShadow: activeBackbeatBeats.length === 0 ? '0 0 16px rgba(255,136,194,0.16)' : 'none',
                                       }}
-                                      onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                      onClick={handleSetRiffBackbeatOff}
                                     >
                                       Off
                                     </button>
                                     {Array.from(
-                                      { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                      { length: riffBackbeatPickerCount },
                                       (_, index) => index + 1,
                                     ).map((beat) => (
                                       <button
@@ -19622,6 +19948,8 @@ function OrbitalPolymeter() {
                               onSelectCell={handleSelectRiffSequenceCell}
                               onAddCell={handleAddRiffSequenceCell}
                               onAppendCell={handleAppendRiffSequenceCell}
+                              onAddPhrase={handleAddRiffSequencePhrase}
+                              onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onDeleteCell={handleDeleteRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
@@ -19752,61 +20080,71 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             <div className="space-y-2">
-                              <div className="grid grid-cols-3 gap-1.5">
+                              <div className="grid grid-cols-4 gap-1.5">
                                 <StudyShellButton
                                   size="compact"
                                   tone="blue"
-                                  highlighted={Boolean(riffCycleStudy.showStepLabels)}
+                                  highlighted={Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels}
                                   onClick={handleToggleRiffStepLabels}
                                   icon={<span className="text-[10px] leading-none">#</span>}
                                   className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
                                 >
                                   Numbers
                                 </StudyShellButton>
-                              <StudyShellButton
-                                size="compact"
-                                tone="blue"
-                                highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
-                                locked={riffSubdivisionsLocked}
-                                onLockedClick={() => openProPrompt('riff-subdivisions')}
-                                onClick={handleToggleRiffPulseLayer}
-                                icon={<Grid3X3 size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
-                              >
-                                Subdivisions
-                              </StudyShellButton>
-                              <StudyShellButton
-                                size="compact"
-                                tone="blue"
-                                highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
-                                onClick={handleToggleRiffPhraseBounds}
-                                icon={<CircleDot size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
-                              >
-                                Grouping
-                              </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="blue"
+                                  highlighted={Boolean(riffCycleStudy.showCountLabels)}
+                                  onClick={handleToggleRiffCountLabels}
+                                  icon={<span className="text-[9px] leading-none">1e</span>}
+                                  className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                >
+                                  Counts
+                                </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="blue"
+                                  highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
+                                  locked={riffSubdivisionsLocked}
+                                  onLockedClick={() => openProPrompt('riff-subdivisions')}
+                                  onClick={handleToggleRiffPulseLayer}
+                                  icon={<Grid3X3 size={11} strokeWidth={2.2} />}
+                                  className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                >
+                                  Subdivisions
+                                </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="blue"
+                                  highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
+                                  onClick={handleToggleRiffPhraseBounds}
+                                  icon={<CircleDot size={11} strokeWidth={2.2} />}
+                                  className="min-w-0 gap-1 px-1 text-[7.5px] tracking-[0.06em]"
+                                >
+                                  Grouping
+                                </StudyShellButton>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                              <StudyShellButton
-                                size="compact"
-                                tone="green"
-                                highlighted={Boolean(riffCycleStudy.showPhraseFill)}
-                                onClick={handleToggleRiffPhraseFill}
-                                icon={<Palette size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
-                              >
-                                Fill
-                              </StudyShellButton>
-                              <StudyShellButton
-                                size="compact"
-                                tone="green"
-                                highlighted={Boolean(riffCycleStudy.showStructureView)}
-                                onClick={handleToggleRiffStructureView}
-                                icon={<Zap size={11} strokeWidth={2.2} />}
-                                className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
-                              >
-                                Contour
-                              </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="green"
+                                  highlighted={Boolean(riffCycleStudy.showPhraseFill)}
+                                  onClick={handleToggleRiffPhraseFill}
+                                  icon={<Palette size={11} strokeWidth={2.2} />}
+                                  className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
+                                >
+                                  Fill
+                                </StudyShellButton>
+                                <StudyShellButton
+                                  size="compact"
+                                  tone="green"
+                                  highlighted={Boolean(riffCycleStudy.showStructureView)}
+                                  onClick={handleToggleRiffStructureView}
+                                  icon={<Zap size={11} strokeWidth={2.2} />}
+                                  className="min-w-0 gap-1.5 px-2 text-[9px] tracking-[0.1em]"
+                                >
+                                  Contour
+                                </StudyShellButton>
                               </div>
                             </div>
                           </div>
@@ -20734,6 +21072,7 @@ function OrbitalPolymeter() {
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showMeterNumberControl
                       compact
                     />
                   </div>
@@ -20901,7 +21240,7 @@ function OrbitalPolymeter() {
                                 size="square"
                                 onClick={() =>
                                   handleUpdateRiffReference({
-                                    numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                    numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                                   })
                                 }
                               >
@@ -20976,13 +21315,13 @@ function OrbitalPolymeter() {
                               <StudyShellButton
                                 size="compact"
                                 tone="pink"
-                                highlighted={!riffCycleStudy.reference.showBackbeat}
-                                onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                highlighted={!riffEditableBackbeatEnabled}
+                                onClick={handleSetRiffBackbeatOff}
                               >
                                 Off
                               </StudyShellButton>
                               {Array.from(
-                                { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                { length: riffBackbeatPickerCount },
                                 (_, index) => index + 1,
                               ).map((beat) => (
                                 <StudyShellButton
@@ -20990,15 +21329,10 @@ function OrbitalPolymeter() {
                                   size="compact"
                                   tone="pink"
                                   highlighted={
-                                    riffCycleStudy.reference.showBackbeat &&
-                                    riffEditableReference.backbeatBeat === beat
+                                    riffEditableBackbeatEnabled &&
+                                    riffEditableBackbeatBeats.includes(beat)
                                   }
-                                  onClick={() =>
-                                    handleUpdateRiffReference({
-                                      showBackbeat: true,
-                                      backbeatBeat: beat,
-                                    })
-                                  }
+                                  onClick={() => handleToggleRiffBackbeatBeat(beat)}
                                 >
                                   {beat}
                                 </StudyShellButton>
@@ -21725,7 +22059,7 @@ function OrbitalPolymeter() {
                           className={desktopRiffBarSquareButtonClass}
                           onClick={() =>
                             handleUpdateRiffReference({
-                              numerator: Math.min(32, riffEditableReference.numerator + 1),
+                              numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                             })
                           }
                           aria-label="Increase bar numerator"
@@ -21805,10 +22139,11 @@ function OrbitalPolymeter() {
                     <RiffRestartSliderControl
                       study={riffCycleStudy}
                       onUpdateRiff={handleUpdateRiffPhrase}
-                      labelClassName={riffQuickControlLabelClass}
-                      labelStyle={desktopMenuSubheaderStyle}
-                      compact
-                    />
+	                      labelClassName={riffQuickControlLabelClass}
+	                      labelStyle={desktopMenuSubheaderStyle}
+	                      compact
+	                      controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                    />
                   </div>
 
                   <div
@@ -21847,29 +22182,25 @@ function OrbitalPolymeter() {
                         labelStyle={desktopMenuSubheaderStyle}
                       />
                       {(() => {
-                        const activeBackbeatBeats = normalizeRiffBackbeatBeats(
-                          riffEditableReference.backbeatBeats,
-                          riffEditableReference.numerator,
-                          riffEditableReference.backbeatBeat,
-                        );
+                        const activeBackbeatBeats = riffEditableBackbeatBeats;
                         return (
                           <div className="space-y-1.5">
-                            <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                            <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                               <button
                                 type="button"
                                 className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                                 style={{
-                                  background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
-                                  border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
-                                  color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
-                                  boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                                  background: !riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                                  border: `1px solid ${!riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                                  color: !riffEditableBackbeatEnabled ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                                  boxShadow: !riffEditableBackbeatEnabled ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
                                 }}
-                                onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                                onClick={handleSetRiffBackbeatOff}
                               >
                                 Off
                               </button>
                               {Array.from(
-                                { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                                { length: riffBackbeatPickerCount },
                                 (_, index) => index + 1,
                               ).map((beat) => (
                                 <button
@@ -21878,20 +22209,20 @@ function OrbitalPolymeter() {
                                   className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                                   style={{
                                     background:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? 'rgba(255,136,194,0.18)'
                                         : 'rgba(255,255,255,0.025)',
                                     border: `1px solid ${
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? 'rgba(255,136,194,0.42)'
                                         : 'rgba(255,255,255,0.07)'
                                     }`,
                                     color:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? '#FFD3E9'
                                         : 'rgba(255,255,255,0.5)',
                                     boxShadow:
-                                      riffCycleStudy.reference.showBackbeat && activeBackbeatBeats.includes(beat)
+                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
                                         ? '0 0 14px rgba(255,136,194,0.14)'
                                         : 'none',
                                   }}
@@ -21968,6 +22299,8 @@ function OrbitalPolymeter() {
                     onSelectCell={handleSelectRiffSequenceCell}
                     onAddCell={handleAddRiffSequenceCell}
                     onAppendCell={handleAppendRiffSequenceCell}
+                    onAddPhrase={handleAddRiffSequencePhrase}
+                    onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onDeleteCell={handleDeleteRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
@@ -22933,16 +23266,26 @@ function OrbitalPolymeter() {
 	                          Orientation
 	                        </div>
 	                      </div>
-	                      <div className="grid grid-cols-2 gap-2">
+	                      <div className="grid grid-cols-3 gap-2">
 	                        <StudyShellButton
 	                          size="compact"
 	                          tone="amber"
-	                          highlighted={Boolean(riffCycleStudy.showStepLabels)}
+	                          highlighted={Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels}
 	                          onClick={handleToggleRiffStepLabels}
 	                          icon={<span className="text-[10px] leading-none">#</span>}
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Numbers
+	                        </StudyShellButton>
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="amber"
+	                          highlighted={Boolean(riffCycleStudy.showCountLabels)}
+	                          onClick={handleToggleRiffCountLabels}
+	                          icon={<span className="text-[10px] leading-none">1e</span>}
+	                          className={`${utilityButtonClass} gap-1.5`}
+	                        >
+	                          Counts
 	                        </StudyShellButton>
 	                        <StudyShellButton
 	                          size="compact"
@@ -23051,6 +23394,7 @@ function OrbitalPolymeter() {
                       onChange={handleUpdateRiffDisplay}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
+                      showMeterNumberControl
                       compact
                     />
                   </div>
@@ -23688,7 +24032,7 @@ function OrbitalPolymeter() {
                             className="!h-8 !w-8 rounded-lg"
                             onClick={() =>
                               handleUpdateRiffReference({
-                                numerator: Math.min(32, riffEditableReference.numerator + 1),
+                                numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
                               })
                             }
                           >
@@ -23759,10 +24103,11 @@ function OrbitalPolymeter() {
                       <RiffRestartSliderControl
                         study={riffCycleStudy}
                         onUpdateRiff={handleUpdateRiffPhrase}
-                        labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                        labelStyle={desktopMenuSubheaderStyle}
-                        compact
-                      />
+	                        labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
+	                        labelStyle={desktopMenuSubheaderStyle}
+	                        compact
+	                        controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                      />
                       <StudyShellPanel className="space-y-1.5 px-2.5 py-2">
                         <BarCueSliderControl
                           value={riffCycleStudy.barMarkerInterval}
@@ -23779,22 +24124,22 @@ function OrbitalPolymeter() {
                           labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
                           labelStyle={desktopMenuSubheaderStyle}
                         />
-                        <div className="flex items-center gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1">
+                        <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
                           <button
                             type="button"
                             className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
                             style={{
-                              background: !riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
-                              border: `1px solid ${!riffCycleStudy.reference.showBackbeat ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
-                              color: !riffCycleStudy.reference.showBackbeat ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
-                              boxShadow: !riffCycleStudy.reference.showBackbeat ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
+                              background: !riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
+                              border: `1px solid ${!riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
+                              color: !riffEditableBackbeatEnabled ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
+                              boxShadow: !riffEditableBackbeatEnabled ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
                             }}
-                            onClick={() => handleUpdateRiffReference({ showBackbeat: false })}
+                            onClick={handleSetRiffBackbeatOff}
                           >
                             Off
                           </button>
                           {Array.from(
-                            { length: Math.max(0, Math.min(6, riffEditableReference.numerator)) },
+                            { length: riffBackbeatPickerCount },
                             (_, index) => index + 1,
                           ).map((beat) => (
                             <button
@@ -23803,29 +24148,24 @@ function OrbitalPolymeter() {
                               className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
                               style={{
                                 background:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? 'rgba(255,136,194,0.18)'
                                     : 'rgba(255,255,255,0.025)',
                                 border: `1px solid ${
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? 'rgba(255,136,194,0.42)'
                                     : 'rgba(255,255,255,0.07)'
                                 }`,
                                 color:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? '#FFD3E9'
                                     : 'rgba(255,255,255,0.5)',
                                 boxShadow:
-                                  riffCycleStudy.reference.showBackbeat && riffEditableReference.backbeatBeat === beat
+                                  riffEditableBackbeatEnabled && riffEditableBackbeatBeats.includes(beat)
                                     ? '0 0 14px rgba(255,136,194,0.14)'
                                     : 'none',
                               }}
-                              onClick={() =>
-                                handleUpdateRiffReference({
-                                  showBackbeat: true,
-                                  backbeatBeat: beat,
-                                })
-                              }
+                              onClick={() => handleToggleRiffBackbeatBeat(beat)}
                             >
                               {beat}
                             </button>
@@ -23856,6 +24196,8 @@ function OrbitalPolymeter() {
                           onSelectCell={handleSelectRiffSequenceCell}
                           onAddCell={handleAddRiffSequenceCell}
                           onAppendCell={handleAppendRiffSequenceCell}
+                          onAddPhrase={handleAddRiffSequencePhrase}
+                          onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                           onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                           onDeleteCell={handleDeleteRiffSequenceCell}
                           onResetSequence={handleResetRiffSequence}

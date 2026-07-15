@@ -120,6 +120,9 @@ export function getRiffCycleCanvasMetrics(
   const circleCenterX = width / 2;
   const laneHeight = isMobile ? 32 : 30;
   const totalDisplaySteps = getDisplayStepCount(study);
+  const referenceSideCount = Math.max(2, study.reference.numerator);
+  const dupleReferenceFrame = referenceSideCount === 2;
+  const triangleReferenceFrame = referenceSideCount === 3;
   const visibleStepCount = showingTimeline
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
@@ -152,7 +155,12 @@ export function getRiffCycleCanvasMetrics(
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
-    circleCenterY = topPadding + availableTopHeight / 2;
+    if (triangleReferenceFrame) {
+      outerRadius *= isMobile ? 1.025 : 1.03;
+    }
+    circleCenterY = triangleReferenceFrame
+      ? topPadding + Math.max(0, availableTopHeight - outerRadius * 1.5) / 2 + outerRadius
+      : topPadding + availableTopHeight / 2;
     topLaneY = timelineY + (isMobile ? 10 : 16);
     bottomLaneY = topLaneY + laneHeight + (isMobile ? 14 : 20);
 
@@ -177,13 +185,19 @@ export function getRiffCycleCanvasMetrics(
     if (study.pulseLayerEnabled) {
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
-    circleCenterY = topPadding + safeHeight / 2;
+    if (triangleReferenceFrame) {
+      outerRadius *= isMobile ? 1.025 : 1.03;
+    }
+    circleCenterY = triangleReferenceFrame
+      ? topPadding + Math.max(0, safeHeight - outerRadius * 1.5) / 2 + outerRadius
+      : topPadding + safeHeight / 2;
   }
 
   const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
-  const referenceSideCount = Math.max(2, study.reference.numerator);
-  const referenceInradius = outerRadius * Math.cos(Math.PI / referenceSideCount);
-  const containmentPadding = isMobile ? 4 : 6;
+  const referenceInradius = dupleReferenceFrame
+    ? outerRadius
+    : outerRadius * Math.cos(Math.PI / referenceSideCount);
+  const containmentPadding = triangleReferenceFrame ? (isMobile ? 26 : 34) : isMobile ? 4 : 6;
   const innerRadius = Math.min(
     defaultInnerRadius,
     Math.max(32, referenceInradius - containmentPadding),

@@ -6,6 +6,7 @@ import {
   getReferenceStepsPerBeat,
   getReferenceStepsPerBar,
   isPhraseRestartAtReferenceStep,
+  RIFF_MAX_METER_NUMERATOR,
   type RiffCycleStudy,
   type RiffCycleSoundSettings,
 } from './riffCycleStudy';
@@ -228,7 +229,7 @@ export function buildRiffCycleMidiFile(
       0xff,
       0x58,
       0x04,
-      clamp(Math.round(study.reference.numerator), 1, 32),
+      clamp(Math.round(study.reference.numerator), 1, RIFF_MAX_METER_NUMERATOR),
       Math.round(Math.log2(study.reference.denominator)),
       24,
       8,
