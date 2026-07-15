@@ -150,7 +150,9 @@ export interface RiffCycleStudy {
   showCountLabels: boolean;
   showAlignmentMarkers: boolean;
   showPhraseBounds: boolean;
+  showPhraseGroupings: boolean;
   showStructureView: boolean;
+  pulseLayerVisible: boolean;
   pulseLayerEnabled: boolean;
   pulseLayerGroupSize: number;
   pulseLayerSteps: boolean[];
@@ -1106,8 +1108,10 @@ export function createRiffCycleStudy(
     showCountLabels: overrides.showCountLabels ?? false,
     showAlignmentMarkers: overrides.showAlignmentMarkers ?? true,
     showPhraseBounds: overrides.showPhraseBounds ?? false,
+    showPhraseGroupings: overrides.showPhraseGroupings ?? false,
     showStructureView: overrides.showStructureView ?? false,
-    pulseLayerEnabled: overrides.pulseLayerEnabled ?? false,
+    pulseLayerVisible: overrides.pulseLayerVisible ?? overrides.pulseLayerEnabled ?? false,
+    pulseLayerEnabled: overrides.pulseLayerEnabled ?? true,
     pulseLayerGroupSize,
     pulseLayerSteps: normalizePulseLayerSteps(overrides.pulseLayerSteps, pulseLayerGroupSize),
     barMarkerInterval:
@@ -1171,6 +1175,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
     referenceGain: normalizeCueGain(study.referenceGain ?? 0.055, 0.055),
     subdivisionGain: normalizeCueGain(study.subdivisionGain ?? 0.014, 0.014),
+    pulseLayerVisible: Boolean(study.pulseLayerVisible ?? study.pulseLayerEnabled),
     pulseLayerEnabled: Boolean(study.pulseLayerEnabled),
     pulseLayerGroupSize,
     pulseLayerSteps: normalizePulseLayerSteps(study.pulseLayerSteps, pulseLayerGroupSize),
@@ -1583,6 +1588,18 @@ export function getEffectiveRiffStepStateAtReferenceStep(
     accented: Boolean((sequenceState?.cell.accents ?? study.riff.accents)[phraseIndex]),
     overridden: false,
   };
+}
+
+export function getEffectiveLandingStepStates(study: RiffCycleStudy) {
+  const landingStudy = study.landingEditEnabled
+    ? study
+    : { ...study, landingEditEnabled: true };
+  const landingStepCount = getLandingStepCount(landingStudy);
+  const landingStartStep = getLandingWindowLength(landingStudy) - landingStepCount;
+
+  return Array.from({ length: landingStepCount }, (_, slotIndex) =>
+    getEffectiveRiffStepStateAtReferenceStep(landingStudy, landingStartStep + slotIndex),
+  );
 }
 
 export function getTailStepStartIndex(study: RiffCycleStudy): number {

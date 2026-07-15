@@ -149,6 +149,7 @@ import {
   createRandomRiffCycleStudy,
   createDefaultRiffCycleStudy,
   getDisplayStepCount,
+  getEffectiveLandingStepStates,
   getEffectiveRiffStepStateAtReferenceStep,
   getEffectiveResetBarCount,
   getLandingWindowLength,
@@ -660,7 +661,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   riff_final_slots: {
     title: 'Final Slots',
-    body: 'These are the last editable slots before the return. Empty slots follow the normal riff; filled slots override the landing.',
+    body: 'These slots initially mirror the final riff hits. Turn a lit slot off to suppress that riff hit during the ending, or turn an empty slot on to add one.',
   },
   riff_ending_length: {
     title: 'Ending Length',
@@ -1001,8 +1002,8 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-ending-pattern',
     title: 'Ending Pattern',
     kicker: 'Riff Guide',
-    text: 'Ending Pattern changes only the final slots before the riff restarts. Empty slots keep the normal riff. Filled slots replace the landing.',
-    doThis: 'Turn on one Final Slot, then listen for the return to beat 1.',
+    text: 'Ending Pattern starts with the final riff hits already visible. Turning a lit slot off removes that riff hit only during the ending.',
+    doThis: 'Turn one inherited Final Slot off, then listen for the return to beat 1.',
     notice: 'This is how you make the phrase land differently without rewriting the whole riff.',
   },
   {
@@ -2279,11 +2280,6 @@ function getStepStripGroupSize(stepCount: number): number {
 function getPolyrhythmLayerOffsetSteps(layer: Pick<PolyrhythmLayer, 'beatCount' | 'rotationOffset'>): number {
   const normalizedOffset = ((layer.rotationOffset % 360) + 360) % 360;
   return Math.round((normalizedOffset / 360) * layer.beatCount) % Math.max(1, layer.beatCount);
-}
-
-function getRiffOffsetSteps(riff: Pick<RiffPhrase, 'stepCount' | 'rotationOffset'>): number {
-  const normalizedOffset = ((riff.rotationOffset % 360) + 360) % 360;
-  return Math.round((normalizedOffset / 360) * riff.stepCount) % Math.max(1, riff.stepCount);
 }
 
 function getFreeRiffResolutionBars(study: RiffCycleStudy): number {
@@ -3790,6 +3786,7 @@ function RiffRollEditor({
   onLongPressStep,
   labelPrefix,
   compact = false,
+  dense = false,
   stretchToFill = false,
 }: {
   activeSteps: boolean[];
@@ -3800,6 +3797,7 @@ function RiffRollEditor({
   onLongPressStep?: (stepIndex: number) => void;
   labelPrefix: string;
   compact?: boolean;
+  dense?: boolean;
   stretchToFill?: boolean;
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -3840,7 +3838,7 @@ function RiffRollEditor({
       className={stretchToFill ? 'w-full' : '-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]'}
     >
       <div
-        className={stretchToFill ? 'grid w-full gap-2' : 'flex gap-2 px-1'}
+        className={stretchToFill ? 'grid w-full gap-2' : `flex ${dense ? 'gap-1.5' : 'gap-2'} px-1`}
         style={
           stretchToFill
             ? { gridTemplateColumns: `repeat(${Math.max(1, activeSteps.length)}, minmax(0, 1fr))` }
@@ -3884,9 +3882,9 @@ function RiffRollEditor({
                 onPressStep(index);
               }}
               className={`relative border text-center transition-transform active:scale-[0.97] ${
-                compact ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-2.5 py-2'
+                dense ? 'rounded-lg px-1.5 py-1' : compact ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-2.5 py-2'
               } ${
-                stretchToFill ? 'min-w-0 w-full' : compact ? 'min-w-[42px]' : 'min-w-[50px]'
+                stretchToFill ? 'min-w-0 w-full' : dense ? 'min-w-[38px]' : compact ? 'min-w-[42px]' : 'min-w-[50px]'
               }`}
               style={{
                 background: selected
@@ -3906,14 +3904,14 @@ function RiffRollEditor({
               aria-label={`Toggle ${labelPrefix} step ${index + 1}`}
             >
               <div
-                className={`${compact ? 'text-[8px]' : 'text-[9px]'} font-mono uppercase tracking-[0.14em]`}
+                className={`${dense ? 'text-[7px]' : compact ? 'text-[8px]' : 'text-[9px]'} font-mono uppercase tracking-[0.14em]`}
                 style={{ color: selected ? color : 'rgba(255,255,255,0.48)' }}
               >
                 {index + 1}
               </div>
-              <div className={`${compact ? 'mt-1.5' : 'mt-2'} flex items-center justify-center gap-1`}>
+              <div className={`${dense ? 'mt-1' : compact ? 'mt-1.5' : 'mt-2'} flex items-center justify-center gap-1`}>
                 <span
-                  className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
+                  className={`${dense ? 'h-2 w-2' : compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
                   style={{
                     background: active ? color : 'rgba(255,255,255,0.08)',
                     borderColor: active ? `${color}cc` : 'rgba(255,255,255,0.12)',
@@ -3933,7 +3931,7 @@ function RiffRollEditor({
                   </span>
                 ) : null}
               </div>
-              <div className={`${compact ? 'mt-1.5 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
+              <div className={`${dense ? 'mt-1 text-[6px]' : compact ? 'mt-1.5 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
                 {active ? 'Hit' : 'Rest'}
               </div>
             </button>
@@ -3968,6 +3966,8 @@ function RiffCellSequenceEditor({
   sequenceLocked = false,
   onLockedSequenceClick,
   compact = false,
+  contentCollapsed = false,
+  onToggleContent,
 }: {
   study: RiffCycleStudy;
   selectedCellLabel: RiffSequenceCellLabel;
@@ -3992,6 +3992,8 @@ function RiffCellSequenceEditor({
   sequenceLocked?: boolean;
   onLockedSequenceClick?: () => void;
   compact?: boolean;
+  contentCollapsed?: boolean;
+  onToggleContent?: () => void;
 }) {
   const resetStepCount = getResetStepCount(study);
   const sequenceResetBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceBars || 4)));
@@ -4102,20 +4104,48 @@ function RiffCellSequenceEditor({
             </div>
           ) : null}
         </div>
-        <StudyShellButton
-          size="compact"
-          tone="amber"
-          highlighted={study.riffSequenceEnabled && !sequenceLocked}
-          locked={sequenceLocked}
-          onLockedClick={onLockedSequenceClick}
-          className={compact ? '!h-7 rounded-lg px-2 text-[8.5px]' : undefined}
-          onClick={() => onSetEnabled(!study.riffSequenceEnabled)}
-        >
-          {sequenceLocked ? 'Pro' : study.riffSequenceEnabled ? 'On' : 'Off'}
-        </StudyShellButton>
+        <div className="flex items-center gap-1.5">
+          {study.riffSequenceEnabled && !sequenceLocked && onToggleContent ? (
+            <StudyShellButton
+              size="compact"
+              tone="neutral"
+              className="!h-7 rounded-lg px-2 text-[8px]"
+              icon={contentCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+              onClick={onToggleContent}
+            >
+              {contentCollapsed ? 'Open' : 'Collapse'}
+            </StudyShellButton>
+          ) : null}
+          <StudyShellButton
+            size="compact"
+            tone="amber"
+            highlighted={study.riffSequenceEnabled && !sequenceLocked}
+            locked={sequenceLocked}
+            onLockedClick={onLockedSequenceClick}
+            className={compact ? '!h-7 rounded-lg px-2 text-[8.5px]' : undefined}
+            onClick={() => onSetEnabled(!study.riffSequenceEnabled)}
+          >
+            {sequenceLocked ? 'Pro' : study.riffSequenceEnabled ? 'On' : 'Off'}
+          </StudyShellButton>
+        </div>
       </div>
 
-      {study.riffSequenceEnabled && !sequenceLocked ? (
+      {study.riffSequenceEnabled && !sequenceLocked && contentCollapsed ? (
+        <button
+          type="button"
+          onClick={onToggleContent}
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/8 bg-black/10 px-2.5 py-2 text-left transition hover:bg-white/[0.035]"
+        >
+          <span className="min-w-0 truncate text-[9px] font-mono uppercase tracking-[0.12em] text-white/58">
+            {sequenceLabel}
+          </span>
+          <span className="shrink-0 text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
+            {cells.length} {cells.length === 1 ? 'cell' : 'cells'} · {sequenceTotalBarsLabel} {sequenceTotalBars === 1 ? 'bar' : 'bars'}
+          </span>
+        </button>
+      ) : null}
+
+      {study.riffSequenceEnabled && !sequenceLocked && !contentCollapsed ? (
         <>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
@@ -4528,6 +4558,8 @@ function RiffEndingReturnWindowPanel({
   stepsPerBar,
   landingWindowSteps,
   landingOverrides,
+  landingActiveSteps,
+  landingAccents,
   freeRestartMode = false,
   playing,
   playbackStateRef,
@@ -4538,6 +4570,8 @@ function RiffEndingReturnWindowPanel({
   stepsPerBar: number;
   landingWindowSteps: number;
   landingOverrides: RiffCycleStudy['landingOverrides'];
+  landingActiveSteps: boolean[];
+  landingAccents: boolean[];
   freeRestartMode?: boolean;
   playing: boolean;
   playbackStateRef: React.MutableRefObject<RiffCyclePlaybackState>;
@@ -4573,10 +4607,24 @@ function RiffEndingReturnWindowPanel({
     return () => window.cancelAnimationFrame(frame);
   }, [landingWindowBars, landingWindowSteps, playbackStateRef, playing, stepsPerBar]);
 
+  const endingTailStartIndex = Math.max(0, landingWindowBars - 2);
+  const movingPairStartIndex =
+    activeBarIndex == null
+      ? 0
+      : Math.min(
+          Math.floor(activeBarIndex / 2) * 2,
+          Math.max(0, endingTailStartIndex - 2),
+        );
   const visibleBarIndexes =
     landingWindowBars <= 8
       ? Array.from({ length: landingWindowBars }, (_, index) => index)
-      : [0, 1, -1, landingWindowBars - 2, landingWindowBars - 1];
+      : [
+          movingPairStartIndex,
+          movingPairStartIndex + 1,
+          -1,
+          endingTailStartIndex,
+          endingTailStartIndex + 1,
+        ];
   const endingStartStep = Math.max(0, stepsPerBar - landingEditableSlots);
 
   return (
@@ -4682,8 +4730,9 @@ function RiffEndingReturnWindowPanel({
                       const isEndingSlot = isEndingBar && stepIndex >= endingStartStep;
                       const slotIndex = stepIndex - endingStartStep;
                       const overrideState = isEndingSlot ? landingOverrides[slotIndex] : null;
-                      const isFilled = overrideState === 'on' || overrideState === 'accent';
-                      const isAccent = overrideState === 'accent';
+                      const isFilled = isEndingSlot && Boolean(landingActiveSteps[slotIndex]);
+                      const isAccent = isEndingSlot && Boolean(landingAccents[slotIndex]);
+                      const isExplicitRest = overrideState === 'rest';
                       const isBeatStart = stepIndex % beatDivision === 0;
                       const isTrackerSlot = isActiveBar && activeStepIndex === stepIndex;
                       return (
@@ -4692,7 +4741,7 @@ function RiffEndingReturnWindowPanel({
                           className="relative min-w-0 rounded-[3px] border"
                           title={
                             isEndingSlot
-                              ? `Ending slot ${slotIndex + 1}${isAccent ? ' accent' : isFilled ? ' hit' : ''}`
+                              ? `Ending slot ${slotIndex + 1}${isAccent ? ' accent' : isFilled ? ' hit' : isExplicitRest ? ' muted' : ''}`
                               : `Bar ${barIndex + 1}, slot ${stepIndex + 1}`
                           }
                           style={{
@@ -4704,7 +4753,9 @@ function RiffEndingReturnWindowPanel({
                             background: isEndingSlot
                               ? isFilled
                                 ? 'rgba(127,215,255,0.72)'
-                                : 'rgba(127,215,255,0.22)'
+                                : isExplicitRest
+                                  ? 'rgba(127,215,255,0.06)'
+                                  : 'rgba(127,215,255,0.22)'
                               : isBeatStart
                                 ? 'rgba(255,255,255,0.08)'
                                 : 'rgba(255,255,255,0.035)',
@@ -7162,7 +7213,6 @@ function OrbitalPolymeter() {
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(true);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
   const [riffDesktopEditTab, setRiffDesktopEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
-  const [riffDesktopEditorTrayClip, setRiffDesktopEditorTrayClip] = useState({ top: 0, bottom: 0 });
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
@@ -7183,13 +7233,6 @@ function OrbitalPolymeter() {
   const [tutorialEvent, setTutorialEvent] = useState<{ id: TutorialEventId; tick: number } | null>(null);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
-  const riffDesktopEditorTrayRef = useRef<HTMLDivElement | null>(null);
-  const riffDesktopEditorTrayResizeRef = useRef<{
-    edge: 'top' | 'bottom';
-    startY: number;
-    startClip: number;
-    fullHeight: number;
-  } | null>(null);
 
   const recoverAudioAfterPageReturn = useCallback(() => {
     resumeAudio();
@@ -7516,6 +7559,9 @@ function OrbitalPolymeter() {
       inEndingTail: stepIndex >= riffEndingPreviewTailStart,
     };
   });
+  const riffLandingRollStates = getEffectiveLandingStepStates(riffCycleStudy);
+  const riffLandingRollSteps = riffLandingRollStates.map((state) => state.active);
+  const riffLandingRollAccents = riffLandingRollStates.map((state) => state.accented);
   const riffDesktopLaneStepCount =
     riffDesktopLaneView === 'pattern'
       ? Math.min(getDisplayStepCount(riffCycleStudy), riffLayoutPatternStepCount)
@@ -7529,7 +7575,6 @@ function OrbitalPolymeter() {
   const riffDesktopUtilityPanelBottom = riffUtilityPanel != null ? '7rem' : riffDesktopPanelBottom;
   const studyDesktopPanelBottom = '10.75rem';
   const studyDesktopUtilityPanelBottom = polyrhythmUtilityPanel != null ? '7rem' : studyDesktopPanelBottom;
-  const riffDesktopEditorTrayMinVisibleHeight = 140;
   const riffDesktopQuickMaxHeight = `calc(100vh - 5rem - ${riffDesktopQuickPanelBottom})`;
   const studyDesktopQuickMaxHeight = `calc(100vh - 5rem - ${studyDesktopPanelBottom})`;
   const studyDesktopQuickLayersMaxHeight = `calc(${studyDesktopQuickMaxHeight} - 12.5rem)`;
@@ -7600,73 +7645,6 @@ function OrbitalPolymeter() {
     pendingMobileSliderRef.current =
       pendingMobileSliderRef.current?.sliderId === sliderId ? null : pendingMobileSliderRef.current;
     setActiveMobileSliderId((current) => (current === sliderId ? null : current));
-  }, []);
-
-  const handleStartRiffDesktopEditorTrayResize = useCallback(
-    (edge: 'top' | 'bottom') => (event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (isMobile) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      const fullHeight = riffDesktopEditorTrayRef.current?.getBoundingClientRect().height ?? 0;
-      if (!fullHeight) {
-        return;
-      }
-      riffDesktopEditorTrayResizeRef.current = {
-        edge,
-        startY: event.clientY,
-        startClip: edge === 'top' ? riffDesktopEditorTrayClip.top : riffDesktopEditorTrayClip.bottom,
-        fullHeight,
-      };
-      document.body.style.cursor = 'ns-resize';
-      document.body.style.userSelect = 'none';
-    },
-    [isMobile, riffDesktopEditorTrayClip.bottom, riffDesktopEditorTrayClip.top],
-  );
-
-  useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      const activeResize = riffDesktopEditorTrayResizeRef.current;
-      if (!activeResize) {
-        return;
-      }
-
-      const delta = event.clientY - activeResize.startY;
-      setRiffDesktopEditorTrayClip((current) => {
-        if (activeResize.edge === 'top') {
-          const maxTop = Math.max(0, activeResize.fullHeight - riffDesktopEditorTrayMinVisibleHeight - current.bottom);
-          return {
-            ...current,
-            top: Math.max(0, Math.min(maxTop, activeResize.startClip + delta)),
-          };
-        }
-
-        const maxBottom = Math.max(0, activeResize.fullHeight - riffDesktopEditorTrayMinVisibleHeight - current.top);
-        return {
-          ...current,
-          bottom: Math.max(0, Math.min(maxBottom, activeResize.startClip - delta)),
-        };
-      });
-    };
-
-    const handlePointerUp = () => {
-      if (!riffDesktopEditorTrayResizeRef.current) {
-        return;
-      }
-      riffDesktopEditorTrayResizeRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
   }, []);
 
   const handleAppSurfaceChange = useCallback(
@@ -8403,7 +8381,6 @@ function OrbitalPolymeter() {
       return {
         ...current,
         soundEnabled: subdivisionSoundEnabled ? true : current.soundEnabled,
-        pulseLayerEnabled: subdivisionSoundEnabled,
         pulseLayerGroupSize: stepsPerBar,
         pulseLayerSteps: Array.from(
           { length: stepsPerBar },
@@ -9099,14 +9076,37 @@ function OrbitalPolymeter() {
       showProPrompt('riff-subdivisions');
       return;
     }
+    setRiffCycleStudy((current) => {
+      const pulseLayerVisible = !current.pulseLayerVisible;
+      const pulseLayerGroupSize = getReferenceStepsPerBar(current.reference);
+      const currentSteps = Array.from(
+        { length: pulseLayerGroupSize },
+        (_, index) => current.pulseLayerSteps?.[index] ?? true,
+      );
+      return {
+        ...current,
+        pulseLayerVisible,
+        pulseLayerEnabled: pulseLayerVisible ? true : current.pulseLayerEnabled,
+        pulseLayerGroupSize,
+        pulseLayerSteps:
+          pulseLayerVisible && !currentSteps.some(Boolean)
+            ? currentSteps.map(() => true)
+            : currentSteps,
+      };
+    });
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
+
+  const handleSetRiffPulseLayerPlacement = useCallback((placement: 'geometry' | 'circle') => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'riff-subdivisions')) {
+      showProPrompt('riff-subdivisions');
+      return;
+    }
     setRiffCycleStudy((current) => ({
       ...current,
-      pulseLayerEnabled: !current.pulseLayerEnabled,
-      pulseLayerGroupSize: getReferenceStepsPerBar(current.reference),
-      pulseLayerSteps: Array.from(
-        { length: getReferenceStepsPerBar(current.reference) },
-        (_, index) => current.pulseLayerSteps?.[index] ?? true,
-      ),
+      pulseLayerEnabled: placement === 'circle',
     }));
   }, [effectivePlan, requireEditableRiffCycleStudy]);
 
@@ -9130,7 +9130,6 @@ function OrbitalPolymeter() {
       pulseLayerSteps[stepIndex] = !pulseLayerSteps[stepIndex];
       return {
         ...current,
-        pulseLayerEnabled: true,
         pulseLayerGroupSize: groupSize,
         pulseLayerSteps,
       };
@@ -9187,6 +9186,16 @@ function OrbitalPolymeter() {
     setRiffCycleStudy((current) => ({
       ...current,
       showPhraseBounds: !current.showPhraseBounds,
+    }));
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffPhraseGroupings = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showPhraseGroupings: !current.showPhraseGroupings,
     }));
   }, [requireEditableRiffCycleStudy]);
 
@@ -13342,8 +13351,6 @@ function OrbitalPolymeter() {
     riffCycleStudy.riffSequenceEnabled &&
     riffSelectedSequenceCell,
   );
-  const riffEditableStepsPerBeat = getReferenceStepsPerBeat(riffEditableReference);
-  const riffEditableStepsPerBar = getReferenceStepsPerBar(riffEditableReference);
   const riffGlobalBackbeatBeats = riffCycleStudy.reference.showBackbeat
     ? normalizeRiffBackbeatBeats(
         riffEditableReference.backbeatBeats,
@@ -13351,9 +13358,6 @@ function OrbitalPolymeter() {
         riffEditableReference.backbeatBeat,
       )
     : [];
-  const riffGlobalBackbeatStepPositions = riffGlobalBackbeatBeats.map(
-    (beat) => (beat - 1) * riffEditableStepsPerBeat + 1,
-  );
   const riffCellBackbeatOverride = riffSelectedSequenceCell?.backbeatOverrideBeats ?? null;
   const riffEditableBackbeatBeats = riffCellBackbeatEditingActive
     ? riffCellBackbeatOverride == null
@@ -13557,29 +13561,13 @@ function OrbitalPolymeter() {
     selectedRiffCycleStep != null ? Boolean(riffEditableActiveSteps[selectedRiffCycleStep]) : null;
   const riffSelectedStepAccented =
     selectedRiffCycleStep != null ? Boolean(riffEditableAccents[selectedRiffCycleStep]) : null;
-  const riffLandingRollSteps = riffCycleStudy.landingOverrides.map(
-    (state) => state === 'on' || state === 'accent',
-  );
-  const riffLandingRollAccents = riffCycleStudy.landingOverrides.map(
-    (state) => state === 'accent',
-  );
-  const riffOffsetSteps = getRiffOffsetSteps(riffCycleStudy.riff);
-  const riffDesktopEndingReferencePanelWidth = Math.min(280, Math.max(224, viewportWidth * 0.19));
-  const riffDesktopEditorCanvasBottomInset = '14rem';
-  const riffDesktopEditorCanvasTopInset = '4.9rem';
-  const riffDesktopEditorCanvasMaxWidth = '66rem';
+  const riffDesktopEditorCanvasBottomInset = '8rem';
+  const riffDesktopEditorCanvasTopInset = '4.5rem';
+  const riffDesktopEditorCanvasMaxWidth = '82rem';
   const riffDesktopEditorTrayWidth =
-    riffDesktopEditTab === 'return'
-      ? `${Math.max(
-          420,
-          Math.min(
-            742,
-            viewportWidth -
-              riffDesktopEndingReferencePanelWidth -
-              84,
-          ),
-        )}px`
-      : 'min(76rem, calc(100vw - 3rem))';
+    riffDesktopEditTab === 'bar'
+      ? 'min(92rem, calc(100vw - 2rem))'
+      : 'min(54rem, calc(100vw - 3rem))';
   const openRiffDesktopFocusEditor = (focus?: 'phrase' | 'landing') => {
     const nextFocus =
       focus ??
@@ -18400,7 +18388,6 @@ function OrbitalPolymeter() {
                   playbackStateRef={polyrhythmPlaybackStateRef}
                   playbackDriver={false}
                   displaySettings={canvasDisplayState.polyrhythm}
-                  presentationMode
                   audioEnabled={!muted}
                   onSelectLayer={handleSelectPolyrhythmLayer}
                   onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
@@ -19041,12 +19028,6 @@ function OrbitalPolymeter() {
         selectedRiffCycleStep != null
           ? Boolean(riffEditableAccents[selectedRiffCycleStep])
           : null;
-      const riffLandingRollSteps = riffCycleStudy.landingOverrides.map(
-        (state) => state === 'on' || state === 'accent',
-      );
-      const riffLandingRollAccents = riffCycleStudy.landingOverrides.map(
-        (state) => state === 'accent',
-      );
       const riffMobileBarPanelActive =
         riffMobileSection === 'edit' && riffMobileEditTab === 'bar';
       const riffMobilePhrasePanelActive =
@@ -19111,7 +19092,7 @@ function OrbitalPolymeter() {
             >
               <RiffCycleCanvas
                 study={riffCanvasStudy}
-                viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : riffCycleStudy.viewMode}
+                viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : 'circular'}
                 laneWindowStartStep={
                   riffMobileMainLaneActive
                     ? riffMobileLaneShouldFollowPlayback
@@ -19340,7 +19321,6 @@ function OrbitalPolymeter() {
 	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
 	                                handleUpdateRiffAudioMix({
 	                                  soundEnabled: subdivisionSoundEnabled ? true : riffCycleStudy.soundEnabled,
-	                                  pulseLayerEnabled: subdivisionSoundEnabled,
 	                                  pulseLayerGroupSize: stepsPerBar,
 	                                  pulseLayerSteps: Array.from(
 	                                    { length: stepsPerBar },
@@ -19353,7 +19333,6 @@ function OrbitalPolymeter() {
 	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
 	                                handleUpdateRiffAudioMix({
 	                                  soundEnabled: true,
-	                                  pulseLayerEnabled: true,
 	                                  pulseLayerGroupSize: stepsPerBar,
 	                                  pulseLayerSteps: Array.from(
 	                                    { length: stepsPerBar },
@@ -20132,7 +20111,7 @@ function OrbitalPolymeter() {
                                 <StudyShellButton
                                   size="compact"
                                   tone="blue"
-                                  highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
+                                  highlighted={Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked}
                                   locked={riffSubdivisionsLocked}
                                   onLockedClick={() => openProPrompt('riff-subdivisions')}
                                   onClick={handleToggleRiffPulseLayer}
@@ -20152,6 +20131,28 @@ function OrbitalPolymeter() {
                                   Grouping
                                 </StudyShellButton>
                               </div>
+                              {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
+                                <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-sky-300/15 bg-sky-300/[0.035] p-1">
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={!riffCycleStudy.pulseLayerEnabled}
+                                    onClick={() => handleSetRiffPulseLayerPlacement('geometry')}
+                                    className="min-w-0 px-2 text-[8px] tracking-[0.1em]"
+                                  >
+                                    Geometry
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={riffCycleStudy.pulseLayerEnabled}
+                                    onClick={() => handleSetRiffPulseLayerPlacement('circle')}
+                                    className="min-w-0 px-2 text-[8px] tracking-[0.1em]"
+                                  >
+                                    Circle
+                                  </StudyShellButton>
+                                </div>
+                              ) : null}
                               <div className="grid grid-cols-2 gap-2">
                                 <StudyShellButton
                                   size="compact"
@@ -20296,7 +20297,7 @@ function OrbitalPolymeter() {
                               labelStyle={mobileRiffWhiteTitleStyle}
                             />
                             <div className="mt-1 text-[11px] text-white/42">
-                              Empty slots keep the normal riff hit. Filled slots replace the landing.
+                              Lit slots come from the riff. Turn one off to silence that hit only in the ending.
                             </div>
                           </div>
                           <div className="mt-3">
@@ -20310,10 +20311,10 @@ function OrbitalPolymeter() {
                               onPressStep={(slotIndex) => {
                                 setSelectedRiffLandingSlot(slotIndex);
                                 handleSetRiffEditMode('landing');
-                                const active =
-                                  riffCycleStudy.landingOverrides[slotIndex] === 'on' ||
-                                  riffCycleStudy.landingOverrides[slotIndex] === 'accent';
-                                handleSetRiffLandingStepActive(slotIndex, !active);
+                                handleSetRiffLandingStepActive(
+                                  slotIndex,
+                                  !riffLandingRollSteps[slotIndex],
+                                );
                               }}
                               onLongPressStep={(slotIndex) => {
                                 setSelectedRiffLandingSlot(slotIndex);
@@ -20376,6 +20377,8 @@ function OrbitalPolymeter() {
                             stepsPerBar={riffDesktopStepsPerBar}
                             landingWindowSteps={riffLandingWindowSteps}
                             landingOverrides={riffCycleStudy.landingOverrides}
+                            landingActiveSteps={riffLandingRollSteps}
+                            landingAccents={riffLandingRollAccents}
                             freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
                             playing={riffCycleStudy.playing}
                             playbackStateRef={riffCyclePlaybackStateRef}
@@ -21594,10 +21597,10 @@ function OrbitalPolymeter() {
                           labelPrefix="ending"
                           compact
 	                          onPressStep={(slotIndex) => {
-	                            const active =
-	                              riffCycleStudy.landingOverrides[slotIndex] === 'on' ||
-	                              riffCycleStudy.landingOverrides[slotIndex] === 'accent';
-	                            handleSetRiffLandingStepActive(slotIndex, !active);
+	                            handleSetRiffLandingStepActive(
+	                              slotIndex,
+	                              !riffLandingRollSteps[slotIndex],
+	                            );
 	                          }}
 	                          onLongPressStep={(slotIndex) => {
 	                            handleToggleRiffLandingAccent(slotIndex);
@@ -22612,7 +22615,7 @@ function OrbitalPolymeter() {
                         labelStyle={mobileRiffWhiteTitleStyle}
                       />
                       <div className="text-[10px] leading-relaxed text-white/42">
-                        Empty slots keep the normal riff hit. Filled slots replace the landing.
+                        Lit slots come from the riff. Turn one off to silence that hit only in the ending.
                       </div>
                     </div>
                     <RiffRollEditor
@@ -22625,10 +22628,10 @@ function OrbitalPolymeter() {
                       onPressStep={(slotIndex) => {
                         setSelectedRiffLandingSlot(slotIndex);
                         handleSetRiffEditMode('landing');
-                        const active =
-                          riffCycleStudy.landingOverrides[slotIndex] === 'on' ||
-                          riffCycleStudy.landingOverrides[slotIndex] === 'accent';
-                        handleSetRiffLandingStepActive(slotIndex, !active);
+                        handleSetRiffLandingStepActive(
+                          slotIndex,
+                          !riffLandingRollSteps[slotIndex],
+                        );
                       }}
                       onLongPressStep={(slotIndex) => {
                         setSelectedRiffLandingSlot(slotIndex);
@@ -22686,6 +22689,20 @@ function OrbitalPolymeter() {
                         <Plus size={14} />
                       </StudyShellButton>
                     </div>
+                  </div>
+                  <div data-guide="riff-desktop-ending-lane">
+                    <RiffEndingReturnWindowPanel
+                      landingWindowBars={riffLandingWindowBars}
+                      landingEditableSlots={riffEndingEditableSlots}
+                      stepsPerBar={riffDesktopStepsPerBar}
+                      landingWindowSteps={riffLandingWindowSteps}
+                      landingOverrides={riffCycleStudy.landingOverrides}
+                      landingActiveSteps={riffLandingRollSteps}
+                      landingAccents={riffLandingRollAccents}
+                      freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
+                      playing={riffCycleStudy.playing}
+                      playbackStateRef={riffCyclePlaybackStateRef}
+                    />
                   </div>
                   <StudyShellButton
                     size="compact"
@@ -22921,100 +22938,13 @@ function OrbitalPolymeter() {
                           icon={<CircleDot size={12} strokeWidth={2.2} />}
                           className={`w-full ${utilityButtonClass} gap-1.5`}
                         >
-                          Groupings
+                          Riff Bounds
                         </StudyShellButton>
                       </div>
                     </div>
                   </div>
                 ) : null}
               </div>
-              <div
-                data-guide="riff-desktop-audio"
-                className="rounded-2xl border"
-                style={{
-                  order: 2,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'audio', '#72F1B8'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setRiffUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'audio', '#72F1B8')}
-                  >
-                    Playback
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'audio', '#72F1B8')}
-                  >
-                    {riffUtilityPanel === 'audio' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'audio' ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Playback',
-                      'Separate the steady frame from the moving phrase when the groove gets dense.',
-                      '#72F1B8',
-                      'Frame exposes the bar reference, Riff exposes the written phrase, and Both lets you hear the full displacement.',
-                    )}
-                    <div className={utilityGroupCardClass}>
-                      <InlineInfoLabel
-                        infoId="riff_playback_output"
-                        label="Output"
-                        className="mb-2"
-                        labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <StudyShellButton
-                        size="compact"
-                        tone="green"
-                        highlighted={riffCycleStudy.soundEnabled}
-                        onClick={handleToggleRiffCycleSound}
-                        className={`w-full ${utilityButtonClass}`}
-                      >
-                        {riffCycleStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
-                      </StudyShellButton>
-                    </div>
-                    <div className={utilityGroupCardClass}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="riff_part_focus"
-                          label="Part Focus"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
-                          Focus
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { id: 'bar', label: 'Frame', tone: 'pink' },
-                          { id: 'riff', label: 'Riff', tone: 'blue' },
-                          { id: 'full', label: 'Both', tone: 'green' },
-                        ] as const).map((focus) => (
-                          <StudyShellButton
-                            key={focus.id}
-                            size="compact"
-                            tone={focus.tone}
-                            highlighted={riffSoundFocus === focus.id}
-                            onClick={() => handleSetRiffSoundFocus(focus.id)}
-                            className={utilityButtonClass}
-                          >
-                            {focus.label}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
               <div
                 data-guide="riff-desktop-sound"
                 className="rounded-2xl border"
@@ -23056,37 +22986,6 @@ function OrbitalPolymeter() {
                       '#88CCFF',
                       'Use palette and register to keep fast or complex patterns clear. In Key can make the same rhythm feel more melodic.',
                     )}
-                    <div
-                      className="space-y-2 rounded-xl border px-2.5 py-2"
-                      style={{
-                        background: 'rgba(127,215,255,0.04)',
-                        borderColor: 'rgba(127,215,255,0.14)',
-                        boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
-                      }}
-                    >
-                      <InlineInfoLabel
-                        infoId="riff_part_focus"
-                        label="Subdivision Audio"
-                        labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={riffCycleStudy.subdivisionSoundEnabled && !riffSubdivisionsLocked}
-                          locked={riffSubdivisionsLocked}
-                          onLockedClick={() => openProPrompt('riff-subdivisions')}
-                          onClick={handleToggleRiffSubdivisionSound}
-                          className={utilityButtonClass}
-                        >
-                          Subdivision Click
-                        </StudyShellButton>
-                        <div className="flex items-center justify-center rounded-xl border border-white/8 bg-white/[0.03] px-2 text-center text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">
-                          {getReferenceStepsPerBar(riffCycleStudy.reference)} slots
-                        </div>
-                      </div>
-                    </div>
                     <div
                       className="space-y-2 rounded-xl border px-2.5 py-2"
                       style={{
@@ -23318,7 +23217,7 @@ function OrbitalPolymeter() {
 	                        <StudyShellButton
 	                          size="compact"
 	                          tone="blue"
-	                          highlighted={Boolean(riffCycleStudy.pulseLayerEnabled) && !riffSubdivisionsLocked}
+	                          highlighted={Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked}
                             locked={riffSubdivisionsLocked}
                             onLockedClick={() => openProPrompt('riff-subdivisions')}
 	                          onClick={handleToggleRiffPulseLayer}
@@ -23328,6 +23227,28 @@ function OrbitalPolymeter() {
 	                          Subdivisions
 	                        </StudyShellButton>
 	                      </div>
+	                      {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
+	                        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-sky-300/15 bg-sky-300/[0.035] p-1">
+	                          <StudyShellButton
+	                            size="compact"
+	                            tone="blue"
+	                            highlighted={!riffCycleStudy.pulseLayerEnabled}
+	                            onClick={() => handleSetRiffPulseLayerPlacement('geometry')}
+	                            className={utilityButtonClass}
+	                          >
+	                            Geometry
+	                          </StudyShellButton>
+	                          <StudyShellButton
+	                            size="compact"
+	                            tone="blue"
+	                            highlighted={riffCycleStudy.pulseLayerEnabled}
+	                            onClick={() => handleSetRiffPulseLayerPlacement('circle')}
+	                            className={utilityButtonClass}
+	                          >
+	                            Circle
+	                          </StudyShellButton>
+	                        </div>
+	                      ) : null}
 	                    </div>
 	                    <div className={utilityGroupCardClass}>
 	                      <div className="mb-2 flex items-center justify-between gap-2">
@@ -23371,6 +23292,16 @@ function OrbitalPolymeter() {
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Contour
+	                        </StudyShellButton>
+	                        <StudyShellButton
+	                          size="compact"
+	                          tone="blue"
+	                          highlighted={Boolean(riffCycleStudy.showPhraseGroupings)}
+	                          onClick={handleToggleRiffPhraseGroupings}
+	                          icon={<CircleDot size={12} strokeWidth={2.2} />}
+	                          className={`${utilityButtonClass} gap-1.5`}
+	                        >
+	                          Groupings
 	                        </StudyShellButton>
 	                      </div>
 	                    </div>
@@ -23891,89 +23822,8 @@ function OrbitalPolymeter() {
 
             {riffDesktopEditTab === 'return' ? (
               <div
-                className="absolute bottom-5 left-8 z-20"
-                style={{ width: 'min(19rem, calc(100vw - 4rem))' }}
-              >
-                <StudyShellPremiumPanel accent="#7FD7FF" className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
-                      Ending Settings
-                    </div>
-                    <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      Return, markers, and tail length
-                    </div>
-                  </div>
-                  <RiffRestartSliderControl
-                    study={riffCycleStudy}
-                    onUpdateRiff={handleUpdateRiffPhrase}
-                    label="Return Cycle"
-                    labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                    labelStyle={desktopMenuSubheaderStyle}
-                    accentColor="#7FD7FF"
-                    compact
-                    onBeforeChange={() => {
-                      handleSetRiffEditMode('landing');
-                      setRiffDesktopEditTab('return');
-                    }}
-                  />
-                  <StudyShellPanel className="space-y-2">
-                    <BarCueSliderControl
-                      value={riffCycleStudy.barMarkerInterval}
-                      onChange={handleSetRiffBarMarkerInterval}
-                      label="Bar Markers"
-                      labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                      labelStyle={desktopMenuSubheaderStyle}
-                      accentColor="#7FD7FF"
-                      compact
-                    />
-                    {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                      <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
-                        {riffPatternBarMarkerCopy}
-                      </div>
-                    ) : null}
-                  </StudyShellPanel>
-                  <StudyShellPanel className="space-y-2">
-                    <InlineInfoLabel
-                      infoId="riff_ending_length"
-                      label="Ending Length"
-                      labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
-                      labelStyle={desktopMenuSubheaderStyle}
-                    />
-                    <div className="flex items-center gap-2">
-                      <StudyShellButton
-                        size="square"
-                        onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
-                      >
-                        <Minus size={14} />
-                      </StudyShellButton>
-                      <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[14px] font-light text-white">
-                        {riffCycleStudy.landingLength} Slots
-                      </div>
-                      <StudyShellButton
-                        size="square"
-                        locked={
-                          riffEndingLengthLocked &&
-                          riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
-                        }
-                        onLockedClick={() => openProPrompt('riff-ending-length')}
-                        onClick={() =>
-                          handleSetRiffLandingLength(
-                            Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
-                          )
-                        }
-                      >
-                        <Plus size={14} />
-                      </StudyShellButton>
-                    </div>
-                  </StudyShellPanel>
-                </StudyShellPremiumPanel>
-              </div>
-            ) : null}
-
-            {riffDesktopEditTab === 'return' ? (
-              <div
-                className="absolute bottom-5 right-8 z-20"
-                style={{ width: `${riffDesktopEndingReferencePanelWidth}px` }}
+                className="absolute bottom-5 right-5 z-20"
+                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
               >
                 <RiffEndingReturnWindowPanel
                   landingWindowBars={riffLandingWindowBars}
@@ -23981,6 +23831,8 @@ function OrbitalPolymeter() {
                   stepsPerBar={riffDesktopStepsPerBar}
                   landingWindowSteps={riffLandingWindowSteps}
                   landingOverrides={riffCycleStudy.landingOverrides}
+                  landingActiveSteps={riffLandingRollSteps}
+                  landingAccents={riffLandingRollAccents}
                   freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
                   playing={riffCycleStudy.playing}
                   playbackStateRef={riffCyclePlaybackStateRef}
@@ -23988,39 +23840,44 @@ function OrbitalPolymeter() {
               </div>
             ) : null}
 
+            {riffDesktopEditTab === 'phrase' && RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
+              <div
+                className="absolute bottom-5 left-5 z-20"
+                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
+              >
+                <RiffCellSequenceEditor
+                  study={riffCycleStudy}
+                  selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
+                  onSetEnabled={handleSetRiffCellSequenceEnabled}
+                  onSelectCell={handleSelectRiffSequenceCell}
+                  onAddCell={handleAddRiffSequenceCell}
+                  onAppendCell={handleAppendRiffSequenceCell}
+                  onAddPhrase={handleAddRiffSequencePhrase}
+                  onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
+                  onRemoveLastCell={handleRemoveLastRiffSequenceCell}
+                  onDeleteCell={handleDeleteRiffSequenceCell}
+                  onResetSequence={handleResetRiffSequence}
+                  onSetSequenceBars={handleSetRiffSequenceBars}
+                  onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
+                  onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
+                  onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
+                  onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
+                  onSetCellColor={handleSetRiffSequenceCellColor}
+                  onRandomizeCells={handleRandomizeRiffSequenceCells}
+                  colorEditingLocked={colorEditingLocked}
+                  onLockedColorClick={() => openProPrompt('color-editing')}
+                  sequenceLocked={riffCellSequencerLocked}
+                  onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
+                  compact
+                />
+              </div>
+            ) : null}
+
             <div
-              ref={riffDesktopEditorTrayRef}
               className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2"
-              style={{ width: riffDesktopEditorTrayWidth }}
+              style={{ width: riffDesktopEditorTrayWidth, left: '50%' }}
             >
-              <div className="relative">
-                <button
-                  type="button"
-                  onPointerDown={handleStartRiffDesktopEditorTrayResize('top')}
-                  className="absolute left-1/2 z-30 h-5 w-20 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize"
-                  style={{ top: `${riffDesktopEditorTrayClip.top}px` }}
-                  aria-label="Resize editor tray from top edge"
-                  title="Drag to resize"
-                >
-                  <span className="pointer-events-none mt-2 block h-1 w-12 rounded-full bg-white/14" />
-                </button>
-                <button
-                  type="button"
-                  onPointerDown={handleStartRiffDesktopEditorTrayResize('bottom')}
-                  className="absolute left-1/2 z-30 h-5 w-20 -translate-x-1/2 translate-y-1/2 cursor-ns-resize"
-                  style={{ bottom: `${riffDesktopEditorTrayClip.bottom}px` }}
-                  aria-label="Resize editor tray from bottom edge"
-                  title="Drag to resize"
-                >
-                  <span className="pointer-events-none mt-2 block h-1 w-12 rounded-full bg-white/14" />
-                </button>
-                <div
-                  className="overflow-hidden rounded-[2rem]"
-                  style={{
-                    clipPath: `inset(${riffDesktopEditorTrayClip.top}px 0 ${riffDesktopEditorTrayClip.bottom}px 0 round 2rem)`,
-                    WebkitClipPath: `inset(${riffDesktopEditorTrayClip.top}px 0 ${riffDesktopEditorTrayClip.bottom}px 0 round 2rem)`,
-                  }}
-                >
+              <div className="overflow-hidden rounded-[2rem]">
                   <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="space-y-2 px-3 py-2.5">
                 {riffDesktopEditTab === 'bar' ? (
                   <>
@@ -24032,7 +23889,7 @@ function OrbitalPolymeter() {
                         Set the pulse frame and grid
                       </div>
                     </div>
-                    <div className="grid gap-2 xl:grid-cols-[0.95fr_0.9fr_0.95fr_1.2fr_0.95fr_1.2fr]">
+                    <div className="grid gap-2 xl:grid-cols-[0.72fr_0.7fr_1.2fr_1.38fr_1.18fr_1.08fr]">
                       <StudyShellPanel className="space-y-1 px-2 py-1.5">
                         <InlineInfoLabel
                           infoId="riff_meter"
@@ -24204,83 +24061,15 @@ function OrbitalPolymeter() {
                   </>
                 ) : riffDesktopEditTab === 'phrase' ? (
                   <>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
                       <div
                         className="text-[9px] font-mono uppercase tracking-[0.18em]"
                         style={{ color: `${riffCycleStudy.riff.color}cc` }}
                       >
                         Pattern Roll
                       </div>
-                      <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                        Write the main phrase and accents
-                      </div>
-                    </div>
-                    {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
-                      riffCycleStudy.riffSequenceEnabled ? (
-                        <RiffCellSequenceEditor
-                          study={riffCycleStudy}
-                          selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
-                          onSetEnabled={handleSetRiffCellSequenceEnabled}
-                          onSelectCell={handleSelectRiffSequenceCell}
-                          onAddCell={handleAddRiffSequenceCell}
-                          onAppendCell={handleAppendRiffSequenceCell}
-                          onAddPhrase={handleAddRiffSequencePhrase}
-                          onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
-                          onRemoveLastCell={handleRemoveLastRiffSequenceCell}
-                          onDeleteCell={handleDeleteRiffSequenceCell}
-                          onResetSequence={handleResetRiffSequence}
-                          onSetSequenceBars={handleSetRiffSequenceBars}
-                          onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
-                          onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
-                          onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
-                          onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
-                          onSetCellColor={handleSetRiffSequenceCellColor}
-                          onRandomizeCells={handleRandomizeRiffSequenceCells}
-                          colorEditingLocked={colorEditingLocked}
-                          onLockedColorClick={() => openProPrompt('color-editing')}
-                          sequenceLocked={riffCellSequencerLocked}
-                          onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
-                          compact
-                        />
-                      ) : (
-                        <div className="flex items-center justify-start">
-                          <div
-                            className="inline-flex items-center gap-2 rounded-lg border px-2 py-1"
-                            style={{
-                              background: 'rgba(255,255,255,0.035)',
-                              borderColor: 'rgba(255,255,255,0.09)',
-                            }}
-                          >
-                            <InlineInfoLabel
-                              infoId="riff_cell_sequencer"
-                              label="Cell Sequencer"
-                              labelClassName="text-[8px] font-mono uppercase tracking-[0.14em] text-white/48"
-                            />
-                            <StudyShellButton
-                              size="compact"
-                              tone="amber"
-                              className="!h-6 rounded-md px-2 text-[7.5px] tracking-[0.1em]"
-                              locked={riffCellSequencerLocked}
-                              onLockedClick={() => openProPrompt('riff-cell-sequencer')}
-                              onClick={() => handleSetRiffCellSequenceEnabled(true)}
-                            >
-                              Off
-                            </StudyShellButton>
-                          </div>
-                        </div>
-                      )
-                    ) : null}
-                    <div className="grid gap-5 xl:grid-cols-[10rem_minmax(22rem,26rem)_15rem] xl:items-center xl:justify-start">
-                      <div className="min-w-0 xl:max-w-[10rem]">
-                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/34">
-                          Write In Lane
-                        </div>
-                        <div className="mt-0.5 text-[9px] leading-snug text-white/38">
-                          Tap a step to add or remove it. Hold a step to accent it.
-                        </div>
-                      </div>
                       <div
-                        className="w-full rounded-xl border border-white/8 bg-white/[0.035] px-2.5 py-1.5 xl:max-w-[26rem] xl:justify-self-center"
+                        className="w-full rounded-lg border border-white/8 bg-white/[0.035] px-2 py-1 xl:translate-x-3 xl:justify-self-center"
                         data-guide="riff-editor-steps"
                       >
                         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
@@ -24329,7 +24118,7 @@ function OrbitalPolymeter() {
                                   }
                                   handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                                 }}
-                                className="h-7 w-full rounded-md border px-3 text-center text-[20px] font-light leading-none focus:outline-none"
+                                className="h-7 w-full rounded-md border px-3 text-center text-[17px] font-light leading-none focus:outline-none"
                                 style={{
                                   background: `${riffEditableColor}16`,
                                   borderColor: `${riffEditableColor}4a`,
@@ -24358,10 +24147,10 @@ function OrbitalPolymeter() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center justify-start gap-1.5 xl:justify-self-stretch xl:justify-end">
+                      <div className="flex flex-nowrap items-center justify-end gap-1.5 xl:justify-self-end">
                         <div data-guide="riff-editor-offset" className="flex items-center gap-1 rounded-xl border border-white/8 bg-white/[0.035] p-1">
                           <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                            Offset {riffOffsetSteps}
+                            Offset
                           </span>
                           <StudyShellButton
                             size="compact"
@@ -24404,6 +24193,11 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
 
+                    <div className="rounded-lg border border-white/8 bg-black/[0.1] p-1.5">
+                      <div className="mb-1 flex items-center justify-between gap-3 px-0.5">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/42">Write In Lane</div>
+                        <div className="text-[8px] text-white/34">Tap to change a step · Hold to accent</div>
+                      </div>
                     <div data-guide="riff-editor-roll">
                       <RiffRollEditor
                         activeSteps={riffEditableActiveSteps}
@@ -24412,6 +24206,7 @@ function OrbitalPolymeter() {
                         selectedStepIndex={selectedRiffCycleStep}
                         labelPrefix="riff-desktop"
                         compact
+                        dense
                         onPressStep={(stepIndex) => {
                           handleSetRiffEditMode('phrase');
                           handleSelectRiffCycleStep(stepIndex);
@@ -24429,7 +24224,7 @@ function OrbitalPolymeter() {
                         }}
                       />
                     </div>
-                    <div data-guide="riff-editor-step-states" className="flex items-center gap-2">
+                    <div data-guide="riff-editor-step-states" className="mt-1 flex items-center gap-1.5 border-t border-white/6 pt-1">
                       <StudyShellButton
                         size="compact"
                         data-riff-step-control="true"
@@ -24480,21 +24275,51 @@ function OrbitalPolymeter() {
                         highlighted={riffEditableActiveSteps.some(Boolean)}
                         icon={<Trash2 size={13} />}
                         onClick={handleClearRiffCycle}
-                        className="!h-8 rounded-lg px-2.5"
+                        className="!h-7 rounded-lg px-2"
                       >
                         Clear
                       </StudyShellButton>
                     </div>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
                       <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
                         Ending Roll
                       </div>
-                      <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                        Shape the last part of the phrase
+                      <div className="grid w-full grid-cols-[auto_1.75rem_minmax(0,1fr)_1.75rem] items-center gap-1.5 rounded-lg border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.055] px-2 py-1 xl:justify-self-center">
+                        <span className="pr-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#7FD7FF]/72">Ending Steps</span>
+                        <StudyShellButton
+                          size="square"
+                          tone="blue"
+                          className="!h-7 !w-7 rounded-lg"
+                          onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
+                        >
+                          <Minus size={12} />
+                        </StudyShellButton>
+                        <div className="h-7 min-w-0 rounded-md border border-[#7FD7FF]/18 bg-black/20 px-2 py-1 text-center text-[14px] font-light leading-tight text-[#BFEAFF]">
+                          {riffCycleStudy.landingLength}
+                        </div>
+                        <StudyShellButton
+                          size="square"
+                          tone="blue"
+                          className="!h-7 !w-7 rounded-lg"
+                          locked={
+                            riffEndingLengthLocked &&
+                            riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
+                          }
+                          onLockedClick={() => openProPrompt('riff-ending-length')}
+                          onClick={() =>
+                            handleSetRiffLandingLength(
+                              Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
+                            )
+                          }
+                        >
+                          <Plus size={12} />
+                        </StudyShellButton>
                       </div>
+                      <div className="xl:justify-self-end" aria-hidden="true" />
                     </div>
 
                     <StudyShellPanel className="space-y-2 px-3 py-2">
@@ -24571,10 +24396,10 @@ function OrbitalPolymeter() {
                         labelPrefix="ending-desktop"
                         compact
                         onPressStep={(slotIndex) => {
-                          const active =
-                            riffCycleStudy.landingOverrides[slotIndex] === 'on' ||
-                            riffCycleStudy.landingOverrides[slotIndex] === 'accent';
-                          handleSetRiffLandingStepActive(slotIndex, !active);
+                          handleSetRiffLandingStepActive(
+                            slotIndex,
+                            !riffLandingRollSteps[slotIndex],
+                          );
                         }}
                         onLongPressStep={(slotIndex) => {
                           handleToggleRiffLandingAccent(slotIndex);
@@ -24586,7 +24411,6 @@ function OrbitalPolymeter() {
                   </StudyShellPremiumPanel>
                 </div>
               </div>
-            </div>
             {helpOpen && helpContext === 'riff-editor' ? renderGuideOverlay(guideAccent, 60) : null}
             {tutorialOpen && tutorialContext === 'riff-editor' ? renderTutorialOverlay(guideAccent, 60) : null}
           </div>
@@ -25022,7 +24846,6 @@ function OrbitalPolymeter() {
                             const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
                             handleUpdateRiffAudioMix({
                               soundEnabled: subdivisionSoundEnabled ? true : riffCycleStudy.soundEnabled,
-                              pulseLayerEnabled: subdivisionSoundEnabled,
                               pulseLayerGroupSize: stepsPerBar,
                               pulseLayerSteps: Array.from(
                                 { length: stepsPerBar },
@@ -25035,7 +24858,6 @@ function OrbitalPolymeter() {
                             const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
                             handleUpdateRiffAudioMix({
                               soundEnabled: true,
-                              pulseLayerEnabled: true,
                               pulseLayerGroupSize: stepsPerBar,
                               pulseLayerSteps: Array.from(
                                 { length: stepsPerBar },

@@ -687,7 +687,7 @@ export default function RiffCycleCanvas({
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const circularPhraseBoundsActive =
-      currentStudy.showPhraseBounds && currentStudy.viewMode === 'circular';
+      currentStudy.showPhraseGroupings && currentStudy.viewMode === 'circular';
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
@@ -734,6 +734,10 @@ export default function RiffCycleCanvas({
     );
     const stepsPerBar = getReferenceStepsPerBar(renderStudy.reference);
     const stepsPerBeat = getReferenceStepsPerBeat(renderStudy.reference);
+    const pulseLayerSteps = Array.from(
+      { length: Math.max(1, stepsPerBar) },
+      (_, index) => currentStudy.pulseLayerSteps?.[index] ?? true,
+    );
     const manualSubdivisionGuideMode =
       currentDisplaySettings.subdivisionGuide ??
       (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
@@ -749,7 +753,7 @@ export default function RiffCycleCanvas({
     const subdivisionGuideVisible = subdivisionGuideMode !== 'off';
     const denseReferenceMeter = renderStudy.reference.numerator > 32;
     const meterSubdivisionMarksVisible =
-      subdivisionGuideVisible && !currentStudy.pulseLayerEnabled && !denseReferenceMeter;
+      subdivisionGuideVisible && !(currentStudy.pulseLayerVisible && currentStudy.pulseLayerEnabled) && !denseReferenceMeter;
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
     const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
@@ -860,20 +864,26 @@ export default function RiffCycleCanvas({
     const normalizedStepWithinLandingWindow =
       ((currentAbsoluteReferenceStep % landingWindowLength) + landingWindowLength) %
       landingWindowLength;
-    const finalBarStartStep = Math.max(0, landingWindowLength - stepsPerBar);
+    // Reveal the ending treatment only on the riff's final trip around the shape.
+    // A short riff can repeat more than once inside the last meter bar, so using
+    // that whole bar makes muted ending nodes disappear during earlier passes.
+    const finalRiffPassStartStep = Math.max(
+      0,
+      landingWindowLength - Math.max(1, visibleRiff.stepCount),
+    );
     const landingReferenceOverlayVisible =
       currentStudy.landingEditEnabled &&
       !isFreeRestartMode &&
       (landingReferenceOverlayMode === 'always' ||
         (landingReferenceOverlayMode === 'auto' &&
-          normalizedStepWithinLandingWindow >= finalBarStartStep));
-    const landingReferenceStates: LandingReferenceOverlayPoint[] = landingReferenceOverlayVisible
+          normalizedStepWithinLandingWindow >= finalRiffPassStartStep));
+    const landingReferenceStepStates: LandingReferenceOverlayPoint[] = landingReferenceOverlayVisible
       ? Array.from({ length: getLandingStepCount(currentStudy) }, (_, slotIndex) => {
           const referenceStep =
             landingWindowLength - getLandingStepCount(currentStudy) + slotIndex;
           const state = getEffectiveRiffStepStateAtReferenceStep(currentStudy, referenceStep);
           const point = riffPoints[state.phraseIndex];
-          return point && state.active
+          return point
             ? {
                 ...state,
                 point,
@@ -881,6 +891,17 @@ export default function RiffCycleCanvas({
             : null;
         }).filter((state): state is LandingReferenceOverlayPoint => state != null)
       : [];
+    const landingReferenceStates = landingReferenceStepStates.filter((state) => state.active);
+    const landingPointOverrides = new Map<number, LandingReferenceOverlayPoint>();
+    landingReferenceStepStates.forEach((state) => {
+      if (!state.overridden) {
+        return;
+      }
+      const existing = landingPointOverrides.get(state.phraseIndex);
+      if (!existing || !state.active) {
+        landingPointOverrides.set(state.phraseIndex, state);
+      }
+    });
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -1092,12 +1113,8 @@ export default function RiffCycleCanvas({
       ctx.restore();
     }
 
-    if (currentStudy.pulseLayerEnabled) {
+    if (currentStudy.pulseLayerVisible && currentStudy.pulseLayerEnabled) {
       const pulseStepCount = Math.max(1, stepsPerBar);
-      const pulseSteps = Array.from(
-        { length: pulseStepCount },
-        (_, index) => currentStudy.pulseLayerSteps?.[index] ?? true,
-      );
       const pulseRadius = metrics.outerRadius;
       const currentPulsePosition =
         ((referenceProgress % pulseStepCount) + pulseStepCount) % pulseStepCount;
@@ -1112,7 +1129,7 @@ export default function RiffCycleCanvas({
       ctx.stroke();
 
       for (let index = 0; index < pulseStepCount; index += 1) {
-        const active = pulseSteps[index];
+        const active = pulseLayerSteps[index];
         const current = index === currentPulseIndex;
         const point = getPulseLayerPoint(
           metrics.circleCenterX,
@@ -1312,7 +1329,7 @@ export default function RiffCycleCanvas({
         if (denseReferenceMeter && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
-        if (currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
+        if (currentStudy.pulseLayerVisible && currentStudy.pulseLayerEnabled && !isBeat && !isDownbeat && !isBackbeat) {
           return;
         }
         const beatFlashStrength =
@@ -1356,6 +1373,37 @@ export default function RiffCycleCanvas({
           ctx.restore();
         }
       });
+
+      if (currentStudy.pulseLayerVisible && !currentStudy.pulseLayerEnabled && !denseReferenceMeter) {
+        const currentPulseIndex =
+          ((Math.floor(referenceProgress) % stepsPerBar) + stepsPerBar) % stepsPerBar;
+
+        metrics.referencePerimeterPoints.forEach((point, index) => {
+          const nodeX = point.x;
+          const nodeY = point.y;
+          const active = pulseLayerSteps[index] ?? true;
+          const current = index === currentPulseIndex;
+          const nodeRadius = (active ? (current ? 3.7 : 2.7) : 1.75) * shellScale;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(nodeX, nodeY, nodeRadius, 0, TAU);
+          ctx.fillStyle = active
+            ? current
+              ? 'rgba(190,238,255,0.8)'
+              : 'rgba(127,215,255,0.3)'
+            : 'rgba(255,255,255,0.07)';
+          ctx.strokeStyle = active
+            ? 'rgba(174,227,255,0.48)'
+            : 'rgba(255,255,255,0.12)';
+          ctx.lineWidth = (active ? 0.95 : 0.7) * shellScale;
+          ctx.shadowBlur = active && current ? 6 * glowMultiplier * shellScale : 0;
+          ctx.shadowColor = 'rgba(127,215,255,0.48)';
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
 
       if (outerReferenceHitHighlights.length > 0) {
         outerReferenceHitHighlights.forEach((entry) => {
@@ -1610,8 +1658,13 @@ export default function RiffCycleCanvas({
       const isHovered = !isSelected && currentHoveredStep === point.index;
       const isCurrent = innerClockMotionVisible && currentRiffStep === point.index;
       const isPhraseRestart = point.index === 0;
-      const effectiveActive = isCurrent ? currentRiffStepState.active : point.active;
-      const effectiveAccented = isCurrent ? currentRiffStepState.accented : point.accented;
+      const landingPointOverride = landingPointOverrides.get(point.index);
+      const effectiveActive = isCurrent
+        ? currentRiffStepState.active
+        : landingPointOverride?.active ?? point.active;
+      const effectiveAccented = isCurrent
+        ? currentRiffStepState.accented
+        : landingPointOverride?.accented ?? point.accented;
       const attackRemaining = innerClockMotionVisible
         ? Math.max(
             0,
@@ -2556,8 +2609,7 @@ export default function RiffCycleCanvas({
           audioEnabledRef.current &&
           currentStudy.soundEnabled &&
           currentStudy.subdivisionSoundEnabled &&
-          currentStudy.subdivisionGain > 0 &&
-          currentStudy.pulseLayerEnabled
+          currentStudy.subdivisionGain > 0
         ) {
           const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
           const subdivisionStep =
@@ -2866,21 +2918,27 @@ export default function RiffCycleCanvas({
       y: number,
     ): number | null => {
       const currentStudy = studyRef.current;
-      if (!currentStudy.pulseLayerEnabled) {
+      if (!currentStudy.pulseLayerVisible) {
         return null;
       }
-
       const pulseStepCount = Math.max(1, getReferenceStepsPerBar(currentStudy.reference));
       const pulseRadius = metrics.outerRadius;
       for (let index = 0; index < pulseStepCount; index += 1) {
-        const point = getPulseLayerPoint(
-          metrics.circleCenterX,
-          metrics.circleCenterY,
-          pulseRadius,
-          index,
-          pulseStepCount,
-        );
-        if (Math.hypot(x - point.x, y - point.y) <= (isMobileRef.current ? 18 : 14)) {
+        const point = currentStudy.pulseLayerEnabled
+          ? getPulseLayerPoint(
+              metrics.circleCenterX,
+              metrics.circleCenterY,
+              pulseRadius,
+              index,
+              pulseStepCount,
+            )
+          : metrics.referencePerimeterPoints[index];
+        if (!point || (!currentStudy.pulseLayerEnabled && currentStudy.reference.numerator > 32)) {
+          continue;
+        }
+        const hitX = point.x;
+        const hitY = point.y;
+        if (Math.hypot(x - hitX, y - hitY) <= (isMobileRef.current ? 13 : 11)) {
           return index;
         }
       }
@@ -2949,16 +3007,16 @@ export default function RiffCycleCanvas({
       );
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
-      const meterBeatHit = findMeterBeatHit(metrics, localX, localY);
-      if (meterBeatHit != null && onToggleMeterBeat) {
-        onToggleMeterBeat(meterBeatHit);
+      const pulseHit = findPulseLayerHit(metrics, localX, localY);
+      if (pulseHit != null && onTogglePulseLayerStep) {
+        onTogglePulseLayerStep(pulseHit);
         onSelectStep(null);
         clearPointerPaint(event);
         return;
       }
-      const pulseHit = findPulseLayerHit(metrics, localX, localY);
-      if (pulseHit != null && onTogglePulseLayerStep) {
-        onTogglePulseLayerStep(pulseHit);
+      const meterBeatHit = findMeterBeatHit(metrics, localX, localY);
+      if (meterBeatHit != null && onToggleMeterBeat) {
+        onToggleMeterBeat(meterBeatHit);
         onSelectStep(null);
         clearPointerPaint(event);
         return;
