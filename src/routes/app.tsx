@@ -9229,6 +9229,9 @@ function OrbitalPolymeter() {
       showProPrompt('riff-subdivisions');
       return;
     }
+    if (!riffCycleStudy.pulseLayerVisible) {
+      resumeRiffCycleAudio();
+    }
     setRiffCycleStudy((current) => {
       const pulseLayerVisible = !current.pulseLayerVisible;
       const pulseLayerGroupSize = getReferenceStepsPerBar(current.reference);
@@ -9238,6 +9241,12 @@ function OrbitalPolymeter() {
       );
       return {
         ...current,
+        soundEnabled: pulseLayerVisible ? true : current.soundEnabled,
+        subdivisionSoundEnabled: pulseLayerVisible,
+        subdivisionGain:
+          pulseLayerVisible && current.subdivisionGain <= 0
+            ? 0.014
+            : current.subdivisionGain,
         pulseLayerVisible,
         pulseLayerEnabled: pulseLayerVisible ? true : current.pulseLayerEnabled,
         pulseLayerGroupSize,
@@ -9247,7 +9256,7 @@ function OrbitalPolymeter() {
             : currentSteps,
       };
     });
-  }, [effectivePlan, requireEditableRiffCycleStudy]);
+  }, [effectivePlan, requireEditableRiffCycleStudy, riffCycleStudy.pulseLayerVisible]);
 
   const handleSetRiffPulseLayerPlacement = useCallback((placement: 'geometry' | 'circle') => {
     if (!requireEditableRiffCycleStudy()) {
