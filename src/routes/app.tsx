@@ -9245,7 +9245,7 @@ function OrbitalPolymeter() {
         subdivisionSoundEnabled: pulseLayerVisible,
         subdivisionGain:
           pulseLayerVisible && current.subdivisionGain <= 0
-            ? 0.014
+            ? 0.024
             : current.subdivisionGain,
         pulseLayerVisible,
         pulseLayerEnabled: pulseLayerVisible ? true : current.pulseLayerEnabled,
