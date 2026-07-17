@@ -400,21 +400,20 @@ function OrbitalPolymeterLanding() {
       </div>
 
       <header className="sticky top-0 z-40 border-b border-white/6 bg-[#090a10]/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link to="/" className="group block">
+        <div className="mx-auto flex max-w-[1600px] items-center px-5 py-4 sm:px-8 md:gap-8 xl:gap-12">
+          <Link to="/" className="group block shrink-0">
             <div className="text-[15px] font-medium uppercase tracking-[0.34em] text-white/82 transition-colors group-hover:text-white sm:text-[17px]">
               Rhythmic Geometry<span className="align-super text-[0.52em] tracking-[0.08em]">™</span>
             </div>
           </Link>
-          <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-5 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex xl:gap-7">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
-            <Link to="/scenes" className="transition-colors hover:text-white">Scenes</Link>
             <a href="#showcase" className="transition-colors hover:text-white">Showcase</a>
             <Link to="/how-it-works" className="transition-colors hover:text-white">What Is It?</Link>
             <a href="#tools" className="transition-colors hover:text-white">Tools</a>
             <a href="#pro" className="transition-colors hover:text-white">Pro</a>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-3 md:ml-0">
             <Link
               to="/scenes"
               className="inline-flex items-center gap-2 rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/[0.07] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] text-[#9CE2FF] transition hover:border-[#7FD7FF]/35 hover:bg-[#7FD7FF]/[0.12] sm:px-4 sm:text-[11px] sm:tracking-[0.14em]"
