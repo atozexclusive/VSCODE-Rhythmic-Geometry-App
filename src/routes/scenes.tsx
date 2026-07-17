@@ -210,7 +210,7 @@ function SceneLibraryPage() {
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/38">
                 {filteredScenes.length} {filteredScenes.length === 1 ? 'scene' : 'scenes'}
               </div>
-              <div className="text-[10px] text-white/30">Free downloads work now · Paid checkout staged for testing</div>
+              <div className="text-[10px] text-white/30">Download → Open Export menu → Import Scene</div>
             </div>
 
             {filteredScenes.length ? (
