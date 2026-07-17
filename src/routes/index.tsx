@@ -400,9 +400,12 @@ function OrbitalPolymeterLanding() {
       </div>
 
       <header className="sticky top-0 z-40 border-b border-white/6 bg-[#090a10]/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center px-5 py-4 sm:px-8 md:gap-8 xl:gap-12">
+        <div
+          className="mx-auto flex items-center px-5 py-4 sm:px-8 md:gap-8 xl:gap-12"
+          style={{ width: 'min(1600px, 100vw)' }}
+        >
           <Link to="/" className="group block shrink-0">
-            <div className="text-[15px] font-medium uppercase tracking-[0.34em] text-white/82 transition-colors group-hover:text-white sm:text-[17px]">
+            <div className="text-[11px] font-medium uppercase tracking-[0.28em] text-white/82 transition-colors group-hover:text-white sm:text-[17px] sm:tracking-[0.34em]">
               Rhythmic Geometry<span className="align-super text-[0.52em] tracking-[0.08em]">™</span>
             </div>
           </Link>
@@ -413,40 +416,46 @@ function OrbitalPolymeterLanding() {
             <a href="#tools" className="transition-colors hover:text-white">Tools</a>
             <a href="#pro" className="transition-colors hover:text-white">Pro</a>
           </nav>
-          <div className="ml-auto flex shrink-0 items-center gap-3 md:ml-0">
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-3">
             <Link
               to="/scenes"
-              className="inline-flex items-center gap-2 rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/[0.07] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] text-[#9CE2FF] transition hover:border-[#7FD7FF]/35 hover:bg-[#7FD7FF]/[0.12] sm:px-4 sm:text-[11px] sm:tracking-[0.14em]"
+              aria-label="Scene Library"
+              title="Scene Library"
+              className="order-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/[0.07] text-[10px] font-mono uppercase tracking-[0.12em] text-[#9CE2FF] transition hover:border-[#7FD7FF]/35 hover:bg-[#7FD7FF]/[0.12] md:order-1 md:w-auto md:gap-2 md:px-4 md:text-[11px] md:tracking-[0.14em]"
             >
               <GalleryVerticalEnd size={14} />
-              Scenes
+              <span className="hidden md:inline">Scenes</span>
             </Link>
             <button
               type="button"
               onClick={() => setAccountOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white"
+              aria-label={user ? 'Account' : 'Sign In'}
+              title={user ? 'Account' : 'Sign In'}
+              className="order-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white sm:w-auto sm:gap-2 sm:px-4 md:order-2"
             >
-              {user ? <UserRound size={14} /> : <LogIn size={14} />}
-              {user ? 'Account' : 'Sign In'}
+              <UserRound size={14} />
+              <span className="hidden sm:inline">{user ? 'Account' : 'Sign In'}</span>
             </button>
             <a
               href="#modes"
-              className="hidden rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white sm:inline-flex"
+              className="order-3 hidden rounded-full border border-white/10 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-white/72 transition hover:border-white/20 hover:text-white sm:inline-flex"
             >
               See Modes
             </a>
             <Link
               to={getModeLaunchHref('riff-cycle-study')}
-              className="inline-flex items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:hidden"
+              aria-label="Launch"
+              title="Launch"
+              className="order-4 inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-3 text-[10px] font-mono uppercase tracking-[0.12em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:hidden"
             >
-              Launch App
-              <ArrowRight size={14} />
+              <Play size={15} />
+              Launch
             </Link>
             <Link
               to="/launch"
-              className="hidden items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:inline-flex"
+              className="order-4 hidden items-center gap-2 rounded-full border border-[#00ffaa]/25 bg-[#00ffaa]/12 px-4 py-2 text-[11px] font-mono uppercase tracking-[0.14em] text-[#00ffaa] transition hover:bg-[#00ffaa]/18 sm:inline-flex"
             >
-              Launch App
+              Launch
               <ArrowRight size={14} />
             </Link>
           </div>
@@ -467,14 +476,14 @@ function OrbitalPolymeterLanding() {
                 <Sparkles size={14} className="text-[#7fd7ff]" />
                 See The Structure Inside Rhythm
               </div>
-              <h1 className="mx-auto mt-8 w-fit text-center font-serif text-[2.15rem] font-light tracking-[-0.05em] leading-[0.92] text-white sm:mx-0 sm:mt-14 sm:max-w-2xl sm:w-auto sm:text-left sm:text-[4.25rem] sm:leading-[0.94] lg:text-[5rem]">
-                <span className="inline-flex flex-col items-center sm:hidden">
-                  <span className="block whitespace-nowrap">Rhythm</span>
-                  <span className="mt-[-0.08em] block whitespace-nowrap">Visualized</span>
-                  <span className="mt-[-0.08em] block whitespace-nowrap">Through</span>
-                  <span className="mt-[-0.08em] block whitespace-nowrap">Geometry</span>
-                </span>
-                <span className="hidden sm:inline">
+              <h1 className="mx-auto mt-7 whitespace-nowrap text-center font-serif text-[2rem] font-light tracking-[-0.04em] leading-none text-white sm:hidden">
+                Rhythmic Geometry
+              </h1>
+              <p className="mt-4 max-w-sm text-center text-sm leading-6 text-white/64 sm:hidden">
+                A moving visual instrument for exploring rhythm through motion, pattern, and form.
+              </p>
+              <h1 className="mx-0 mt-14 hidden max-w-2xl text-left font-serif text-[4.25rem] font-light tracking-[-0.04em] leading-[0.94] text-white sm:block lg:text-[5rem]">
+                <span>
                   Rhythm
                   <br />
                   Visualized
@@ -484,7 +493,7 @@ function OrbitalPolymeterLanding() {
                   Geometry
                 </span>
               </h1>
-              <p className="mt-6 max-w-lg text-center text-base leading-7 text-white/64 sm:mt-12 sm:max-w-xl sm:text-left sm:text-lg sm:leading-8">
+              <p className="mt-12 hidden max-w-xl text-left text-lg leading-8 text-white/64 sm:block">
                 A moving visual instrument for exploring rhythm as structure.
                 <br />
                 <br />
