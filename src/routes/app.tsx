@@ -79,6 +79,7 @@ import {
   type StoredSceneRecord,
 } from '../lib/account-storage';
 import { confirmStripeCheckout, startStripeCheckout } from '../lib/billing-client';
+import { getCatalogScene, type CatalogSceneTier } from '../lib/sceneCatalog';
 import {
   FREE_SCENE_SAVE_LIMIT,
   canUseProFeature,
@@ -7228,6 +7229,7 @@ function OrbitalPolymeter() {
   const captureSpeed = Math.max(0.5, Math.min(3, Number(searchParams?.get('captureSpeed') ?? '1') || 1));
   const captureBeatsParam = Number(searchParams?.get('captureBeats') ?? '');
   const siteSceneId = searchParams?.get('scene');
+  const catalogSceneId = searchParams?.get('catalogScene') ?? null;
   const launchMode = parseAppSurfaceParam(searchParams?.get('mode'));
   const [engineState] = useState<EngineState>(() => {
     const state = createEngineState();
@@ -7321,6 +7323,7 @@ function OrbitalPolymeter() {
     DEFAULT_RIFF_CYCLE_PRESET_ID,
   );
   const [activeRiffCycleSavedSceneId, setActiveRiffCycleSavedSceneId] = useState<string | null>(null);
+  const [activeRiffCatalogSceneTier, setActiveRiffCatalogSceneTier] = useState<CatalogSceneTier | null>(null);
   const [selectedPolyrhythmLayerId, setSelectedPolyrhythmLayerId] = useState<string | null>(
     null,
   );
@@ -7569,6 +7572,10 @@ function OrbitalPolymeter() {
     [effectivePlan],
   );
   const requireEditableRiffCycleStudy = useCallback(() => {
+    if (activeRiffCatalogSceneTier && !canUseProFeature(effectivePlan, 'scene-editing')) {
+      showProPrompt('scene-editing');
+      return false;
+    }
     const activePreset = activeRiffCyclePresetId
       ? RIFF_CYCLE_PRESETS.find((preset) => preset.id === activeRiffCyclePresetId)
       : null;
@@ -7578,7 +7585,7 @@ function OrbitalPolymeter() {
     }
 
     return true;
-  }, [activeRiffCyclePresetId, effectivePlan]);
+  }, [activeRiffCatalogSceneTier, activeRiffCyclePresetId, effectivePlan]);
   const requireEditableRiffCycleStep = useCallback(() => {
     const editableStepCount = RIFF_CELL_SEQUENCE_FEATURE_ENABLED && riffCycleStudy.riffSequenceEnabled
       ? riffCycleStudy.riffCells.find((cell) => cell.label === selectedRiffSequenceCellLabel)?.stepCount ??
@@ -8421,6 +8428,7 @@ function OrbitalPolymeter() {
       RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? nextStudy : { ...nextStudy, riffSequenceEnabled: false },
     );
     setActiveRiffCyclePresetId(preset.id);
+    setActiveRiffCatalogSceneTier(null);
     setActiveRiffCycleSavedSceneId(null);
     setRiffMobileSceneTab('standard');
     setSelectedRiffCycleStep(null);
@@ -8428,6 +8436,58 @@ function OrbitalPolymeter() {
     setRiffMobileLanePage(0);
     setRiffCycleRestartToken((value) => value + 1);
   }, [effectivePlan, riffCycleStudy.playing, riffCycleStudy.viewMode]);
+
+  useEffect(() => {
+    const catalogScene = getCatalogScene(catalogSceneId);
+    if (!catalogScene || catalogScene.mode !== 'riff') return;
+    if (authLoading) return;
+    if (catalogScene.tier === 'pro' && !canUseProFeature(effectivePlan, 'pro-scenes')) {
+      showProPrompt('pro-scenes');
+      return;
+    }
+
+    let canceled = false;
+    void fetch(catalogScene.downloadUrl)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Scene request failed with ${response.status}.`);
+        return response.json() as Promise<{ type?: string; study?: RiffCycleStudy }>;
+      })
+      .then((parsed) => {
+        if (canceled) return;
+        if (parsed.type !== 'riff-cycle-scene' || !parsed.study) {
+          throw new Error('Invalid Riff scene file.');
+        }
+        const nextStudy = {
+          ...cloneRiffCycleStudy(parsed.study),
+          name: catalogScene.name,
+          description: catalogScene.description,
+          playing: false,
+          viewMode: riffCycleStudy.viewMode,
+        };
+        setRiffCycleStudy(
+          RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? nextStudy : { ...nextStudy, riffSequenceEnabled: false },
+        );
+        setActiveRiffCyclePresetId(null);
+        setActiveRiffCycleSavedSceneId(null);
+        setActiveRiffCatalogSceneTier(catalogScene.tier);
+        setSelectedRiffCycleStep(null);
+        setSelectedRiffLandingSlot(null);
+        setRiffMobileLanePage(0);
+        setRiffCycleRestartToken((value) => value + 1);
+        if (catalogScene.tier === 'free' && !canUseProFeature(effectivePlan, 'scene-editing')) {
+          toast.message('Scene loaded in preview mode. Pro unlocks editing.');
+        }
+      })
+      .catch((error) => {
+        if (canceled) return;
+        console.error(error);
+        toast.error('That catalog scene could not be loaded.');
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [authLoading, catalogSceneId, effectivePlan]);
 
   const handleResetRiffCycleStudy = useCallback(() => {
     setRiffMobileLanePage(0);
@@ -8457,6 +8517,9 @@ function OrbitalPolymeter() {
   }, [riffCycleStudy.soundEnabled]);
 
   const handleUpdateRiffAudioMix = useCallback((updates: Partial<Pick<RiffCycleStudy, 'soundEnabled' | 'referenceSoundEnabled' | 'backbeatSoundEnabled' | 'subdivisionSoundEnabled' | 'referenceGain' | 'subdivisionGain' | 'pulseLayerVisible' | 'pulseLayerEnabled' | 'pulseLayerGroupSize' | 'pulseLayerSteps'>>) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
     setRiffCycleStudy((current) => {
       const enablingSubdivisionLayer =
         updates.subdivisionSoundEnabled === true ||
@@ -8477,7 +8540,7 @@ function OrbitalPolymeter() {
         ...updates,
       };
     });
-  }, [effectivePlan]);
+  }, [effectivePlan, requireEditableRiffCycleStudy]);
 
   const handleToggleRiffReferenceSound = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
@@ -10213,6 +10276,7 @@ function OrbitalPolymeter() {
         RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? nextStudy : { ...nextStudy, riffSequenceEnabled: false },
       );
       setActiveRiffCyclePresetId(null);
+      setActiveRiffCatalogSceneTier(null);
       setActiveRiffCycleSavedSceneId(scene.id);
       setRiffMobileSceneTab('saved');
       setSelectedRiffCycleStep(null);

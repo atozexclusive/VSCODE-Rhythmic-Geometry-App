@@ -7,88 +7,23 @@ import {
   Download,
   Filter,
   LockKeyhole,
+  Play,
   Search,
-  ShoppingBag,
   Sparkles,
   SquarePlay,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { RIFF_SCENE_CATALOG, type CatalogScene, type CatalogSceneMode } from '../lib/sceneCatalog';
 
 export const Route = createFileRoute('/scenes')({
   component: SceneLibraryPage,
 });
 
-type SceneMode = 'orbits' | 'study' | 'riff';
-type PriceFilter = 'all' | 'free' | 'paid';
-type ModeFilter = 'all' | SceneMode;
+type PriceFilter = 'all' | 'free' | 'pro';
+type ModeFilter = 'all' | CatalogSceneMode;
 
-interface CatalogScene {
-  id: string;
-  name: string;
-  description: string;
-  mode: SceneMode;
-  image: string;
-  accent: string;
-  price: number;
-  downloadUrl?: string;
-}
+const initialCatalog: CatalogScene[] = RIFF_SCENE_CATALOG;
 
-const riffCatalog: CatalogScene[] = [
-  {
-    id: 'art-of-dying',
-    name: 'Art of Dying',
-    description: 'A 5-step phrase in 3/4 over a 16th-note grid.',
-    mode: 'riff',
-    image: '/scene-captures/riff-library/art-of-dying.png',
-    accent: '#FFB454',
-    price: 0,
-    downloadUrl: '/scenes/art-of-dying.json',
-  },
-  {
-    id: 'straws-pulled-at-random',
-    name: 'Straws Pulled at Random',
-    description: 'A 14-step phrase in 4/4 over a 16th-note grid.',
-    mode: 'riff',
-    image: '/scene-captures/riff-library/straws-pulled-at-random.png',
-    accent: '#A992FF',
-    price: 0,
-    downloadUrl: '/scenes/straws-pulled-at-random.json',
-  },
-  {
-    id: 'pitch-black',
-    name: 'Pitch Black',
-    description: 'A 10-step phrase in 4/4 with a triplet subdivision.',
-    mode: 'riff',
-    image: '/scene-captures/riff-library/pitch-black.png',
-    accent: '#FF88C2',
-    price: 0,
-    downloadUrl: '/scenes/pitch-black.json',
-  },
-  {
-    id: 'phantoms',
-    name: 'Phantoms',
-    description: 'A long 30-step phrase in 4/4 over a 16th-note grid.',
-    mode: 'riff',
-    image: '/scene-captures/riff-library/phantoms.png',
-    accent: '#54E3C2',
-    price: 0,
-    downloadUrl: '/scenes/phantoms.json',
-  },
-  {
-    id: 'sol-niger-within-2',
-    name: 'Sol Niger Within (2)',
-    description: 'An 11-step phrase in 4/4 with a triplet subdivision.',
-    mode: 'riff',
-    image: '/scene-captures/riff-library/sol-niger-within-2.png',
-    accent: '#7FD7FF',
-    price: 0,
-    downloadUrl: '/scenes/sol-niger-within-2.json',
-  },
-];
-
-const initialCatalog: CatalogScene[] = riffCatalog;
-
-function modeLabel(mode: SceneMode): string {
+function modeLabel(mode: CatalogSceneMode): string {
   if (mode === 'study') return 'Study';
   if (mode === 'riff') return 'Riff';
   return 'Orbits';
@@ -122,7 +57,7 @@ function SceneLibraryPage() {
       const matchesMode = modeFilter === 'all' || scene.mode === modeFilter;
       const matchesPrice =
         priceFilter === 'all' ||
-        (priceFilter === 'free' ? scene.price === 0 : scene.price > 0);
+        scene.tier === priceFilter;
       const matchesQuery =
         !normalizedQuery ||
         scene.name.toLowerCase().includes(normalizedQuery) ||
@@ -192,7 +127,7 @@ function SceneLibraryPage() {
                   ))}
                 </div>
                 <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/8 bg-white/[0.025] p-1">
-                  {(['all', 'free', 'paid'] as PriceFilter[]).map((filter) => (
+                  {(['all', 'free', 'pro'] as PriceFilter[]).map((filter) => (
                     <button
                       key={filter}
                       type="button"
@@ -223,42 +158,30 @@ function SceneLibraryPage() {
                         <ModeIcon />
                         {modeLabel(scene.mode)}
                       </div>
-                      <div className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] backdrop-blur-md ${scene.price === 0 ? 'border-[#00FFAA]/25 bg-black/60 text-[#70FFC8]' : 'border-white/15 bg-black/60 text-white/74'}`}>
-                        {scene.price === 0 ? 'Free' : `$${scene.price}`}
+                      <div className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] backdrop-blur-md ${scene.tier === 'free' ? 'border-[#00FFAA]/25 bg-black/60 text-[#70FFC8]' : 'border-[#B6A0FF]/25 bg-black/60 text-[#C8B9FF]'}`}>
+                        {scene.tier === 'free' ? 'Free' : 'Pro'}
                       </div>
                     </div>
                     <div className="p-4 sm:p-5">
                       <h2 className="font-serif text-2xl font-light tracking-[-0.03em] text-white">{scene.name}</h2>
                       <p className="mt-2 min-h-14 text-sm leading-6 text-white/48">{scene.description}</p>
                       <div className="mt-5 flex gap-2">
-                        {scene.price === 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => downloadCatalogScene(scene)}
-                            className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#00FFAA]/22 bg-[#00FFAA]/[0.09] px-3 text-[9px] font-mono uppercase tracking-[0.12em] text-[#70FFC8] transition hover:bg-[#00FFAA]/[0.15]"
-                          >
-                            <Download size={14} />
-                            Download
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toast.info('Paid-scene checkout is staged for the next pass.')}
-                            className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#FFB454]/22 bg-[#FFB454]/[0.09] px-3 text-[9px] font-mono uppercase tracking-[0.12em] text-[#FFD19A] transition hover:bg-[#FFB454]/[0.15]"
-                          >
-                            <ShoppingBag size={14} />
-                            Buy ${scene.price}
-                          </button>
-                        )}
-                        {scene.mode === 'orbits' && (
-                          <a
-                            href={`/app?mode=orbital&scene=${encodeURIComponent(scene.id)}`}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 px-3 text-[9px] font-mono uppercase tracking-[0.12em] text-white/58 transition hover:border-white/18 hover:text-white"
-                          >
-                            Preview
-                            <ArrowRight size={13} />
-                          </a>
-                        )}
+                        <a
+                          href={`/app?mode=riff-cycle-study&catalogScene=${encodeURIComponent(scene.id)}`}
+                          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#7FD7FF]/22 bg-[#7FD7FF]/[0.09] px-3 text-[9px] font-mono uppercase tracking-[0.12em] text-[#A8E6FF] transition hover:bg-[#7FD7FF]/[0.15]"
+                        >
+                          <Play size={14} />
+                          Load Scene
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => downloadCatalogScene(scene)}
+                          aria-label={`Download ${scene.name}`}
+                          title={`Download ${scene.name}`}
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-white/52 transition hover:border-white/18 hover:text-white"
+                        >
+                          <Download size={14} />
+                        </button>
                       </div>
                     </div>
                   </article>
