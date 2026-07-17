@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Download,
   Filter,
   LockKeyhole,
   Play,
@@ -31,18 +30,6 @@ function modeLabel(mode: CatalogSceneMode): string {
 
 function ModeIcon() {
   return <SquarePlay size={14} />;
-}
-
-function downloadCatalogScene(item: CatalogScene): void {
-  if (item.downloadUrl) {
-    const anchor = document.createElement('a');
-    anchor.href = item.downloadUrl;
-    anchor.download = item.downloadUrl.split('/').pop() || 'rhythmic-geometry-scene.json';
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    return;
-  }
 }
 
 function SceneLibraryPage() {
@@ -88,13 +75,13 @@ function SceneLibraryPage() {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]">
                 <Sparkles size={14} />
-                Downloadable Scenes
+                Curated Scenes
               </div>
               <h1 className="mt-5 font-serif text-3xl font-light leading-[1.02] tracking-[-0.04em] text-white sm:text-6xl sm:leading-[0.95]">
                 Start from a finished idea.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-white/54 sm:text-base sm:leading-8">
-                Browse curated Rhythmic Geometry scenes, download the editable file, then import it into the app and make it your own.
+                Browse curated Rhythmic Geometry scenes, load one into the app, then save it to your own scene library.
               </p>
             </div>
           </div>
@@ -145,7 +132,7 @@ function SceneLibraryPage() {
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/38">
                 {filteredScenes.length} {filteredScenes.length === 1 ? 'scene' : 'scenes'}
               </div>
-              <div className="text-[10px] text-white/30">Download → Open Export menu → Import Scene</div>
+              <div className="text-[10px] text-white/30">Load Scene → Press Scenes tab → Save Scene</div>
             </div>
 
             {filteredScenes.length ? (
@@ -173,15 +160,6 @@ function SceneLibraryPage() {
                           <Play size={14} />
                           Load Scene
                         </a>
-                        <button
-                          type="button"
-                          onClick={() => downloadCatalogScene(scene)}
-                          aria-label={`Download ${scene.name}`}
-                          title={`Download ${scene.name}`}
-                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-white/52 transition hover:border-white/18 hover:text-white"
-                        >
-                          <Download size={14} />
-                        </button>
                       </div>
                     </div>
                   </article>
@@ -196,10 +174,35 @@ function SceneLibraryPage() {
             )}
 
             <div className="mt-10 border-t border-white/8 pt-8">
-              <div className="rounded-lg border border-white/9 bg-white/[0.025] p-5 md:max-w-2xl">
-                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-[#00FFAA]"><Check size={14} /> Import Ready</div>
-                <p className="mt-3 text-sm leading-7 text-white/46">In Rhythmic Geometry, open Menu - Export - Scroll Down, then press Import Scene to add one to your library.</p>
-                <Link to="/launch" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#00FFAA]/18 bg-[#00FFAA]/[0.07] px-4 py-2.5 text-[9px] font-mono uppercase tracking-[0.12em] text-[#70FFC8] transition hover:bg-[#00FFAA]/[0.12]">Open the App <ArrowRight size={14} /></Link>
+              <div className="rounded-lg border border-white/9 bg-white/[0.025] p-5 sm:p-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.16em] text-[#70FFC8]">
+                      <Check size={14} />
+                      Keep It In Your Library
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {[
+                        ['01', 'Load a scene', 'Choose any scene above.'],
+                        ['02', 'Open Scenes', 'Press the Scenes tab in the app.'],
+                        ['03', 'Save Scene', 'Add it to your personal library.'],
+                      ].map(([number, title, description]) => (
+                        <div key={number} className="flex gap-3 rounded-lg border border-white/8 bg-black/15 p-3.5">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#00FFAA]/18 bg-[#00FFAA]/[0.07] text-[9px] font-mono text-[#70FFC8]">
+                            {number}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium text-white/78">{title}</div>
+                            <div className="mt-1 text-[11px] leading-5 text-white/36">{description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Link to="/launch" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#00FFAA]/18 bg-[#00FFAA]/[0.07] px-4 text-[9px] font-mono uppercase tracking-[0.12em] text-[#70FFC8] transition hover:bg-[#00FFAA]/[0.12]">
+                    Open App <ArrowRight size={14} />
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

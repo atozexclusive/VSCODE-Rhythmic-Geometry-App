@@ -55,7 +55,7 @@ export const RIFF_SCENE_CATALOG: CatalogScene[] = [
   },
   {
     id: 'sol-niger-within-2',
-    name: 'Sol Niger Within (2)',
+    name: 'Sol Niger Within',
     description: 'An 11-step phrase in 4/4 with a triplet subdivision.',
     mode: 'riff',
     image: '/scene-captures/riff-library/sol-niger-within-2.png',
