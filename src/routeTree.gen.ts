@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ScenesRouteImport } from './routes/scenes'
 import { Route as RiffRouteImport } from './routes/riff'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ScenesRoute = ScenesRouteImport.update({
+  id: '/scenes',
+  path: '/scenes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RiffRoute = RiffRouteImport.update({
   id: '/riff',
   path: '/riff',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
   '/riff': typeof RiffRoute
+  '/scenes': typeof ScenesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
   '/riff': typeof RiffRoute
+  '/scenes': typeof ScenesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,21 @@ export interface FileRoutesById {
   '/how-it-works': typeof HowItWorksRoute
   '/launch': typeof LaunchRoute
   '/riff': typeof RiffRoute
+  '/scenes': typeof ScenesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
+  fullPaths: '/' | '/app' | '/how-it-works' | '/launch' | '/riff' | '/scenes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
-  id: '__root__' | '/' | '/app' | '/how-it-works' | '/launch' | '/riff'
+  to: '/' | '/app' | '/how-it-works' | '/launch' | '/riff' | '/scenes'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/how-it-works'
+    | '/launch'
+    | '/riff'
+    | '/scenes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +93,18 @@ export interface RootRouteChildren {
   HowItWorksRoute: typeof HowItWorksRoute
   LaunchRoute: typeof LaunchRoute
   RiffRoute: typeof RiffRoute
+  ScenesRoute: typeof ScenesRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/scenes': {
+      id: '/scenes'
+      path: '/scenes'
+      fullPath: '/scenes'
+      preLoaderRoute: typeof ScenesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/riff': {
       id: '/riff'
       path: '/riff'
@@ -125,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   HowItWorksRoute: HowItWorksRoute,
   LaunchRoute: LaunchRoute,
   RiffRoute: RiffRoute,
+  ScenesRoute: ScenesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

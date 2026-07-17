@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-16T23:29:46.472Z",
+  "type": "riff-cycle-scene",
+  "name": "Straws Pulled at Random",
+  "study": {
+    "id": "riff-study-abaeb6d2-7a1a-4b45-a660-f922033fec97",
+    "name": "Straws Pulled at Random",
+    "riff": {
+      "id": "riff-668fab39-453d-4be5-ae5b-933cc55d702d",
+      "gain": 0.14,
+      "name": "14-step phrase",
+      "color": "#7FD7FF",
+      "accents": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "pitchHz": 104,
+      "visible": true,
+      "resetBars": 4,
+      "resetMode": "every-4-bars",
+      "stepCount": 14,
+      "activeSteps": [
+        true,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "soundEnabled": true,
+      "rotationOffset": 0
+    },
+    "playing": true,
+    "viewMode": "circular",
+    "reference": {
+      "bpm": 140,
+      "numerator": 4,
+      "denominator": 4,
+      "subdivision": 16,
+      "backbeatBeat": 3,
+      "showBackbeat": true,
+      "backbeatBeats": [
+        3
+      ],
+      "showDownbeats": true,
+      "barCountForDisplay": 4,
+      "backbeatBarInterval": 1
+    },
+    "tailLength": 4,
+    "description": "7/8 against 4/4",
+    "emphasisMode": "analysis",
+    "soundEnabled": true,
+    "landingLength": 4,
+    "soundSettings": {
+      "palette": "deep-architectural",
+      "register": "low",
+      "rootNote": "E",
+      "pitchMode": "free",
+      "scaleName": "minorPentatonic",
+      "accentPush": "soft"
+    },
+    "showDriftTrail": true,
+    "showPhraseRing": true,
+    "showStepLabels": true,
+    "tailEditEnabled": false,
+    "landingOverrides": [
+      "inherit",
+      "inherit",
+      "inherit",
+      "inherit"
+    ],
+    "showPhraseBounds": false,
+    "barMarkerInterval": "none",
+    "showReferenceRing": true,
+    "landingEditEnabled": false,
+    "backbeatSoundEnabled": true,
+    "showAlignmentMarkers": false,
+    "referenceSoundEnabled": true,
+    "riffSequenceEnabled": false,
+    "riffCells": [
+      {
+        "id": "riff-cell-a-49ed70fc-94c1-4ebb-a0c9-4bc5e7f517e1",
+        "label": "A",
+        "color": "#7FD7FF",
+        "numerator": 4,
+        "denominator": 4,
+        "subdivision": 16,
+        "backbeatBeat": 3,
+        "backbeatBeats": [
+          3
+        ],
+        "backbeatOverrideBeats": null,
+        "backbeatBarInterval": 1,
+        "groups": [
+          2,
+          2,
+          1,
+          2,
+          2,
+          5
+        ],
+        "stepCount": 14,
+        "activeSteps": [
+          true,
+          false,
+          true,
+          false,
+          true,
+          true,
+          false,
+          true,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ],
+        "accents": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          true,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ],
+    "riffSequence": [
+      "A"
+    ],
+    "riffSequenceBars": 4,
+    "riffSequenceBarsMode": "global",
+    "riffSequenceEntryBars": [
+      4
+    ],
+    "riffSequenceEntryRepeats": [
+      1
+    ],
+    "riffSequenceEntryDurationModes": [
+      "patterns"
+    ],
+    "riffSequencePhrases": [
+      {
+        "id": "phrase-1",
+        "entryCount": 1,
+        "repeatCount": 1
+      }
+    ],
+    "showPhraseFill": true,
+    "showPhraseGroupings": false,
+    "subdivisionSoundEnabled": false,
+    "referenceGain": 0.055,
+    "subdivisionGain": 0.014,
+    "pulseLayerVisible": false,
+    "pulseLayerEnabled": false,
+    "pulseLayerGroupSize": 16,
+    "pulseLayerSteps": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  }
+}

@@ -408,12 +408,20 @@ function OrbitalPolymeterLanding() {
           </Link>
           <nav className="hidden items-center gap-6 text-[12px] font-mono uppercase tracking-[0.14em] text-white/54 md:flex">
             <a href="#modes" className="transition-colors hover:text-white">Modes</a>
+            <Link to="/scenes" className="transition-colors hover:text-white">Scenes</Link>
             <a href="#showcase" className="transition-colors hover:text-white">Showcase</a>
             <Link to="/how-it-works" className="transition-colors hover:text-white">What Is It?</Link>
             <a href="#tools" className="transition-colors hover:text-white">Tools</a>
             <a href="#pro" className="transition-colors hover:text-white">Pro</a>
           </nav>
           <div className="flex items-center gap-3">
+            <Link
+              to="/scenes"
+              className="inline-flex items-center gap-2 rounded-full border border-[#7FD7FF]/20 bg-[#7FD7FF]/[0.07] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.12em] text-[#9CE2FF] transition hover:border-[#7FD7FF]/35 hover:bg-[#7FD7FF]/[0.12] sm:px-4 sm:text-[11px] sm:tracking-[0.14em]"
+            >
+              <GalleryVerticalEnd size={14} />
+              Scenes
+            </Link>
             <button
               type="button"
               onClick={() => setAccountOpen(true)}
