@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-22T19:39:56.429Z",
+  "type": "riff-cycle-scene",
+  "name": "Invincible",
+  "study": {
+    "id": "riff-study-20384485-3c43-48aa-bf75-c3e8d671c219",
+    "name": "Invincible",
+    "riff": {
+      "id": "riff-7ea5827f-3c41-4f74-b142-f7d9d684f2bd",
+      "gain": 0.14,
+      "name": "9-step phrase",
+      "color": "#FFD166",
+      "accents": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "pitchHz": 104,
+      "visible": true,
+      "resetBars": 4,
+      "resetMode": "every-8-bars",
+      "stepCount": 9,
+      "activeSteps": [
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "soundEnabled": true,
+      "rotationOffset": 0
+    },
+    "playing": true,
+    "viewMode": "unwrapped",
+    "reference": {
+      "bpm": 146,
+      "numerator": 7,
+      "denominator": 8,
+      "subdivision": 8,
+      "backbeatBeat": 1,
+      "showBackbeat": true,
+      "backbeatBeats": [
+        1
+      ],
+      "showDownbeats": true,
+      "barCountForDisplay": 4,
+      "backbeatBarInterval": 1
+    },
+    "riffCells": [
+      {
+        "id": "riff-cell-a-b9fd2d77-1690-4bb6-9049-48707da26d4f",
+        "label": "A",
+        "color": "#FFD166",
+        "numerator": 4,
+        "denominator": 4,
+        "subdivision": 16,
+        "backbeatBeat": 3,
+        "backbeatBeats": [
+          3
+        ],
+        "backbeatOverrideBeats": null,
+        "backbeatBarInterval": 1,
+        "groups": [
+          2,
+          2,
+          1,
+          2
+        ],
+        "stepCount": 7,
+        "activeSteps": [
+          true,
+          false,
+          true,
+          false,
+          true,
+          true,
+          false
+        ],
+        "accents": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ],
+    "tailLength": 4,
+    "description": "7:3 Polymeter",
+    "emphasisMode": "analysis",
+    "riffSequence": [
+      "A"
+    ],
+    "soundEnabled": true,
+    "landingLength": 4,
+    "soundSettings": {
+      "palette": "deep-architectural",
+      "register": "low",
+      "rootNote": "E",
+      "pitchMode": "free",
+      "scaleName": "minorPentatonic",
+      "accentPush": "soft"
+    },
+    "showDriftTrail": true,
+    "showPhraseRing": true,
+    "showStepLabels": true,
+    "tailEditEnabled": false,
+    "landingOverrides": [
+      "inherit",
+      "inherit",
+      "inherit",
+      "inherit"
+    ],
+    "showPhraseBounds": false,
+    "barMarkerInterval": "none",
+    "showReferenceRing": true,
+    "landingEditEnabled": false,
+    "riffSequenceEnabled": false,
+    "backbeatSoundEnabled": true,
+    "showAlignmentMarkers": false,
+    "referenceSoundEnabled": true,
+    "riffSequenceBars": 8,
+    "riffSequenceBarsMode": "global",
+    "riffSequenceEntryBars": [
+      8
+    ],
+    "riffSequenceEntryRepeats": [
+      1
+    ],
+    "riffSequenceEntryDurationModes": [
+      "patterns"
+    ],
+    "riffSequencePhrases": [
+      {
+        "id": "phrase-1",
+        "entryCount": 1,
+        "repeatCount": 1
+      }
+    ],
+    "showPhraseFill": true,
+    "showPhraseGroupings": false,
+    "subdivisionSoundEnabled": false,
+    "referenceGain": 0.055,
+    "subdivisionGain": 0.024,
+    "pulseLayerVisible": false,
+    "pulseLayerEnabled": false,
+    "pulseLayerGroupSize": 7,
+    "pulseLayerSteps": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "showCountLabels": false
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-22T19:33:48.502Z",
+  "type": "riff-cycle-scene",
+  "name": "Perpetual Black Second",
+  "study": {
+    "id": "riff-study-0b16d37f-508e-460a-bc1f-246b3810fbab",
+    "name": "Perpetual Black Second",
+    "riff": {
+      "id": "riff-b8efacbc-2c64-4390-8069-c1208e72f472",
+      "gain": 0.14,
+      "name": "14-step phrase",
+      "color": "#FF7A7A",
+      "accents": [
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "pitchHz": 104,
+      "visible": true,
+      "resetBars": 4,
+      "resetMode": "every-8-bars",
+      "stepCount": 14,
+      "activeSteps": [
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        false,
+        false
+      ],
+      "soundEnabled": true,
+      "rotationOffset": 0
+    },
+    "playing": false,
+    "viewMode": "unwrapped",
+    "reference": {
+      "bpm": 150,
+      "numerator": 4,
+      "denominator": 4,
+      "subdivision": 16,
+      "backbeatBeat": 3,
+      "showBackbeat": true,
+      "backbeatBeats": [
+        3
+      ],
+      "showDownbeats": true,
+      "barCountForDisplay": 4,
+      "backbeatBarInterval": 1
+    },
+    "riffCells": [
+      {
+        "id": "riff-cell-a-09a90063-3fc1-4dca-9043-e4155ae72990",
+        "label": "A",
+        "color": "#FFD166",
+        "numerator": 4,
+        "denominator": 4,
+        "subdivision": 16,
+        "backbeatBeat": 3,
+        "backbeatBeats": [
+          3
+        ],
+        "backbeatOverrideBeats": null,
+        "backbeatBarInterval": 1,
+        "groups": [
+          3,
+          3,
+          2,
+          1,
+          2,
+          3
+        ],
+        "stepCount": 14,
+        "activeSteps": [
+          true,
+          false,
+          false,
+          true,
+          false,
+          false,
+          true,
+          false,
+          true,
+          true,
+          false,
+          true,
+          false,
+          false
+        ],
+        "accents": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ],
+    "tailLength": 4,
+    "description": "14 Sixtenth notes agoinst 4/4",
+    "emphasisMode": "analysis",
+    "riffSequence": [
+      "A"
+    ],
+    "soundEnabled": true,
+    "landingLength": 4,
+    "referenceGain": 0.055,
+    "soundSettings": {
+      "palette": "deep-architectural",
+      "register": "low",
+      "rootNote": "E",
+      "pitchMode": "free",
+      "scaleName": "minorPentatonic",
+      "accentPush": "soft"
+    },
+    "showDriftTrail": true,
+    "showPhraseFill": true,
+    "showPhraseRing": true,
+    "showStepLabels": true,
+    "pulseLayerSteps": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "subdivisionGain": 0.014,
+    "tailEditEnabled": false,
+    "landingOverrides": [
+      "inherit",
+      "inherit",
+      "inherit",
+      "inherit"
+    ],
+    "riffSequenceBars": 8,
+    "showPhraseBounds": false,
+    "barMarkerInterval": "none",
+    "pulseLayerEnabled": false,
+    "showReferenceRing": true,
+    "landingEditEnabled": false,
+    "pulseLayerGroupSize": 16,
+    "riffSequenceEnabled": false,
+    "backbeatSoundEnabled": true,
+    "riffSequenceBarsMode": "global",
+    "showAlignmentMarkers": false,
+    "referenceSoundEnabled": true,
+    "riffSequenceEntryBars": [
+      8
+    ],
+    "subdivisionSoundEnabled": false,
+    "riffSequenceEntryRepeats": [
+      1
+    ],
+    "riffSequenceEntryDurationModes": [
+      "patterns"
+    ],
+    "riffSequencePhrases": [
+      {
+        "id": "phrase-1",
+        "entryCount": 1,
+        "repeatCount": 1
+      }
+    ],
+    "showPhraseGroupings": false,
+    "pulseLayerVisible": false
+  }
+}

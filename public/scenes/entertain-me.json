@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-22T19:38:51.884Z",
+  "type": "riff-cycle-scene",
+  "name": "Entertain Me",
+  "study": {
+    "id": "riff-study-41ce1cc5-8805-44e5-8e97-9f3637182f93",
+    "name": "Entertain Me",
+    "riff": {
+      "id": "riff-3cf40a2d-ae6a-41c8-99f4-3a825a793a8f",
+      "gain": 0.14,
+      "name": "35-step phrase",
+      "color": "#C9A7FF",
+      "accents": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "pitchHz": 104,
+      "visible": true,
+      "resetBars": 4,
+      "resetMode": "every-16-bars",
+      "stepCount": 35,
+      "activeSteps": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "soundEnabled": true,
+      "rotationOffset": 0
+    },
+    "playing": true,
+    "viewMode": "unwrapped",
+    "reference": {
+      "bpm": 130,
+      "numerator": 4,
+      "denominator": 4,
+      "subdivision": 16,
+      "backbeatBeat": 3,
+      "showBackbeat": true,
+      "backbeatBeats": [
+        3
+      ],
+      "showDownbeats": true,
+      "barCountForDisplay": 4,
+      "backbeatBarInterval": 1
+    },
+    "riffCells": [
+      {
+        "id": "riff-cell-a-98b98255-4801-4c7c-92ef-7bdefde03829",
+        "label": "A",
+        "color": "#FFD166",
+        "numerator": 4,
+        "denominator": 4,
+        "subdivision": 16,
+        "backbeatBeat": 3,
+        "backbeatBeats": [
+          3
+        ],
+        "backbeatOverrideBeats": null,
+        "backbeatBarInterval": 1,
+        "groups": [
+          2,
+          2,
+          1,
+          2
+        ],
+        "stepCount": 7,
+        "activeSteps": [
+          true,
+          false,
+          true,
+          false,
+          true,
+          true,
+          false
+        ],
+        "accents": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      }
+    ],
+    "tailLength": 4,
+    "description": "35:4",
+    "emphasisMode": "analysis",
+    "riffSequence": [
+      "A"
+    ],
+    "soundEnabled": true,
+    "landingLength": 4,
+    "soundSettings": {
+      "palette": "deep-architectural",
+      "register": "low",
+      "rootNote": "E",
+      "pitchMode": "free",
+      "scaleName": "minorPentatonic",
+      "accentPush": "soft"
+    },
+    "showDriftTrail": true,
+    "showPhraseRing": true,
+    "showStepLabels": true,
+    "tailEditEnabled": false,
+    "landingOverrides": [
+      "inherit",
+      "inherit",
+      "inherit",
+      "inherit"
+    ],
+    "showPhraseBounds": false,
+    "barMarkerInterval": "none",
+    "showReferenceRing": true,
+    "landingEditEnabled": false,
+    "riffSequenceEnabled": false,
+    "backbeatSoundEnabled": true,
+    "showAlignmentMarkers": false,
+    "referenceSoundEnabled": true,
+    "riffSequenceBars": 16,
+    "riffSequenceBarsMode": "global",
+    "riffSequenceEntryBars": [
+      16
+    ],
+    "riffSequenceEntryRepeats": [
+      1
+    ],
+    "riffSequenceEntryDurationModes": [
+      "patterns"
+    ],
+    "riffSequencePhrases": [
+      {
+        "id": "phrase-1",
+        "entryCount": 1,
+        "repeatCount": 1
+      }
+    ],
+    "showPhraseFill": true,
+    "showPhraseGroupings": true,
+    "subdivisionSoundEnabled": false,
+    "referenceGain": 0.055,
+    "subdivisionGain": 0.024,
+    "pulseLayerVisible": false,
+    "pulseLayerEnabled": false,
+    "pulseLayerGroupSize": 16,
+    "pulseLayerSteps": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  }
+}
