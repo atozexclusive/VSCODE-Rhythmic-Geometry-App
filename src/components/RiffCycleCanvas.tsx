@@ -689,6 +689,9 @@ export default function RiffCycleCanvas({
     const portraitExportMode = Boolean(
       exportVideoSize && exportVideoSize.height > exportVideoSize.width,
     );
+    const landscapeExportMode = Boolean(
+      exportVideoSize && exportVideoSize.width > exportVideoSize.height,
+    );
     const exportRecordingMode = exportRecordingActiveRef.current;
     const pointScale = portraitExportMode
       ? SHORTS_EXPORT_POINT_SCALE * 1.16
@@ -747,7 +750,10 @@ export default function RiffCycleCanvas({
       layoutBottomInsetRef.current,
       effectiveLaneWindowStartStep,
       laneWindowStepCountRef.current,
-      { sidePadding: exportSidePadding },
+      {
+        sidePadding: exportSidePadding,
+        radiusScale: landscapeExportMode ? 0.82 : undefined,
+      },
     );
     const stepsPerBar = getReferenceStepsPerBar(renderStudy.reference);
     const stepsPerBeat = getReferenceStepsPerBeat(renderStudy.reference);
@@ -969,7 +975,10 @@ export default function RiffCycleCanvas({
       const plusWidth = exportLayoutMode ? 20 : 10;
       const plusLeftGap = exportLayoutMode ? 10 : 6;
       const plusRightGap = exportLayoutMode ? 8 : 5;
-      const maxStripWidth = Math.min(rect.width - 32, exportLayoutMode ? 760 : 390);
+      const maxStripWidth = Math.min(
+        rect.width - 32,
+        portraitExportMode ? 760 : landscapeExportMode ? 1080 : 390,
+      );
       const referenceShapeBottomY = Math.max(
         metrics.circleCenterY + metrics.innerRadius,
         ...metrics.referenceVertices.map((point) => point.y),

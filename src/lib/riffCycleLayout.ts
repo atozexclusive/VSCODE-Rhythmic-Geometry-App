@@ -108,7 +108,7 @@ export function getRiffCycleCanvasMetrics(
   bottomInset = 0,
   laneWindowStartStep?: number,
   laneWindowStepCount?: number,
-  options: { sidePadding?: number } = {},
+  options: { sidePadding?: number; radiusScale?: number } = {},
 ): RiffCycleCanvasMetrics {
   const showingTimeline = study.viewMode === 'unwrapped';
   const sidePadding = options.sidePadding ?? (isMobile ? (showingTimeline ? 18 : 12) : 44);
@@ -192,6 +192,8 @@ export function getRiffCycleCanvasMetrics(
       ? topPadding + Math.max(0, safeHeight - outerRadius * 1.5) / 2 + outerRadius
       : topPadding + safeHeight / 2;
   }
+
+  outerRadius *= options.radiusScale ?? 1;
 
   const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
   const referenceInradius = dupleReferenceFrame
