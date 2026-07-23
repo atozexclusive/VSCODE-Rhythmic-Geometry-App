@@ -401,7 +401,7 @@ export default function RiffCycleSidebar({
   const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
-  const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('canvas');
+  const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const exportLocked = Boolean(lockedFeatures.export);

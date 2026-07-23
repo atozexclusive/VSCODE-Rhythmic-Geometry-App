@@ -188,6 +188,8 @@ import {
   toggleRiffSequenceCellAccent,
   toggleRiffSequenceCellStep,
   toggleRiffAccent,
+  toggleRiffOverlaySoundAndImpact,
+  toggleRiffOverlayStep,
   toggleRiffStep,
   updateRiffSequenceCellStepCount,
   updateRiffStepCount,
@@ -3883,6 +3885,9 @@ function RiffRollEditor({
   compact = false,
   dense = false,
   stretchToFill = false,
+  overlayEditMode = false,
+  overlaySteps,
+  overlaySoundAndImpact,
 }: {
   activeSteps: boolean[];
   accents: boolean[];
@@ -3894,6 +3899,9 @@ function RiffRollEditor({
   compact?: boolean;
   dense?: boolean;
   stretchToFill?: boolean;
+  overlayEditMode?: boolean;
+  overlaySteps?: RiffCycleStudy['overlay']['steps'];
+  overlaySoundAndImpact?: boolean[];
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -3942,6 +3950,11 @@ function RiffRollEditor({
       >
         {activeSteps.map((active, index) => {
           const accented = Boolean(accents[index]);
+          const overlayState = overlaySteps?.[index] ?? 'inherit';
+          const overlayChanged = overlayEditMode && overlayState !== 'inherit';
+          const overlayAdded = overlayChanged && overlayState === 'add';
+          const overlayRemoved = overlayChanged && overlayState === 'remove';
+          const overlaySounds = Boolean(overlaySoundAndImpact?.[index]);
           const selected = selectedStepIndex === index;
           const marker = index % groupSize === 0;
           return (
@@ -3983,24 +3996,40 @@ function RiffRollEditor({
               }`}
               style={{
                 background: selected
-                  ? `${color}22`
+                  ? overlayEditMode
+                    ? 'rgba(156,140,255,0.2)'
+                    : `${color}22`
+                  : overlayAdded
+                    ? 'rgba(156,140,255,0.14)'
+                    : overlayRemoved
+                      ? 'rgba(156,140,255,0.07)'
                   : active
                     ? `${color}12`
                     : 'rgba(255,255,255,0.035)',
                 borderColor: selected
-                  ? `${color}82`
+                  ? overlayEditMode
+                    ? 'rgba(156,140,255,0.72)'
+                    : `${color}82`
+                  : overlayChanged
+                    ? 'rgba(156,140,255,0.42)'
                   : active
                     ? `${color}34`
                     : marker
                       ? 'rgba(255,255,255,0.14)'
                       : 'rgba(255,255,255,0.08)',
-                boxShadow: selected ? `0 0 0 1px ${color}2f inset` : 'none',
+                boxShadow: selected
+                  ? `0 0 0 1px ${overlayEditMode ? 'rgba(156,140,255,0.28)' : `${color}2f`} inset`
+                  : 'none',
               }}
-              aria-label={`Toggle ${labelPrefix} step ${index + 1}`}
+              aria-label={
+                overlayEditMode
+                  ? `Toggle overlay for ${labelPrefix} step ${index + 1}`
+                  : `Toggle ${labelPrefix} step ${index + 1}`
+              }
             >
               <div
                 className={`${dense ? 'text-[7px]' : compact ? 'text-[8px]' : 'text-[9px]'} font-mono uppercase tracking-[0.14em]`}
-                style={{ color: selected ? color : 'rgba(255,255,255,0.48)' }}
+                style={{ color: selected ? (overlayEditMode ? '#B9AEFF' : color) : 'rgba(255,255,255,0.48)' }}
               >
                 {index + 1}
               </div>
@@ -4008,9 +4037,20 @@ function RiffRollEditor({
                 <span
                   className={`${dense ? 'h-2 w-2' : compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
                   style={{
-                    background: active ? color : 'rgba(255,255,255,0.08)',
-                    borderColor: active ? `${color}cc` : 'rgba(255,255,255,0.12)',
-                    boxShadow: active ? `0 0 0 1px ${color}25` : 'none',
+                    background: overlayAdded
+                      ? '#9C8CFF'
+                      : overlayRemoved
+                        ? 'transparent'
+                        : active
+                          ? color
+                          : 'rgba(255,255,255,0.08)',
+                    borderColor: overlayChanged
+                      ? 'rgba(185,174,255,0.92)'
+                      : active
+                        ? `${color}cc`
+                        : 'rgba(255,255,255,0.12)',
+                    borderStyle: overlayRemoved ? 'dashed' : 'solid',
+                    boxShadow: overlayAdded ? '0 0 8px rgba(156,140,255,0.5)' : active ? `0 0 0 1px ${color}25` : 'none',
                   }}
                 />
                 {accented ? (
@@ -4027,7 +4067,11 @@ function RiffRollEditor({
                 ) : null}
               </div>
               <div className={`${dense ? 'mt-1 text-[6px]' : compact ? 'mt-1.5 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
-                {active ? 'Hit' : 'Rest'}
+                {overlayAdded
+                  ? overlaySounds ? 'Add + Sound' : 'Add'
+                  : overlayRemoved
+                    ? overlaySounds ? 'Hide' : 'Remove'
+                    : active ? 'Hit' : 'Rest'}
               </div>
             </button>
           );
@@ -7362,6 +7406,7 @@ function OrbitalPolymeter() {
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(true);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
   const [riffDesktopEditTab, setRiffDesktopEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
+  const [riffOverlayEditMode, setRiffOverlayEditMode] = useState(false);
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
@@ -9219,6 +9264,26 @@ function OrbitalPolymeter() {
           : current,
     );
   }, [requireEditableRiffCycleStep, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
+
+  const handleToggleRiffOverlayStep = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) =>
+      current.riffSequenceEnabled ? current : toggleRiffOverlayStep(current, stepIndex),
+    );
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffOverlaySoundAndImpact = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) =>
+      current.riffSequenceEnabled
+        ? current
+        : toggleRiffOverlaySoundAndImpact(current, stepIndex),
+    );
+  }, [requireEditableRiffCycleStudy]);
 
   const handleRotateRiffCycle = useCallback((stepOffset: number) => {
     if (!requireEditableRiffCycleStudy()) {
@@ -13756,6 +13821,11 @@ function OrbitalPolymeter() {
     setSelectedRiffCycleStep(null);
   }, [riffCycleStudy.riffCells, riffCycleStudy.riffSequenceEnabled, selectedRiffSequenceCellLabel]);
   useEffect(() => {
+    if (riffCycleStudy.riffSequenceEnabled && riffOverlayEditMode) {
+      setRiffOverlayEditMode(false);
+    }
+  }, [riffCycleStudy.riffSequenceEnabled, riffOverlayEditMode]);
+  useEffect(() => {
     setPolyrhythmLayerStepDraft(selectedPolyrhythmLayer ? String(selectedPolyrhythmLayer.beatCount) : '');
   }, [selectedPolyrhythmLayer?.beatCount, selectedPolyrhythmLayer?.id]);
   useEffect(() => {
@@ -13886,6 +13956,14 @@ function OrbitalPolymeter() {
     selectedRiffCycleStep != null ? Boolean(riffEditableActiveSteps[selectedRiffCycleStep]) : null;
   const riffSelectedStepAccented =
     selectedRiffCycleStep != null ? Boolean(riffEditableAccents[selectedRiffCycleStep]) : null;
+  const riffOverlaySteps = riffCycleStudy.overlay?.steps ?? [];
+  const riffOverlaySoundAndImpact = riffCycleStudy.overlay?.soundAndImpact ?? [];
+  const riffSelectedOverlayState =
+    selectedRiffCycleStep == null ? 'inherit' : riffOverlaySteps[selectedRiffCycleStep] ?? 'inherit';
+  const riffSelectedOverlaySoundAndImpact =
+    selectedRiffCycleStep == null
+      ? false
+      : Boolean(riffOverlaySoundAndImpact[selectedRiffCycleStep]);
   const riffDesktopEditorCanvasBottomInset = '8rem';
   const riffDesktopEditorCanvasTopInset = '4.5rem';
   const riffDesktopEditorCanvasMaxWidth = '82rem';
@@ -19443,10 +19521,21 @@ function OrbitalPolymeter() {
                 displaySettings={canvasDisplayState.riff}
                 presentationMode={presentationMode}
                 audioEnabled={!muted}
+                overlayEditMode={riffOverlayEditMode && riffMobilePhrasePanelActive}
                 onReferenceStepChange={handleRiffMobileReferenceStepChange}
                 onSelectStep={handleSelectRiffCycleStep}
-                onSetStepActive={handleSetRiffCycleStepActive}
-                onToggleAccent={handleToggleRiffCycleAccent}
+                onSetStepActive={(stepIndex, active) => {
+                  if (riffOverlayEditMode && riffMobilePhrasePanelActive) {
+                    handleToggleRiffOverlayStep(stepIndex);
+                    return;
+                  }
+                  handleSetRiffCycleStepActive(stepIndex, active);
+                }}
+                onToggleAccent={
+                  riffOverlayEditMode && riffMobilePhrasePanelActive
+                    ? handleToggleRiffOverlaySoundAndImpact
+                    : handleToggleRiffCycleAccent
+                }
                 onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                 onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
@@ -21796,10 +21885,12 @@ function OrbitalPolymeter() {
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/56">
-                              Pattern Roll
+                              {riffOverlayEditMode ? 'Overlay Roll' : 'Pattern Roll'}
                             </div>
 	                            <div className="mt-1 text-[10px] text-white/38">
-	                              Tap hit/rest • Hold accent
+	                              {riffOverlayEditMode
+	                                ? 'Tap to add or remove • Hold for sound + impact'
+	                                : 'Tap hit/rest • Hold accent'}
 	                            </div>
                           </div>
                           <div
@@ -21817,17 +21908,31 @@ function OrbitalPolymeter() {
                           activeSteps={riffEditableActiveSteps}
                           accents={riffEditableAccents}
                           color={riffEditableColor}
+                          overlayEditMode={riffOverlayEditMode}
+                          overlaySteps={riffOverlaySteps}
+                          overlaySoundAndImpact={riffOverlaySoundAndImpact}
                           selectedStepIndex={selectedRiffCycleStep}
                           labelPrefix="riff"
 	                          onPressStep={(stepIndex) => {
 	                            handleSetRiffEditMode('phrase');
 	                            handleSelectRiffCycleStep(stepIndex);
-	                            handleToggleRiffCycleStep(stepIndex);
+	                            if (riffOverlayEditMode) {
+	                              handleToggleRiffOverlayStep(stepIndex);
+	                            } else {
+	                              handleToggleRiffCycleStep(stepIndex);
+	                            }
                               recordTutorialEvent('riff-editor-toggle-step');
 	                          }}
 	                          onLongPressStep={(stepIndex) => {
 	                            handleSetRiffEditMode('phrase');
 	                            handleSelectRiffCycleStep(stepIndex);
+	                            if (riffOverlayEditMode) {
+	                              if ((riffOverlaySteps[stepIndex] ?? 'inherit') === 'inherit') {
+	                                handleToggleRiffOverlayStep(stepIndex);
+	                              }
+	                              handleToggleRiffOverlaySoundAndImpact(stepIndex);
+	                              return;
+	                            }
 	                            if (!riffEditableActiveSteps[stepIndex]) {
 	                              handleSetRiffCycleStepActive(stepIndex, true);
 	                            }
@@ -21865,6 +21970,30 @@ function OrbitalPolymeter() {
                           >
                             Hit
                           </StudyShellButton>
+                          <StudyShellButton
+                            size="compact"
+                            tone="blue"
+                            data-riff-step-control="true"
+                            highlighted={riffOverlayEditMode}
+                            onClick={() => {
+                              setRiffOverlayEditMode((current) => !current);
+                              setSelectedRiffCycleStep(null);
+                            }}
+                            disabled={riffCycleStudy.riffSequenceEnabled}
+                          >
+                            Overlay
+                          </StudyShellButton>
+                          {riffOverlayEditMode && selectedRiffCycleStep != null && riffSelectedOverlayState !== 'inherit' ? (
+                            <StudyShellButton
+                              size="compact"
+                              tone="blue"
+                              data-riff-step-control="true"
+                              highlighted={riffSelectedOverlaySoundAndImpact}
+                              onClick={() => handleToggleRiffOverlaySoundAndImpact(selectedRiffCycleStep!)}
+                            >
+                              Sound + Impact
+                            </StudyShellButton>
+                          ) : null}
                           <StudyShellButton
                             size="compact"
                             tone="amber"
@@ -24108,9 +24237,20 @@ function OrbitalPolymeter() {
                   displaySettings={canvasDisplayState.riff}
                   presentationMode
                   audioEnabled={!muted}
+                  overlayEditMode={riffOverlayEditMode && riffDesktopEditTab === 'phrase'}
                   onSelectStep={handleSelectRiffCycleStep}
-                  onSetStepActive={handleSetRiffCycleStepActive}
-                  onToggleAccent={handleToggleRiffCycleAccent}
+                  onSetStepActive={(stepIndex, active) => {
+                    if (riffOverlayEditMode && riffDesktopEditTab === 'phrase') {
+                      handleToggleRiffOverlayStep(stepIndex);
+                      return;
+                    }
+                    handleSetRiffCycleStepActive(stepIndex, active);
+                  }}
+                  onToggleAccent={
+                    riffOverlayEditMode && riffDesktopEditTab === 'phrase'
+                      ? handleToggleRiffOverlaySoundAndImpact
+                      : handleToggleRiffCycleAccent
+                  }
                   onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                   onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
@@ -24498,8 +24638,14 @@ function OrbitalPolymeter() {
 
                     <div className="rounded-lg border border-white/8 bg-black/[0.1] p-1.5">
                       <div className="mb-1 flex items-center justify-between gap-3 px-0.5">
-                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/42">Write In Lane</div>
-                        <div className="text-[8px] text-white/34">Tap to change a step · Hold to accent</div>
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/42">
+                          {riffOverlayEditMode ? 'Edit Overlay' : 'Write In Lane'}
+                        </div>
+                        <div className="text-[8px] text-white/34">
+                          {riffOverlayEditMode
+                            ? 'Tap to add or remove · Hold for sound + impact'
+                            : 'Tap to change a step · Hold to accent'}
+                        </div>
                       </div>
                     <div data-guide="riff-editor-roll">
                       <RiffRollEditor
@@ -24510,15 +24656,29 @@ function OrbitalPolymeter() {
                         labelPrefix="riff-desktop"
                         compact
                         dense
+                        overlayEditMode={riffOverlayEditMode}
+                        overlaySteps={riffOverlaySteps}
+                        overlaySoundAndImpact={riffOverlaySoundAndImpact}
                         onPressStep={(stepIndex) => {
                           handleSetRiffEditMode('phrase');
                           handleSelectRiffCycleStep(stepIndex);
-                          handleToggleRiffCycleStep(stepIndex);
+                          if (riffOverlayEditMode) {
+                            handleToggleRiffOverlayStep(stepIndex);
+                          } else {
+                            handleToggleRiffCycleStep(stepIndex);
+                          }
                           recordTutorialEvent('riff-editor-toggle-step');
                         }}
                         onLongPressStep={(stepIndex) => {
                           handleSetRiffEditMode('phrase');
                           handleSelectRiffCycleStep(stepIndex);
+                          if (riffOverlayEditMode) {
+                            if ((riffOverlaySteps[stepIndex] ?? 'inherit') === 'inherit') {
+                              handleToggleRiffOverlayStep(stepIndex);
+                            }
+                            handleToggleRiffOverlaySoundAndImpact(stepIndex);
+                            return;
+                          }
                           if (!riffEditableActiveSteps[stepIndex]) {
                             handleSetRiffCycleStepActive(stepIndex, true);
                           }
@@ -24572,6 +24732,30 @@ function OrbitalPolymeter() {
                       >
                         Accent
                       </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        data-riff-step-control="true"
+                        highlighted={riffOverlayEditMode}
+                        onClick={() => {
+                          setRiffOverlayEditMode((current) => !current);
+                          setSelectedRiffCycleStep(null);
+                        }}
+                        disabled={riffCycleStudy.riffSequenceEnabled}
+                      >
+                        Overlay
+                      </StudyShellButton>
+                      {riffOverlayEditMode && selectedRiffCycleStep != null && riffSelectedOverlayState !== 'inherit' ? (
+                        <StudyShellButton
+                          size="compact"
+                          tone="blue"
+                          data-riff-step-control="true"
+                          highlighted={riffSelectedOverlaySoundAndImpact}
+                          onClick={() => handleToggleRiffOverlaySoundAndImpact(selectedRiffCycleStep!)}
+                        >
+                          Sound + Impact
+                        </StudyShellButton>
+                      ) : null}
                       <StudyShellButton
                         size="compact"
                         tone="red"

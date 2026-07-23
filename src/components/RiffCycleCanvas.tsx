@@ -99,6 +99,7 @@ interface RiffCycleCanvasProps {
   playbackStateRef?: MutableRefObject<RiffCyclePlaybackState>;
   playbackDriver?: boolean;
   audioEnabled?: boolean;
+  overlayEditMode?: boolean;
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
@@ -117,6 +118,9 @@ interface LandingReferenceOverlayPoint {
   active: boolean;
   accented: boolean;
   overridden: boolean;
+  headVisible: boolean;
+  overlayed: boolean;
+  overlayState: RiffCycleStudy['overlay']['steps'][number];
   point: {
     index: number;
     angle: number;
@@ -570,6 +574,7 @@ export default function RiffCycleCanvas({
   playbackStateRef,
   playbackDriver = true,
   audioEnabled = true,
+  overlayEditMode = false,
   onReferenceStepChange,
   externalCanvasRef,
   onSelectStep,
@@ -613,6 +618,7 @@ export default function RiffCycleCanvas({
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
   const audioEnabledRef = useRef(audioEnabled);
+  const overlayEditModeRef = useRef(overlayEditMode);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
   const exportRecordingActiveRef = useRef(false);
   const onReferenceStepChangeRef = useRef(onReferenceStepChange);
@@ -645,6 +651,7 @@ export default function RiffCycleCanvas({
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
   audioEnabledRef.current = audioEnabled;
+  overlayEditModeRef.current = overlayEditMode;
   onReferenceStepChangeRef.current = onReferenceStepChange;
 
   const draw = useCallback(() => {
@@ -679,11 +686,22 @@ export default function RiffCycleCanvas({
     const currentDisplaySettings = displaySettingsRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const exportLayoutMode = Boolean(exportVideoSize);
+    const portraitExportMode = Boolean(
+      exportVideoSize && exportVideoSize.height > exportVideoSize.width,
+    );
     const exportRecordingMode = exportRecordingActiveRef.current;
-    const pointScale = exportLayoutMode ? SHORTS_EXPORT_POINT_SCALE * 1.16 : 1;
-    const shellScale = exportLayoutMode ? 1.45 : 1;
-    const exportLabelScale = exportLayoutMode ? 1.55 : 1;
-    const exportSidePadding = exportLayoutMode ? 96 : undefined;
+    const pointScale = portraitExportMode
+      ? SHORTS_EXPORT_POINT_SCALE * 1.16
+      : exportLayoutMode
+        ? 1.12
+        : 1;
+    const shellScale = portraitExportMode ? 1.45 : exportLayoutMode ? 1.12 : 1;
+    const exportLabelScale = portraitExportMode ? 1.55 : exportLayoutMode ? 1.12 : 1;
+    const exportSidePadding = portraitExportMode
+      ? 96
+      : exportLayoutMode
+        ? 140
+        : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const circularPhraseBoundsActive = Boolean(currentStudy.showPhraseGroupings);
@@ -724,7 +742,7 @@ export default function RiffCycleCanvas({
       renderStudy,
       rect.width,
       rect.height,
-      isMobileRef.current || exportLayoutMode,
+      isMobileRef.current || portraitExportMode,
       layoutTopInsetRef.current,
       layoutBottomInsetRef.current,
       effectiveLaneWindowStartStep,
@@ -1659,14 +1677,37 @@ export default function RiffCycleCanvas({
 
     if (innerClockVisible) {
     riffPoints.forEach((point) => {
+      const overlayState = currentStudy.overlay?.steps?.[point.index] ?? 'inherit';
+      const overlaySoundAndImpact = Boolean(
+        currentStudy.overlay?.soundAndImpact?.[point.index],
+      );
+      const overlayEngaged =
+        Boolean(currentStudy.overlay?.enabled) &&
+        !currentStudy.riffSequenceEnabled &&
+        currentAbsoluteReferenceStep >= Math.max(1, currentStudy.riff.stepCount);
+      const editingOverlay = overlayEditModeRef.current && !currentStudy.riffSequenceEnabled;
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
       const isCurrent = innerClockMotionVisible && currentRiffStep === point.index;
       const isPhraseRestart = point.index === 0;
       const landingPointOverride = landingPointOverrides.get(point.index);
-      const effectiveActive = isCurrent
+      const baseEffectiveActive = isCurrent
         ? currentRiffStepState.active
         : landingPointOverride?.active ?? point.active;
+      const effectiveActive = editingOverlay
+        ? overlayState === 'add' || (overlayState === 'inherit' && point.active)
+        : overlayEngaged
+          ? overlayState === 'add'
+            ? overlaySoundAndImpact
+            : overlayState === 'remove'
+              ? point.active && overlaySoundAndImpact
+              : baseEffectiveActive
+          : baseEffectiveActive;
+      const nodeHeadVisible = editingOverlay
+        ? true
+        : overlayEngaged
+          ? overlayState !== 'remove' && (overlayState === 'add' || point.active)
+          : true;
       const effectiveAccented = isCurrent
         ? currentRiffStepState.accented
         : landingPointOverride?.accented ?? point.accented;
@@ -1727,9 +1768,12 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
+      if (nodeHeadVisible) {
       ctx.save();
-      ctx.fillStyle = effectiveActive
-        ? activeRiffColor
+      ctx.fillStyle = overlayState === 'add' && (editingOverlay || overlayEngaged)
+        ? '#9C8CFF'
+        : effectiveActive
+          ? activeRiffColor
         : carveViewActive
           ? 'rgba(255,255,255,0.38)'
         : circularPhraseBoundsActive
@@ -1757,8 +1801,9 @@ export default function RiffCycleCanvas({
           : circularPhraseBoundsActive
             ? 3 * glowMultiplier * pointScale
             : 1.4 * glowMultiplier * pointScale;
-      ctx.shadowColor =
-        effectiveActive || isHovered
+      ctx.shadowColor = overlayState === 'add' && (editingOverlay || overlayEngaged)
+        ? 'rgba(156,140,255,0.9)'
+        : effectiveActive || isHovered
           ? activeRiffColor
           : circularPhraseBoundsActive
             ? 'rgba(255,255,255,0.16)'
@@ -1767,8 +1812,23 @@ export default function RiffCycleCanvas({
       ctx.arc(point.x, point.y, radius, 0, TAU);
       ctx.fill();
       ctx.restore();
+      }
 
-      if (circularPhraseBoundsActive && !effectiveActive) {
+      if (editingOverlay && overlayState !== 'inherit') {
+        ctx.save();
+        ctx.strokeStyle = '#9C8CFF';
+        ctx.lineWidth = 1.8 * pointScale;
+        ctx.globalAlpha = overlayState === 'remove' ? 0.9 : 0.72;
+        ctx.setLineDash(overlayState === 'remove' ? [3 * pointScale, 2 * pointScale] : []);
+        ctx.shadowBlur = 9 * glowMultiplier * pointScale;
+        ctx.shadowColor = 'rgba(156,140,255,0.72)';
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, radius + 3.4 * pointScale, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (nodeHeadVisible && circularPhraseBoundsActive && !effectiveActive) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.24)';
         ctx.lineWidth = 0.9 * pointScale;
@@ -1791,7 +1851,7 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (effectiveAccented || isPhraseRestart) {
+      if (nodeHeadVisible && (effectiveAccented || isPhraseRestart)) {
         ctx.save();
         ctx.strokeStyle = effectiveAccented
           ? 'rgba(255,209,102,0.88)'
@@ -2756,7 +2816,7 @@ export default function RiffCycleCanvas({
 
     (canvas as any).__exportVideo = async ({
       durationSeconds = 8,
-      aspect = 'canvas',
+      aspect = 'landscape',
     }: {
       durationSeconds?: VideoExportDuration;
       aspect?: VideoExportAspect;

@@ -116,12 +116,21 @@ export interface RiffSequenceCell {
   accents: boolean[];
 }
 
+export type RiffOverlayStepState = 'inherit' | 'add' | 'remove';
+
+export interface RiffOverlayLayer {
+  enabled: boolean;
+  steps: RiffOverlayStepState[];
+  soundAndImpact: boolean[];
+}
+
 export interface RiffCycleStudy {
   id: string;
   name: string;
   description: string;
   reference: ReferenceMeter;
   riff: RiffPhrase;
+  overlay: RiffOverlayLayer;
   riffSequenceEnabled: boolean;
   riffCells: RiffSequenceCell[];
   riffSequence: RiffSequenceCellLabel[];
@@ -1059,6 +1068,18 @@ export function createRiffCycleStudy(
     overrides.landingLength ?? Math.min(4, getReferenceStepsPerBeat(reference) * 2),
     getReferenceStepsPerBar(reference),
   );
+  const overlayStepCount = riff.stepCount;
+  const overlay: RiffOverlayLayer = {
+    enabled: overrides.overlay?.enabled ?? false,
+    steps: Array.from({ length: overlayStepCount }, (_, index) => {
+      const value = overrides.overlay?.steps?.[index];
+      return value === 'add' || value === 'remove' ? value : 'inherit';
+    }),
+    soundAndImpact: Array.from(
+      { length: overlayStepCount },
+      (_, index) => overrides.overlay?.soundAndImpact?.[index] ?? false,
+    ),
+  };
   return {
     id: overrides.id ?? generateId('riff-study'),
     name: overrides.name ?? 'Riff Cycle',
@@ -1067,6 +1088,7 @@ export function createRiffCycleStudy(
       'A reference bar, a displaced phrase, and a controlled realignment.',
     reference,
     riff,
+    overlay,
     riffSequenceEnabled: overrides.riffSequenceEnabled ?? false,
     riffCells,
     riffSequence,
@@ -1145,6 +1167,17 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       ...study.riff,
       activeSteps: [...study.riff.activeSteps],
       accents: [...study.riff.accents],
+    },
+    overlay: {
+      enabled: Boolean(study.overlay?.enabled),
+      steps: Array.from({ length: study.riff.stepCount }, (_, index) => {
+        const value = study.overlay?.steps?.[index];
+        return value === 'add' || value === 'remove' ? value : 'inherit';
+      }),
+      soundAndImpact: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
     },
     riffSequenceEnabled: Boolean(study.riffSequenceEnabled),
     riffCells: riffCells.map((cell) => ({
@@ -1561,6 +1594,9 @@ export function getEffectiveRiffStepStateAtReferenceStep(
   accented: boolean;
   landingSlot: number | null;
   overridden: boolean;
+  headVisible: boolean;
+  overlayed: boolean;
+  overlayState: RiffOverlayStepState;
 } {
   const sequenceState = getRiffSequenceStateAtReferenceStep(study, referenceStep);
   const phraseIndex = getRiffStepIndexAtReferenceStep(study, referenceStep);
@@ -1571,23 +1607,63 @@ export function getEffectiveRiffStepStateAtReferenceStep(
     landingSlot == null ? 'inherit' : study.landingOverrides[landingSlot] ?? 'inherit';
 
   if (landingOverride === 'rest') {
-    return { phraseIndex, landingSlot, active: false, accented: false, overridden: true };
+    return { phraseIndex, landingSlot, active: false, accented: false, overridden: true, headVisible: false, overlayed: false, overlayState: 'inherit' };
   }
 
   if (landingOverride === 'on') {
-    return { phraseIndex, landingSlot, active: true, accented: false, overridden: true };
+    return { phraseIndex, landingSlot, active: true, accented: false, overridden: true, headVisible: true, overlayed: false, overlayState: 'inherit' };
   }
 
   if (landingOverride === 'accent') {
-    return { phraseIndex, landingSlot, active: true, accented: true, overridden: true };
+    return { phraseIndex, landingSlot, active: true, accented: true, overridden: true, headVisible: true, overlayed: false, overlayState: 'inherit' };
+  }
+
+  const baseActive = Boolean((sequenceState?.cell.activeSteps ?? study.riff.activeSteps)[phraseIndex]);
+  const baseAccented = Boolean((sequenceState?.cell.accents ?? study.riff.accents)[phraseIndex]);
+  const overlayActive =
+    Boolean(study.overlay?.enabled) &&
+    !study.riffSequenceEnabled &&
+    Math.max(0, Math.floor(referenceStep)) >= Math.max(1, study.riff.stepCount);
+  const overlayState = overlayActive
+    ? study.overlay?.steps?.[phraseIndex] ?? 'inherit'
+    : 'inherit';
+  const soundAndImpact = Boolean(study.overlay?.soundAndImpact?.[phraseIndex]);
+
+  if (overlayState === 'remove') {
+    return {
+      phraseIndex,
+      landingSlot,
+      active: baseActive && soundAndImpact,
+      accented: baseAccented && soundAndImpact,
+      overridden: true,
+      headVisible: false,
+      overlayed: true,
+      overlayState,
+    };
+  }
+
+  if (overlayState === 'add') {
+    return {
+      phraseIndex,
+      landingSlot,
+      active: soundAndImpact,
+      accented: false,
+      overridden: true,
+      headVisible: true,
+      overlayed: true,
+      overlayState,
+    };
   }
 
   return {
     phraseIndex,
     landingSlot,
-    active: Boolean((sequenceState?.cell.activeSteps ?? study.riff.activeSteps)[phraseIndex]),
-    accented: Boolean((sequenceState?.cell.accents ?? study.riff.accents)[phraseIndex]),
+    active: baseActive,
+    accented: baseAccented,
     overridden: false,
+    headVisible: baseActive,
+    overlayed: false,
+    overlayState: 'inherit',
   };
 }
 
@@ -1758,7 +1834,66 @@ export function updateRiffStepCount(study: RiffCycleStudy, stepCount: number): R
       activeSteps: nextSteps,
       accents: nextAccents,
     },
+    overlay: {
+      enabled: study.overlay?.enabled ?? false,
+      steps: Array.from(
+        { length: normalizedStepCount },
+        (_, index) => study.overlay?.steps?.[index] ?? 'inherit',
+      ),
+      soundAndImpact: Array.from(
+        { length: normalizedStepCount },
+        (_, index) => study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
+    },
     tailLength: normalizeTailLength(study.tailLength, normalizedStepCount),
+  };
+}
+
+export function toggleRiffOverlayStep(study: RiffCycleStudy, stepIndex: number): RiffCycleStudy {
+  const baseActive = Boolean(study.riff.activeSteps[stepIndex]);
+  const currentState = study.overlay?.steps?.[stepIndex] ?? 'inherit';
+  const nextState: RiffOverlayStepState =
+    currentState === 'inherit' ? (baseActive ? 'remove' : 'add') : 'inherit';
+  const nextSteps = Array.from({ length: study.riff.stepCount }, (_, index) =>
+    index === stepIndex ? nextState : study.overlay?.steps?.[index] ?? 'inherit',
+  );
+  return {
+    ...study,
+    overlay: {
+      enabled: nextSteps.some((state) => state !== 'inherit'),
+      steps: nextSteps,
+      soundAndImpact: Array.from({ length: study.riff.stepCount }, (_, index) =>
+        index === stepIndex && nextState !== 'inherit'
+          ? currentState === 'inherit'
+            ? !baseActive
+            : Boolean(study.overlay?.soundAndImpact?.[index])
+          : study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
+    },
+  };
+}
+
+export function toggleRiffOverlaySoundAndImpact(
+  study: RiffCycleStudy,
+  stepIndex: number,
+): RiffCycleStudy {
+  if ((study.overlay?.steps?.[stepIndex] ?? 'inherit') === 'inherit') {
+    return study;
+  }
+  return {
+    ...study,
+    overlay: {
+      enabled: true,
+      steps: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => study.overlay?.steps?.[index] ?? 'inherit',
+      ),
+      soundAndImpact: Array.from({ length: study.riff.stepCount }, (_, index) =>
+        index === stepIndex
+          ? !Boolean(study.overlay?.soundAndImpact?.[index])
+          : study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
+    },
   };
 }
 

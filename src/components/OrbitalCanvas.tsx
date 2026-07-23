@@ -598,7 +598,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
         (canvas as any).__exportVideo = async ({
           durationSeconds = 8,
-          aspect = 'canvas',
+          aspect = 'landscape',
         }: {
           durationSeconds?: VideoExportDuration;
           aspect?: VideoExportAspect;
