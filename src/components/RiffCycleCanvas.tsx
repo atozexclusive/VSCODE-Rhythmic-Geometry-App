@@ -100,6 +100,7 @@ interface RiffCycleCanvasProps {
   playbackDriver?: boolean;
   audioEnabled?: boolean;
   overlayEditMode?: boolean;
+  selectedSequencePhraseIndex?: number;
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   onSelectStep: (stepIndex: number | null) => void;
@@ -156,15 +157,12 @@ type RiffCellStripPhrase = {
 function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
   const cells = study.riffCells ?? [];
   const validLabels = new Set(cells.map((cell) => cell.label));
-  const fallbackLabel = cells[0]?.label ?? 'A';
-  const sequenceSource = study.riffSequence && study.riffSequence.length > 0
-    ? study.riffSequence
-    : [fallbackLabel];
+  const sequenceSource = Array.isArray(study.riffSequence) ? study.riffSequence : [];
   const sequence = sequenceSource
     .map((label) => label.toUpperCase() as RiffSequenceCellLabel)
     .filter((label) => validLabels.has(label))
     .slice(0, 24);
-  const normalizedSequence = sequence.length > 0 ? sequence : [fallbackLabel];
+  const normalizedSequence = sequence;
   const phrases = getRiffSequencePhrases(study);
   const sequenceBarsMode = study.riffSequenceBarsMode === 'per-cell' ? 'per-cell' : 'global';
   let cursor = 0;
@@ -196,11 +194,12 @@ function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
       cursor = endIndex;
       return {
         id: phrase.id || `phrase-${phraseIndex + 1}`,
-        repeatCount: Math.max(1, Math.round(phrase.repeatCount || 1)),
+        repeatCount: study.riffSequenceChainEnabled
+          ? 1
+          : Math.max(1, Math.round(phrase.repeatCount || 1)),
         entries,
       };
-    })
-    .filter((phrase) => phrase.entries.length > 0);
+    });
 }
 
 function drawRoundedRect(
@@ -575,6 +574,7 @@ export default function RiffCycleCanvas({
   playbackDriver = true,
   audioEnabled = true,
   overlayEditMode = false,
+  selectedSequencePhraseIndex = 0,
   onReferenceStepChange,
   externalCanvasRef,
   onSelectStep,
@@ -619,6 +619,7 @@ export default function RiffCycleCanvas({
   const playbackDriverRef = useRef(playbackDriver);
   const audioEnabledRef = useRef(audioEnabled);
   const overlayEditModeRef = useRef(overlayEditMode);
+  const selectedSequencePhraseIndexRef = useRef(selectedSequencePhraseIndex);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
   const exportRecordingActiveRef = useRef(false);
   const onReferenceStepChangeRef = useRef(onReferenceStepChange);
@@ -652,6 +653,7 @@ export default function RiffCycleCanvas({
   playbackDriverRef.current = playbackDriver;
   audioEnabledRef.current = audioEnabled;
   overlayEditModeRef.current = overlayEditMode;
+  selectedSequencePhraseIndexRef.current = selectedSequencePhraseIndex;
   onReferenceStepChangeRef.current = onReferenceStepChange;
 
   const draw = useCallback(() => {
@@ -958,16 +960,32 @@ export default function RiffCycleCanvas({
       currentDisplaySettings.showCellStrip !== false &&
       sequenceState &&
       sequenceTimeline &&
-      sequenceTimeline.entries.length > 0
+      sequenceTimeline.entries.length > 0 &&
+      (!currentStudy.riffSequenceChainEnabled ||
+        currentStudy.playing ||
+        (getRiffCellStripPhrases(currentStudy)[selectedSequencePhraseIndexRef.current]?.entries.length ?? 0) > 0)
     ) {
-      const stripPhrases = getRiffCellStripPhrases(currentStudy);
+      const allStripPhrases = getRiffCellStripPhrases(currentStudy);
+      const activePhraseIndex = allStripPhrases.findIndex((phrase) =>
+        phrase.entries.some((entry) => entry.sequenceIndex === sequenceState.baseSequenceIndex),
+      );
+      const visiblePhraseIndex = currentStudy.playing
+        ? Math.max(0, activePhraseIndex)
+        : Math.max(
+            0,
+            Math.min(allStripPhrases.length - 1, selectedSequencePhraseIndexRef.current),
+          );
+      const stripPhrases = currentStudy.riffSequenceChainEnabled
+        ? allStripPhrases.slice(visiblePhraseIndex, visiblePhraseIndex + 1)
+        : allStripPhrases;
       const expandedBaseSequenceIndices = stripPhrases.flatMap((phrase) =>
         Array.from({ length: phrase.repeatCount }, () =>
           phrase.entries.map((entry) => entry.sequenceIndex),
         ).flat(),
       );
-      const activeBaseSequenceIndex =
-        expandedBaseSequenceIndices[sequenceState.sequenceIndex] ?? sequenceState.sequenceIndex;
+      const activeBaseSequenceIndex = sequenceState.baseSequenceIndex ??
+        expandedBaseSequenceIndices[sequenceState.sequenceIndex] ??
+        sequenceState.sequenceIndex;
       const chipHeight = exportLayoutMode ? 32 : 18;
       const chipRadius = exportLayoutMode ? 12 : 7;
       const chipGap = exportLayoutMode ? 7 : 4;
