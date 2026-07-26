@@ -102,6 +102,7 @@ export interface RiffPhrase {
 export interface RiffSequenceCell {
   id: string;
   label: RiffSequenceCellLabel;
+  name?: string;
   color: string;
   numerator: number;
   denominator: ReferenceMeter['denominator'];
@@ -481,6 +482,11 @@ function normalizeRiffColor(color: string | undefined, fallback: string): string
   return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 }
 
+function normalizeRiffSequenceCellName(name: string | undefined, label: RiffSequenceCellLabel): string | undefined {
+  const normalized = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').slice(0, 32) : '';
+  return normalized && normalized.toUpperCase() !== label ? normalized : undefined;
+}
+
 export function createRiffSequenceCell(
   label: RiffSequenceCellLabel,
   groups: number[],
@@ -506,6 +512,7 @@ export function createRiffSequenceCell(
   return {
     id: overrides.id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
+    name: normalizeRiffSequenceCellName(overrides.name, label),
     color: normalizeRiffColor(overrides.color, getRiffSequenceCellDefaultColor(label)),
     numerator,
     denominator,
@@ -528,7 +535,7 @@ function createRiffSequenceCellFromState(
   accents: boolean[] | undefined,
   id?: string,
   color?: string,
-  timing?: Partial<Pick<RiffSequenceCell, 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'>>,
+  timing?: Partial<Pick<RiffSequenceCell, 'name' | 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'>>,
   backbeatOverrideBeats?: number[] | null,
 ): RiffSequenceCell {
   const normalizedStepCount = normalizeCellStepCount(stepCount);
@@ -545,6 +552,7 @@ function createRiffSequenceCellFromState(
   return {
     id: id ?? generateId(`riff-cell-${label.toLowerCase()}`),
     label,
+    name: normalizeRiffSequenceCellName(timing?.name, label),
     color: normalizeRiffColor(color, getRiffSequenceCellDefaultColor(label)),
     numerator,
     denominator,
@@ -566,8 +574,9 @@ function createDefaultRiffSequenceCells(riff: RiffPhrase): RiffSequenceCell[] {
   ];
 }
 
-function getRiffCellTiming(cell: RiffSequenceCell): Pick<RiffSequenceCell, 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'> {
+function getRiffCellTiming(cell: RiffSequenceCell): Pick<RiffSequenceCell, 'name' | 'numerator' | 'denominator' | 'subdivision' | 'backbeatBeat' | 'backbeatBeats' | 'backbeatBarInterval'> {
   return {
+    name: cell.name,
     numerator: cell.numerator,
     denominator: cell.denominator,
     subdivision: cell.subdivision,
@@ -624,6 +633,7 @@ function normalizeRiffSequenceCells(
         sourceCell?.id,
         normalizeRiffColor(sourceCell?.color, getRiffSequenceCellDefaultColor(label)),
         {
+          name: sourceCell?.name,
           numerator: sourceCell?.numerator,
           denominator: sourceCell?.denominator,
           subdivision: sourceCell?.subdivision,
@@ -1329,7 +1339,7 @@ export function getRiffSequenceTimeline(study: RiffCycleStudy): {
         return;
       }
 
-      for (let phraseRepeat = 0; phraseRepeat < 1; phraseRepeat += 1) {
+      for (let phraseRepeat = 0; phraseRepeat < phrase.repeatCount; phraseRepeat += 1) {
         let phraseStep = 0;
         let phraseEntryCursor = 0;
         while (phraseStep < phraseDurationSteps) {
@@ -1364,15 +1374,12 @@ export function getRiffSequenceTimeline(study: RiffCycleStudy): {
 
     return { entries, totalSteps: timelineCursor };
   }
-  const playbackPhrases = study.riffSequenceChainEnabled
-    ? phrases.map((phrase) => ({ ...phrase, repeatCount: 1 }))
-    : phrases;
   const expanded = expandRiffSequenceArrangement(
     sequence,
     entryBars,
     entryRepeats,
     entryDurationModes,
-    playbackPhrases,
+    phrases,
   );
   const entries: RiffSequenceTimelineEntry[] = [];
   let cursor = 0;
@@ -2014,6 +2021,7 @@ export function syncFirstRiffSequenceCellFromRiff(study: RiffCycleStudy): RiffCy
     existingFirstCell?.id,
     study.riff.color,
     {
+      name: existingFirstCell?.name,
       numerator: study.reference.numerator,
       denominator: study.reference.denominator,
       subdivision: study.reference.subdivision,
@@ -2229,6 +2237,7 @@ export function randomizeRiffSequenceCells(
   const nextCells = riffCells.map((cell) => ({
     ...createRandomRiffSequenceCellForReference(cell.label, baseReference),
     id: cell.id,
+    name: cell.name,
   }));
   const sequence = normalizeRiffSequenceOrder(study.riffSequence, nextCells);
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
@@ -2292,6 +2301,17 @@ export function updateRiffSequenceCellColor(
   return updateRiffSequenceCell(study, label, (cell) => ({
     ...cell,
     color: normalizeRiffColor(color, cell.color),
+  }));
+}
+
+export function updateRiffSequenceCellName(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+  name: string,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) => ({
+    ...cell,
+    name: normalizeRiffSequenceCellName(name, label),
   }));
 }
 

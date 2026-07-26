@@ -194,9 +194,7 @@ function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
       cursor = endIndex;
       return {
         id: phrase.id || `phrase-${phraseIndex + 1}`,
-        repeatCount: study.riffSequenceChainEnabled
-          ? 1
-          : Math.max(1, Math.round(phrase.repeatCount || 1)),
+        repeatCount: Math.max(1, Math.round(phrase.repeatCount || 1)),
         entries,
       };
     });
