@@ -123,6 +123,7 @@ export interface RiffOverlayLayer {
   enabled: boolean;
   steps: RiffOverlayStepState[];
   soundAndImpact: boolean[];
+  immediateSteps: boolean[];
 }
 
 export interface RiffCycleStudy {
@@ -1097,6 +1098,10 @@ export function createRiffCycleStudy(
       { length: overlayStepCount },
       (_, index) => overrides.overlay?.soundAndImpact?.[index] ?? false,
     ),
+    immediateSteps: Array.from(
+      { length: overlayStepCount },
+      (_, index) => overrides.overlay?.immediateSteps?.[index] ?? false,
+    ),
   };
   return {
     id: overrides.id ?? generateId('riff-study'),
@@ -1196,6 +1201,10 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       soundAndImpact: Array.from(
         { length: study.riff.stepCount },
         (_, index) => study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
+      immediateSteps: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => study.overlay?.immediateSteps?.[index] ?? false,
       ),
     },
     riffSequenceEnabled: Boolean(study.riffSequenceEnabled),
@@ -1563,6 +1572,23 @@ export function isForcedResetAtReferenceStep(
   study: RiffCycleStudy,
   referenceStep: number,
 ): boolean {
+  if (
+    study.riffSequenceEnabled &&
+    study.riffSequenceChainEnabled &&
+    normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode) === 'global'
+  ) {
+    if (referenceStep <= 0) {
+      return false;
+    }
+    const stepsPerBar = getReferenceStepsPerBar(study.reference);
+    const phrasePassSteps =
+      normalizeBars(
+        study.riffSequenceBars ??
+          getResetBarCount(study.riff) ??
+          study.reference.barCountForDisplay,
+      ) * stepsPerBar;
+    return referenceStep % Math.max(1, phrasePassSteps) === 0;
+  }
   const resetStepCount = getResetStepCount(study);
   if (resetStepCount == null || referenceStep <= 0) {
     return false;
@@ -1715,8 +1741,9 @@ export function getEffectiveRiffStepStateAtReferenceStep(
   const baseAccented = Boolean((sequenceState?.cell.accents ?? study.riff.accents)[phraseIndex]);
   const overlayActive =
     Boolean(study.overlay?.enabled) &&
-    !study.riffSequenceEnabled &&
-    Math.max(0, Math.floor(referenceStep)) >= Math.max(1, study.riff.stepCount);
+    (Boolean(study.overlay?.immediateSteps?.[phraseIndex]) ||
+      (!study.riffSequenceEnabled &&
+        Math.max(0, Math.floor(referenceStep)) >= Math.max(1, study.riff.stepCount)));
   const overlayState = overlayActive
     ? study.overlay?.steps?.[phraseIndex] ?? 'inherit'
     : 'inherit';
@@ -1937,6 +1964,10 @@ export function updateRiffStepCount(study: RiffCycleStudy, stepCount: number): R
         { length: normalizedStepCount },
         (_, index) => study.overlay?.soundAndImpact?.[index] ?? false,
       ),
+      immediateSteps: Array.from(
+        { length: normalizedStepCount },
+        (_, index) => study.overlay?.immediateSteps?.[index] ?? false,
+      ),
     },
     tailLength: normalizeTailLength(study.tailLength, normalizedStepCount),
   };
@@ -1962,6 +1993,9 @@ export function toggleRiffOverlayStep(study: RiffCycleStudy, stepIndex: number):
             : Boolean(study.overlay?.soundAndImpact?.[index])
           : study.overlay?.soundAndImpact?.[index] ?? false,
       ),
+      immediateSteps: Array.from({ length: study.riff.stepCount }, (_, index) =>
+        index === stepIndex ? false : study.overlay?.immediateSteps?.[index] ?? false,
+      ),
     },
   };
 }
@@ -1985,6 +2019,34 @@ export function toggleRiffOverlaySoundAndImpact(
         index === stepIndex
           ? !Boolean(study.overlay?.soundAndImpact?.[index])
           : study.overlay?.soundAndImpact?.[index] ?? false,
+      ),
+      immediateSteps: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => study.overlay?.immediateSteps?.[index] ?? false,
+      ),
+    },
+  };
+}
+
+export function addRiffDetachedNote(study: RiffCycleStudy, stepIndex: number): RiffCycleStudy {
+  if (stepIndex < 0 || stepIndex >= study.riff.stepCount) {
+    return study;
+  }
+  return {
+    ...study,
+    overlay: {
+      enabled: true,
+      steps: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => index === stepIndex ? 'add' : study.overlay?.steps?.[index] ?? 'inherit',
+      ),
+      soundAndImpact: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => index === stepIndex || Boolean(study.overlay?.soundAndImpact?.[index]),
+      ),
+      immediateSteps: Array.from(
+        { length: study.riff.stepCount },
+        (_, index) => index === stepIndex || Boolean(study.overlay?.immediateSteps?.[index]),
       ),
     },
   };

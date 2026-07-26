@@ -106,6 +106,7 @@ interface RiffCycleCanvasProps {
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
   onToggleAccent: (stepIndex: number) => void;
+  onAddDetachedNote?: (stepIndex: number) => void;
   onToggleMeterBeat?: (beat: number) => void;
   onTogglePulseLayerStep?: (stepIndex: number) => void;
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
@@ -578,6 +579,7 @@ export default function RiffCycleCanvas({
   onSelectStep,
   onSetStepActive,
   onToggleAccent,
+  onAddDetachedNote,
   onToggleMeterBeat,
   onTogglePulseLayerStep,
   onSetLandingStepActive,
@@ -634,10 +636,17 @@ export default function RiffCycleCanvas({
     longPressed: boolean;
   } | null>(null);
   const longPressTimeoutRef = useRef<number | null>(null);
+  const commandClickTimeoutRef = useRef<number | null>(null);
   const resolvedStudy =
     viewModeOverride == null ? study : { ...study, viewMode: viewModeOverride };
 
   studyRef.current = resolvedStudy;
+
+  useEffect(() => () => {
+    if (commandClickTimeoutRef.current != null) {
+      window.clearTimeout(commandClickTimeoutRef.current);
+    }
+  }, []);
   selectedStepRef.current = selectedStep;
   isMobileRef.current = isMobile;
   layoutTopInsetRef.current = layoutTopInset;
@@ -1708,8 +1717,9 @@ export default function RiffCycleCanvas({
       );
       const overlayEngaged =
         Boolean(currentStudy.overlay?.enabled) &&
-        !currentStudy.riffSequenceEnabled &&
-        currentAbsoluteReferenceStep >= Math.max(1, currentStudy.riff.stepCount);
+        (Boolean(currentStudy.overlay?.immediateSteps?.[point.index]) ||
+          (!currentStudy.riffSequenceEnabled &&
+            currentAbsoluteReferenceStep >= Math.max(1, currentStudy.riff.stepCount)));
       const editingOverlay = overlayEditModeRef.current && !currentStudy.riffSequenceEnabled;
       const isSelected = selectedStepRef.current === point.index;
       const isHovered = !isSelected && currentHoveredStep === point.index;
@@ -3140,7 +3150,24 @@ export default function RiffCycleCanvas({
         return;
       }
 
-      if (event.altKey || event.metaKey || event.shiftKey) {
+      if (event.metaKey && !isMobileRef.current && event.pointerType === 'mouse') {
+        onSelectStep(hit.stepIndex);
+        if (commandClickTimeoutRef.current != null) {
+          window.clearTimeout(commandClickTimeoutRef.current);
+        }
+        commandClickTimeoutRef.current = window.setTimeout(() => {
+          commandClickTimeoutRef.current = null;
+          if (editingLanding) {
+            onToggleLandingAccent(landingSlot);
+          } else {
+            onToggleAccent(hit.stepIndex);
+          }
+        }, 240);
+        clearPointerPaint(event);
+        return;
+      }
+
+      if (event.altKey || event.shiftKey) {
         onSelectStep(hit.stepIndex);
         if (editingLanding) {
           onToggleLandingAccent(landingSlot);
@@ -3209,6 +3236,51 @@ export default function RiffCycleCanvas({
       findMeterBeatHit,
       findPulseLayerHit,
     ],
+  );
+
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLCanvasElement>) => {
+      if (!event.metaKey || isMobileRef.current || !onAddDetachedNote) {
+        return;
+      }
+      if (commandClickTimeoutRef.current != null) {
+        window.clearTimeout(commandClickTimeoutRef.current);
+        commandClickTimeoutRef.current = null;
+      }
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
+        studyRef.current,
+        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        laneWindowStartStepRef.current,
+        laneWindowStepCountRef.current,
+      );
+      const hit = findRiffCycleHit(
+        studyRef.current,
+        getRiffCycleCanvasMetrics(
+          studyRef.current,
+          rect.width,
+          rect.height,
+          isMobileRef.current,
+          layoutTopInsetRef.current,
+          layoutBottomInsetRef.current,
+          effectiveLaneWindowStartStep,
+          laneWindowStepCountRef.current,
+        ),
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+      );
+      if (hit?.stepIndex == null || !canEditRiffStep(studyRef.current, hit.stepIndex)) {
+        return;
+      }
+      event.preventDefault();
+      onSelectStep(hit.stepIndex);
+      onAddDetachedNote(hit.stepIndex);
+    },
+    [onAddDetachedNote, onSelectStep],
   );
 
   const handlePointerMove = useCallback(
@@ -3382,6 +3454,7 @@ export default function RiffCycleCanvas({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onContextMenu={handleContextMenu}
+      onDoubleClick={handleDoubleClick}
       className={className ?? 'absolute inset-0 h-full w-full'}
       style={{ touchAction: 'none' }}
     />

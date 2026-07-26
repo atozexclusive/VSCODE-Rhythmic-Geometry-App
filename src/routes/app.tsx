@@ -150,6 +150,7 @@ import {
   createRandomPlusRiffCycleStudy,
   createRandomRiffCycleStudy,
   createDefaultRiffCycleStudy,
+  addRiffDetachedNote,
   getDisplayStepCount,
   getEffectiveLandingStepStates,
   getEffectiveRiffStepStateAtReferenceStep,
@@ -9462,6 +9463,14 @@ function OrbitalPolymeter() {
         ? current
         : toggleRiffOverlaySoundAndImpact(current, stepIndex),
     );
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleAddRiffDetachedNote = useCallback((stepIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => addRiffDetachedNote(current, stepIndex));
+    setSelectedRiffCycleStep(stepIndex);
   }, [requireEditableRiffCycleStudy]);
 
   const handleRotateRiffCycle = useCallback((stepOffset: number) => {
@@ -19726,6 +19735,7 @@ function OrbitalPolymeter() {
                     ? handleToggleRiffOverlaySoundAndImpact
                     : handleToggleRiffCycleAccent
                 }
+                onAddDetachedNote={handleAddRiffDetachedNote}
                 onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                 onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
@@ -22065,6 +22075,7 @@ function OrbitalPolymeter() {
                             onSelectStep={handleSelectRiffCycleStep}
                             onSetStepActive={handleSetRiffCycleStepActive}
                             onToggleAccent={handleToggleRiffCycleAccent}
+                            onAddDetachedNote={handleAddRiffDetachedNote}
                             onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                             onSetLandingStepActive={handleSetRiffLandingStepActive}
@@ -22369,6 +22380,7 @@ function OrbitalPolymeter() {
             onSetRiffStepCount={handleSetRiffPhraseStepCount}
             onToggleStep={handleToggleRiffCycleStep}
             onToggleAccent={handleToggleRiffCycleAccent}
+            onAddDetachedNote={handleAddRiffDetachedNote}
             onSelectStep={handleSelectRiffCycleStep}
             onRotateRiff={handleRotateRiffCycle}
             onInvertRiff={handleInvertRiffCycle}
@@ -24452,6 +24464,7 @@ function OrbitalPolymeter() {
                       ? handleToggleRiffOverlaySoundAndImpact
                       : handleToggleRiffCycleAccent
                   }
+                  onAddDetachedNote={handleAddRiffDetachedNote}
                   onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                   onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
