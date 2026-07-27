@@ -3153,7 +3153,8 @@ export default function RiffCycleCanvas({
       }
 
       if (event.metaKey && !isMobileRef.current && event.pointerType === 'mouse') {
-        onSelectStep(hit.stepIndex);
+        const clickedStepIndex = hit.stepIndex;
+        onSelectStep(clickedStepIndex);
         if (commandClickTimeoutRef.current != null) {
           window.clearTimeout(commandClickTimeoutRef.current);
         }
@@ -3162,7 +3163,7 @@ export default function RiffCycleCanvas({
           if (editingLanding) {
             onToggleLandingAccent(landingSlot);
           } else {
-            onToggleAccent(hit.stepIndex);
+            onToggleAccent(clickedStepIndex);
           }
         }, 240);
         clearPointerPaint(event);

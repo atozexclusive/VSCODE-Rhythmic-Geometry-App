@@ -22391,7 +22391,6 @@ function OrbitalPolymeter() {
             onSetRiffStepCount={handleSetRiffPhraseStepCount}
             onToggleStep={handleToggleRiffCycleStep}
             onToggleAccent={handleToggleRiffCycleAccent}
-            onAddDetachedNote={handleAddRiffDetachedNote}
             onSelectStep={handleSelectRiffCycleStep}
             onRotateRiff={handleRotateRiffCycle}
             onInvertRiff={handleInvertRiffCycle}
