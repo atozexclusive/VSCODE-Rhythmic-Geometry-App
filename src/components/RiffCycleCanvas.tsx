@@ -144,6 +144,7 @@ type RiffCanvasPoint = {
 
 type RiffCellStripPhraseEntry = {
   label: RiffSequenceCellLabel;
+  displayName: string;
   color: string;
   suffix: string | null;
   sequenceIndex: number;
@@ -187,6 +188,7 @@ function getRiffCellStripPhrases(study: RiffCycleStudy): RiffCellStripPhrase[] {
 
         return {
           label,
+          displayName: cell?.name?.trim() || label,
           color: cell?.color ?? study.riff.color,
           suffix,
           sequenceIndex,
@@ -1026,7 +1028,7 @@ export default function RiffCycleCanvas({
       ctx.fillStyle = exportLayoutMode ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.5)';
       ctx.shadowBlur = 0;
       ctx.fillText(
-        `CELL ${sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
+        `CELL ${sequenceState.cell.name?.trim() || sequenceState.cell.label} · ${sequenceState.cell.stepCount}`,
         metrics.circleCenterX,
         stripY - (exportLayoutMode ? 18 : 8),
       );
@@ -1041,7 +1043,7 @@ export default function RiffCycleCanvas({
       let hiddenPhraseCount = 0;
 
       const getEntryText = (entry: RiffCellStripPhraseEntry) =>
-        entry.suffix ? `${entry.label} ${entry.suffix}` : entry.label;
+        entry.suffix ? `${entry.displayName} ${entry.suffix}` : entry.displayName;
 
       const measureEntryWidth = (entry: RiffCellStripPhraseEntry) =>
         Math.max(exportLayoutMode ? 46 : 24, ctx.measureText(getEntryText(entry)).width + entryPaddingX * 2);
