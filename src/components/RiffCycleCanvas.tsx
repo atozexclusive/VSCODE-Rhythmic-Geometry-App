@@ -1039,6 +1039,7 @@ export default function RiffCycleCanvas({
       const repeatGap = exportLayoutMode ? 8 : 5;
       const displayedPhrases: RiffCellStripPhrase[] = [];
       const phraseWidths: number[] = [];
+      const showPhraseRepeatCounts = !currentStudy.riffSequenceChainEnabled;
       let stripWidth = 0;
       let hiddenPhraseCount = 0;
 
@@ -1055,7 +1056,7 @@ export default function RiffCycleCanvas({
       const measurePhraseWidth = (phrase: RiffCellStripPhrase, phraseIndex: number) => {
         const singlePhrase = phrase.entries.length === 1;
         const entryWidths = phrase.entries.map(measureEntryWidth);
-        const repeatText = phrase.repeatCount > 1 ? `${phrase.repeatCount}x` : '';
+        const repeatText = showPhraseRepeatCounts && phrase.repeatCount > 1 ? `${phrase.repeatCount}x` : '';
         const repeatWidth = repeatText
           ? ctx.measureText(repeatText).width + repeatPaddingX
           : 0;
@@ -1147,7 +1148,7 @@ export default function RiffCycleCanvas({
           drawX += closeBracketAdvance;
         }
 
-        if (phrase.repeatCount > 1) {
+        if (showPhraseRepeatCounts && phrase.repeatCount > 1) {
           const repeatText = `${phrase.repeatCount}x`;
           const repeatWidth = ctx.measureText(repeatText).width + repeatPaddingX;
           drawX += repeatGap;
