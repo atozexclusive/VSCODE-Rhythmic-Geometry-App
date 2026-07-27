@@ -97,6 +97,12 @@ function getNaturalResolutionBars(study: RiffCycleStudy): number {
   return phraseSteps / gcd(phraseSteps, stepsPerBar);
 }
 
+function getSavedRiffCellNames(study: RiffCycleStudy): string {
+  return (study.riffCells ?? [])
+    .map((cell) => cell.name?.trim() || cell.label)
+    .join(' · ');
+}
+
 interface RiffCycleSidebarProps {
   isOpen: boolean;
   study: RiffCycleStudy;
@@ -847,6 +853,11 @@ export default function RiffCycleSidebar({
                           <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
                             {scene.study.riff.stepCount} steps
                           </div>
+                          {getSavedRiffCellNames(scene.study) ? (
+                            <div className="mt-1 truncate text-[10px] font-mono tracking-[0.1em] text-white/48">
+                              {getSavedRiffCellNames(scene.study)}
+                            </div>
+                          ) : null}
                           <div className="mt-2 text-[11px] leading-relaxed text-white/46">
                             {scene.description}
                           </div>

@@ -2085,6 +2085,12 @@ interface SavedRiffCycleScene {
   study: RiffCycleStudy;
 }
 
+function getSavedRiffCellNames(study: RiffCycleStudy): string {
+  return (study.riffCells ?? [])
+    .map((cell) => cell.name?.trim() || cell.label)
+    .join(' · ');
+}
+
 type StoredStudySceneSnapshot =
   | { kind: 'polyrhythm-study'; scene: SavedPolyrhythmScene }
   | { kind: 'riff-cycle-study'; scene: SavedRiffCycleScene };
@@ -21516,6 +21522,11 @@ function OrbitalPolymeter() {
                                       <div className="mt-1 text-[9px] font-mono uppercase tracking-[0.12em] text-white/38">
                                         {scene.study.riff.stepCount} steps
                                       </div>
+                                      {getSavedRiffCellNames(scene.study) ? (
+                                        <div className="mt-1 truncate text-[9px] font-mono tracking-[0.08em] text-white/48">
+                                          {getSavedRiffCellNames(scene.study)}
+                                        </div>
+                                      ) : null}
                                       <div
                                         className="mt-1.5 text-[10px] leading-snug text-white/42"
                                         style={{
@@ -24152,6 +24163,11 @@ function OrbitalPolymeter() {
                                     <div className="mt-1 text-[9px] text-white/42">
                                       {scene.study.riff.stepCount} steps
                                     </div>
+                                    {getSavedRiffCellNames(scene.study) ? (
+                                      <div className="mt-1 truncate text-[9px] font-mono tracking-[0.08em] text-white/48">
+                                        {getSavedRiffCellNames(scene.study)}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
                               </button>
