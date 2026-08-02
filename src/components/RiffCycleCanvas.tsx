@@ -48,6 +48,8 @@ import {
   type RiffCycleStudy,
   type RiffCycleViewMode,
   type RiffSequenceCellLabel,
+  type RiffVoiceEvent,
+  type RiffVoiceInstrument,
 } from '../lib/riffCycleStudy';
 import {
   addAudioToCanvasStream,
@@ -69,6 +71,7 @@ import {
   triggerReferencePulse,
   triggerResetCue,
   triggerRiffPulse,
+  triggerRiffVoiceInstrument,
   triggerSubdivisionPulse,
 } from '../lib/riffCycleAudio';
 
@@ -100,6 +103,8 @@ interface RiffCycleCanvasProps {
   playbackDriver?: boolean;
   audioEnabled?: boolean;
   overlayEditMode?: boolean;
+  voiceEditMode?: boolean;
+  selectedVoiceInstrument?: RiffVoiceInstrument;
   selectedSequencePhraseIndex?: number;
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
@@ -109,6 +114,8 @@ interface RiffCycleCanvasProps {
   onAddDetachedNote?: (stepIndex: number) => void;
   onToggleMeterBeat?: (beat: number) => void;
   onTogglePulseLayerStep?: (stepIndex: number) => void;
+  onToggleVoiceBeat?: (beatIndex: number) => void;
+  onToggleVoiceSubdivision?: (stepIndex: number) => void;
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
   onToggleLandingAccent: (slotIndex: number) => void;
   className?: string;
@@ -131,6 +138,92 @@ interface LandingReferenceOverlayPoint {
     x: number;
     y: number;
   };
+}
+
+function getRiffVoiceSymbol(instrument: RiffVoiceInstrument): string {
+  switch (instrument) {
+    case 'snare':
+      return '🥁';
+    case 'tom':
+      return '🪘';
+    case 'kick':
+      return '🦶';
+    case 'guitar':
+      return '🎸';
+    case 'cymbal':
+      return '';
+  }
+}
+
+let cymbalIconImage: HTMLImageElement | null = null;
+
+function getCymbalIconImage(): HTMLImageElement | null {
+  if (typeof Image === 'undefined') return null;
+  if (!cymbalIconImage) {
+    cymbalIconImage = new Image();
+    cymbalIconImage.src = '/cymbal.png';
+  }
+  return cymbalIconImage;
+}
+
+function drawCymbalIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  const image = getCymbalIconImage();
+  if (image?.complete && image.naturalWidth > 0) {
+    ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+    return;
+  }
+
+  ctx.fillStyle = '#E7B84B';
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.34, 0, TAU);
+  ctx.fill();
+}
+
+function drawCenteredVoiceSymbol(
+  ctx: CanvasRenderingContext2D,
+  symbol: string,
+  x: number,
+  y: number,
+): void {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(symbol, x, y);
+}
+
+function getVoiceImpactKey(event: RiffVoiceEvent): string {
+  return `${event.voice}:${event.surface}:${event.index}:${event.instrument}`;
+}
+
+function drawVoiceImpactBloom(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  remaining: number,
+  scale: number,
+  color: string,
+): void {
+  if (remaining <= 0) return;
+  const expansion = 1 - remaining;
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.88, remaining * 0.94);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = (1.2 + remaining * 1.4) * scale;
+  ctx.shadowBlur = (12 + remaining * 18) * scale;
+  ctx.shadowColor = color;
+  ctx.beginPath();
+  ctx.arc(x, y, (8 + expansion * 14) * scale, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = remaining * 0.16;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, (7 + expansion * 9) * scale, 0, TAU);
+  ctx.fill();
+  ctx.restore();
 }
 
 type RiffCanvasPoint = {
@@ -575,6 +668,8 @@ export default function RiffCycleCanvas({
   playbackDriver = true,
   audioEnabled = true,
   overlayEditMode = false,
+  voiceEditMode = false,
+  selectedVoiceInstrument,
   selectedSequencePhraseIndex = 0,
   onReferenceStepChange,
   externalCanvasRef,
@@ -584,6 +679,8 @@ export default function RiffCycleCanvas({
   onAddDetachedNote,
   onToggleMeterBeat,
   onTogglePulseLayerStep,
+  onToggleVoiceBeat,
+  onToggleVoiceSubdivision,
   onSetLandingStepActive,
   onToggleLandingAccent,
   className,
@@ -605,6 +702,7 @@ export default function RiffCycleCanvas({
   const barMarkerFlashUntilRef = useRef(0);
   const barMarkerFlashStepRef = useRef<number | null>(null);
   const riffAttackUntilRef = useRef<number[]>([]);
+  const voiceImpactUntilRef = useRef<Map<string, number>>(new Map());
   const laneAttackUntilRef = useRef(0);
   const laneAttackReferenceStepRef = useRef<number | null>(null);
   const restartInitializedRef = useRef(false);
@@ -617,6 +715,7 @@ export default function RiffCycleCanvas({
   const endingCycleGuideBarCountRef = useRef(endingCycleGuideBarCount);
   const displaySettingsRef = useRef(displaySettings);
   const presentationModeRef = useRef(presentationMode);
+  const voiceEditModeRef = useRef(voiceEditMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
   const audioEnabledRef = useRef(audioEnabled);
@@ -658,6 +757,7 @@ export default function RiffCycleCanvas({
   endingCycleGuideBarCountRef.current = endingCycleGuideBarCount;
   displaySettingsRef.current = displaySettings;
   presentationModeRef.current = presentationMode;
+  voiceEditModeRef.current = voiceEditMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
   audioEnabledRef.current = audioEnabled;
@@ -1979,6 +2079,7 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
     });
+
     }
 
     if (innerClockVisible) {
@@ -2117,6 +2218,107 @@ export default function RiffCycleCanvas({
       ctx.stroke();
       ctx.restore();
     }
+
+    // Render voice icons last in the geometry stack so node heads and playback
+    // cursors never cover the instrument marker.
+    const voiceEvents = currentStudy.voiceEvents ?? [];
+    const currentBeatIndex = Math.floor(
+      (currentReferenceStep % Math.max(1, stepsPerBar)) / Math.max(1, stepsPerBeat),
+    );
+    voiceEvents
+      .filter((event) => event.surface === 'beat')
+      .forEach((event) => {
+        const vertex = metrics.referenceVertices[event.index];
+        if (!vertex) return;
+        const siblings = voiceEvents.filter(
+          (candidate) => candidate.surface === 'beat' && candidate.index === event.index,
+        );
+        const siblingIndex = siblings.findIndex((candidate) => candidate === event);
+        const offsetX = (siblingIndex - (siblings.length - 1) / 2) * 18 * shellScale;
+        const active = currentBeatIndex === event.index;
+        const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
+        const size = 19 * shellScale * (event.instrument === 'snare' ? 1.05 : 1);
+        const nativeBeatBloomActive =
+          referenceBeatFlashBeatRef.current === event.index &&
+          referenceBeatFlashUntilRef.current > now;
+        const impactRemaining = nativeBeatBloomActive
+          ? 0
+          : Math.max(
+              0,
+              ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
+            );
+        drawVoiceImpactBloom(
+          ctx,
+          vertex.x + offsetX,
+          vertex.y,
+          impactRemaining,
+          shellScale,
+          event.instrument === 'cymbal' ? 'rgba(255,209,102,0.96)' : 'rgba(127,215,255,0.92)',
+        );
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+        ctx.shadowBlur = (active ? 22 : editing ? 14 : 8) * glowMultiplier * shellScale;
+        ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.9)' : 'rgba(127,215,255,0.7)';
+        if (event.instrument === 'cymbal') {
+          drawCymbalIcon(ctx, vertex.x + offsetX, vertex.y, size * 1.35);
+        } else {
+          drawCenteredVoiceSymbol(
+            ctx,
+            getRiffVoiceSymbol(event.instrument),
+            vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : 0),
+            vertex.y,
+          );
+        }
+        ctx.restore();
+      });
+
+    const subdivisionVoiceEvents = (currentStudy.voiceEvents ?? []).filter(
+      (event) => event.surface === 'subdivision',
+    );
+    subdivisionVoiceEvents.forEach((event) => {
+      const point = riffPoints[event.index];
+      if (!point) return;
+      const siblings = subdivisionVoiceEvents.filter((candidate) => candidate.index === event.index);
+      const siblingIndex = siblings.findIndex((candidate) => candidate === event);
+      const offsetX = (siblingIndex - (siblings.length - 1) / 2) * 18 * pointScale;
+      const active = innerClockMotionVisible && currentRiffStep === event.index;
+      const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
+      const size = 18 * pointScale * (event.instrument === 'snare' ? 1.05 : 1);
+      const nativeRiffBloomActive = (riffAttackUntilRef.current[event.index] ?? 0) > now;
+      const impactRemaining = nativeRiffBloomActive
+        ? 0
+        : Math.max(
+            0,
+            ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
+          );
+      drawVoiceImpactBloom(
+        ctx,
+        point.x + offsetX,
+        point.y,
+        impactRemaining,
+        pointScale,
+        event.instrument === 'cymbal' ? 'rgba(255,209,102,0.96)' : `${activeRiffColor}E8`,
+      );
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.shadowBlur = (active ? 20 : editing ? 13 : 7) * glowMultiplier * pointScale;
+      ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.9)' : `${activeRiffColor}AA`;
+      if (event.instrument === 'cymbal') {
+        drawCymbalIcon(ctx, point.x + offsetX, point.y, size * 1.35);
+      } else {
+        drawCenteredVoiceSymbol(
+          ctx,
+          getRiffVoiceSymbol(event.instrument),
+          point.x + offsetX + (event.instrument === 'snare' ? pointScale : 0),
+          point.y,
+        );
+      }
+      ctx.restore();
+    });
 
     if (metrics.timelineRect) {
       const compactMobileTimeline = isMobileRef.current;
@@ -2740,6 +2942,24 @@ export default function RiffCycleCanvas({
           currentStudy,
           currentAbsoluteReferenceStep,
         );
+        const voiceImpactNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
+        const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
+        const beatIndex = Math.floor(
+          (((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) /
+            Math.max(1, stepsPerBeat),
+        );
+        (currentStudy.voiceEvents ?? []).forEach((event) => {
+          const shouldImpact =
+            (event.surface === 'beat' && referenceBeatStart && event.index === beatIndex) ||
+            (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);
+          if (shouldImpact) {
+            voiceImpactUntilRef.current.set(getVoiceImpactKey(event), voiceImpactNow + 260);
+            if (audioEnabledRef.current && currentStudy.soundEnabled) {
+              triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex);
+            }
+          }
+        });
         if (riffStepState.active) {
           const attackUntil =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
@@ -2879,6 +3099,7 @@ export default function RiffCycleCanvas({
         barMarkerFlashUntilRef.current = 0;
         barMarkerFlashStepRef.current = null;
         riffAttackUntilRef.current = [];
+        voiceImpactUntilRef.current.clear();
         laneAttackUntilRef.current = 0;
         laneAttackReferenceStepRef.current = null;
         studyRef.current = {
@@ -3087,6 +3308,23 @@ export default function RiffCycleCanvas({
     [],
   );
 
+  const findVoiceBeatHit = useCallback(
+    (
+      metrics: ReturnType<typeof getRiffCycleCanvasMetrics>,
+      x: number,
+      y: number,
+    ): number | null => {
+      for (let index = 0; index < metrics.referenceVertices.length; index += 1) {
+        const vertex = metrics.referenceVertices[index];
+        if (Math.hypot(x - vertex.x, y - vertex.y) <= (isMobileRef.current ? 34 : 24)) {
+          return index;
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
@@ -3113,6 +3351,15 @@ export default function RiffCycleCanvas({
       );
       const localX = event.clientX - rect.left;
       const localY = event.clientY - rect.top;
+      if (voiceEditModeRef.current && onToggleVoiceBeat) {
+        const voiceBeatHit = findVoiceBeatHit(metrics, localX, localY);
+        if (voiceBeatHit != null) {
+          onToggleVoiceBeat(voiceBeatHit);
+          onSelectStep(null);
+          clearPointerPaint(event);
+          return;
+        }
+      }
       const pulseHit = findPulseLayerHit(metrics, localX, localY);
       if (pulseHit != null && onTogglePulseLayerStep) {
         onTogglePulseLayerStep(pulseHit);
@@ -3136,6 +3383,13 @@ export default function RiffCycleCanvas({
 
       if (!hit || hit.stepIndex == null) {
         onSelectStep(null);
+        clearPointerPaint(event);
+        return;
+      }
+
+      if (voiceEditModeRef.current && onToggleVoiceSubdivision) {
+        onToggleVoiceSubdivision(hit.stepIndex);
+        onSelectStep(hit.stepIndex);
         clearPointerPaint(event);
         return;
       }
@@ -3237,8 +3491,11 @@ export default function RiffCycleCanvas({
       onToggleLandingAccent,
       onToggleMeterBeat,
       onTogglePulseLayerStep,
+      onToggleVoiceBeat,
+      onToggleVoiceSubdivision,
       findMeterBeatHit,
       findPulseLayerHit,
+      findVoiceBeatHit,
     ],
   );
 

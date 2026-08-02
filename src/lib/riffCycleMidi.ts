@@ -161,6 +161,13 @@ function getPulseLayerStepActive(study: RiffCycleStudy, referenceStep: number): 
   return study.pulseLayerSteps?.[stepIndex] ?? true;
 }
 
+function getDrumMidiNote(instrument: 'snare' | 'tom' | 'kick' | 'cymbal'): number {
+  if (instrument === 'kick') return 36;
+  if (instrument === 'snare') return 38;
+  if (instrument === 'tom') return 45;
+  return 49;
+}
+
 function getRiffCycleBoundarySteps(
   study: RiffCycleStudy,
   mode: RiffMidiExportMode,
@@ -200,6 +207,8 @@ export function buildRiffCycleMidiFile(
   const subdivisionNoteLengthTicks = Math.max(18, Math.floor(ticksPerStep * 0.34));
   const conductorEvents: TimedMidiEvent[] = [];
   const riffEvents: TimedMidiEvent[] = [createTrackNameEvent('Riff MIDI')];
+  const drumEvents: TimedMidiEvent[] = [createTrackNameEvent('Drums MIDI')];
+  const guitarEvents: TimedMidiEvent[] = [createTrackNameEvent('Guitar MIDI')];
   const metronomeEvents: TimedMidiEvent[] = [createTrackNameEvent('Metronome MIDI')];
   const subdivisionEvents: TimedMidiEvent[] = [createTrackNameEvent('Subdivision MIDI')];
   const cycleMarkerEvents: TimedMidiEvent[] = [createTrackNameEvent('Cycle Markers MIDI')];
@@ -346,6 +355,24 @@ export function buildRiffCycleMidiFile(
       const velocity = stepState.accented ? 116 : stepState.overridden ? 102 : 88;
       riffEvents.push(...createNoteEvents(tick, 0, midiNote, velocity, noteLengthTicks));
     }
+
+    const beatIndex = Math.floor(
+      (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / Math.max(1, stepsPerBeat),
+    );
+    (study.voiceEvents ?? []).forEach((event) => {
+      const shouldRender =
+        (event.surface === 'beat' && referenceStep % stepsPerBeat === 0 && event.index === beatIndex) ||
+        (event.surface === 'subdivision' && event.index === stepState.phraseIndex);
+      if (!shouldRender) return;
+      if (event.voice === 'drums' && event.instrument !== 'guitar') {
+        drumEvents.push(
+          ...createNoteEvents(tick, 9, getDrumMidiNote(event.instrument), 108, subdivisionNoteLengthTicks, 5),
+        );
+      } else if (event.voice === 'guitar') {
+        const guitarNote = clamp(52 + (stepState.phraseIndex % 8), 40, 76);
+        guitarEvents.push(...createNoteEvents(tick, 2, guitarNote, 96, noteLengthTicks, 5));
+      }
+    });
   }
 
   conductorEvents.push({
@@ -357,13 +384,15 @@ export function buildRiffCycleMidiFile(
   const header: number[] = [0x4d, 0x54, 0x68, 0x64];
   pushUint32(header, 6);
   pushUint16(header, 1);
-  pushUint16(header, 5);
+  pushUint16(header, 7);
   pushUint16(header, MIDI_PPQ);
 
   return new Uint8Array([
     ...header,
     ...buildTrackChunk(conductorEvents),
     ...buildTrackChunk(riffEvents),
+    ...buildTrackChunk(drumEvents),
+    ...buildTrackChunk(guitarEvents),
     ...buildTrackChunk(metronomeEvents),
     ...buildTrackChunk(subdivisionEvents),
     ...buildTrackChunk(cycleMarkerEvents),

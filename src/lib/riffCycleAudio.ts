@@ -9,6 +9,7 @@ import {
   isReferenceBeatStart,
   type RiffCycleSoundSettings,
   type RiffCycleStudy,
+  type RiffVoiceInstrument,
 } from './riffCycleStudy';
 
 let audioContext: AudioContext | null = null;
@@ -141,6 +142,82 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   }
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.06);
+}
+
+function connectInstrumentOutput(node: AudioNode, context: AudioContext, target?: VoiceTarget): void {
+  if (target?.outputToSpeakers ?? true) node.connect(context.destination);
+  if (target?.destination) node.connect(target.destination);
+  if (recordingDestination) node.connect(recordingDestination);
+}
+
+function triggerNoiseInstrument(
+  context: AudioContext,
+  atTime: number,
+  duration: number,
+  gain: number,
+  filterType: BiquadFilterType,
+  filterFrequency: number,
+  filterQ: number,
+  target?: VoiceTarget,
+): void {
+  const frameCount = Math.max(1, Math.ceil(context.sampleRate * duration));
+  const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let index = 0; index < frameCount; index += 1) {
+    const envelope = Math.pow(1 - index / frameCount, 2.2);
+    samples[index] = (Math.random() * 2 - 1) * envelope;
+  }
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gainNode = context.createGain();
+  source.buffer = buffer;
+  filter.type = filterType;
+  filter.frequency.setValueAtTime(filterFrequency, atTime);
+  filter.Q.setValueAtTime(filterQ, atTime);
+  gainNode.gain.setValueAtTime(Math.max(0.0001, gain), atTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, atTime + duration);
+  source.connect(filter);
+  filter.connect(gainNode);
+  connectInstrumentOutput(gainNode, context, target);
+  source.start(atTime);
+  source.stop(atTime + duration + 0.02);
+}
+
+export function triggerRiffVoiceInstrument(
+  instrument: RiffVoiceInstrument,
+  phraseIndex = 0,
+  atTime?: number,
+  target?: VoiceTarget,
+): void {
+  const context = target?.context ?? getAudioContext();
+  if (!context) return;
+  const now = atTime ?? context.currentTime;
+
+  if (instrument === 'kick') {
+    withVoice({ type: 'sine', frequency: 145, sweepTo: 44, gain: 0.18, attack: 0.001, release: 0.24, filterFrequency: 420, atTime: now }, target);
+    return;
+  }
+  if (instrument === 'tom') {
+    withVoice({ type: 'sine', frequency: 190, sweepTo: 92, gain: 0.13, attack: 0.002, release: 0.22, filterFrequency: 720, atTime: now }, target);
+    return;
+  }
+  if (instrument === 'snare') {
+    triggerNoiseInstrument(context, now, 0.16, 0.115, 'bandpass', 1850, 0.7, target);
+    withVoice({ type: 'triangle', frequency: 205, sweepTo: 132, gain: 0.045, attack: 0.001, release: 0.1, filterFrequency: 620, atTime: now }, target);
+    return;
+  }
+  if (instrument === 'cymbal') {
+    triggerNoiseInstrument(context, now, 0.46, 0.075, 'highpass', 5200, 0.45, target);
+    [1, 1.342, 1.731].forEach((ratio, index) => {
+      withVoice({ type: 'square', frequency: 3260 * ratio, gain: 0.012 - index * 0.002, attack: 0.001, release: 0.28 + index * 0.05, filterFrequency: 7600, filterType: 'highpass', atTime: now }, target);
+    });
+    return;
+  }
+
+  const guitarMidi = 52 + (Math.max(0, phraseIndex) % 8);
+  const guitarFrequency = midiToFrequency(guitarMidi);
+  withVoice({ type: 'sawtooth', frequency: guitarFrequency, gain: 0.075, attack: 0.002, release: 0.32, filterFrequency: 1450, filterQ: 1.1, sweepTo: guitarFrequency * 0.985, atTime: now }, target);
+  withVoice({ type: 'triangle', frequency: guitarFrequency * 2, gain: 0.025, attack: 0.001, release: 0.2, filterFrequency: 2400, filterType: 'bandpass', atTime: now }, target);
 }
 
 function triggerArchitecturalRiff(
@@ -506,6 +583,20 @@ export function createRiffCycleExportAudioStream(
         target,
       });
     }
+
+    const stepsPerBar = getReferenceStepsPerBar(study.reference);
+    const stepsPerBeat = Math.max(1, Math.round(stepsPerBar / Math.max(1, study.reference.numerator)));
+    const beatIndex = Math.floor(
+      (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / stepsPerBeat,
+    );
+    (study.voiceEvents ?? []).forEach((event) => {
+      const shouldPlay =
+        (event.surface === 'beat' && isReferenceBeatStart(study, referenceStep) && event.index === beatIndex) ||
+        (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);
+      if (study.soundEnabled && shouldPlay) {
+        triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, atTime, target);
+      }
+    });
 
     if (
       study.soundEnabled &&

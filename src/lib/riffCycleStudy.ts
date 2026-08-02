@@ -53,6 +53,16 @@ export type RiffPhraseResetMode =
 export type RiffSequenceCellLabel = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 export type RiffSequenceBarsMode = 'global' | 'per-cell';
 export type RiffSequenceEntryDurationMode = 'patterns' | 'bars';
+export type RiffVoiceId = 'drums' | 'guitar';
+export type RiffVoiceInstrument = 'snare' | 'tom' | 'kick' | 'cymbal' | 'guitar';
+export type RiffVoiceSurface = 'beat' | 'subdivision';
+
+export interface RiffVoiceEvent {
+  voice: RiffVoiceId;
+  instrument: RiffVoiceInstrument;
+  surface: RiffVoiceSurface;
+  index: number;
+}
 
 export interface RiffSequencePhrase {
   id: string;
@@ -143,6 +153,7 @@ export interface RiffCycleStudy {
   riffSequenceEntryRepeats: number[];
   riffSequenceEntryDurationModes: RiffSequenceEntryDurationMode[];
   riffSequencePhrases: RiffSequencePhrase[];
+  voiceEvents?: RiffVoiceEvent[];
   playing: boolean;
   soundEnabled: boolean;
   referenceSoundEnabled: boolean;
@@ -1132,6 +1143,7 @@ export function createRiffCycleStudy(
       riffSequence,
     ),
     riffSequencePhrases,
+    voiceEvents: (overrides.voiceEvents ?? []).map((event) => ({ ...event })),
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
@@ -1233,6 +1245,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       riffSequence,
     ),
     riffSequencePhrases,
+    voiceEvents: (study.voiceEvents ?? []).map((event) => ({ ...event })),
     showPhraseFill: study.showPhraseFill ?? true,
     showPhraseGroupings: Boolean(study.showPhraseGroupings),
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),

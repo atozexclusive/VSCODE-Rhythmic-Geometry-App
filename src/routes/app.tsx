@@ -206,6 +206,9 @@ import {
   type RiffPhrase,
   type RiffSequenceCellLabel,
   type RiffSequenceEntryDurationMode,
+  type RiffVoiceId,
+  type RiffVoiceInstrument,
+  type RiffVoiceSurface,
 } from '../lib/riffCycleStudy';
 import { resumeRiffCycleAudio } from '../lib/riffCycleAudio';
 import { buildRiffCycleMidiFile, type RiffMidiExportMode } from '../lib/riffCycleMidi';
@@ -213,6 +216,21 @@ import { buildPolyrhythmMidiFile, type PolyrhythmMidiExportMode } from '../lib/p
 import { buildOrbitMidiFile } from '../lib/orbitMidi';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import type { VideoExportAspect, VideoExportDuration } from '../lib/videoExport';
+
+const RIFF_VOICE_SYMBOLS: Record<RiffVoiceInstrument, string> = {
+  snare: '🥁',
+  tom: '🪘',
+  kick: '🦶',
+  cymbal: '',
+  guitar: '🎸',
+};
+
+function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: RiffVoiceInstrument; className?: string }) {
+  if (instrument === 'cymbal') {
+    return <img src="/cymbal.png" alt="Cymbal" className={`${className} inline-block object-contain`} />;
+  }
+  return <>{RIFF_VOICE_SYMBOLS[instrument]}</>;
+}
 import {
   CANVAS_ATMOSPHERE_OPTIONS,
   CANVAS_DISPLAY_THEME_OPTIONS,
@@ -7568,6 +7586,10 @@ function OrbitalPolymeter() {
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
   const [riffDesktopEditTab, setRiffDesktopEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
   const [riffOverlayEditMode, setRiffOverlayEditMode] = useState(false);
+  const [riffVoicesOpen, setRiffVoicesOpen] = useState(false);
+  const [activeRiffVoice, setActiveRiffVoice] = useState<'riff' | RiffVoiceId>('riff');
+  const [selectedRiffVoiceInstrument, setSelectedRiffVoiceInstrument] =
+    useState<RiffVoiceInstrument>('snare');
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
@@ -9301,6 +9323,55 @@ function OrbitalPolymeter() {
     }
     setSelectedRiffCycleStep(null);
   }, [riffCycleStudy]);
+
+  const handleToggleRiffVoiceEvent = useCallback((surface: RiffVoiceSurface, index: number) => {
+    if (activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) {
+      return;
+    }
+    const instrument: RiffVoiceInstrument =
+      activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
+    setRiffCycleStudy((current) => {
+      const currentEvents = current.voiceEvents ?? [];
+      const existingIndex = currentEvents.findIndex(
+        (event) =>
+          event.voice === activeRiffVoice &&
+          event.instrument === instrument &&
+          event.surface === surface &&
+          event.index === index,
+      );
+      const voiceEvents =
+        existingIndex >= 0
+          ? currentEvents.filter((_, eventIndex) => eventIndex !== existingIndex)
+          : [...currentEvents, { voice: activeRiffVoice, instrument, surface, index }];
+      return { ...current, voiceEvents };
+    });
+  }, [activeRiffVoice, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
+
+  const handleToggleRiffVoiceBeat = useCallback(
+    (beatIndex: number) => handleToggleRiffVoiceEvent('beat', beatIndex),
+    [handleToggleRiffVoiceEvent],
+  );
+
+  const handleToggleRiffVoiceSubdivision = useCallback(
+    (stepIndex: number) => handleToggleRiffVoiceEvent('subdivision', stepIndex),
+    [handleToggleRiffVoiceEvent],
+  );
+
+  const handleClearActiveRiffVoice = useCallback(() => {
+    if (activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) return;
+    setRiffCycleStudy((current) => ({
+      ...current,
+      voiceEvents: (current.voiceEvents ?? []).filter(
+        (event) =>
+          !(
+            event.voice === activeRiffVoice &&
+            event.surface === 'subdivision' &&
+            (activeRiffVoice !== 'drums' || event.instrument === selectedRiffVoiceInstrument)
+          ),
+      ),
+    }));
+    setSelectedRiffCycleStep(null);
+  }, [activeRiffVoice, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
 
   const handleRemoveLastRiffSequenceCell = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
@@ -13978,9 +14049,33 @@ function OrbitalPolymeter() {
   const riffEditableActiveSteps = riffSelectedSequenceCell?.activeSteps ?? riffCycleStudy.riff.activeSteps;
   const riffEditableAccents = riffSelectedSequenceCell?.accents ?? riffCycleStudy.riff.accents;
   const riffEditableColor = riffSelectedSequenceCell?.color ?? riffCycleStudy.riff.color;
+  const riffVoiceActiveSteps = Array.from({ length: riffEditableStepCount }, (_, index) =>
+    activeRiffVoice !== 'riff' &&
+    (riffCycleStudy.voiceEvents ?? []).some(
+      (event) =>
+        event.voice === activeRiffVoice &&
+        event.surface === 'subdivision' &&
+        event.index === index &&
+        (activeRiffVoice !== 'drums' || event.instrument === selectedRiffVoiceInstrument),
+    ),
+  );
+  const riffRollActiveSteps = activeRiffVoice === 'riff' ? riffEditableActiveSteps : riffVoiceActiveSteps;
+  const riffRollAccents = activeRiffVoice === 'riff'
+    ? riffEditableAccents
+    : Array.from({ length: riffEditableStepCount }, () => false);
+  const riffRollColor = activeRiffVoice === 'drums'
+    ? '#B6A0FF'
+    : activeRiffVoice === 'guitar'
+      ? '#72E6B1'
+      : riffEditableColor;
   const riffEditableLabel = riffSelectedSequenceCell
     ? `Cell ${riffSelectedSequenceCell.label}`
     : 'Riff';
+  const riffRollLabel = activeRiffVoice === 'drums'
+    ? 'Drum'
+    : activeRiffVoice === 'guitar'
+      ? 'Guitar'
+      : riffEditableLabel;
   const riffCellBackbeatEditingActive = Boolean(
     RIFF_CELL_SEQUENCE_FEATURE_ENABLED &&
     riffCycleStudy.riffSequenceEnabled &&
@@ -19773,6 +19868,8 @@ function OrbitalPolymeter() {
                 presentationMode={presentationMode}
                 audioEnabled={!muted}
                 overlayEditMode={riffOverlayEditMode && riffMobilePhrasePanelActive}
+                voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
+                selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
                 selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
                 onReferenceStepChange={handleRiffMobileReferenceStepChange}
                 onSelectStep={handleSelectRiffCycleStep}
@@ -19791,6 +19888,8 @@ function OrbitalPolymeter() {
                 onAddDetachedNote={handleAddRiffDetachedNote}
                 onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                 onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
+                onToggleVoiceBeat={handleToggleRiffVoiceBeat}
+                onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
                 onToggleLandingAccent={handleToggleRiffLandingAccent}
                 className="absolute inset-0 h-full w-full"
@@ -20102,6 +20201,121 @@ function OrbitalPolymeter() {
 	                      Audio
 	                    </StudyShellButton>
 	                  </div>
+                </div>
+
+                <div className="hidden">
+                  <StudyShellButton
+                    tone="neutral"
+                    highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
+                    icon={<span className="text-[14px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                    onClick={() => setRiffVoicesOpen((open) => !open)}
+                    className="w-full"
+                  >
+                    Voices
+                  </StudyShellButton>
+                  {riffVoicesOpen ? (
+                    <div className="space-y-3 rounded-2xl border border-[#B6A0FF]/20 bg-[#B6A0FF]/[0.045] p-3">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {([
+                          ['riff', 'Riff', '◆'],
+                          ['drums', 'Drums', '🥁'],
+                          ['guitar', 'Guitar', '🎸'],
+                        ] as const).map(([voice, label, symbol]) => (
+                          <button
+                            key={`mobile-voice-${voice}`}
+                            type="button"
+                            onClick={() => {
+                              setActiveRiffVoice(voice);
+                              if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                            }}
+                            className="rounded-xl border px-2 py-2.5 text-center"
+                            style={{
+                              borderColor: activeRiffVoice === voice ? 'rgba(182,160,255,0.5)' : 'rgba(255,255,255,0.08)',
+                              background: activeRiffVoice === voice ? 'rgba(182,160,255,0.14)' : 'rgba(255,255,255,0.025)',
+                              color: activeRiffVoice === voice ? '#D1C5FF' : 'rgba(255,255,255,0.48)',
+                            }}
+                          >
+                            <span className="block text-[18px] leading-none">{symbol}</span>
+                            <span className="mt-1 block text-[8px] font-mono uppercase tracking-[0.1em]">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {activeRiffVoice === 'drums' ? (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {([
+                            ['snare', 'Snare', '🥁'],
+                            ['tom', 'Tom', '🪘'],
+                            ['kick', 'Kick', '🦶'],
+                            ['cymbal', 'Cymbal', ''],
+                          ] as const).map(([instrument, label, symbol]) => (
+                            <button
+                              key={`mobile-instrument-${instrument}`}
+                              type="button"
+                              onClick={() => setSelectedRiffVoiceInstrument(instrument)}
+                              className="rounded-lg border px-1 py-2 text-center"
+                              style={{
+                                borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.5)' : 'rgba(255,255,255,0.08)',
+                                background: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.025)',
+                                color: selectedRiffVoiceInstrument === instrument ? '#FFD166' : 'rgba(255,255,255,0.48)',
+                              }}
+                            >
+                              <span className="flex h-[17px] items-center justify-center text-[17px] leading-none">
+                                {instrument === 'cymbal' ? <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" /> : symbol}
+                              </span>
+                              <span className="mt-1 block text-[7px] font-mono uppercase tracking-[0.07em]">{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                      {activeRiffVoice !== 'riff' ? (
+                        <div className="space-y-2 rounded-xl border border-white/8 bg-black/20 p-2">
+                          {([
+                            ['Beats', 'beat', riffCycleStudy.reference.numerator],
+                            ['Subdivisions', 'subdivision', riffEditableStepCount],
+                          ] as const).map(([label, surface, count]) => (
+                            <div key={`mobile-${surface}`}>
+                              <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">{label}</div>
+                              <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                                {Array.from({ length: count }, (_, index) => {
+                                  const events = (riffCycleStudy.voiceEvents ?? []).filter(
+                                    (event) => event.voice === activeRiffVoice && event.surface === surface && event.index === index,
+                                  );
+                                  return (
+                                    <button
+                                      key={`mobile-${surface}-${index}`}
+                                      type="button"
+                                      onClick={() => handleToggleRiffVoiceEvent(surface, index)}
+                                      className="flex h-10 min-w-10 shrink-0 flex-col items-center justify-center rounded-lg border"
+                                      style={{
+                                        borderColor: events.length ? 'rgba(182,160,255,0.44)' : 'rgba(255,255,255,0.08)',
+                                        background: events.length ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.025)',
+                                      }}
+                                    >
+                                      <span className="flex max-w-9 items-center justify-center gap-0.5 truncate text-[12px] leading-none">
+                                        {events.length
+                                          ? events.map((event, eventIndex) => (
+                                              <RiffVoiceGlyph
+                                                key={`${event.instrument}-${eventIndex}`}
+                                                instrument={event.instrument}
+                                                className="h-4 w-4"
+                                              />
+                                            ))
+                                          : '·'}
+                                      </span>
+                                      <span className="mt-0.5 text-[6px] font-mono text-white/32">{index + 1}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                          <div className="text-[8px] leading-snug text-[#9FDEFF]/60">
+                            You can also tap the outer beat nodes or inner riff nodes directly on the canvas.
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div data-guide="riff-mobile-tempo" className="space-y-2">
@@ -20646,7 +20860,7 @@ function OrbitalPolymeter() {
                             <div className="flex items-center justify-between gap-3">
                               <InlineInfoLabel
                                 infoId="riff_steps"
-                                label={`${riffEditableLabel} Steps`}
+                                label={`${riffRollLabel} Steps`}
                                 labelClassName={mobileRiffMenuTitleClass}
                                 labelStyle={mobileRiffWhiteTitleStyle}
                               />
@@ -20709,18 +20923,26 @@ function OrbitalPolymeter() {
                           </div>
                           <div className="mt-3">
                             <RiffRollEditor
-                              activeSteps={riffEditableActiveSteps}
-                              accents={riffEditableAccents}
-                              color={riffEditableColor}
+                              activeSteps={riffRollActiveSteps}
+                              accents={riffRollAccents}
+                              color={riffRollColor}
 	                              selectedStepIndex={selectedRiffCycleStep}
 	                              labelPrefix="riff"
 	                              onPressStep={(stepIndex) => {
-	                                handleSetRiffEditMode('phrase');
 	                                handleSelectRiffCycleStep(stepIndex);
-	                                handleToggleRiffCycleStep(stepIndex);
+                                  if (activeRiffVoice === 'riff') {
+	                                  handleSetRiffEditMode('phrase');
+	                                  handleToggleRiffCycleStep(stepIndex);
+                                  } else {
+                                    handleToggleRiffVoiceSubdivision(stepIndex);
+                                  }
                                   recordTutorialEvent('riff-editor-toggle-step');
 	                              }}
 	                              onLongPressStep={(stepIndex) => {
+	                                if (activeRiffVoice !== 'riff') {
+                                    handleToggleRiffVoiceSubdivision(stepIndex);
+                                    return;
+                                  }
 	                                handleSetRiffEditMode('phrase');
 	                                handleSelectRiffCycleStep(stepIndex);
 	                                if (!riffEditableActiveSteps[stepIndex]) {
@@ -20735,14 +20957,111 @@ function OrbitalPolymeter() {
                             <StudyShellButton
                               size="compact"
                               tone="red"
-                              highlighted={riffEditableActiveSteps.some(Boolean)}
+                              highlighted={riffRollActiveSteps.some(Boolean)}
                               icon={<Trash2 size={13} />}
-                              onClick={handleClearRiffCycle}
+                              onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
                               className="w-full"
                             >
                               Clear Hits
                             </StudyShellButton>
                           </div>
+                          <div className="mt-2">
+                            <StudyShellButton
+                              size="compact"
+                              tone="blue"
+                              highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
+                              onClick={() =>
+                                setRiffVoicesOpen((open) => {
+                                  if (open) {
+                                    setActiveRiffVoice('riff');
+                                    setSelectedRiffCycleStep(null);
+                                  }
+                                  return !open;
+                                })
+                              }
+                              icon={<span className="text-[12px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                              className="w-full"
+                            >
+                              Voices
+                            </StudyShellButton>
+                          </div>
+                          {riffVoicesOpen ? (
+                          <div className="mt-2 grid grid-cols-3 gap-1.5">
+                            {([
+                              ['riff', 'Riff', '◆'],
+                              ['drums', 'Drums', '🥁'],
+                              ['guitar', 'Guitar', '🎸'],
+                            ] as const).map(([voice, label, symbol]) => (
+                              <StudyShellButton
+                                key={`pattern-roll-${voice}`}
+                                size="compact"
+                                tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
+                                highlighted={activeRiffVoice === voice}
+                                onClick={() => {
+                                  setActiveRiffVoice(voice);
+                                  if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                                  setSelectedRiffCycleStep(null);
+                                }}
+                                icon={<span className="text-[12px]">{symbol}</span>}
+                                className="min-w-0"
+                              >
+                                {label}
+                              </StudyShellButton>
+                            ))}
+                          </div>
+                          ) : null}
+                          {riffVoicesOpen && activeRiffVoice === 'drums' ? (
+                            <div className="mt-2 grid grid-cols-4 gap-1.5">
+                              {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
+                                <button
+                                  key={`pattern-roll-instrument-${instrument}`}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedRiffVoiceInstrument(instrument);
+                                    setSelectedRiffCycleStep(null);
+                                  }}
+                                  className="flex h-9 items-center justify-center rounded-lg border"
+                                  style={{
+                                    borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.62)' : 'rgba(255,255,255,0.09)',
+                                    background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
+                                  }}
+                                  aria-label={`Select ${instrument}`}
+                                >
+                                  <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                          {riffVoicesOpen && activeRiffVoice !== 'riff' ? (
+                            <div className="mt-2 rounded-xl border border-white/8 bg-black/15 p-2">
+                              <div className="mb-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/40">
+                                Quarter Notes
+                              </div>
+                              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${riffCycleStudy.reference.numerator}, minmax(0, 1fr))` }}>
+                                {Array.from({ length: riffCycleStudy.reference.numerator }, (_, beatIndex) => {
+                                  const instrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
+                                  const active = (riffCycleStudy.voiceEvents ?? []).some(
+                                    (event) => event.voice === activeRiffVoice && event.instrument === instrument && event.surface === 'beat' && event.index === beatIndex,
+                                  );
+                                  return (
+                                    <button
+                                      key={`pattern-roll-quarter-${beatIndex}`}
+                                      type="button"
+                                      onClick={() => handleToggleRiffVoiceBeat(beatIndex)}
+                                      className="flex h-10 flex-col items-center justify-center rounded-lg border"
+                                      style={{
+                                        borderColor: active ? 'rgba(182,160,255,0.58)' : 'rgba(255,255,255,0.09)',
+                                        background: active ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
+                                      }}
+                                    >
+                                      {active ? <RiffVoiceGlyph instrument={instrument} className="h-4 w-4" /> : <span className="text-white/22">·</span>}
+                                      <span className="mt-0.5 text-[6px] font-mono text-white/36">{beatIndex + 1}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
 	                        </div>
 
                         <div data-guide="riff-mobile-lane-settings" className="rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
@@ -22131,12 +22450,16 @@ function OrbitalPolymeter() {
                             presentationMode
                             selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
                             audioEnabled={!muted}
+                            voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
+                            selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
                             onSelectStep={handleSelectRiffCycleStep}
                             onSetStepActive={handleSetRiffCycleStepActive}
                             onToggleAccent={handleToggleRiffCycleAccent}
                             onAddDetachedNote={handleAddRiffDetachedNote}
                             onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
+                            onToggleVoiceBeat={handleToggleRiffVoiceBeat}
+                            onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
                             onSetLandingStepActive={handleSetRiffLandingStepActive}
                             onToggleLandingAccent={handleToggleRiffLandingAccent}
                             className="absolute inset-0 h-full w-full"
@@ -22520,6 +22843,8 @@ function OrbitalPolymeter() {
             displaySettings={canvasDisplayState.riff}
             presentationMode={presentationMode}
             audioEnabled={!muted}
+            voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
+            selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
             onReferenceStepChange={isMobile ? handleRiffMobileReferenceStepChange : undefined}
             selectedStep={selectedRiffCycleStep}
             restartToken={riffCycleRestartToken}
@@ -22529,6 +22854,8 @@ function OrbitalPolymeter() {
             onToggleAccent={handleToggleRiffCycleAccent}
             onToggleMeterBeat={handleToggleRiffBackbeatBeat}
             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
+            onToggleVoiceBeat={handleToggleRiffVoiceBeat}
+            onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
             onSetLandingStepActive={handleSetRiffLandingStepActive}
             onToggleLandingAccent={handleToggleRiffLandingAccent}
           />
@@ -24514,6 +24841,8 @@ function OrbitalPolymeter() {
                   presentationMode
                   audioEnabled={!muted}
                   overlayEditMode={riffOverlayEditMode && riffDesktopEditTab === 'phrase'}
+                  voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
+                  selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
                   selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
                   onSelectStep={handleSelectRiffCycleStep}
                   onSetStepActive={(stepIndex, active) => {
@@ -24531,6 +24860,8 @@ function OrbitalPolymeter() {
                   onAddDetachedNote={handleAddRiffDetachedNote}
                   onToggleMeterBeat={handleToggleRiffBackbeatBeat}
                   onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
+                  onToggleVoiceBeat={handleToggleRiffVoiceBeat}
+                  onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
                   onToggleLandingAccent={handleToggleRiffLandingAccent}
                   className="absolute inset-0 h-full w-full"
@@ -24932,9 +25263,9 @@ function OrbitalPolymeter() {
                       </div>
                     <div data-guide="riff-editor-roll">
                       <RiffRollEditor
-                        activeSteps={riffEditableActiveSteps}
-                        accents={riffEditableAccents}
-                        color={riffEditableColor}
+                        activeSteps={riffRollActiveSteps}
+                        accents={riffRollAccents}
+                        color={riffRollColor}
                         selectedStepIndex={selectedRiffCycleStep}
                         labelPrefix="riff-desktop"
                         compact
@@ -24943,16 +25274,22 @@ function OrbitalPolymeter() {
                         overlaySteps={riffOverlaySteps}
                         overlaySoundAndImpact={riffOverlaySoundAndImpact}
                         onPressStep={(stepIndex) => {
-                          handleSetRiffEditMode('phrase');
                           handleSelectRiffCycleStep(stepIndex);
-                          if (riffOverlayEditMode) {
+                          if (activeRiffVoice !== 'riff') {
+                            handleToggleRiffVoiceSubdivision(stepIndex);
+                          } else if (riffOverlayEditMode) {
                             handleToggleRiffOverlayStep(stepIndex);
                           } else {
+                            handleSetRiffEditMode('phrase');
                             handleToggleRiffCycleStep(stepIndex);
                           }
                           recordTutorialEvent('riff-editor-toggle-step');
                         }}
                         onLongPressStep={(stepIndex) => {
+                          if (activeRiffVoice !== 'riff') {
+                            handleToggleRiffVoiceSubdivision(stepIndex);
+                            return;
+                          }
                           handleSetRiffEditMode('phrase');
                           handleSelectRiffCycleStep(stepIndex);
                           if (riffOverlayEditMode) {
@@ -25042,14 +25379,110 @@ function OrbitalPolymeter() {
                       <StudyShellButton
                         size="compact"
                         tone="red"
-                        highlighted={riffEditableActiveSteps.some(Boolean)}
+                        highlighted={riffRollActiveSteps.some(Boolean)}
                         icon={<Trash2 size={13} />}
-                        onClick={handleClearRiffCycle}
+                        onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
                         className="!h-7 rounded-lg px-2"
                       >
                         Clear
                       </StudyShellButton>
                     </div>
+                    <div className="mt-1.5 border-t border-white/6 pt-1.5">
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
+                        onClick={() =>
+                          setRiffVoicesOpen((open) => {
+                            if (open) {
+                              setActiveRiffVoice('riff');
+                              setSelectedRiffCycleStep(null);
+                            }
+                            return !open;
+                          })
+                        }
+                        icon={<span className="text-[11px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                        className="w-full"
+                      >
+                        Voices
+                      </StudyShellButton>
+                    </div>
+                    {riffVoicesOpen ? (
+                    <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                      {([
+                        ['riff', 'Riff', '◆'],
+                        ['drums', 'Drums', '🥁'],
+                        ['guitar', 'Guitar', '🎸'],
+                      ] as const).map(([voice, label, symbol]) => (
+                        <StudyShellButton
+                          key={`desktop-pattern-roll-${voice}`}
+                          size="compact"
+                          tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
+                          highlighted={activeRiffVoice === voice}
+                          onClick={() => {
+                            setActiveRiffVoice(voice);
+                            if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                            setSelectedRiffCycleStep(null);
+                          }}
+                          icon={<span className="text-[11px]">{symbol}</span>}
+                        >
+                          {label}
+                        </StudyShellButton>
+                      ))}
+                    </div>
+                    ) : null}
+                    {riffVoicesOpen && activeRiffVoice === 'drums' ? (
+                      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+                        {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
+                          <button
+                            key={`desktop-pattern-roll-instrument-${instrument}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedRiffVoiceInstrument(instrument);
+                              setSelectedRiffCycleStep(null);
+                            }}
+                            className="flex h-8 items-center justify-center rounded-lg border"
+                            style={{
+                              borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.62)' : 'rgba(255,255,255,0.09)',
+                              background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
+                            }}
+                            aria-label={`Select ${instrument}`}
+                          >
+                            <RiffVoiceGlyph instrument={instrument} className="h-5 w-5" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {riffVoicesOpen && activeRiffVoice !== 'riff' ? (
+                      <div className="mt-1.5 rounded-lg border border-white/8 bg-black/15 p-1.5">
+                        <div className="mb-1 text-[7px] font-mono uppercase tracking-[0.14em] text-white/38">
+                          Quarter Notes
+                        </div>
+                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${riffCycleStudy.reference.numerator}, minmax(0, 1fr))` }}>
+                          {Array.from({ length: riffCycleStudy.reference.numerator }, (_, beatIndex) => {
+                            const instrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
+                            const active = (riffCycleStudy.voiceEvents ?? []).some(
+                              (event) => event.voice === activeRiffVoice && event.instrument === instrument && event.surface === 'beat' && event.index === beatIndex,
+                            );
+                            return (
+                              <button
+                                key={`desktop-pattern-roll-quarter-${beatIndex}`}
+                                type="button"
+                                onClick={() => handleToggleRiffVoiceBeat(beatIndex)}
+                                className="flex h-8 flex-col items-center justify-center rounded-md border"
+                                style={{
+                                  borderColor: active ? 'rgba(182,160,255,0.58)' : 'rgba(255,255,255,0.09)',
+                                  background: active ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
+                                }}
+                              >
+                                {active ? <RiffVoiceGlyph instrument={instrument} className="h-3.5 w-3.5" /> : <span className="text-white/22">·</span>}
+                                <span className="text-[5px] font-mono text-white/34">{beatIndex + 1}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                     </div>
                   </>
                 ) : (
@@ -25419,6 +25852,156 @@ function OrbitalPolymeter() {
                     </StudyShellButton>
                   </>
                 ) : null}
+                <div className="hidden">
+                  {riffVoicesOpen ? (
+                    <StudyShellPanel
+                      className="absolute bottom-[calc(100%+0.65rem)] right-0 z-40 w-[min(22rem,calc(100vw-2rem))] space-y-3 p-3"
+                      style={{
+                        borderColor: 'rgba(182,160,255,0.24)',
+                        background: 'linear-gradient(180deg, rgba(18,19,28,0.98), rgba(8,9,15,0.97))',
+                        boxShadow: '0 24px 70px rgba(0,0,0,0.58), 0 0 34px rgba(182,160,255,0.12)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#B6A0FF]">
+                            Voices
+                          </div>
+                          <div className="mt-1 text-[9px] leading-snug text-white/38">
+                            Select a voice, then tap an outer beat or inner node.
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setRiffVoicesOpen(false)}
+                          className="h-7 rounded-lg border border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.12em] text-white/48"
+                        >
+                          Done
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {([
+                          ['riff', 'Riff', '◆'],
+                          ['drums', 'Drums', '🥁'],
+                          ['guitar', 'Guitar', '🎸'],
+                        ] as const).map(([voice, label, symbol]) => (
+                          <button
+                            key={voice}
+                            type="button"
+                            onClick={() => {
+                              setActiveRiffVoice(voice);
+                              if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                            }}
+                            className="rounded-xl border px-2 py-2 text-center transition active:scale-[0.98]"
+                            style={{
+                              borderColor: activeRiffVoice === voice ? 'rgba(182,160,255,0.48)' : 'rgba(255,255,255,0.09)',
+                              background: activeRiffVoice === voice ? 'rgba(182,160,255,0.14)' : 'rgba(255,255,255,0.035)',
+                              color: activeRiffVoice === voice ? '#D1C5FF' : 'rgba(255,255,255,0.5)',
+                            }}
+                          >
+                            <span className="block text-[17px] leading-none">{symbol}</span>
+                            <span className="mt-1 block text-[8px] font-mono uppercase tracking-[0.1em]">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {activeRiffVoice === 'drums' ? (
+                        <div>
+                          <div className="mb-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/36">
+                            Drum sound
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {([
+                              ['snare', 'Snare', '🥁'],
+                              ['tom', 'Tom', '🪘'],
+                              ['kick', 'Kick', '🦶'],
+                              ['cymbal', 'Cymbal', ''],
+                            ] as const).map(([instrument, label, symbol]) => (
+                              <button
+                                key={instrument}
+                                type="button"
+                                onClick={() => setSelectedRiffVoiceInstrument(instrument)}
+                                className="rounded-lg border px-1 py-2 text-center transition"
+                                style={{
+                                  borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.46)' : 'rgba(255,255,255,0.08)',
+                                  background: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.025)',
+                                  color: selectedRiffVoiceInstrument === instrument ? '#FFD166' : 'rgba(255,255,255,0.48)',
+                                }}
+                              >
+                                <span className="flex h-4 items-center justify-center text-[16px] leading-none">
+                                  {instrument === 'cymbal' ? <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" /> : symbol}
+                                </span>
+                                <span className="mt-1 block text-[7px] font-mono uppercase tracking-[0.08em]">{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {activeRiffVoice !== 'riff' ? (
+                        <div className="space-y-2 rounded-xl border border-white/8 bg-black/20 p-2">
+                          {([
+                            ['Beats', 'beat', riffCycleStudy.reference.numerator],
+                            ['Subdivisions', 'subdivision', riffEditableStepCount],
+                          ] as const).map(([label, surface, count]) => (
+                            <div key={surface}>
+                              <div className="mb-1 text-[7.5px] font-mono uppercase tracking-[0.13em] text-white/34">
+                                {label}
+                              </div>
+                              <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+                                {Array.from({ length: count }, (_, index) => {
+                                  const events = (riffCycleStudy.voiceEvents ?? []).filter(
+                                    (event) =>
+                                      event.voice === activeRiffVoice &&
+                                      event.surface === surface &&
+                                      event.index === index,
+                                  );
+                                  return (
+                                    <button
+                                      key={`${surface}-${index}`}
+                                      type="button"
+                                      onClick={() => handleToggleRiffVoiceEvent(surface, index)}
+                                      className="flex h-9 min-w-9 shrink-0 flex-col items-center justify-center rounded-lg border transition active:scale-95"
+                                      style={{
+                                        borderColor: events.length > 0 ? 'rgba(182,160,255,0.42)' : 'rgba(255,255,255,0.08)',
+                                        background: events.length > 0 ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.025)',
+                                      }}
+                                      aria-label={`${events.length > 0 ? 'Edit' : 'Add'} ${activeRiffVoice} on ${label.toLowerCase()} ${index + 1}`}
+                                    >
+                                      <span className="flex max-w-8 items-center justify-center gap-0.5 truncate text-[11px] leading-none">
+                                        {events.length > 0
+                                          ? events.map((event, eventIndex) => (
+                                              <RiffVoiceGlyph
+                                                key={`${event.instrument}-${eventIndex}`}
+                                                instrument={event.instrument}
+                                                className="h-3.5 w-3.5"
+                                              />
+                                            ))
+                                          : '·'}
+                                      </span>
+                                      <span className="mt-0.5 text-[6px] font-mono text-white/32">{index + 1}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {activeRiffVoice !== 'riff' ? (
+                        <div className="rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] px-2.5 py-2 text-[8px] font-mono uppercase tracking-[0.1em] text-[#9FDEFF]/70">
+                          Outer shape = quarter-note beats · inner circle = riff subdivisions
+                        </div>
+                      ) : null}
+                    </StudyShellPanel>
+                  ) : null}
+                  <StudyShellButton
+                    tone="neutral"
+                    highlighted={activeRiffVoice !== 'riff'}
+                    icon={<span className="text-[14px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                    onClick={() => setRiffVoicesOpen((open) => !open)}
+                  >
+                    Voices
+                  </StudyShellButton>
+                </div>
                 <div className="relative">
                   {riffAudioPanelOpen ? (
                     <StudyShellPanel
