@@ -2808,6 +2808,43 @@ export function clearRiffSequencePhraseOrder(
   return trimRiffSequencePhraseOrder(study, phraseIndex, 0);
 }
 
+export function deleteRiffSequencePhrase(
+  study: RiffCycleStudy,
+  phraseIndex: number,
+): RiffCycleStudy {
+  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
+  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
+  const phrases = normalizeRiffSequencePhrases(study.riffSequencePhrases, sequence);
+  if (phrases.length <= 1 || phraseIndex < 0 || phraseIndex >= phrases.length) {
+    return study;
+  }
+  const phraseStart = phrases
+    .slice(0, phraseIndex)
+    .reduce((sum, phrase) => sum + phrase.entryCount, 0);
+  const phraseEnd = phraseStart + phrases[phraseIndex].entryCount;
+  const keepEntry = (_: unknown, index: number) => index < phraseStart || index >= phraseEnd;
+  const nextSequence = sequence.filter(keepEntry);
+  const sequenceBars = normalizeBars(
+    study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay,
+  );
+  const entryBars = normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars);
+  const entryRepeats = normalizeRiffSequenceEntryRepeats(study.riffSequenceEntryRepeats, sequence);
+  const entryDurationModes = normalizeRiffSequenceEntryDurationModes(
+    study.riffSequenceEntryDurationModes,
+    sequence,
+  );
+  const nextPhrases = phrases.filter((_, index) => index !== phraseIndex);
+  return {
+    ...study,
+    riffCells,
+    riffSequence: nextSequence,
+    riffSequenceEntryBars: entryBars.filter(keepEntry),
+    riffSequenceEntryRepeats: entryRepeats.filter(keepEntry),
+    riffSequenceEntryDurationModes: entryDurationModes.filter(keepEntry),
+    riffSequencePhrases: normalizeRiffSequencePhrases(nextPhrases, nextSequence),
+  };
+}
+
 export function resetRiffSequenceOrder(study: RiffCycleStudy): RiffCycleStudy {
   const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
   const sequence = normalizeRiffSequenceOrder([riffCells[0]?.label ?? 'A'], riffCells);

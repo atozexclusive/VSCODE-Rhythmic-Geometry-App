@@ -144,6 +144,7 @@ import {
   canEditRiffStep,
   clearRiffSequenceCellSteps,
   clearRiffSequencePhraseOrder,
+  deleteRiffSequencePhrase,
   clearLandingOverrides,
   clearRiffSteps,
   cloneRiffCycleStudy,
@@ -4100,6 +4101,7 @@ function RiffCellSequenceEditor({
   onAddCell,
   onAppendCell,
   onAddPhrase,
+  onDeletePhrase,
   onSetPhraseRepeats,
   onRemoveLastCell,
   onDeleteCell,
@@ -4130,6 +4132,7 @@ function RiffCellSequenceEditor({
   onAddCell: () => void;
   onAppendCell: (label: RiffSequenceCellLabel, phraseIndex?: number) => void;
   onAddPhrase: (label: RiffSequenceCellLabel) => void;
+  onDeletePhrase: (phraseIndex: number) => void;
   onSetPhraseRepeats: (phraseIndex: number, repeats: number) => void;
   onRemoveLastCell: () => void;
   onDeleteCell: (label: RiffSequenceCellLabel) => void;
@@ -4552,31 +4555,46 @@ function RiffCellSequenceEditor({
                           {phraseText}
                         </div>
                       </button>
-                      <label
-                        className="pointer-events-auto flex items-center overflow-hidden rounded-md border bg-white/[0.035]"
-                        style={{ borderColor: `${phraseColor}24` }}
-                      >
-                        <span className="px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
-                          x
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          max={RIFF_MAX_SEQUENCE_REPEATS}
-                          value={phrase.repeatCount}
-                          onFocus={(event) => event.currentTarget.select()}
-                          onChange={(event) =>
-                            onSetPhraseRepeats(
-                              phraseIndex,
-                              Number.parseInt(event.currentTarget.value, 10) || phrase.repeatCount,
-                            )
-                          }
-                          className="h-6 w-9 bg-transparent text-center text-[10px] font-mono outline-none"
-                          style={{ color: phraseColor }}
-                          aria-label={`Set Phrase ${phraseIndex + 1} repeats`}
-                        />
-                      </label>
+                      <div className="pointer-events-auto flex items-center gap-1">
+                        <label
+                          className="flex items-center overflow-hidden rounded-md border bg-white/[0.035]"
+                          style={{ borderColor: `${phraseColor}24` }}
+                        >
+                          <span className="px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
+                            x
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={RIFF_MAX_SEQUENCE_REPEATS}
+                            value={phrase.repeatCount}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) =>
+                              onSetPhraseRepeats(
+                                phraseIndex,
+                                Number.parseInt(event.currentTarget.value, 10) || phrase.repeatCount,
+                              )
+                            }
+                            className="h-6 w-9 bg-transparent text-center text-[10px] font-mono outline-none"
+                            style={{ color: phraseColor }}
+                            aria-label={`Set Phrase ${phraseIndex + 1} repeats`}
+                          />
+                        </label>
+                        {phraseRanges.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDeletePhrase(phraseIndex);
+                            }}
+                            aria-label={`Delete Phrase ${phraseIndex + 1}`}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-rose-400/18 bg-rose-400/[0.04] text-rose-300/45 transition hover:border-rose-400/35 hover:bg-rose-400/[0.09] hover:text-rose-300/85 active:scale-95"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="relative z-10 flex min-h-8 flex-wrap items-stretch gap-1 pointer-events-none">
@@ -9240,6 +9258,35 @@ function OrbitalPolymeter() {
     setRiffCycleStudy((current) => setRiffSequencePhraseRepeats(current, phraseIndex, repeats));
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
+
+  const handleDeleteRiffSequencePhrase = useCallback((phraseIndex: number) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    const phrases = getRiffSequencePhrases(riffCycleStudy);
+    if (phrases.length <= 1 || phraseIndex < 0 || phraseIndex >= phrases.length) {
+      return;
+    }
+    const phraseStart = phrases
+      .slice(0, phraseIndex)
+      .reduce((sum, phrase) => sum + phrase.entryCount, 0);
+    const phraseEnd = phraseStart + phrases[phraseIndex].entryCount;
+    const nextSequence = riffCycleStudy.riffSequence.filter(
+      (_, index) => index < phraseStart || index >= phraseEnd,
+    );
+    const nextPhrases = phrases.filter((_, index) => index !== phraseIndex);
+    const nextPhraseIndex = Math.min(phraseIndex, nextPhrases.length - 1);
+    const nextPhraseStart = nextPhrases
+      .slice(0, nextPhraseIndex)
+      .reduce((sum, phrase) => sum + phrase.entryCount, 0);
+    const nextCellLabel =
+      nextSequence[nextPhraseStart] ?? riffCycleStudy.riffCells[0]?.label ?? 'A';
+    setRiffCycleStudy((current) => deleteRiffSequencePhrase(current, phraseIndex));
+    setSelectedRiffSequencePhraseIndex(nextPhraseIndex);
+    setSelectedRiffSequenceCellLabel(nextCellLabel);
+    setSelectedRiffCycleStep(null);
+    setRiffCycleRestartToken((value) => value + 1);
+  }, [requireEditableRiffCycleStudy, riffCycleStudy]);
 
   const handleSelectRiffSequencePhrase = useCallback((phraseIndex: number) => {
     const phrases = getRiffSequencePhrases(riffCycleStudy);
@@ -20573,6 +20620,7 @@ function OrbitalPolymeter() {
                               onAddCell={handleAddRiffSequenceCell}
                               onAppendCell={handleAppendRiffSequenceCell}
                               onAddPhrase={handleAddRiffSequencePhrase}
+                              onDeletePhrase={handleDeleteRiffSequencePhrase}
                               onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onDeleteCell={handleDeleteRiffSequenceCell}
@@ -22990,6 +23038,7 @@ function OrbitalPolymeter() {
                     onAddCell={handleAddRiffSequenceCell}
                     onAppendCell={handleAppendRiffSequenceCell}
                     onAddPhrase={handleAddRiffSequencePhrase}
+                    onDeletePhrase={handleDeleteRiffSequencePhrase}
                     onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onDeleteCell={handleDeleteRiffSequenceCell}
@@ -24525,6 +24574,7 @@ function OrbitalPolymeter() {
                   onAddCell={handleAddRiffSequenceCell}
                   onAppendCell={handleAppendRiffSequenceCell}
                   onAddPhrase={handleAddRiffSequencePhrase}
+                  onDeletePhrase={handleDeleteRiffSequencePhrase}
                   onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
                   onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                   onDeleteCell={handleDeleteRiffSequenceCell}
