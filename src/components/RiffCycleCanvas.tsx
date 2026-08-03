@@ -145,59 +145,36 @@ interface LandingReferenceOverlayPoint {
   };
 }
 
-function getRiffVoiceSymbol(instrument: RiffVoiceInstrument): string {
-  switch (instrument) {
-    case 'snare':
-      return '🥁';
-    case 'tom':
-      return '🪘';
-    case 'kick':
-      return '🦶';
-    case 'guitar':
-      return '🎸';
-    case 'cymbal':
-      return '';
-  }
-}
+const voiceIconImages = new Map<RiffVoiceInstrument, HTMLImageElement>();
 
-let cymbalIconImage: HTMLImageElement | null = null;
-
-function getCymbalIconImage(): HTMLImageElement | null {
+function getVoiceIconImage(instrument: RiffVoiceInstrument): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null;
-  if (!cymbalIconImage) {
-    cymbalIconImage = new Image();
-    cymbalIconImage.src = '/cymbal.png';
+  let image = voiceIconImages.get(instrument);
+  if (!image) {
+    image = new Image();
+    image.src = `/voice-icons/${instrument}.png`;
+    voiceIconImages.set(instrument, image);
   }
-  return cymbalIconImage;
+  return image;
 }
 
-function drawCymbalIcon(
+function drawRiffVoiceIcon(
   ctx: CanvasRenderingContext2D,
+  instrument: RiffVoiceInstrument,
   x: number,
   y: number,
   size: number,
 ): void {
-  const image = getCymbalIconImage();
+  const image = getVoiceIconImage(instrument);
   if (image?.complete && image.naturalWidth > 0) {
     ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
     return;
   }
 
-  ctx.fillStyle = '#E7B84B';
+  ctx.fillStyle = instrument === 'cymbal' ? '#E7B84B' : '#7FD7FF';
   ctx.beginPath();
   ctx.arc(x, y, size * 0.34, 0, TAU);
   ctx.fill();
-}
-
-function drawCenteredVoiceSymbol(
-  ctx: CanvasRenderingContext2D,
-  symbol: string,
-  x: number,
-  y: number,
-): void {
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(symbol, x, y);
 }
 
 function getVoiceImpactKey(event: RiffVoiceEvent): string {
@@ -2294,21 +2271,15 @@ export default function RiffCycleCanvas({
           event.instrument === 'cymbal' ? 'rgba(255,209,102,0.96)' : 'rgba(127,215,255,0.92)',
         );
         ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
         ctx.shadowBlur = (6 + impactIntensity * 12 + (editing ? 4 : 0)) * glowMultiplier * shellScale;
         ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : 'rgba(127,215,255,0.58)';
-        if (event.instrument === 'cymbal') {
-          drawCymbalIcon(ctx, vertex.x + offsetX, vertex.y, size * 1.35);
-        } else {
-          drawCenteredVoiceSymbol(
-            ctx,
-            getRiffVoiceSymbol(event.instrument),
-            vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
-            vertex.y,
-          );
-        }
+        drawRiffVoiceIcon(
+          ctx,
+          event.instrument,
+          vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
+          vertex.y,
+          size * (event.instrument === 'cymbal' ? 1.35 : 1.22),
+        );
         ctx.restore();
       });
 
@@ -2347,16 +2318,13 @@ export default function RiffCycleCanvas({
       ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.shadowBlur = (5 + impactIntensity * 11 + (editing ? 4 : 0)) * glowMultiplier * pointScale;
       ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : `${activeRiffColor}92`;
-      if (event.instrument === 'cymbal') {
-        drawCymbalIcon(ctx, point.x + offsetX, point.y, size * 1.35);
-      } else {
-        drawCenteredVoiceSymbol(
-          ctx,
-          getRiffVoiceSymbol(event.instrument),
-          point.x + offsetX + (event.instrument === 'snare' ? pointScale : event.instrument === 'guitar' ? 4 * pointScale : 0),
-          point.y,
-        );
-      }
+      drawRiffVoiceIcon(
+        ctx,
+        event.instrument,
+        point.x + offsetX + (event.instrument === 'snare' ? pointScale : event.instrument === 'guitar' ? 4 * pointScale : 0),
+        point.y,
+        size * (event.instrument === 'cymbal' ? 1.35 : 1.22),
+      );
       ctx.restore();
     });
 
@@ -2401,16 +2369,13 @@ export default function RiffCycleCanvas({
       ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
       ctx.shadowBlur = (5 + impactIntensity * 11 + (editing ? 4 : 0)) * glowMultiplier * shellScale;
       ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : 'rgba(127,215,255,0.58)';
-      if (event.instrument === 'cymbal') {
-        drawCymbalIcon(ctx, point.x + offsetX, point.y, size * 1.35);
-      } else {
-        drawCenteredVoiceSymbol(
-          ctx,
-          getRiffVoiceSymbol(event.instrument),
-          point.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
-          point.y,
-        );
-      }
+      drawRiffVoiceIcon(
+        ctx,
+        event.instrument,
+        point.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
+        point.y,
+        size * (event.instrument === 'cymbal' ? 1.35 : 1.22),
+      );
       ctx.restore();
     });
 

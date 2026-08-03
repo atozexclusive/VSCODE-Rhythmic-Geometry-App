@@ -219,19 +219,19 @@ import { buildOrbitMidiFile } from '../lib/orbitMidi';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import type { VideoExportAspect, VideoExportDuration } from '../lib/videoExport';
 
-const RIFF_VOICE_SYMBOLS: Record<RiffVoiceInstrument, string> = {
-  snare: '🥁',
-  tom: '🪘',
-  kick: '🦶',
-  cymbal: '',
-  guitar: '🎸',
-};
-
 function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: RiffVoiceInstrument; className?: string }) {
-  if (instrument === 'cymbal') {
-    return <img src="/cymbal.png" alt="Cymbal" className={`${className} inline-block object-contain`} />;
-  }
-  return <>{RIFF_VOICE_SYMBOLS[instrument]}</>;
+  return (
+    <img
+      src={`/voice-icons/${instrument}.png`}
+      alt={`${instrument[0].toUpperCase()}${instrument.slice(1)}`}
+      className={`${className} inline-block object-contain`}
+    />
+  );
+}
+
+function RiffVoiceLayerGlyph({ voice, className = 'h-4 w-4' }: { voice: 'riff' | RiffVoiceId; className?: string }) {
+  if (voice === 'riff') return <span className="leading-none">◆</span>;
+  return <RiffVoiceGlyph instrument={voice === 'drums' ? 'snare' : 'guitar'} className={className} />;
 }
 
 const GUITAR_WHITE_KEY_OFFSETS = [0, 2, 4, 5, 7, 9, 11] as const;
@@ -20575,7 +20575,7 @@ function OrbitalPolymeter() {
                   <StudyShellButton
                     tone="neutral"
                     highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
-                    icon={<span className="text-[14px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                    icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
                     onClick={() => setRiffVoicesOpen((open) => !open)}
                     className="w-full"
                   >
@@ -20588,7 +20588,7 @@ function OrbitalPolymeter() {
                           ['riff', 'Riff', '◆'],
                           ['drums', 'Drums', '🥁'],
                           ['guitar', 'Guitar', '🎸'],
-                        ] as const).map(([voice, label, symbol]) => (
+                        ] as const).map(([voice, label]) => (
                           <button
                             key={`mobile-voice-${voice}`}
                             type="button"
@@ -20603,7 +20603,9 @@ function OrbitalPolymeter() {
                               color: activeRiffVoice === voice ? '#D1C5FF' : 'rgba(255,255,255,0.48)',
                             }}
                           >
-                            <span className="block text-[18px] leading-none">{symbol}</span>
+                            <span className="flex h-[18px] items-center justify-center">
+                              <RiffVoiceLayerGlyph voice={voice} className="h-6 w-6" />
+                            </span>
                             <span className="mt-1 block text-[8px] font-mono uppercase tracking-[0.1em]">{label}</span>
                           </button>
                         ))}
@@ -20615,7 +20617,7 @@ function OrbitalPolymeter() {
                             ['tom', 'Tom', '🪘'],
                             ['kick', 'Kick', '🦶'],
                             ['cymbal', 'Cymbal', ''],
-                          ] as const).map(([instrument, label, symbol]) => (
+                          ] as const).map(([instrument, label]) => (
                             <button
                               key={`mobile-instrument-${instrument}`}
                               type="button"
@@ -20628,7 +20630,7 @@ function OrbitalPolymeter() {
                               }}
                             >
                               <span className="flex h-[17px] items-center justify-center text-[17px] leading-none">
-                                {instrument === 'cymbal' ? <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" /> : symbol}
+                                <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" />
                               </span>
                               <span className="mt-1 block text-[7px] font-mono uppercase tracking-[0.07em]">{label}</span>
                             </button>
@@ -21355,7 +21357,7 @@ function OrbitalPolymeter() {
                                   return !open;
                                 });
                               }}
-                              icon={<span className="text-[12px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                              icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
                               className="w-full"
                             >
                               Voices
@@ -21367,7 +21369,7 @@ function OrbitalPolymeter() {
                               ['riff', 'Riff', '◆'],
                               ['drums', 'Drums', '🥁'],
                               ['guitar', 'Guitar', '🎸'],
-                            ] as const).map(([voice, label, symbol]) => (
+                            ] as const).map(([voice, label]) => (
                               <StudyShellButton
                                 key={`pattern-roll-${voice}`}
                                 size="compact"
@@ -21378,7 +21380,7 @@ function OrbitalPolymeter() {
                                   if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
                                   setSelectedRiffCycleStep(null);
                                 }}
-                                icon={<span className="text-[12px]">{symbol}</span>}
+                                icon={<RiffVoiceLayerGlyph voice={voice} className="h-5 w-5" />}
                                 className="min-w-0"
                               >
                                 {label}
@@ -23941,7 +23943,7 @@ function OrbitalPolymeter() {
                           return !open;
                         });
                       }}
-                      icon={<span className="text-[11px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                      icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
                       className="w-full"
                     >
                       Voices
@@ -23953,7 +23955,7 @@ function OrbitalPolymeter() {
                             ['riff', 'Riff', '◆'],
                             ['drums', 'Drums', '🥁'],
                             ['guitar', 'Guitar', '🎸'],
-                          ] as const).map(([voice, label, symbol]) => (
+                          ] as const).map(([voice, label]) => (
                             <StudyShellButton
                               key={`riff-quick-voice-${voice}`}
                               size="compact"
@@ -23964,7 +23966,7 @@ function OrbitalPolymeter() {
                                 if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
                                 setSelectedRiffCycleStep(null);
                               }}
-                              icon={<span className="text-[10px]">{symbol}</span>}
+                              icon={<RiffVoiceLayerGlyph voice={voice} className="h-5 w-5" />}
                               className="min-w-0 px-1 text-[7px]"
                             >
                               {label}
@@ -25481,7 +25483,7 @@ function OrbitalPolymeter() {
                       ['riff', 'Riff', '◆'],
                       ['drums', 'Drums', '🥁'],
                       ['guitar', 'Guitar', '🎸'],
-                    ] as const).map(([voice, label, symbol]) => (
+                    ] as const).map(([voice, label]) => (
                       <StudyShellButton
                         key={`desktop-focus-voice-${voice}`}
                         size="compact"
@@ -25499,7 +25501,7 @@ function OrbitalPolymeter() {
                           if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
                           setSelectedRiffCycleStep(null);
                         }}
-                        icon={<span className="text-[11px]">{symbol}</span>}
+                        icon={<RiffVoiceLayerGlyph voice={voice} className="h-5 w-5" />}
                         className="min-w-0"
                       >
                         {label}
@@ -26215,7 +26217,7 @@ function OrbitalPolymeter() {
                           ['riff', 'Riff', '◆'],
                           ['drums', 'Drums', '🥁'],
                           ['guitar', 'Guitar', '🎸'],
-                        ] as const).map(([voice, label, symbol]) => (
+                        ] as const).map(([voice, label]) => (
                           <button
                             key={voice}
                             type="button"
@@ -26230,7 +26232,9 @@ function OrbitalPolymeter() {
                               color: activeRiffVoice === voice ? '#D1C5FF' : 'rgba(255,255,255,0.5)',
                             }}
                           >
-                            <span className="block text-[17px] leading-none">{symbol}</span>
+                            <span className="flex h-[17px] items-center justify-center">
+                              <RiffVoiceLayerGlyph voice={voice} className="h-6 w-6" />
+                            </span>
                             <span className="mt-1 block text-[8px] font-mono uppercase tracking-[0.1em]">{label}</span>
                           </button>
                         ))}
@@ -26246,7 +26250,7 @@ function OrbitalPolymeter() {
                               ['tom', 'Tom', '🪘'],
                               ['kick', 'Kick', '🦶'],
                               ['cymbal', 'Cymbal', ''],
-                            ] as const).map(([instrument, label, symbol]) => (
+                            ] as const).map(([instrument, label]) => (
                               <button
                                 key={instrument}
                                 type="button"
@@ -26259,7 +26263,7 @@ function OrbitalPolymeter() {
                                 }}
                               >
                                 <span className="flex h-4 items-center justify-center text-[16px] leading-none">
-                                  {instrument === 'cymbal' ? <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" /> : symbol}
+                                  <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" />
                                 </span>
                                 <span className="mt-1 block text-[7px] font-mono uppercase tracking-[0.08em]">{label}</span>
                               </button>
@@ -26327,7 +26331,7 @@ function OrbitalPolymeter() {
                   <StudyShellButton
                     tone="neutral"
                     highlighted={activeRiffVoice !== 'riff'}
-                    icon={<span className="text-[14px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                    icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
                     onClick={() => setRiffVoicesOpen((open) => !open)}
                   >
                     Voices
