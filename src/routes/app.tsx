@@ -5298,7 +5298,6 @@ function EditableTempoValue({
 }) {
   const [draft, setDraft] = useState(String(value));
   const [padOpen, setPadOpen] = useState(false);
-  const [tapCount, setTapCount] = useState(0);
   const tapTimesRef = useRef<number[]>([]);
   const replaceDraftRef = useRef(true);
 
@@ -5346,7 +5345,6 @@ function EditableTempoValue({
   const closePad = useCallback(() => {
     commitDraft();
     setPadOpen(false);
-    setTapCount(0);
     tapTimesRef.current = [];
     replaceDraftRef.current = true;
   }, [commitDraft]);
@@ -5371,7 +5369,6 @@ function EditableTempoValue({
       ? [...previous, now].slice(-6)
       : [now];
     tapTimesRef.current = recent;
-    setTapCount(recent.length);
     replaceDraftRef.current = true;
 
     if (recent.length < 2) return;
@@ -5383,7 +5380,7 @@ function EditableTempoValue({
   const tempoPad = padOpen && typeof document !== 'undefined'
     ? createPortal(
         <div
-          className="fixed inset-0 z-[140] flex items-end justify-center bg-black/55 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-16 backdrop-blur-sm sm:items-center sm:pb-4"
+          className="fixed inset-0 z-[140] flex items-end"
           role="presentation"
           onPointerDown={(event) => {
             if (event.currentTarget === event.target) closePad();
@@ -5391,29 +5388,24 @@ function EditableTempoValue({
         >
           <div
             role="dialog"
-            aria-modal="true"
+            aria-modal="false"
             aria-label="Enter tempo"
-            className="w-full max-w-[22rem] rounded-[2rem] border border-sky-300/20 bg-[#11131b]/98 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+            className="w-full rounded-t-[1.35rem] border-x border-t border-sky-300/20 bg-[#11131b]/96 px-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_50px_rgba(0,0,0,0.58)] backdrop-blur-xl"
           >
-            <div className="mb-4 flex items-end justify-between px-2">
-              <div>
-                <div className="font-mono text-[11px] tracking-[0.22em] text-sky-200/65">TEMPO</div>
-                <div className="mt-1 font-mono text-[11px] tracking-[0.14em] text-white/35">
-                  {tapCount === 0 ? 'TYPE OR TAP' : tapCount === 1 ? 'TAP AGAIN' : `${tapCount} TAPS`}
-                </div>
-              </div>
+            <div className="mb-1.5 flex items-center justify-between px-2">
+              <div className="font-mono text-[10px] tracking-[0.22em] text-sky-200/65">TEMPO</div>
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-4xl font-light text-white">{draft || '—'}</span>
-                <span className="font-mono text-[11px] tracking-[0.16em] text-white/45">BPM</span>
+                <span className="font-mono text-3xl font-light text-white">{draft || '—'}</span>
+                <span className="font-mono text-[10px] tracking-[0.16em] text-white/45">BPM</span>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
                 <button
                   key={digit}
                   type="button"
                   onClick={() => enterDigit(digit)}
-                  className="h-14 rounded-2xl border border-white/10 bg-white/[0.055] font-mono text-xl text-white transition hover:bg-white/10 active:scale-[0.97]"
+                  className="h-10 rounded-lg border border-white/10 bg-white/[0.055] font-mono text-base text-white transition hover:bg-white/10 active:scale-[0.97]"
                 >
                   {digit}
                 </button>
@@ -5421,14 +5413,14 @@ function EditableTempoValue({
               <button
                 type="button"
                 onClick={tapTempo}
-                className="h-14 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 font-mono text-[13px] tracking-[0.18em] text-emerald-200 transition hover:bg-emerald-400/15 active:scale-[0.97]"
+                className="h-10 rounded-lg border border-emerald-300/30 bg-emerald-400/10 font-mono text-[11px] tracking-[0.18em] text-emerald-200 transition hover:bg-emerald-400/15 active:scale-[0.97]"
               >
                 TAP
               </button>
               <button
                 type="button"
                 onClick={() => enterDigit('0')}
-                className="h-14 rounded-2xl border border-white/10 bg-white/[0.055] font-mono text-xl text-white transition hover:bg-white/10 active:scale-[0.97]"
+                className="h-10 rounded-lg border border-white/10 bg-white/[0.055] font-mono text-base text-white transition hover:bg-white/10 active:scale-[0.97]"
               >
                 0
               </button>
@@ -5436,7 +5428,7 @@ function EditableTempoValue({
                 type="button"
                 onClick={eraseDigit}
                 aria-label="Delete last digit"
-                className="h-14 rounded-2xl border border-white/10 bg-white/[0.035] font-mono text-lg text-white/70 transition hover:bg-white/10 active:scale-[0.97]"
+                className="h-10 rounded-lg border border-white/10 bg-white/[0.035] font-mono text-sm text-white/70 transition hover:bg-white/10 active:scale-[0.97]"
               >
                 ⌫
               </button>
@@ -5444,7 +5436,7 @@ function EditableTempoValue({
             <button
               type="button"
               onClick={closePad}
-              className="mt-3 h-12 w-full rounded-2xl border border-sky-300/25 bg-sky-400/10 font-mono text-[12px] tracking-[0.2em] text-sky-200 transition hover:bg-sky-400/15"
+              className="mt-1.5 h-9 w-full rounded-lg border border-sky-300/25 bg-sky-400/10 font-mono text-[10px] tracking-[0.2em] text-sky-200 transition hover:bg-sky-400/15"
             >
               DONE
             </button>
