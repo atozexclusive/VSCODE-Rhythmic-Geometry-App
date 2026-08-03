@@ -14173,6 +14173,10 @@ function OrbitalPolymeter() {
       riffSequenceEnabled: true,
       riffCells: [riffSelectedSequenceCell],
       riffSequence: [riffSelectedSequenceCell.label],
+      voiceEvents: getRiffVoiceEventsForCell(
+        riffCycleStudy,
+        riffSelectedSequenceCell.label,
+      ),
       reference: riffEditableReference,
       riff: {
         ...riffCycleStudy.riff,
@@ -24959,7 +24963,7 @@ function OrbitalPolymeter() {
                 style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
               >
                 <StudyShellPremiumPanel accent="#7FD7FF" className="space-y-2.5 px-3 py-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 pb-2">
                     <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]">
                       Ending
                     </div>
@@ -25088,7 +25092,7 @@ function OrbitalPolymeter() {
                 style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
               >
                 <StudyShellPremiumPanel accent="#B6A0FF" className="space-y-2.5 px-3 py-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 pb-2">
                     <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#B6A0FF]">
                       Voices
                     </div>
