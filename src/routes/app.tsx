@@ -154,7 +154,6 @@ import {
   addRiffDetachedNote,
   getDisplayStepCount,
   getEffectiveLandingStepStates,
-  getEffectiveRiffStepStateAtReferenceStep,
   getEffectiveResetBarCount,
   getLandingWindowLength,
   getLandingSlotAtReferenceStep,
@@ -167,6 +166,8 @@ import {
   getRiffVoiceEventsForCell,
   invertRiffSteps,
   invertRiffSequenceCellSteps,
+  mirrorRiffSteps,
+  mirrorRiffSequenceCellSteps,
   remixRiffCycleStudy,
   removeLastRiffSequencePhraseCell,
   removeRiffSequenceCell,
@@ -379,7 +380,7 @@ function isMobileViewportNow(): boolean {
 
 function createInitialRiffCycleStudy(): RiffCycleStudy {
   const study = createDefaultRiffCycleStudy();
-  const initialStudy: RiffCycleStudy = isMobileViewportNow() ? { ...study, viewMode: 'circular' } : study;
+  const initialStudy: RiffCycleStudy = { ...study, viewMode: 'circular' };
   return RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? initialStudy : { ...initialStudy, riffSequenceEnabled: false };
 }
 
@@ -3913,10 +3914,12 @@ function RiffRollEditor({
   labelPrefix,
   compact = false,
   dense = false,
+  micro = false,
   stretchToFill = false,
   overlayEditMode = false,
   overlaySteps,
   overlaySoundAndImpact,
+  stepColors,
 }: {
   activeSteps: boolean[];
   accents: boolean[];
@@ -3927,10 +3930,12 @@ function RiffRollEditor({
   labelPrefix: string;
   compact?: boolean;
   dense?: boolean;
+  micro?: boolean;
   stretchToFill?: boolean;
   overlayEditMode?: boolean;
   overlaySteps?: RiffCycleStudy['overlay']['steps'];
   overlaySoundAndImpact?: boolean[];
+  stepColors?: string[];
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -3970,7 +3975,7 @@ function RiffRollEditor({
       className={stretchToFill ? 'w-full' : '-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]'}
     >
       <div
-        className={stretchToFill ? 'grid w-full gap-2' : `flex ${dense ? 'gap-1.5' : 'gap-2'} px-1`}
+        className={stretchToFill ? 'grid w-full gap-2' : `flex ${micro ? 'gap-1' : dense ? 'gap-1.5' : 'gap-2'} px-1`}
         style={
           stretchToFill
             ? { gridTemplateColumns: `repeat(${Math.max(1, activeSteps.length)}, minmax(0, 1fr))` }
@@ -3986,6 +3991,7 @@ function RiffRollEditor({
           const overlaySounds = Boolean(overlaySoundAndImpact?.[index]);
           const selected = selectedStepIndex === index;
           const marker = index % groupSize === 0;
+          const stepColor = stepColors?.[index] ?? color;
           return (
             <button
               key={`${labelPrefix}-${index}`}
@@ -4019,35 +4025,35 @@ function RiffRollEditor({
                 onPressStep(index);
               }}
               className={`relative border text-center transition-transform active:scale-[0.97] ${
-                dense ? 'rounded-lg px-1.5 py-1' : compact ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-2.5 py-2'
+                micro ? 'rounded-md px-1 py-0.5' : dense ? 'rounded-lg px-1.5 py-1' : compact ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-2.5 py-2'
               } ${
-                stretchToFill ? 'min-w-0 w-full' : dense ? 'min-w-[38px]' : compact ? 'min-w-[42px]' : 'min-w-[50px]'
+                stretchToFill ? 'min-w-0 w-full' : micro ? 'min-w-[33px]' : dense ? 'min-w-[38px]' : compact ? 'min-w-[42px]' : 'min-w-[50px]'
               }`}
               style={{
                 background: selected
                   ? overlayEditMode
                     ? 'rgba(156,140,255,0.2)'
-                    : `${color}22`
+                    : `${stepColor}22`
                   : overlayAdded
                     ? 'rgba(156,140,255,0.14)'
                     : overlayRemoved
                       ? 'rgba(156,140,255,0.07)'
                   : active
-                    ? `${color}12`
+                    ? `${stepColor}12`
                     : 'rgba(255,255,255,0.035)',
                 borderColor: selected
                   ? overlayEditMode
                     ? 'rgba(156,140,255,0.72)'
-                    : `${color}82`
+                    : `${stepColor}82`
                   : overlayChanged
                     ? 'rgba(156,140,255,0.42)'
                   : active
-                    ? `${color}34`
+                    ? `${stepColor}34`
                     : marker
                       ? 'rgba(255,255,255,0.14)'
                       : 'rgba(255,255,255,0.08)',
                 boxShadow: selected
-                  ? `0 0 0 1px ${overlayEditMode ? 'rgba(156,140,255,0.28)' : `${color}2f`} inset`
+                  ? `0 0 0 1px ${overlayEditMode ? 'rgba(156,140,255,0.28)' : `${stepColor}2f`} inset`
                   : 'none',
               }}
               aria-label={
@@ -4057,45 +4063,45 @@ function RiffRollEditor({
               }
             >
               <div
-                className={`${dense ? 'text-[7px]' : compact ? 'text-[8px]' : 'text-[9px]'} font-mono uppercase tracking-[0.14em]`}
-                style={{ color: selected ? (overlayEditMode ? '#B9AEFF' : color) : 'rgba(255,255,255,0.48)' }}
+                className={`${micro ? 'text-[6px]' : dense ? 'text-[7px]' : compact ? 'text-[8px]' : 'text-[9px]'} font-mono uppercase tracking-[0.14em]`}
+                style={{ color: selected ? (overlayEditMode ? '#B9AEFF' : stepColor) : 'rgba(255,255,255,0.48)' }}
               >
                 {index + 1}
               </div>
-              <div className={`${dense ? 'mt-1' : compact ? 'mt-1.5' : 'mt-2'} flex items-center justify-center gap-1`}>
+              <div className={`${micro ? 'mt-0.5' : dense ? 'mt-1' : compact ? 'mt-1.5' : 'mt-2'} flex items-center justify-center gap-1`}>
                 <span
-                  className={`${dense ? 'h-2 w-2' : compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
+                  className={`${micro ? 'h-1.5 w-1.5' : dense ? 'h-2 w-2' : compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
                   style={{
                     background: overlayAdded
                       ? '#9C8CFF'
                       : overlayRemoved
                         ? 'transparent'
                         : active
-                          ? color
+                          ? stepColor
                           : 'rgba(255,255,255,0.08)',
                     borderColor: overlayChanged
                       ? 'rgba(185,174,255,0.92)'
                       : active
-                        ? `${color}cc`
+                        ? `${stepColor}cc`
                         : 'rgba(255,255,255,0.12)',
                     borderStyle: overlayRemoved ? 'dashed' : 'solid',
-                    boxShadow: overlayAdded ? '0 0 8px rgba(156,140,255,0.5)' : active ? `0 0 0 1px ${color}25` : 'none',
+                    boxShadow: overlayAdded ? '0 0 8px rgba(156,140,255,0.5)' : active ? `0 0 0 1px ${stepColor}25` : 'none',
                   }}
                 />
                 {accented ? (
                   <span
-                    className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full border px-1 text-[8px] font-mono uppercase tracking-[0.08em]"
+                    className={`${micro ? 'h-3 min-w-[12px] px-0.5 text-[6px]' : 'h-4 min-w-[16px] px-1 text-[8px]'} inline-flex items-center justify-center rounded-full border font-mono uppercase tracking-[0.08em]`}
                     style={{
-                      borderColor: `${color}44`,
-                      background: `${color}16`,
-                      color,
+                      borderColor: `${stepColor}44`,
+                      background: `${stepColor}16`,
+                      color: stepColor,
                     }}
                   >
                     A
                   </span>
                 ) : null}
               </div>
-              <div className={`${dense ? 'mt-1 text-[6px]' : compact ? 'mt-1.5 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
+              <div className={`${micro ? 'mt-0.5 text-[5.5px]' : dense ? 'mt-1 text-[6px]' : compact ? 'mt-1.5 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
                 {overlayAdded
                   ? overlaySounds ? 'Add + Sound' : 'Add'
                   : overlayRemoved
@@ -7941,18 +7947,6 @@ function OrbitalPolymeter() {
   const riffLandingWindowSteps = getLandingWindowLength(riffEndingPreviewStudy);
   const riffLandingWindowBars = Math.max(1, Math.ceil(riffLandingWindowSteps / riffDesktopStepsPerBar));
   const riffEndingEditableSlots = Math.min(riffDesktopStepsPerBar, riffCycleStudy.landingLength);
-  const riffEndingPreviewBarStartStep = Math.max(0, riffLandingWindowSteps - riffDesktopStepsPerBar);
-  const riffEndingPreviewTailStart = Math.max(0, riffDesktopStepsPerBar - riffEndingEditableSlots);
-  const riffEndingReferenceSteps = Array.from({ length: riffDesktopStepsPerBar }, (_, stepIndex) => {
-    const referenceStep = riffEndingPreviewBarStartStep + stepIndex;
-    const state = getEffectiveRiffStepStateAtReferenceStep(riffEndingPreviewStudy, referenceStep);
-    return {
-      ...state,
-      stepIndex,
-      referenceStep,
-      inEndingTail: stepIndex >= riffEndingPreviewTailStart,
-    };
-  });
   const riffLandingRollStates = getEffectiveLandingStepStates(riffCycleStudy);
   const riffLandingRollSteps = riffLandingRollStates.map((state) => state.active);
   const riffLandingRollAccents = riffLandingRollStates.map((state) => state.accented);
@@ -9650,6 +9644,21 @@ function OrbitalPolymeter() {
       RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled
         ? invertRiffSequenceCellSteps(current, selectedRiffSequenceCellLabel)
         : invertRiffSteps(current),
+    );
+  }, [effectivePlan, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
+
+  const handleMirrorRiffCycle = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    if (!canUseProFeature(effectivePlan, 'riff-pattern-tools')) {
+      showProPrompt('riff-pattern-tools');
+      return;
+    }
+    setRiffCycleStudy((current) =>
+      RIFF_CELL_SEQUENCE_FEATURE_ENABLED && current.riffSequenceEnabled
+        ? mirrorRiffSequenceCellSteps(current, selectedRiffSequenceCellLabel)
+        : mirrorRiffSteps(current),
     );
   }, [effectivePlan, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel]);
 
@@ -14075,6 +14084,23 @@ function OrbitalPolymeter() {
   const riffEditableActiveSteps = riffSelectedSequenceCell?.activeSteps ?? riffCycleStudy.riff.activeSteps;
   const riffEditableAccents = riffSelectedSequenceCell?.accents ?? riffCycleStudy.riff.accents;
   const riffEditableColor = riffSelectedSequenceCell?.color ?? riffCycleStudy.riff.color;
+  const riffEndingPatternTailLength = Math.min(riffEditableStepCount, riffCycleStudy.landingLength);
+  const riffEndingPatternTailStart = riffEditableStepCount - riffEndingPatternTailLength;
+  const riffEndingPatternSteps = Array.from({ length: riffEditableStepCount }, (_, stepIndex) => {
+    const inEndingTail = stepIndex >= riffEndingPatternTailStart;
+    const landingSlot = inEndingTail ? stepIndex - riffEndingPatternTailStart : null;
+    return {
+      active:
+        landingSlot == null
+          ? Boolean(riffEditableActiveSteps[stepIndex])
+          : Boolean(riffLandingRollSteps[landingSlot]),
+      accented:
+        landingSlot == null
+          ? Boolean(riffEditableAccents[stepIndex])
+          : Boolean(riffLandingRollAccents[landingSlot]),
+      inEndingTail,
+    };
+  });
   const riffEditableVoiceEvents = getRiffVoiceEventsForCell(
     riffCycleStudy,
     riffSelectedSequenceCell?.label,
@@ -14340,9 +14366,6 @@ function OrbitalPolymeter() {
     selectedRiffCycleStep == null
       ? false
       : Boolean(riffOverlaySoundAndImpact[selectedRiffCycleStep]);
-  const riffDesktopEditorCanvasBottomInset = '8rem';
-  const riffDesktopEditorCanvasTopInset = '4.5rem';
-  const riffDesktopEditorCanvasMaxWidth = '82rem';
   const riffDesktopEditorTrayWidth =
     riffDesktopEditTab === 'bar'
       ? 'min(92rem, calc(100vw - 2rem))'
@@ -22879,6 +22902,7 @@ function OrbitalPolymeter() {
                   : undefined
             }
             playbackStateRef={riffCyclePlaybackStateRef}
+            playbackDriver={!riffDesktopPatternEditorOpen}
             displaySettings={canvasDisplayState.riff}
             presentationMode={presentationMode}
             audioEnabled={!muted}
@@ -23543,68 +23567,86 @@ function OrbitalPolymeter() {
                       </div>
                     </div>
                   </div>
-                  <div
-                    className="space-y-2.5 rounded-lg border px-1.5 py-2.5"
-                    style={{
-                      background: 'rgba(127,215,255,0.028)',
-                      borderColor: 'rgba(127,215,255,0.1)',
-                      boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.035)',
-                    }}
-                  >
-                    <div className="space-y-2">
-                      <InlineInfoLabel
-                        infoId="riff_offset_pattern"
-                        label="Offset"
-                        labelClassName="text-[9px] font-mono font-semibold uppercase tracking-[0.16em] text-white/56"
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-2 gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (riffPatternToolsLocked) {
-                              openProPrompt('riff-pattern-tools');
-                              return;
-                            }
-                            handleRotateRiffCycle(-1);
-                          }}
-                          className="flex h-6 items-center justify-center rounded-md border px-2 text-[8px] font-mono uppercase tracking-[0.1em] transition-transform active:scale-[0.98]"
-                          style={{
-                            background: 'rgba(255,255,255,0.035)',
-                            borderColor: 'rgba(255,255,255,0.09)',
-                            color: 'rgba(255,255,255,0.58)',
-                          }}
-                        >
-                          <span className="inline-flex items-center justify-center gap-2">
-                            <ChevronLeft size={11} />
-                            <span>1 Step</span>
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (riffPatternToolsLocked) {
-                              openProPrompt('riff-pattern-tools');
-                              return;
-                            }
-                            handleRotateRiffCycle(1);
-                          }}
-                          className="flex h-6 items-center justify-center rounded-md border px-2 text-[8px] font-mono uppercase tracking-[0.1em] transition-transform active:scale-[0.98]"
-                          style={{
-                            background: 'rgba(255,255,255,0.035)',
-                            borderColor: 'rgba(255,255,255,0.09)',
-                            color: 'rgba(255,255,255,0.58)',
-                          }}
-                        >
-                          <span className="inline-flex items-center justify-center gap-2">
-                            <span>1 Step</span>
-                            <ChevronRight size={11} />
-                          </span>
-                        </button>
-                      </div>
+                  <div className="space-y-1.5 rounded-lg border border-[#B6A0FF]/12 bg-[#B6A0FF]/[0.035] p-1.5">
+                    <StudyShellButton
+                      size="compact"
+                      tone="blue"
+                      highlighted={!riffVoicesLocked && (riffVoicesOpen || activeRiffVoice !== 'riff')}
+                      locked={riffVoicesLocked}
+                      onLockedClick={() => openProPrompt('riff-voices')}
+                      onClick={() => {
+                        if (riffVoicesLocked) {
+                          openProPrompt('riff-voices');
+                          return;
+                        }
+                        setRiffVoicesOpen((open) => {
+                          if (open) {
+                            setActiveRiffVoice('riff');
+                            setSelectedRiffCycleStep(null);
+                          }
+                          return !open;
+                        });
+                      }}
+                      icon={<span className="text-[11px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
+                      className="w-full"
+                    >
+                      Voices
+                    </StudyShellButton>
+                    {riffVoicesOpen && !riffVoicesLocked ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-1">
+                          {([
+                            ['riff', 'Riff', '◆'],
+                            ['drums', 'Drums', '🥁'],
+                            ['guitar', 'Guitar', '🎸'],
+                          ] as const).map(([voice, label, symbol]) => (
+                            <StudyShellButton
+                              key={`riff-quick-voice-${voice}`}
+                              size="compact"
+                              tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
+                              highlighted={activeRiffVoice === voice}
+                              onClick={() => {
+                                setActiveRiffVoice(voice);
+                                if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                                setSelectedRiffCycleStep(null);
+                              }}
+                              icon={<span className="text-[10px]">{symbol}</span>}
+                              className="min-w-0 px-1 text-[7px]"
+                            >
+                              {label}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                        {activeRiffVoice === 'drums' ? (
+                          <div className="grid grid-cols-4 gap-1 border-t border-white/7 pt-1.5">
+                            {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
+                              <button
+                                key={`riff-quick-instrument-${instrument}`}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedRiffVoiceInstrument(instrument);
+                                  setSelectedRiffCycleStep(null);
+                                }}
+                                className="flex h-7 items-center justify-center rounded-md border"
+                                style={{
+                                  borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.58)' : 'rgba(255,255,255,0.08)',
+                                  background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.14)' : 'rgba(255,255,255,0.025)',
+                                }}
+                                aria-label={`Select ${instrument}`}
+                              >
+                                <RiffVoiceGlyph instrument={instrument} className="h-4 w-4" />
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5 rounded-lg border border-[#72F1B8]/12 bg-[#72F1B8]/[0.035] p-1.5">
+                    <div className="px-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#72F1B8]/66">
+                      Pattern Tools
                     </div>
-                    <div className="h-px bg-white/5" />
-                    <div>
+                    <div className="grid grid-cols-2 gap-1.5">
                       <StudyShellButton
                         size="compact"
                         tone="green"
@@ -23612,13 +23654,24 @@ function OrbitalPolymeter() {
                         onClick={handleInvertRiffCycle}
                         locked={riffPatternToolsLocked}
                         onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                        className="h-4 w-full text-[7px]"
+                        className="min-w-0 px-1 text-[7px]"
                       >
                         Invert Hits
                       </StudyShellButton>
+                      <StudyShellButton
+                        size="compact"
+                        tone="blue"
+                        highlighted={!riffPatternToolsLocked}
+                        onClick={handleMirrorRiffCycle}
+                        locked={riffPatternToolsLocked}
+                        onLockedClick={() => openProPrompt('riff-pattern-tools')}
+                        className="min-w-0 px-1 text-[7px]"
+                      >
+                        Mirror Hits
+                      </StudyShellButton>
                     </div>
                   </div>
-                <StudyShellButton
+                  <StudyShellButton
                   size="compact"
                   tone="amber"
                   highlighted
@@ -23629,7 +23682,7 @@ function OrbitalPolymeter() {
                   className="w-full"
                 >
                   Step Editor
-                </StudyShellButton>
+                  </StudyShellButton>
                 </div>
               </div>
             ) : null}
@@ -24852,20 +24905,11 @@ function OrbitalPolymeter() {
               </div>
             </div>
 
-            <div
-              className="absolute inset-x-8 z-10"
-              style={{
-                top: riffDesktopEditorCanvasTopInset,
-                bottom: riffDesktopEditorCanvasBottomInset,
-              }}
-            >
+            <div className="absolute inset-0 z-0">
               <div
-                className="relative mx-auto h-full overflow-hidden rounded-[2.2rem] border"
+                className="relative h-full w-full overflow-hidden"
                 style={{
-                  maxWidth: riffDesktopEditorCanvasMaxWidth,
                   background: 'radial-gradient(circle at 50% 48%, rgba(255,255,255,0.045), rgba(10,12,18,0.78) 56%, rgba(5,6,11,0.94))',
-                  borderColor: `${riffCycleStudy.riff.color}1f`,
-                  boxShadow: `0 28px 120px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 70px ${riffCycleStudy.riff.color}10`,
                 }}
               >
                 <RiffCycleCanvas
@@ -24873,7 +24917,7 @@ function OrbitalPolymeter() {
                   viewModeOverride="circular"
                   landingReferenceOverlayMode="auto"
                   playbackStateRef={riffCyclePlaybackStateRef}
-                  playbackDriver={false}
+                  playbackDriver
                   selectedStep={selectedRiffCycleStep}
                   restartToken={riffCycleRestartToken}
                   displaySettings={canvasDisplayState.riff}
@@ -24904,10 +24948,80 @@ function OrbitalPolymeter() {
                   onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
                   onToggleLandingAccent={handleToggleRiffLandingAccent}
-                  className="absolute inset-0 h-full w-full"
+                  className="absolute inset-0 h-full w-full -translate-y-2 scale-[0.89]"
                 />
               </div>
             </div>
+
+            {riffDesktopEditTab === 'return' ? (
+              <div
+                className="absolute bottom-5 left-5 z-20"
+                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
+              >
+                <StudyShellPremiumPanel accent="#7FD7FF" className="space-y-2.5 px-3 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]">
+                      Ending
+                    </div>
+                    <div className="text-[7px] font-mono uppercase tracking-[0.12em] text-white/32">
+                      Edit final nodes
+                    </div>
+                  </div>
+                  <div
+                    data-guide="riff-editor-ending-length"
+                    className="grid w-full grid-cols-[auto_1.75rem_minmax(0,1fr)_1.75rem] items-center gap-1.5 rounded-lg border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.055] px-2 py-1"
+                  >
+                    <span className="pr-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#7FD7FF]/72">
+                      Ending Steps
+                    </span>
+                    <StudyShellButton
+                      size="square"
+                      tone="blue"
+                      className="!h-7 !w-7 rounded-lg"
+                      onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
+                    >
+                      <Minus size={12} />
+                    </StudyShellButton>
+                    <div className="h-7 min-w-0 rounded-md border border-[#7FD7FF]/18 bg-black/20 px-2 py-1 text-center text-[14px] font-light leading-tight text-[#BFEAFF]">
+                      {riffCycleStudy.landingLength}
+                    </div>
+                    <StudyShellButton
+                      size="square"
+                      tone="blue"
+                      className="!h-7 !w-7 rounded-lg"
+                      locked={
+                        riffEndingLengthLocked &&
+                        riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
+                      }
+                      onLockedClick={() => openProPrompt('riff-ending-length')}
+                      onClick={() =>
+                        handleSetRiffLandingLength(
+                          Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
+                        )
+                      }
+                    >
+                      <Plus size={12} />
+                    </StudyShellButton>
+                  </div>
+                  <StudyShellPanel data-guide="riff-editor-ending-roll" className="px-2 py-2">
+                    <RiffRollEditor
+                      activeSteps={riffLandingRollSteps}
+                      accents={riffLandingRollAccents}
+                      color="#7FD7FF"
+                      selectedStepIndex={null}
+                      labelPrefix="ending-desktop"
+                      compact
+                      onPressStep={(slotIndex) => {
+                        handleSetRiffLandingStepActive(slotIndex, !riffLandingRollSteps[slotIndex]);
+                      }}
+                      onLongPressStep={(slotIndex) => {
+                        handleToggleRiffLandingAccent(slotIndex);
+                      }}
+                    />
+                  </StudyShellPanel>
+                </StudyShellPremiumPanel>
+              </div>
+            ) : null}
 
             {riffDesktopEditTab === 'return' ? (
               <div
@@ -24965,6 +25079,76 @@ function OrbitalPolymeter() {
                   onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
                   compact
                 />
+              </div>
+            ) : null}
+
+            {riffDesktopEditTab === 'phrase' ? (
+              <div
+                className="absolute bottom-5 right-5 z-20"
+                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
+              >
+                <StudyShellPremiumPanel accent="#B6A0FF" className="space-y-2.5 px-3 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#B6A0FF]">
+                      Voices
+                    </div>
+                    <div className="text-[7px] font-mono uppercase tracking-[0.12em] text-white/32">
+                      {riffSelectedSequenceCell ? `Cell ${riffSelectedSequenceCell.label}` : 'Riff'}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {([
+                      ['riff', 'Riff', '◆'],
+                      ['drums', 'Drums', '🥁'],
+                      ['guitar', 'Guitar', '🎸'],
+                    ] as const).map(([voice, label, symbol]) => (
+                      <StudyShellButton
+                        key={`desktop-focus-voice-${voice}`}
+                        size="compact"
+                        tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
+                        highlighted={!riffVoicesLocked && activeRiffVoice === voice}
+                        locked={riffVoicesLocked && voice !== 'riff'}
+                        onLockedClick={() => openProPrompt('riff-voices')}
+                        onClick={() => {
+                          if (riffVoicesLocked && voice !== 'riff') {
+                            openProPrompt('riff-voices');
+                            return;
+                          }
+                          setActiveRiffVoice(voice);
+                          setRiffVoicesOpen(voice !== 'riff');
+                          if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
+                          setSelectedRiffCycleStep(null);
+                        }}
+                        icon={<span className="text-[11px]">{symbol}</span>}
+                        className="min-w-0"
+                      >
+                        {label}
+                      </StudyShellButton>
+                    ))}
+                  </div>
+                  {activeRiffVoice === 'drums' && !riffVoicesLocked ? (
+                    <div className="grid grid-cols-4 gap-1.5 border-t border-white/7 pt-2">
+                      {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
+                        <button
+                          key={`desktop-focus-instrument-${instrument}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRiffVoiceInstrument(instrument);
+                            setSelectedRiffCycleStep(null);
+                          }}
+                          className="flex h-9 items-center justify-center rounded-lg border transition active:scale-[0.97]"
+                          style={{
+                            borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.62)' : 'rgba(255,255,255,0.09)',
+                            background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
+                          }}
+                          aria-label={`Select ${instrument}`}
+                        >
+                          <RiffVoiceGlyph instrument={instrument} className="h-5 w-5" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </StudyShellPremiumPanel>
               </div>
             ) : null}
 
@@ -25158,7 +25342,7 @@ function OrbitalPolymeter() {
                   </>
                 ) : riffDesktopEditTab === 'phrase' ? (
                   <>
-                    <div className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
+                    <div className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_auto_minmax(0,1fr)]">
                       <div
                         className="text-[9px] font-mono uppercase tracking-[0.18em]"
                         style={{ color: `${riffCycleStudy.riff.color}cc` }}
@@ -25166,7 +25350,7 @@ function OrbitalPolymeter() {
                         Pattern Roll
                       </div>
                       <div
-                        className="w-full rounded-lg border border-white/8 bg-white/[0.035] px-2 py-1 xl:translate-x-3 xl:justify-self-center"
+                        className="w-full rounded-lg border border-white/8 bg-white/[0.035] px-2 py-1 xl:justify-self-start"
                         data-guide="riff-editor-steps"
                       >
                         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
@@ -25244,50 +25428,17 @@ function OrbitalPolymeter() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-nowrap items-center justify-end gap-1.5 xl:justify-self-end">
-                        <div data-guide="riff-editor-offset" className="flex items-center gap-1 rounded-xl border border-white/8 bg-white/[0.035] p-1">
-                          <span className="px-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                            Offset
-                          </span>
-                          <StudyShellButton
-                            size="compact"
-                            tone="neutral"
-                            className="!h-7 rounded-lg px-2 text-[9px]"
-                            onClick={() => {
-                              handleRotateRiffCycle(-1);
-                              recordTutorialEvent('riff-editor-offset');
-                            }}
-                            locked={riffPatternToolsLocked}
-                            onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                          >
-                            -1
-                          </StudyShellButton>
-                          <StudyShellButton
-                            size="compact"
-                            tone="neutral"
-                            className="!h-7 rounded-lg px-2 text-[9px]"
-                            onClick={() => {
-                              handleRotateRiffCycle(1);
-                              recordTutorialEvent('riff-editor-offset');
-                            }}
-                            locked={riffPatternToolsLocked}
-                            onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                          >
-                            +1
-                          </StudyShellButton>
-                        </div>
-                        <StudyShellButton
-                          size="compact"
-                          tone="amber"
-                          highlighted={!riffPatternToolsLocked}
-                          className="!h-7 rounded-lg px-2 text-[9px]"
-                          onClick={handleInvertRiffCycle}
-                          locked={riffPatternToolsLocked}
-                          onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                        >
-                          Invert
-                        </StudyShellButton>
-                      </div>
+                      <StudyShellButton
+                        size="compact"
+                        tone="red"
+                        highlighted={riffRollActiveSteps.some(Boolean)}
+                        icon={<Trash2 size={12} />}
+                        onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
+                        className="!h-9 justify-self-start rounded-lg px-3 text-[8px]"
+                      >
+                        Clear
+                      </StudyShellButton>
+                      <div aria-hidden="true" />
                     </div>
 
                     <div className="rounded-lg border border-white/8 bg-black/[0.1] p-1.5">
@@ -25347,314 +25498,41 @@ function OrbitalPolymeter() {
                         }}
                       />
                     </div>
-                    <div data-guide="riff-editor-step-states" className="mt-1 flex items-center gap-1.5 border-t border-white/6 pt-1">
-                      <StudyShellButton
-                        size="compact"
-                        data-riff-step-control="true"
-                        highlighted={selectedRiffCycleStep != null && riffSelectedStepActive === false}
-                        onClick={() => {
-                          if (selectedRiffCycleStep != null) {
-                            handleSetRiffCycleStepActive(selectedRiffCycleStep, false);
-                            recordTutorialEvent('riff-editor-toggle-step');
-                          }
-                        }}
-                        disabled={selectedRiffCycleStep == null}
-                      >
-                        Rest
-                      </StudyShellButton>
-                      <StudyShellButton
-                        size="compact"
-                        tone="green"
-                        data-riff-step-control="true"
-                        highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepActive)}
-                        onClick={() => {
-                          if (selectedRiffCycleStep != null) {
-                            handleSetRiffCycleStepActive(selectedRiffCycleStep, true);
-                            recordTutorialEvent('riff-editor-toggle-step');
-                          }
-                        }}
-                        disabled={selectedRiffCycleStep == null}
-                      >
-                        Hit
-                      </StudyShellButton>
-                      <StudyShellButton
-                        size="compact"
-                        tone="amber"
-                        data-riff-step-control="true"
-                        highlighted={selectedRiffCycleStep != null && Boolean(riffSelectedStepAccented)}
-                        onClick={() => {
-                          if (selectedRiffCycleStep != null) {
-                            handleToggleRiffCycleAccent(selectedRiffCycleStep);
-                            recordTutorialEvent('riff-editor-toggle-step');
-                          }
-                        }}
-                        disabled={selectedRiffCycleStep == null || !riffSelectedStepActive}
-                      >
-                        Accent
-                      </StudyShellButton>
-                      <StudyShellButton
-                        size="compact"
-                        tone="blue"
-                        data-riff-step-control="true"
-                        highlighted={riffOverlayEditMode}
-                        onClick={() => {
-                          setRiffOverlayEditMode((current) => !current);
-                          setSelectedRiffCycleStep(null);
-                        }}
-                        disabled={riffCycleStudy.riffSequenceEnabled}
-                      >
-                        Overlay
-                      </StudyShellButton>
-                      {riffOverlayEditMode && selectedRiffCycleStep != null && riffSelectedOverlayState !== 'inherit' ? (
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          data-riff-step-control="true"
-                          highlighted={riffSelectedOverlaySoundAndImpact}
-                          onClick={() => handleToggleRiffOverlaySoundAndImpact(selectedRiffCycleStep!)}
-                        >
-                          Sound + Impact
-                        </StudyShellButton>
-                      ) : null}
-                      <StudyShellButton
-                        size="compact"
-                        tone="red"
-                        highlighted={riffRollActiveSteps.some(Boolean)}
-                        icon={<Trash2 size={13} />}
-                        onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
-                        className="!h-7 rounded-lg px-2"
-                      >
-                        Clear
-                      </StudyShellButton>
-                    </div>
-                    <div className="mt-1.5 border-t border-white/6 pt-1.5">
-                      <StudyShellButton
-                        size="compact"
-                        tone="blue"
-                        highlighted={!riffVoicesLocked && (riffVoicesOpen || activeRiffVoice !== 'riff')}
-                        locked={riffVoicesLocked}
-                        onLockedClick={() => openProPrompt('riff-voices')}
-                        onClick={() => {
-                          if (riffVoicesLocked) {
-                            openProPrompt('riff-voices');
-                            return;
-                          }
-                          setRiffVoicesOpen((open) => {
-                            if (open) {
-                              setActiveRiffVoice('riff');
-                              setSelectedRiffCycleStep(null);
-                            }
-                            return !open;
-                          });
-                        }}
-                        icon={<span className="text-[11px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
-                        className="w-full"
-                      >
-                        Voices
-                      </StudyShellButton>
-                    </div>
-                    {riffVoicesOpen ? (
-                    <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-                      {([
-                        ['riff', 'Riff', '◆'],
-                        ['drums', 'Drums', '🥁'],
-                        ['guitar', 'Guitar', '🎸'],
-                      ] as const).map(([voice, label, symbol]) => (
-                        <StudyShellButton
-                          key={`desktop-pattern-roll-${voice}`}
-                          size="compact"
-                          tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
-                          highlighted={activeRiffVoice === voice}
-                          onClick={() => {
-                            setActiveRiffVoice(voice);
-                            if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
-                            setSelectedRiffCycleStep(null);
-                          }}
-                          icon={<span className="text-[11px]">{symbol}</span>}
-                        >
-                          {label}
-                        </StudyShellButton>
-                      ))}
-                    </div>
-                    ) : null}
-                    {riffVoicesOpen && activeRiffVoice === 'drums' ? (
-                      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-                        {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
-                          <button
-                            key={`desktop-pattern-roll-instrument-${instrument}`}
-                            type="button"
-                            onClick={() => {
-                              setSelectedRiffVoiceInstrument(instrument);
-                              setSelectedRiffCycleStep(null);
-                            }}
-                            className="flex h-8 items-center justify-center rounded-lg border"
-                            style={{
-                              borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.62)' : 'rgba(255,255,255,0.09)',
-                              background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
-                            }}
-                            aria-label={`Select ${instrument}`}
-                          >
-                            <RiffVoiceGlyph instrument={instrument} className="h-5 w-5" />
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    {riffVoicesOpen && activeRiffVoice !== 'riff' ? (
-                      <div className="mt-1.5 rounded-lg border border-white/8 bg-black/15 p-1.5">
-                        <div className="mb-1 text-[7px] font-mono uppercase tracking-[0.14em] text-white/38">
-                          Quarter Notes
-                        </div>
-                        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${riffCycleStudy.reference.numerator}, minmax(0, 1fr))` }}>
-                          {Array.from({ length: riffCycleStudy.reference.numerator }, (_, beatIndex) => {
-                            const instrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
-                            const active = riffEditableVoiceEvents.some(
-                              (event) => event.voice === activeRiffVoice && event.instrument === instrument && event.surface === 'beat' && event.index === beatIndex,
-                            );
-                            return (
-                              <button
-                                key={`desktop-pattern-roll-quarter-${beatIndex}`}
-                                type="button"
-                                onClick={() => handleToggleRiffVoiceBeat(beatIndex)}
-                                className="flex h-8 flex-col items-center justify-center rounded-md border"
-                                style={{
-                                  borderColor: active ? 'rgba(182,160,255,0.58)' : 'rgba(255,255,255,0.09)',
-                                  background: active ? 'rgba(182,160,255,0.15)' : 'rgba(255,255,255,0.025)',
-                                }}
-                              >
-                                {active ? <RiffVoiceGlyph instrument={instrument} className="h-3.5 w-3.5" /> : <span className="text-white/22">·</span>}
-                                <span className="text-[5px] font-mono text-white/34">{beatIndex + 1}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div data-guide="riff-editor-ending-length" className="grid items-center gap-2 pb-2 xl:grid-cols-[8rem_minmax(18rem,24rem)_minmax(17rem,1fr)]">
+                    <div className="flex items-center justify-between gap-3 px-1">
                       <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]/80">
                         Ending Roll
                       </div>
-                      <div className="grid w-full grid-cols-[auto_1.75rem_minmax(0,1fr)_1.75rem] items-center gap-1.5 rounded-lg border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.055] px-2 py-1 xl:justify-self-center">
-                        <span className="pr-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#7FD7FF]/72">Ending Steps</span>
-                        <StudyShellButton
-                          size="square"
-                          tone="blue"
-                          className="!h-7 !w-7 rounded-lg"
-                          onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
-                        >
-                          <Minus size={12} />
-                        </StudyShellButton>
-                        <div className="h-7 min-w-0 rounded-md border border-[#7FD7FF]/18 bg-black/20 px-2 py-1 text-center text-[14px] font-light leading-tight text-[#BFEAFF]">
-                          {riffCycleStudy.landingLength}
-                        </div>
-                        <StudyShellButton
-                          size="square"
-                          tone="blue"
-                          className="!h-7 !w-7 rounded-lg"
-                          locked={
-                            riffEndingLengthLocked &&
-                            riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
-                          }
-                          onLockedClick={() => openProPrompt('riff-ending-length')}
-                          onClick={() =>
-                            handleSetRiffLandingLength(
-                              Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
-                            )
-                          }
-                        >
-                          <Plus size={12} />
-                        </StudyShellButton>
+                      <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
+                        Full riff pattern · blue cells are the ending
                       </div>
-                      <div className="xl:justify-self-end" aria-hidden="true" />
                     </div>
-
-                    <StudyShellPanel data-guide="riff-editor-ending-roll" className="space-y-2 px-3 py-2">
-                      <div className="flex items-center justify-between gap-2 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                        <span>Last Bar</span>
-                        <span>Blue cells are the editable ending slots</span>
-                      </div>
-                      <div className="-mx-1 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-                        <div className="flex min-w-max gap-1.5 px-1">
-                          {riffEndingReferenceSteps.map((step) => {
-                            const baseBorder = step.inEndingTail ? 'rgba(127,215,255,0.28)' : 'rgba(255,255,255,0.08)';
-                            const baseBackground = step.inEndingTail
-                              ? step.active
-                                ? step.overridden
-                                  ? 'rgba(127,215,255,0.2)'
-                                  : 'rgba(127,215,255,0.12)'
-                                : 'rgba(127,215,255,0.08)'
-                              : step.active
-                                ? `${riffCycleStudy.riff.color}14`
-                                : 'rgba(255,255,255,0.03)';
-                            const dotColor = step.inEndingTail
-                              ? step.overridden
-                                ? '#7FD7FF'
-                                : 'rgba(127,215,255,0.72)'
-                              : step.active
-                                ? riffCycleStudy.riff.color
-                                : 'rgba(255,255,255,0.14)';
-
-                            return (
-                              <div
-                                key={`ending-reference-step-${step.stepIndex}`}
-                                className="rounded-xl border px-2 py-1.5 text-center transition-transform"
-                                style={{
-                                  width: 38,
-                                  borderColor: baseBorder,
-                                  background: baseBackground,
-                                  boxShadow: step.inEndingTail ? '0 0 0 1px rgba(127,215,255,0.06) inset' : 'none',
-                                }}
-                              >
-                                <div className="mb-0.5 text-center text-[7px] font-mono uppercase tracking-[0.1em] text-white/42">
-                                  {step.stepIndex + 1}
-                                </div>
-                                <div className="flex items-center justify-center">
-                                  <span
-                                    className="block rounded-full"
-                                    style={{
-                                      width: step.accented ? 11 : 8,
-                                      height: step.accented ? 11 : 8,
-                                      background: dotColor,
-                                      boxShadow: step.active ? `0 0 14px ${dotColor}55` : 'none',
-                                      opacity: step.active ? 1 : 0.55,
-                                    }}
-                                  />
-                                </div>
-                                <div className="mt-0.5 text-center text-[6.5px] font-mono uppercase tracking-[0.08em]">
-                                  {step.inEndingTail ? (
-                                    <span className="text-[#7FD7FF]">
-                                      {step.landingSlot != null ? `E${step.landingSlot + 1}` : 'Tail'}
-                                    </span>
-                                  ) : (
-                                    <span className="text-white/26">Base</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                    <div className="rounded-lg border border-white/8 bg-black/[0.1] p-1.5">
+                      <div className="mb-1 flex items-center justify-between gap-3 px-0.5">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/42">
+                          Write In Lane
                         </div>
+                        <div className="text-[8px] text-white/34">Display only · edit ending nodes on the left</div>
                       </div>
-                      <RiffRollEditor
-                        activeSteps={riffLandingRollSteps}
-                        accents={riffLandingRollAccents}
-                        color="#7FD7FF"
-                        selectedStepIndex={null}
-                        labelPrefix="ending-desktop"
-                        compact
-                        onPressStep={(slotIndex) => {
-                          handleSetRiffLandingStepActive(
-                            slotIndex,
-                            !riffLandingRollSteps[slotIndex],
-                          );
-                        }}
-                        onLongPressStep={(slotIndex) => {
-                          handleToggleRiffLandingAccent(slotIndex);
-                        }}
-                      />
-                    </StudyShellPanel>
+                      <div className="pointer-events-none">
+                        <RiffRollEditor
+                          activeSteps={riffEndingPatternSteps.map((step) => step.active)}
+                          accents={riffEndingPatternSteps.map((step) => step.accented)}
+                          color={riffEditableColor}
+                          stepColors={riffEndingPatternSteps.map((step) =>
+                            step.inEndingTail ? '#7FD7FF' : riffEditableColor,
+                          )}
+                          selectedStepIndex={null}
+                          labelPrefix="ending-reference-desktop"
+                          compact
+                          dense
+                          onPressStep={() => undefined}
+                        />
+                      </div>
+                    </div>
                   </>
                 )}
                   </StudyShellPremiumPanel>

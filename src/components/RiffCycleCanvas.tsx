@@ -201,6 +201,15 @@ function getVoiceImpactKey(event: RiffVoiceEvent): string {
   return `${event.cellLabel ?? 'riff'}:${event.voice}:${event.surface}:${event.index}:${event.instrument}`;
 }
 
+function getVoiceImpactIntensity(remaining: number): number {
+  const clampedRemaining = Math.max(0, Math.min(1, remaining));
+  const progress = 1 - clampedRemaining;
+  const attackProgress = Math.min(1, progress / 0.16);
+  const easedAttack = attackProgress * attackProgress * (3 - 2 * attackProgress);
+  const easedRelease = clampedRemaining * clampedRemaining * (3 - 2 * clampedRemaining);
+  return easedAttack * easedRelease;
+}
+
 function drawVoiceImpactBloom(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -210,17 +219,19 @@ function drawVoiceImpactBloom(
   color: string,
 ): void {
   if (remaining <= 0) return;
+  const intensity = getVoiceImpactIntensity(remaining);
+  if (intensity <= 0) return;
   const expansion = 1 - remaining;
   ctx.save();
-  ctx.globalAlpha = Math.min(0.88, remaining * 0.94);
+  ctx.globalAlpha = Math.min(0.58, intensity * 0.62);
   ctx.strokeStyle = color;
-  ctx.lineWidth = (1.2 + remaining * 1.4) * scale;
-  ctx.shadowBlur = (12 + remaining * 18) * scale;
+  ctx.lineWidth = (1 + intensity * 1.05) * scale;
+  ctx.shadowBlur = (8 + intensity * 13) * scale;
   ctx.shadowColor = color;
   ctx.beginPath();
   ctx.arc(x, y, (8 + expansion * 14) * scale, 0, TAU);
   ctx.stroke();
-  ctx.globalAlpha = remaining * 0.16;
+  ctx.globalAlpha = intensity * 0.1;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(x, y, (7 + expansion * 9) * scale, 0, TAU);
@@ -2229,9 +2240,6 @@ export default function RiffCycleCanvas({
         ? selectedSequenceCellLabel
         : getRiffSequenceStateAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)?.cell.label;
     const voiceEvents = getRiffVoiceEventsForCell(currentStudy, voiceCellLabel);
-    const currentBeatIndex = Math.floor(
-      (currentReferenceStep % Math.max(1, stepsPerBar)) / Math.max(1, stepsPerBeat),
-    );
     voiceEvents
       .filter((event) => event.surface === 'beat')
       .forEach((event) => {
@@ -2242,18 +2250,18 @@ export default function RiffCycleCanvas({
         );
         const siblingIndex = siblings.findIndex((candidate) => candidate === event);
         const offsetX = (siblingIndex - (siblings.length - 1) / 2) * 18 * shellScale;
-        const active = currentBeatIndex === event.index;
         const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
         const size = 19 * shellScale * (event.instrument === 'snare' ? 1.05 : 1);
-        const nativeBeatBloomActive =
-          referenceBeatFlashBeatRef.current === event.index &&
-          referenceBeatFlashUntilRef.current > now;
-        const impactRemaining = nativeBeatBloomActive
-          ? 0
-          : Math.max(
-              0,
-              ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
-            );
+        const nativeImpactRemaining =
+          referenceBeatFlashBeatRef.current === event.index
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            : 0;
+        const voiceImpactRemaining = Math.max(
+          0,
+          ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
+        );
+        const impactRemaining = Math.max(nativeImpactRemaining, voiceImpactRemaining);
+        const impactIntensity = getVoiceImpactIntensity(impactRemaining);
         drawVoiceImpactBloom(
           ctx,
           vertex.x + offsetX,
@@ -2266,8 +2274,8 @@ export default function RiffCycleCanvas({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-        ctx.shadowBlur = (active ? 22 : editing ? 14 : 8) * glowMultiplier * shellScale;
-        ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.9)' : 'rgba(127,215,255,0.7)';
+        ctx.shadowBlur = (6 + impactIntensity * 12 + (editing ? 4 : 0)) * glowMultiplier * shellScale;
+        ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : 'rgba(127,215,255,0.58)';
         if (event.instrument === 'cymbal') {
           drawCymbalIcon(ctx, vertex.x + offsetX, vertex.y, size * 1.35);
         } else {
@@ -2290,16 +2298,18 @@ export default function RiffCycleCanvas({
       const siblings = subdivisionVoiceEvents.filter((candidate) => candidate.index === event.index);
       const siblingIndex = siblings.findIndex((candidate) => candidate === event);
       const offsetX = (siblingIndex - (siblings.length - 1) / 2) * 18 * pointScale;
-      const active = innerClockMotionVisible && currentRiffStep === event.index;
       const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
       const size = 18 * pointScale * (event.instrument === 'snare' ? 1.05 : 1);
-      const nativeRiffBloomActive = (riffAttackUntilRef.current[event.index] ?? 0) > now;
-      const impactRemaining = nativeRiffBloomActive
-        ? 0
-        : Math.max(
-            0,
-            ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
-          );
+      const nativeImpactRemaining = Math.max(
+        0,
+        ((riffAttackUntilRef.current[event.index] ?? 0) - now) / 320,
+      );
+      const voiceImpactRemaining = Math.max(
+        0,
+        ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
+      );
+      const impactRemaining = Math.max(nativeImpactRemaining, voiceImpactRemaining);
+      const impactIntensity = getVoiceImpactIntensity(impactRemaining);
       drawVoiceImpactBloom(
         ctx,
         point.x + offsetX,
@@ -2312,8 +2322,8 @@ export default function RiffCycleCanvas({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-      ctx.shadowBlur = (active ? 20 : editing ? 13 : 7) * glowMultiplier * pointScale;
-      ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.9)' : `${activeRiffColor}AA`;
+      ctx.shadowBlur = (5 + impactIntensity * 11 + (editing ? 4 : 0)) * glowMultiplier * pointScale;
+      ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : `${activeRiffColor}92`;
       if (event.instrument === 'cymbal') {
         drawCymbalIcon(ctx, point.x + offsetX, point.y, size * 1.35);
       } else {

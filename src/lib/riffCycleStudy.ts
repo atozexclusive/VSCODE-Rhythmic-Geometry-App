@@ -1952,6 +1952,17 @@ export function invertRiffSteps(study: RiffCycleStudy): RiffCycleStudy {
   };
 }
 
+export function mirrorRiffSteps(study: RiffCycleStudy): RiffCycleStudy {
+  return {
+    ...study,
+    riff: {
+      ...study.riff,
+      activeSteps: [...study.riff.activeSteps].reverse(),
+      accents: [...study.riff.accents].reverse(),
+    },
+  };
+}
+
 export function clearRiffSteps(study: RiffCycleStudy): RiffCycleStudy {
   return {
     ...study,
@@ -2496,6 +2507,23 @@ export function invertRiffSequenceCellSteps(
       cell.stepCount,
       cell.activeSteps.map((active) => !active),
       cell.accents,
+      cell.id,
+      cell.color,
+      getRiffCellTiming(cell),
+    ),
+  );
+}
+
+export function mirrorRiffSequenceCellSteps(
+  study: RiffCycleStudy,
+  label: RiffSequenceCellLabel,
+): RiffCycleStudy {
+  return updateRiffSequenceCell(study, label, (cell) =>
+    createRiffSequenceCellFromState(
+      label,
+      cell.stepCount,
+      [...cell.activeSteps].reverse(),
+      [...cell.accents].reverse(),
       cell.id,
       cell.color,
       getRiffCellTiming(cell),
