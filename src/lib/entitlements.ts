@@ -21,6 +21,7 @@ export type ProFeature =
   | 'riff-pattern-tools'
   | 'riff-cell-sequencer'
   | 'riff-subdivisions'
+  | 'riff-voices'
   | 'riff-custom-restart'
   | 'pro-scenes';
 

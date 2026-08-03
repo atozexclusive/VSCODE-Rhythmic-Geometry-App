@@ -7661,6 +7661,7 @@ function OrbitalPolymeter() {
   const riffExtendedPatternsLocked = !canUseProFeature(effectivePlan, 'riff-extended-patterns');
   const riffCellSequencerLocked = !canUseProFeature(effectivePlan, 'riff-cell-sequencer');
   const riffSubdivisionsLocked = !canUseProFeature(effectivePlan, 'riff-subdivisions');
+  const riffVoicesLocked = !canUseProFeature(effectivePlan, 'riff-voices');
   const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
@@ -7760,6 +7761,11 @@ function OrbitalPolymeter() {
         title: 'Subdivisions Need Pro',
         body: 'Pro unlocks subdivision controls and subdivision read aids for denser rhythmic grids.',
       },
+      'riff-voices': {
+        feature: 'riff-voices',
+        title: 'Voices Are A Pro Feature',
+        body: 'Pro unlocks drum and guitar layers, instrument icons, voice audio, impact animation, and separate MIDI tracks.',
+      },
       'riff-custom-restart': {
         feature: 'riff-custom-restart',
         title: 'Custom Riff Restart Needs Pro',
@@ -7773,6 +7779,12 @@ function OrbitalPolymeter() {
     };
     setProPrompt(featureCopy[feature]);
   }
+  useEffect(() => {
+    if (!riffVoicesLocked) return;
+    setRiffVoicesOpen(false);
+    setActiveRiffVoice('riff');
+    setSelectedRiffCycleStep(null);
+  }, [riffVoicesLocked]);
   const requireEditablePolyrhythmStudy = useCallback(() => {
     if (
       !canUseProFeature(effectivePlan, 'study-layers') &&
@@ -9325,7 +9337,11 @@ function OrbitalPolymeter() {
   }, [riffCycleStudy]);
 
   const handleToggleRiffVoiceEvent = useCallback((surface: RiffVoiceSurface, index: number) => {
-    if (activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) {
+    if (
+      !canUseProFeature(effectivePlan, 'riff-voices') ||
+      activeRiffVoice === 'riff' ||
+      !requireEditableRiffCycleStudy()
+    ) {
       return;
     }
     const instrument: RiffVoiceInstrument =
@@ -9345,7 +9361,7 @@ function OrbitalPolymeter() {
           : [...currentEvents, { voice: activeRiffVoice, instrument, surface, index }];
       return { ...current, voiceEvents };
     });
-  }, [activeRiffVoice, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
+  }, [activeRiffVoice, effectivePlan, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
 
   const handleToggleRiffVoiceBeat = useCallback(
     (beatIndex: number) => handleToggleRiffVoiceEvent('beat', beatIndex),
@@ -20969,16 +20985,22 @@ function OrbitalPolymeter() {
                             <StudyShellButton
                               size="compact"
                               tone="blue"
-                              highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
-                              onClick={() =>
+                              highlighted={!riffVoicesLocked && (riffVoicesOpen || activeRiffVoice !== 'riff')}
+                              locked={riffVoicesLocked}
+                              onLockedClick={() => openProPrompt('riff-voices')}
+                              onClick={() => {
+                                if (riffVoicesLocked) {
+                                  openProPrompt('riff-voices');
+                                  return;
+                                }
                                 setRiffVoicesOpen((open) => {
                                   if (open) {
                                     setActiveRiffVoice('riff');
                                     setSelectedRiffCycleStep(null);
                                   }
                                   return !open;
-                                })
-                              }
+                                });
+                              }}
                               icon={<span className="text-[12px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
                               className="w-full"
                             >
@@ -25391,16 +25413,22 @@ function OrbitalPolymeter() {
                       <StudyShellButton
                         size="compact"
                         tone="blue"
-                        highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
-                        onClick={() =>
+                        highlighted={!riffVoicesLocked && (riffVoicesOpen || activeRiffVoice !== 'riff')}
+                        locked={riffVoicesLocked}
+                        onLockedClick={() => openProPrompt('riff-voices')}
+                        onClick={() => {
+                          if (riffVoicesLocked) {
+                            openProPrompt('riff-voices');
+                            return;
+                          }
                           setRiffVoicesOpen((open) => {
                             if (open) {
                               setActiveRiffVoice('riff');
                               setSelectedRiffCycleStep(null);
                             }
                             return !open;
-                          })
-                        }
+                          });
+                        }}
                         icon={<span className="text-[11px]">{activeRiffVoice === 'drums' ? '🥁' : activeRiffVoice === 'guitar' ? '🎸' : '◆'}</span>}
                         className="w-full"
                       >
