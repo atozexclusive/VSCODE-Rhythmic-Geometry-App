@@ -365,14 +365,15 @@ export function buildRiffCycleMidiFile(
     getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
       const shouldRender =
         (event.surface === 'beat' && referenceStep % stepsPerBeat === 0 && event.index === beatIndex) ||
-        (event.surface === 'subdivision' && event.index === stepState.phraseIndex);
+        (event.surface === 'subdivision' && event.index === stepState.phraseIndex) ||
+        (event.surface === 'reference-subdivision' && event.index === ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
       if (!shouldRender) return;
       if (event.voice === 'drums' && event.instrument !== 'guitar') {
         drumEvents.push(
           ...createNoteEvents(tick, 9, getDrumMidiNote(event.instrument), 108, subdivisionNoteLengthTicks, 5),
         );
       } else if (event.voice === 'guitar') {
-        const guitarNote = clamp(52 + (stepState.phraseIndex % 8), 40, 76);
+        const guitarNote = clamp(event.midiNote ?? 52 + (stepState.phraseIndex % 8), 24, 108);
         guitarEvents.push(...createNoteEvents(tick, 2, guitarNote, 96, noteLengthTicks, 5));
       }
     });

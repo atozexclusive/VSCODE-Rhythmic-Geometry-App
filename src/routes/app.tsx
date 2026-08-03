@@ -212,7 +212,7 @@ import {
   type RiffVoiceInstrument,
   type RiffVoiceSurface,
 } from '../lib/riffCycleStudy';
-import { resumeRiffCycleAudio } from '../lib/riffCycleAudio';
+import { resumeRiffCycleAudio, triggerRiffVoiceInstrument } from '../lib/riffCycleAudio';
 import { buildRiffCycleMidiFile, type RiffMidiExportMode } from '../lib/riffCycleMidi';
 import { buildPolyrhythmMidiFile, type PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import { buildOrbitMidiFile } from '../lib/orbitMidi';
@@ -232,6 +232,103 @@ function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: Rif
     return <img src="/cymbal.png" alt="Cymbal" className={`${className} inline-block object-contain`} />;
   }
   return <>{RIFF_VOICE_SYMBOLS[instrument]}</>;
+}
+
+const GUITAR_WHITE_KEY_OFFSETS = [0, 2, 4, 5, 7, 9, 11] as const;
+const GUITAR_BLACK_KEYS = [
+  { offset: 1, position: 1 },
+  { offset: 3, position: 2 },
+  { offset: 6, position: 4 },
+  { offset: 8, position: 5 },
+  { offset: 10, position: 6 },
+] as const;
+const GUITAR_NOTE_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const;
+
+function getGuitarMidiNoteLabel(midiNote: number): string {
+  const octave = Math.floor(midiNote / 12) - 1;
+  return `${GUITAR_NOTE_NAMES[((midiNote % 12) + 12) % 12]}${octave}`;
+}
+
+function GuitarPitchPicker({
+  midiNote,
+  onChange,
+  compact = false,
+}: {
+  midiNote: number;
+  onChange: (midiNote: number) => void;
+  compact?: boolean;
+}) {
+  const octave = Math.floor(midiNote / 12) - 1;
+  const octaveBase = (octave + 1) * 12;
+  const noteName = getGuitarMidiNoteLabel(midiNote);
+  const shiftOctave = (amount: number) => onChange(clamp(midiNote + amount * 12, 24, 108));
+
+  return (
+    <div className={`rounded-xl border border-[#72F1B8]/18 bg-[#72F1B8]/[0.045] ${compact ? 'p-1.5' : 'p-2'}`}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => shiftOctave(-1)}
+          className="h-7 rounded-lg border border-white/10 px-2 font-mono text-[11px] text-white/55"
+          aria-label="Previous guitar octave"
+        >
+          ‹
+        </button>
+        <div className="text-center font-mono uppercase tracking-[0.14em] text-[#9BFFD0]">
+          <span className={compact ? 'text-[8px]' : 'text-[9px]'}>Pitch · {noteName}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => shiftOctave(1)}
+          className="h-7 rounded-lg border border-white/10 px-2 font-mono text-[11px] text-white/55"
+          aria-label="Next guitar octave"
+        >
+          ›
+        </button>
+      </div>
+      <div className={`relative ${compact ? 'h-14' : 'h-16'}`}>
+        <div className="grid h-full grid-cols-7 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10">
+          {GUITAR_WHITE_KEY_OFFSETS.map((offset) => {
+            const note = octaveBase + offset;
+            const selected = note === midiNote;
+            return (
+              <button
+                key={offset}
+                type="button"
+                onClick={() => onChange(note)}
+                className="flex items-end justify-center bg-white/[0.88] pb-1 font-mono text-[7px] text-black/55 transition active:bg-[#9BFFD0]"
+                style={selected ? { background: '#9BFFD0', boxShadow: 'inset 0 0 0 2px rgba(31,110,79,0.62)' } : undefined}
+                aria-label={`Select ${GUITAR_NOTE_NAMES[offset]}${octave}`}
+              >
+                {GUITAR_NOTE_NAMES[offset]}
+              </button>
+            );
+          })}
+        </div>
+        {GUITAR_BLACK_KEYS.map(({ offset, position }) => {
+          const note = octaveBase + offset;
+          const selected = note === midiNote;
+          return (
+            <button
+              key={offset}
+              type="button"
+              onClick={() => onChange(note)}
+              className="absolute top-0 z-10 h-[58%] -translate-x-1/2 rounded-b-md border border-black/70 bg-[#181A20] shadow-md transition active:bg-[#47705e]"
+              style={{
+                left: `${(position / 7) * 100}%`,
+                width: '8.5%',
+                ...(selected ? { background: '#4FAE83', boxShadow: '0 0 12px rgba(114,241,184,0.55)' } : {}),
+              }}
+              aria-label={`Select ${GUITAR_NOTE_NAMES[offset]}${octave}`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-1 text-center font-mono text-[7px] uppercase tracking-[0.1em] text-white/30">
+        New guitar hits use this note
+      </div>
+    </div>
+  );
 }
 import {
   CANVAS_ATMOSPHERE_OPTIONS,
@@ -3920,6 +4017,7 @@ function RiffRollEditor({
   overlaySteps,
   overlaySoundAndImpact,
   stepColors,
+  stepBottomLabels,
 }: {
   activeSteps: boolean[];
   accents: boolean[];
@@ -3936,6 +4034,7 @@ function RiffRollEditor({
   overlaySteps?: RiffCycleStudy['overlay']['steps'];
   overlaySoundAndImpact?: boolean[];
   stepColors?: string[];
+  stepBottomLabels?: Array<string | undefined>;
 }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -4106,7 +4205,7 @@ function RiffRollEditor({
                   ? overlaySounds ? 'Add + Sound' : 'Add'
                   : overlayRemoved
                     ? overlaySounds ? 'Hide' : 'Remove'
-                    : active ? 'Hit' : 'Rest'}
+                    : active ? (stepBottomLabels?.[index] ?? 'Hit') : 'Rest'}
               </div>
             </button>
           );
@@ -7718,6 +7817,11 @@ function OrbitalPolymeter() {
   const [activeRiffVoice, setActiveRiffVoice] = useState<'riff' | RiffVoiceId>('riff');
   const [selectedRiffVoiceInstrument, setSelectedRiffVoiceInstrument] =
     useState<RiffVoiceInstrument>('snare');
+  const [selectedGuitarMidiNote, setSelectedGuitarMidiNote] = useState(60);
+  const [riffGuitarPitchMode, setRiffGuitarPitchMode] = useState(false);
+  const [guitarPitchArmed, setGuitarPitchArmed] = useState(false);
+  const [selectedGuitarPitchTarget, setSelectedGuitarPitchTarget] =
+    useState<{ surface: RiffVoiceSurface; index: number } | null>(null);
   const [riffMobileSection, setRiffMobileSection] = useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [riffMobileSceneTab, setRiffMobileSceneTab] =
     useState<'standard' | 'saved' | 'pro'>('standard');
@@ -9474,13 +9578,79 @@ function OrbitalPolymeter() {
           event.index === index &&
           (!current.riffSequenceEnabled || (event.cellLabel ?? fallbackCellLabel) === cellLabel),
       );
+      if (activeRiffVoice === 'guitar' && riffGuitarPitchMode) {
+        if (existingIndex >= 0) {
+          setSelectedGuitarPitchTarget({ surface, index });
+          if (surface === 'subdivision') setSelectedRiffCycleStep(index);
+          if (guitarPitchArmed) {
+            return {
+              ...current,
+              voiceEvents: currentEvents.map((event, eventIndex) =>
+                eventIndex === existingIndex ? { ...event, midiNote: selectedGuitarMidiNote } : event,
+              ),
+            };
+          }
+        } else if (guitarPitchArmed) {
+          setSelectedGuitarPitchTarget({ surface, index });
+          if (surface === 'subdivision') setSelectedRiffCycleStep(index);
+          return {
+            ...current,
+            voiceEvents: [
+              ...currentEvents,
+              {
+                voice: 'guitar',
+                instrument: 'guitar',
+                surface,
+                index,
+                cellLabel,
+                midiNote: selectedGuitarMidiNote,
+              },
+            ],
+          };
+        }
+        return current;
+      }
       const voiceEvents =
         existingIndex >= 0
           ? currentEvents.filter((_, eventIndex) => eventIndex !== existingIndex)
-          : [...currentEvents, { voice: activeRiffVoice, instrument, surface, index, cellLabel }];
+          : [...currentEvents, {
+              voice: activeRiffVoice,
+              instrument,
+              surface,
+              index,
+              cellLabel,
+              ...(activeRiffVoice === 'guitar' ? { midiNote: selectedGuitarMidiNote } : {}),
+            }];
       return { ...current, voiceEvents };
     });
-  }, [activeRiffVoice, effectivePlan, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
+  }, [activeRiffVoice, effectivePlan, guitarPitchArmed, requireEditableRiffCycleStudy, riffGuitarPitchMode, selectedGuitarMidiNote, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
+
+  const handleSetSelectedGuitarPitch = useCallback((midiNote: number) => {
+    setSelectedGuitarMidiNote(midiNote);
+    setGuitarPitchArmed(true);
+    resumeRiffCycleAudio();
+    triggerRiffVoiceInstrument('guitar', 0, undefined, undefined, midiNote);
+  }, []);
+
+  const handleToggleGuitarPitchMode = useCallback(() => {
+    setRiffGuitarPitchMode((current) => {
+      setGuitarPitchArmed(false);
+      setSelectedGuitarPitchTarget(null);
+      return !current;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeRiffVoice === 'guitar' && riffVoicesOpen) return;
+    setRiffGuitarPitchMode(false);
+    setGuitarPitchArmed(false);
+    setSelectedGuitarPitchTarget(null);
+  }, [activeRiffVoice, riffVoicesOpen]);
+
+  useEffect(() => {
+    setSelectedGuitarPitchTarget(null);
+    setGuitarPitchArmed(false);
+  }, [selectedRiffSequenceCellLabel]);
 
   const handleToggleRiffVoiceBeat = useCallback(
     (beatIndex: number) => handleToggleRiffVoiceEvent('beat', beatIndex),
@@ -9489,6 +9659,11 @@ function OrbitalPolymeter() {
 
   const handleToggleRiffVoiceSubdivision = useCallback(
     (stepIndex: number) => handleToggleRiffVoiceEvent('subdivision', stepIndex),
+    [handleToggleRiffVoiceEvent],
+  );
+
+  const handleToggleRiffVoiceReferenceSubdivision = useCallback(
+    (stepIndex: number) => handleToggleRiffVoiceEvent('reference-subdivision', stepIndex),
     [handleToggleRiffVoiceEvent],
   );
 
@@ -14237,6 +14412,19 @@ function OrbitalPolymeter() {
     ),
   );
   const riffRollActiveSteps = activeRiffVoice === 'riff' ? riffEditableActiveSteps : riffVoiceActiveSteps;
+  const riffRollStepBottomLabels = activeRiffVoice === 'guitar'
+    ? Array.from({ length: riffEditableStepCount }, (_, index) => {
+        const event = riffEditableVoiceEvents.find(
+          (candidate) =>
+            candidate.voice === 'guitar' &&
+            candidate.instrument === 'guitar' &&
+            candidate.surface === 'subdivision' &&
+            candidate.index === index,
+        );
+        if (!event) return undefined;
+        return getGuitarMidiNoteLabel(event.midiNote ?? 52 + (index % 8));
+      })
+    : undefined;
   const riffRollAccents = activeRiffVoice === 'riff'
     ? riffEditableAccents
     : Array.from({ length: riffEditableStepCount }, () => false);
@@ -20069,6 +20257,7 @@ function OrbitalPolymeter() {
                 onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                 onToggleVoiceBeat={handleToggleRiffVoiceBeat}
                 onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
+                onToggleVoiceReferenceSubdivision={handleToggleRiffVoiceReferenceSubdivision}
                 onSetLandingStepActive={handleSetRiffLandingStepActive}
                 onToggleLandingAccent={handleToggleRiffLandingAccent}
                 className="absolute inset-0 h-full w-full"
@@ -21105,6 +21294,7 @@ function OrbitalPolymeter() {
                               activeSteps={riffRollActiveSteps}
                               accents={riffRollAccents}
                               color={riffRollColor}
+	                              stepBottomLabels={riffRollStepBottomLabels}
 	                              selectedStepIndex={selectedRiffCycleStep}
 	                              labelPrefix="riff"
 	                              onPressStep={(stepIndex) => {
@@ -21139,6 +21329,7 @@ function OrbitalPolymeter() {
                               highlighted={riffRollActiveSteps.some(Boolean)}
                               icon={<Trash2 size={13} />}
                               onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
+                              disabled={riffGuitarPitchMode}
                               className="w-full"
                             >
                               Clear Hits
@@ -21194,6 +21385,31 @@ function OrbitalPolymeter() {
                               </StudyShellButton>
                             ))}
                           </div>
+                          ) : null}
+                          {riffVoicesOpen && activeRiffVoice === 'guitar' ? (
+                            <div className="mt-2 space-y-2">
+                              <StudyShellButton
+                                size="compact"
+                                tone="green"
+                                highlighted={riffGuitarPitchMode}
+                                onClick={handleToggleGuitarPitchMode}
+                                className="w-full"
+                              >
+                                Pitch
+                              </StudyShellButton>
+                              {riffGuitarPitchMode ? (
+                                <>
+                                  <div className="text-center font-mono text-[7px] uppercase tracking-[0.1em] text-[#9BFFD0]/55">
+                                    {guitarPitchArmed ? 'Tap steps to place note' : 'Choose a note'}
+                                  </div>
+                                  <GuitarPitchPicker
+                                    midiNote={selectedGuitarMidiNote}
+                                    onChange={handleSetSelectedGuitarPitch}
+                                    compact
+                                  />
+                                </>
+                              ) : null}
+                            </div>
                           ) : null}
                           {riffVoicesOpen && activeRiffVoice === 'drums' ? (
                             <div className="mt-2 grid grid-cols-4 gap-1.5">
@@ -21387,7 +21603,7 @@ function OrbitalPolymeter() {
                               </div>
                             </div>
 
-                            <div className="pt-1.5">
+                            <div className="grid grid-cols-2 gap-2 pt-1.5">
                               <StudyShellButton
                                 size="compact"
                                 tone="amber"
@@ -21395,9 +21611,20 @@ function OrbitalPolymeter() {
                                 onClick={handleInvertRiffCycle}
                                 locked={riffPatternToolsLocked}
                                 onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                                className="w-full"
+                                className="min-w-0"
                               >
                                 Invert Hits
+                              </StudyShellButton>
+                              <StudyShellButton
+                                size="compact"
+                                tone="blue"
+                                highlighted={!riffPatternToolsLocked}
+                                onClick={handleMirrorRiffCycle}
+                                locked={riffPatternToolsLocked}
+                                onLockedClick={() => openProPrompt('riff-pattern-tools')}
+                                className="min-w-0"
+                              >
+                                Mirror Hits
                               </StudyShellButton>
                             </div>
                           </div>
@@ -22646,6 +22873,7 @@ function OrbitalPolymeter() {
                             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                             onToggleVoiceBeat={handleToggleRiffVoiceBeat}
                             onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
+                            onToggleVoiceReferenceSubdivision={handleToggleRiffVoiceReferenceSubdivision}
                             onSetLandingStepActive={handleSetRiffLandingStepActive}
                             onToggleLandingAccent={handleToggleRiffLandingAccent}
                             className="absolute inset-0 h-full w-full"
@@ -23044,6 +23272,7 @@ function OrbitalPolymeter() {
             onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
             onToggleVoiceBeat={handleToggleRiffVoiceBeat}
             onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
+            onToggleVoiceReferenceSubdivision={handleToggleRiffVoiceReferenceSubdivision}
             onSetLandingStepActive={handleSetRiffLandingStepActive}
             onToggleLandingAccent={handleToggleRiffLandingAccent}
           />
@@ -23742,6 +23971,31 @@ function OrbitalPolymeter() {
                             </StudyShellButton>
                           ))}
                         </div>
+                        {activeRiffVoice === 'guitar' ? (
+                          <div className="space-y-1.5">
+                            <StudyShellButton
+                              size="compact"
+                              tone="green"
+                              highlighted={riffGuitarPitchMode}
+                              onClick={handleToggleGuitarPitchMode}
+                              className="w-full"
+                            >
+                              Pitch
+                            </StudyShellButton>
+                            {riffGuitarPitchMode ? (
+                              <>
+                                <div className="text-center font-mono text-[7px] uppercase tracking-[0.1em] text-[#9BFFD0]/55">
+                                  {guitarPitchArmed ? 'Tap steps to place note' : 'Choose a note'}
+                                </div>
+                                <GuitarPitchPicker
+                                  midiNote={selectedGuitarMidiNote}
+                                  onChange={handleSetSelectedGuitarPitch}
+                                  compact
+                                />
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {activeRiffVoice === 'drums' ? (
                           <div className="grid grid-cols-4 gap-1 border-t border-white/7 pt-1.5">
                             {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
@@ -25071,6 +25325,7 @@ function OrbitalPolymeter() {
                   onTogglePulseLayerStep={handleToggleRiffPulseLayerStep}
                   onToggleVoiceBeat={handleToggleRiffVoiceBeat}
                   onToggleVoiceSubdivision={handleToggleRiffVoiceSubdivision}
+                  onToggleVoiceReferenceSubdivision={handleToggleRiffVoiceReferenceSubdivision}
                   onSetLandingStepActive={handleSetRiffLandingStepActive}
                   onToggleLandingAccent={handleToggleRiffLandingAccent}
                   className="absolute inset-0 h-full w-full -translate-y-2 scale-[0.89]"
@@ -25251,6 +25506,31 @@ function OrbitalPolymeter() {
                       </StudyShellButton>
                     ))}
                   </div>
+                  {activeRiffVoice === 'guitar' && !riffVoicesLocked ? (
+                    <div className="space-y-1.5 border-t border-white/7 pt-2">
+                      <StudyShellButton
+                        size="compact"
+                        tone="green"
+                        highlighted={riffGuitarPitchMode}
+                        onClick={handleToggleGuitarPitchMode}
+                        className="w-full"
+                      >
+                        Pitch
+                      </StudyShellButton>
+                      {riffGuitarPitchMode ? (
+                        <>
+                          <div className="text-center font-mono text-[7px] uppercase tracking-[0.1em] text-[#9BFFD0]/55">
+                            {guitarPitchArmed ? 'Tap steps to place note' : 'Choose a note'}
+                          </div>
+                          <GuitarPitchPicker
+                            midiNote={selectedGuitarMidiNote}
+                            onChange={handleSetSelectedGuitarPitch}
+                            compact
+                          />
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {activeRiffVoice === 'drums' && !riffVoicesLocked ? (
                     <div className="grid grid-cols-4 gap-1.5 border-t border-white/7 pt-2">
                       {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
@@ -25559,6 +25839,7 @@ function OrbitalPolymeter() {
                         highlighted={riffRollActiveSteps.some(Boolean)}
                         icon={<Trash2 size={12} />}
                         onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
+                        disabled={riffGuitarPitchMode}
                         className="!h-9 justify-self-start rounded-lg px-3 text-[8px]"
                       >
                         Clear
@@ -25582,6 +25863,7 @@ function OrbitalPolymeter() {
                         activeSteps={riffRollActiveSteps}
                         accents={riffRollAccents}
                         color={riffRollColor}
+                        stepBottomLabels={riffRollStepBottomLabels}
                         selectedStepIndex={selectedRiffCycleStep}
                         labelPrefix="riff-desktop"
                         compact

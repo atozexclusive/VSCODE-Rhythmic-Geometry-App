@@ -190,6 +190,7 @@ export function triggerRiffVoiceInstrument(
   phraseIndex = 0,
   atTime?: number,
   target?: VoiceTarget,
+  midiNote?: number,
 ): void {
   const context = target?.context ?? getAudioContext();
   if (!context) return;
@@ -216,7 +217,7 @@ export function triggerRiffVoiceInstrument(
     return;
   }
 
-  const guitarMidi = 52 + (Math.max(0, phraseIndex) % 8);
+  const guitarMidi = midiNote ?? 52 + (Math.max(0, phraseIndex) % 8);
   const guitarFrequency = midiToFrequency(guitarMidi);
   withVoice({ type: 'sawtooth', frequency: guitarFrequency, gain: 0.075, attack: 0.002, release: 0.32, filterFrequency: 1450, filterQ: 1.1, sweepTo: guitarFrequency * 0.985, atTime: now }, target);
   withVoice({ type: 'triangle', frequency: guitarFrequency * 2, gain: 0.025, attack: 0.001, release: 0.2, filterFrequency: 2400, filterType: 'bandpass', atTime: now }, target);
@@ -595,9 +596,10 @@ export function createRiffCycleExportAudioStream(
     getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
       const shouldPlay =
         (event.surface === 'beat' && isReferenceBeatStart(study, referenceStep) && event.index === beatIndex) ||
-        (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);
+        (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||
+        (event.surface === 'reference-subdivision' && event.index === ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
       if (study.soundEnabled && shouldPlay) {
-        triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, atTime, target);
+        triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, atTime, target, event.midiNote);
       }
     });
 

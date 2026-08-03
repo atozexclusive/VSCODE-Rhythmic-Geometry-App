@@ -55,13 +55,14 @@ export type RiffSequenceBarsMode = 'global' | 'per-cell';
 export type RiffSequenceEntryDurationMode = 'patterns' | 'bars';
 export type RiffVoiceId = 'drums' | 'guitar';
 export type RiffVoiceInstrument = 'snare' | 'tom' | 'kick' | 'cymbal' | 'guitar';
-export type RiffVoiceSurface = 'beat' | 'subdivision';
+export type RiffVoiceSurface = 'beat' | 'subdivision' | 'reference-subdivision';
 
 export interface RiffVoiceEvent {
   voice: RiffVoiceId;
   instrument: RiffVoiceInstrument;
   surface: RiffVoiceSurface;
   index: number;
+  midiNote?: number;
   cellLabel?: RiffSequenceCellLabel;
 }
 

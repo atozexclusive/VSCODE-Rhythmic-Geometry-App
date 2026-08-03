@@ -80,6 +80,8 @@ const TAU = Math.PI * 2;
 const BAR_MARKER_FLASH_DURATION = 520;
 const REFERENCE_BEAT_FLASH_DURATION = 280;
 
+const SUBDIVISION_IMPACT_DURATION = 320;
+
 interface RiffCyclePlaybackState {
   referenceProgress: number;
   lastTimestamp: number | null;
@@ -118,6 +120,7 @@ interface RiffCycleCanvasProps {
   onTogglePulseLayerStep?: (stepIndex: number) => void;
   onToggleVoiceBeat?: (beatIndex: number) => void;
   onToggleVoiceSubdivision?: (stepIndex: number) => void;
+  onToggleVoiceReferenceSubdivision?: (stepIndex: number) => void;
   onSetLandingStepActive: (slotIndex: number, active: boolean) => void;
   onToggleLandingAccent: (slotIndex: number) => void;
   className?: string;
@@ -695,6 +698,7 @@ export default function RiffCycleCanvas({
   onTogglePulseLayerStep,
   onToggleVoiceBeat,
   onToggleVoiceSubdivision,
+  onToggleVoiceReferenceSubdivision,
   onSetLandingStepActive,
   onToggleLandingAccent,
   className,
@@ -717,6 +721,8 @@ export default function RiffCycleCanvas({
   const barMarkerFlashStepRef = useRef<number | null>(null);
   const riffAttackUntilRef = useRef<number[]>([]);
   const voiceImpactUntilRef = useRef<Map<string, number>>(new Map());
+  const subdivisionImpactUntilRef = useRef<Map<number, number>>(new Map());
+  const subdivisionImpactStepRef = useRef<number | null>(null);
   const laneAttackUntilRef = useRef(0);
   const laneAttackReferenceStepRef = useRef<number | null>(null);
   const restartInitializedRef = useRef(false);
@@ -1053,6 +1059,31 @@ export default function RiffCycleCanvas({
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const subdivisionStepWithinBar =
+      ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+    if (currentStudy.playing && subdivisionImpactStepRef.current !== currentAbsoluteReferenceStep) {
+      subdivisionImpactStepRef.current = currentAbsoluteReferenceStep;
+      subdivisionImpactUntilRef.current.set(
+        subdivisionStepWithinBar,
+        now + SUBDIVISION_IMPACT_DURATION,
+      );
+    }
+    const getSubdivisionImpactStrength = (index: number) => {
+      const remaining = Math.max(
+        0,
+        ((subdivisionImpactUntilRef.current.get(index) ?? 0) - now) /
+          SUBDIVISION_IMPACT_DURATION,
+      );
+      if (remaining <= 0) return 0;
+      const elapsed = 1 - remaining;
+      const attackEnd = 0.1;
+      if (elapsed < attackEnd) {
+        const attack = elapsed / attackEnd;
+        return 1 - (1 - attack) ** 2;
+      }
+      const release = 1 - (elapsed - attackEnd) / (1 - attackEnd);
+      return Math.max(0, release * release);
+    };
     const selectedPoint =
       selectedStepRef.current == null ? null : riffPoints[selectedStepRef.current] ?? null;
     const phraseRestartSteps: number[] = [];
@@ -1286,7 +1317,6 @@ export default function RiffCycleCanvas({
       const pulseRadius = metrics.outerRadius;
       const currentPulsePosition =
         ((referenceProgress % pulseStepCount) + pulseStepCount) % pulseStepCount;
-      const currentPulseIndex = Math.floor(currentPulsePosition) % pulseStepCount;
       const pulseLayerColor = '#7FD7FF';
 
       ctx.save();
@@ -1301,7 +1331,6 @@ export default function RiffCycleCanvas({
           continue;
         }
         const active = pulseLayerSteps[index];
-        const current = index === currentPulseIndex;
         const point = getPulseLayerPoint(
           metrics.circleCenterX,
           metrics.circleCenterY,
@@ -1309,17 +1338,18 @@ export default function RiffCycleCanvas({
           index,
           pulseStepCount,
         );
+        const nodeImpactStrength = active ? getSubdivisionImpactStrength(index) : 0;
         const nodeRadius =
-          (active ? (current ? 4.7 : 3.15) : 1.85) * pointScale;
+          (active ? 3.15 + nodeImpactStrength * 1.55 : 1.85) * pointScale;
 
         ctx.beginPath();
         ctx.arc(point.x, point.y, nodeRadius, 0, TAU);
         ctx.fillStyle = active
-          ? current
-            ? 'rgba(190, 238, 255, 0.78)'
-            : 'rgba(127, 215, 255, 0.28)'
+          ? `rgba(${Math.round(127 + 63 * nodeImpactStrength)}, ${Math.round(215 + 23 * nodeImpactStrength)}, 255, ${0.28 + nodeImpactStrength * 0.5})`
           : 'rgba(255,255,255,0.075)';
-        ctx.shadowBlur = active ? (current ? 7 : 1.5) * glowMultiplier * pointScale : 0;
+        ctx.shadowBlur = active
+          ? (1.5 + nodeImpactStrength * 5.5) * glowMultiplier * pointScale
+          : 0;
         ctx.shadowColor = active ? `${pulseLayerColor}88` : 'transparent';
         ctx.fill();
         ctx.lineWidth = active ? 1 * shellScale : 0.7 * shellScale;
@@ -1452,9 +1482,7 @@ export default function RiffCycleCanvas({
             return;
           }
           const subdivisionFlashStrength =
-            currentReferenceStep % metrics.stepsPerBar === index
-              ? Math.max(0, 1 - Math.abs((referenceProgress % 1) - 0.18) / 0.82)
-              : 0;
+            getSubdivisionImpactStrength(index);
           const vectorX = point.x - metrics.circleCenterX;
           const vectorY = point.y - metrics.circleCenterY;
           const vectorLength = Math.max(1, Math.hypot(vectorX, vectorY));
@@ -1546,9 +1574,6 @@ export default function RiffCycleCanvas({
       });
 
       if (currentStudy.pulseLayerVisible && !currentStudy.pulseLayerEnabled && !denseReferenceMeter) {
-        const currentPulseIndex =
-          ((Math.floor(referenceProgress) % stepsPerBar) + stepsPerBar) % stepsPerBar;
-
         metrics.referencePerimeterPoints.forEach((point, index) => {
           if (isReferenceBeatStart(currentStudy, index)) {
             return;
@@ -1556,22 +1581,20 @@ export default function RiffCycleCanvas({
           const nodeX = point.x;
           const nodeY = point.y;
           const active = pulseLayerSteps[index] ?? true;
-          const current = index === currentPulseIndex;
-          const nodeRadius = (active ? (current ? 3.7 : 2.7) : 1.75) * shellScale;
+          const nodeImpactStrength = active ? getSubdivisionImpactStrength(index) : 0;
+          const nodeRadius = (active ? 2.7 + nodeImpactStrength : 1.75) * shellScale;
 
           ctx.save();
           ctx.beginPath();
           ctx.arc(nodeX, nodeY, nodeRadius, 0, TAU);
           ctx.fillStyle = active
-            ? current
-              ? 'rgba(190,238,255,0.8)'
-              : 'rgba(127,215,255,0.3)'
+            ? `rgba(${Math.round(127 + 63 * nodeImpactStrength)},${Math.round(215 + 23 * nodeImpactStrength)},255,${0.3 + nodeImpactStrength * 0.5})`
             : 'rgba(255,255,255,0.07)';
           ctx.strokeStyle = active
             ? 'rgba(174,227,255,0.48)'
             : 'rgba(255,255,255,0.12)';
           ctx.lineWidth = (active ? 0.95 : 0.7) * shellScale;
-          ctx.shadowBlur = active && current ? 6 * glowMultiplier * shellScale : 0;
+          ctx.shadowBlur = nodeImpactStrength * 6 * glowMultiplier * shellScale;
           ctx.shadowColor = 'rgba(127,215,255,0.48)';
           ctx.fill();
           ctx.stroke();
@@ -2282,7 +2305,7 @@ export default function RiffCycleCanvas({
           drawCenteredVoiceSymbol(
             ctx,
             getRiffVoiceSymbol(event.instrument),
-            vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : 0),
+            vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
             vertex.y,
           );
         }
@@ -2330,7 +2353,61 @@ export default function RiffCycleCanvas({
         drawCenteredVoiceSymbol(
           ctx,
           getRiffVoiceSymbol(event.instrument),
-          point.x + offsetX + (event.instrument === 'snare' ? pointScale : 0),
+          point.x + offsetX + (event.instrument === 'snare' ? pointScale : event.instrument === 'guitar' ? 4 * pointScale : 0),
+          point.y,
+        );
+      }
+      ctx.restore();
+    });
+
+    const referenceSubdivisionVoiceEvents = voiceEvents.filter(
+      (event) => event.surface === 'reference-subdivision',
+    );
+    referenceSubdivisionVoiceEvents.forEach((event) => {
+      const pulseStepCount = Math.max(1, stepsPerBar);
+      const point = currentStudy.pulseLayerEnabled
+        ? getPulseLayerPoint(
+            metrics.circleCenterX,
+            metrics.circleCenterY,
+            metrics.outerRadius,
+            event.index,
+            pulseStepCount,
+          )
+        : metrics.referencePerimeterPoints[event.index];
+      if (!point) return;
+      const siblings = referenceSubdivisionVoiceEvents.filter(
+        (candidate) => candidate.index === event.index,
+      );
+      const siblingIndex = siblings.findIndex((candidate) => candidate === event);
+      const offsetX = (siblingIndex - (siblings.length - 1) / 2) * 18 * shellScale;
+      const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
+      const size = 18 * shellScale * (event.instrument === 'snare' ? 1.05 : 1);
+      const voiceImpactRemaining = Math.max(
+        0,
+        ((voiceImpactUntilRef.current.get(getVoiceImpactKey(event)) ?? 0) - now) / 260,
+      );
+      const impactIntensity = getVoiceImpactIntensity(voiceImpactRemaining);
+      drawVoiceImpactBloom(
+        ctx,
+        point.x + offsetX,
+        point.y,
+        voiceImpactRemaining,
+        shellScale,
+        event.instrument === 'cymbal' ? 'rgba(255,209,102,0.96)' : 'rgba(127,215,255,0.92)',
+      );
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+      ctx.shadowBlur = (5 + impactIntensity * 11 + (editing ? 4 : 0)) * glowMultiplier * shellScale;
+      ctx.shadowColor = event.instrument === 'cymbal' ? 'rgba(255,209,102,0.66)' : 'rgba(127,215,255,0.58)';
+      if (event.instrument === 'cymbal') {
+        drawCymbalIcon(ctx, point.x + offsetX, point.y, size * 1.35);
+      } else {
+        drawCenteredVoiceSymbol(
+          ctx,
+          getRiffVoiceSymbol(event.instrument),
+          point.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
           point.y,
         );
       }
@@ -2973,11 +3050,12 @@ export default function RiffCycleCanvas({
         getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
           const shouldImpact =
             (event.surface === 'beat' && referenceBeatStart && event.index === beatIndex) ||
-            (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);
+            (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||
+            (event.surface === 'reference-subdivision' && event.index === ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
           if (shouldImpact) {
             voiceImpactUntilRef.current.set(getVoiceImpactKey(event), voiceImpactNow + 260);
             if (audioEnabledRef.current && currentStudy.soundEnabled) {
-              triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex);
+              triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, undefined, undefined, event.midiNote);
             }
           }
         });
@@ -3382,6 +3460,12 @@ export default function RiffCycleCanvas({
         }
       }
       const pulseHit = findPulseLayerHit(metrics, localX, localY);
+      if (pulseHit != null && voiceEditModeRef.current && onToggleVoiceReferenceSubdivision) {
+        onToggleVoiceReferenceSubdivision(pulseHit);
+        onSelectStep(null);
+        clearPointerPaint(event);
+        return;
+      }
       if (pulseHit != null && onTogglePulseLayerStep) {
         onTogglePulseLayerStep(pulseHit);
         onSelectStep(null);
@@ -3513,6 +3597,7 @@ export default function RiffCycleCanvas({
       onToggleMeterBeat,
       onTogglePulseLayerStep,
       onToggleVoiceBeat,
+      onToggleVoiceReferenceSubdivision,
       onToggleVoiceSubdivision,
       findMeterBeatHit,
       findPulseLayerHit,
