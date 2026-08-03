@@ -5297,6 +5297,10 @@ function EditableTempoValue({
   ariaLabel?: string;
 }) {
   const [draft, setDraft] = useState(String(value));
+  const [padOpen, setPadOpen] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimesRef = useRef<number[]>([]);
+  const replaceDraftRef = useRef(true);
 
   useEffect(() => {
     setDraft(String(value));
@@ -5328,22 +5332,147 @@ function EditableTempoValue({
     [value],
   );
 
+  const commitValue = useCallback(
+    (nextDraft: string) => {
+      const parsed = Number.parseFloat(nextDraft);
+      if (!Number.isFinite(parsed)) return;
+      const nextValue = Math.round(clamp(parsed, min, max));
+      setDraft(String(nextValue));
+      if (nextValue !== value) onCommit(nextValue);
+    },
+    [max, min, onCommit, value],
+  );
+
+  const closePad = useCallback(() => {
+    commitDraft();
+    setPadOpen(false);
+    setTapCount(0);
+    tapTimesRef.current = [];
+    replaceDraftRef.current = true;
+  }, [commitDraft]);
+
+  const enterDigit = useCallback((digit: string) => {
+    setDraft((current) => {
+      const next = replaceDraftRef.current ? digit : `${current}${digit}`;
+      replaceDraftRef.current = false;
+      return next.replace(/^0+(?=\d)/, '').slice(0, 3);
+    });
+  }, []);
+
+  const eraseDigit = useCallback(() => {
+    replaceDraftRef.current = false;
+    setDraft((current) => current.slice(0, -1));
+  }, []);
+
+  const tapTempo = useCallback(() => {
+    const now = performance.now();
+    const previous = tapTimesRef.current;
+    const recent = previous.length > 0 && now - previous[previous.length - 1]! <= 2000
+      ? [...previous, now].slice(-6)
+      : [now];
+    tapTimesRef.current = recent;
+    setTapCount(recent.length);
+    replaceDraftRef.current = true;
+
+    if (recent.length < 2) return;
+    const intervals = recent.slice(1).map((time, index) => time - recent[index]!);
+    const averageInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    commitValue(String(60000 / averageInterval));
+  }, [commitValue]);
+
+  const tempoPad = padOpen && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[140] flex items-end justify-center bg-black/55 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-16 backdrop-blur-sm sm:items-center sm:pb-4"
+          role="presentation"
+          onPointerDown={(event) => {
+            if (event.currentTarget === event.target) closePad();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Enter tempo"
+            className="w-full max-w-[22rem] rounded-[2rem] border border-sky-300/20 bg-[#11131b]/98 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+          >
+            <div className="mb-4 flex items-end justify-between px-2">
+              <div>
+                <div className="font-mono text-[11px] tracking-[0.22em] text-sky-200/65">TEMPO</div>
+                <div className="mt-1 font-mono text-[11px] tracking-[0.14em] text-white/35">
+                  {tapCount === 0 ? 'TYPE OR TAP' : tapCount === 1 ? 'TAP AGAIN' : `${tapCount} TAPS`}
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-4xl font-light text-white">{draft || '—'}</span>
+                <span className="font-mono text-[11px] tracking-[0.16em] text-white/45">BPM</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                <button
+                  key={digit}
+                  type="button"
+                  onClick={() => enterDigit(digit)}
+                  className="h-14 rounded-2xl border border-white/10 bg-white/[0.055] font-mono text-xl text-white transition hover:bg-white/10 active:scale-[0.97]"
+                >
+                  {digit}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={tapTempo}
+                className="h-14 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 font-mono text-[13px] tracking-[0.18em] text-emerald-200 transition hover:bg-emerald-400/15 active:scale-[0.97]"
+              >
+                TAP
+              </button>
+              <button
+                type="button"
+                onClick={() => enterDigit('0')}
+                className="h-14 rounded-2xl border border-white/10 bg-white/[0.055] font-mono text-xl text-white transition hover:bg-white/10 active:scale-[0.97]"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={eraseDigit}
+                aria-label="Delete last digit"
+                className="h-14 rounded-2xl border border-white/10 bg-white/[0.035] font-mono text-lg text-white/70 transition hover:bg-white/10 active:scale-[0.97]"
+              >
+                ⌫
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closePad}
+              className="mt-3 h-12 w-full rounded-2xl border border-sky-300/25 bg-sky-400/10 font-mono text-[12px] tracking-[0.2em] text-sky-200 transition hover:bg-sky-400/15"
+            >
+              DONE
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
   return (
-    <input
-      type="number"
-      inputMode="numeric"
-      min={min}
-      max={max}
-      step="1"
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onFocus={(event) => event.currentTarget.select()}
-      onBlur={commitDraft}
-      onKeyDown={handleKeyDown}
-      aria-label={ariaLabel}
-      className={`w-full border-0 bg-transparent p-0 text-right font-light leading-none text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${className}`}
-      style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-    />
+    <>
+      <input
+        type="text"
+        inputMode="none"
+        readOnly
+        value={draft}
+        onClick={() => {
+          replaceDraftRef.current = true;
+          setPadOpen(true);
+        }}
+        onKeyDown={handleKeyDown}
+        aria-label={ariaLabel}
+        aria-haspopup="dialog"
+        className={`w-full cursor-pointer border-0 bg-transparent p-0 text-right font-light leading-none text-white outline-none ${className}`}
+        style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
+      />
+      {tempoPad}
+    </>
   );
 }
 
