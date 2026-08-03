@@ -37,6 +37,7 @@ import {
   getRiffSequencePhrases,
   getRiffSequenceStateAtReferenceStep,
   getRiffSequenceTimeline,
+  getRiffVoiceEventsForCell,
   getRiffStepIndexAtReferenceStep,
   getVisibleRiffPhraseAtReferenceStep,
   getVisibleRiffReferenceAtReferenceStep,
@@ -105,6 +106,7 @@ interface RiffCycleCanvasProps {
   overlayEditMode?: boolean;
   voiceEditMode?: boolean;
   selectedVoiceInstrument?: RiffVoiceInstrument;
+  selectedSequenceCellLabel?: RiffSequenceCellLabel;
   selectedSequencePhraseIndex?: number;
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
@@ -196,7 +198,7 @@ function drawCenteredVoiceSymbol(
 }
 
 function getVoiceImpactKey(event: RiffVoiceEvent): string {
-  return `${event.voice}:${event.surface}:${event.index}:${event.instrument}`;
+  return `${event.cellLabel ?? 'riff'}:${event.voice}:${event.surface}:${event.index}:${event.instrument}`;
 }
 
 function drawVoiceImpactBloom(
@@ -670,6 +672,7 @@ export default function RiffCycleCanvas({
   overlayEditMode = false,
   voiceEditMode = false,
   selectedVoiceInstrument,
+  selectedSequenceCellLabel,
   selectedSequencePhraseIndex = 0,
   onReferenceStepChange,
   externalCanvasRef,
@@ -2221,7 +2224,11 @@ export default function RiffCycleCanvas({
 
     // Render voice icons last in the geometry stack so node heads and playback
     // cursors never cover the instrument marker.
-    const voiceEvents = currentStudy.voiceEvents ?? [];
+    const voiceCellLabel =
+      voiceEditModeRef.current && !currentStudy.playing
+        ? selectedSequenceCellLabel
+        : getRiffSequenceStateAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)?.cell.label;
+    const voiceEvents = getRiffVoiceEventsForCell(currentStudy, voiceCellLabel);
     const currentBeatIndex = Math.floor(
       (currentReferenceStep % Math.max(1, stepsPerBar)) / Math.max(1, stepsPerBeat),
     );
@@ -2274,7 +2281,7 @@ export default function RiffCycleCanvas({
         ctx.restore();
       });
 
-    const subdivisionVoiceEvents = (currentStudy.voiceEvents ?? []).filter(
+    const subdivisionVoiceEvents = voiceEvents.filter(
       (event) => event.surface === 'subdivision',
     );
     subdivisionVoiceEvents.forEach((event) => {
@@ -2949,7 +2956,11 @@ export default function RiffCycleCanvas({
           (((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) /
             Math.max(1, stepsPerBeat),
         );
-        (currentStudy.voiceEvents ?? []).forEach((event) => {
+        const voiceCellLabel = getRiffSequenceStateAtReferenceStep(
+          currentStudy,
+          currentAbsoluteReferenceStep,
+        )?.cell.label;
+        getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
           const shouldImpact =
             (event.surface === 'beat' && referenceBeatStart && event.index === beatIndex) ||
             (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);

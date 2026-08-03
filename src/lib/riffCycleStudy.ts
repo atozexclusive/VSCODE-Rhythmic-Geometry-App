@@ -62,6 +62,7 @@ export interface RiffVoiceEvent {
   instrument: RiffVoiceInstrument;
   surface: RiffVoiceSurface;
   index: number;
+  cellLabel?: RiffSequenceCellLabel;
 }
 
 export interface RiffSequencePhrase {
@@ -1465,6 +1466,19 @@ export function getRiffSequenceStateAtReferenceProgress(
   };
 }
 
+export function getRiffVoiceEventsForCell(
+  study: RiffCycleStudy,
+  cellLabel: RiffSequenceCellLabel | null | undefined,
+): RiffVoiceEvent[] {
+  const events = study.voiceEvents ?? [];
+  const fallbackLabel = normalizeRiffSequenceCells(study.riffCells, study.riff)[0]?.label ?? 'A';
+  if (!study.riffSequenceEnabled) {
+    return events.filter((event) => event.cellLabel == null || event.cellLabel === fallbackLabel);
+  }
+  const effectiveLabel = cellLabel ?? fallbackLabel;
+  return events.filter((event) => (event.cellLabel ?? fallbackLabel) === effectiveLabel);
+}
+
 export function getRiffSequenceStateAtReferenceStep(
   study: RiffCycleStudy,
   referenceStep: number,
@@ -2233,6 +2247,9 @@ export function removeRiffSequenceCell(
     riffSequenceEntryRepeats: normalizeRiffSequenceEntryRepeats(nextEntryRepeats, nextSequence),
     riffSequenceEntryDurationModes: normalizeRiffSequenceEntryDurationModes(nextEntryDurationModes, nextSequence),
     riffSequencePhrases: normalizeRiffSequencePhrases(study.riffSequencePhrases, nextSequence),
+    voiceEvents: (study.voiceEvents ?? []).filter(
+      (event) => (event.cellLabel ?? riffCells[0]?.label ?? 'A') !== label,
+    ),
   };
 }
 

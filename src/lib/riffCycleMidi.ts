@@ -5,6 +5,8 @@ import {
   getLandingSlotAtReferenceStep,
   getReferenceStepsPerBeat,
   getReferenceStepsPerBar,
+  getRiffSequenceStateAtReferenceStep,
+  getRiffVoiceEventsForCell,
   isPhraseRestartAtReferenceStep,
   RIFF_MAX_METER_NUMERATOR,
   type RiffCycleStudy,
@@ -359,7 +361,8 @@ export function buildRiffCycleMidiFile(
     const beatIndex = Math.floor(
       (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / Math.max(1, stepsPerBeat),
     );
-    (study.voiceEvents ?? []).forEach((event) => {
+    const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
+    getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
       const shouldRender =
         (event.surface === 'beat' && referenceStep % stepsPerBeat === 0 && event.index === beatIndex) ||
         (event.surface === 'subdivision' && event.index === stepState.phraseIndex);

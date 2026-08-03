@@ -164,6 +164,7 @@ import {
   getResetStepCount,
   getRiffSequencePhrases,
   getRiffSequenceTimeline,
+  getRiffVoiceEventsForCell,
   invertRiffSteps,
   invertRiffSequenceCellSteps,
   remixRiffCycleStudy,
@@ -9348,20 +9349,23 @@ function OrbitalPolymeter() {
       activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
     setRiffCycleStudy((current) => {
       const currentEvents = current.voiceEvents ?? [];
+      const cellLabel = current.riffSequenceEnabled ? selectedRiffSequenceCellLabel : undefined;
+      const fallbackCellLabel = current.riffCells[0]?.label ?? 'A';
       const existingIndex = currentEvents.findIndex(
         (event) =>
           event.voice === activeRiffVoice &&
           event.instrument === instrument &&
           event.surface === surface &&
-          event.index === index,
+          event.index === index &&
+          (!current.riffSequenceEnabled || (event.cellLabel ?? fallbackCellLabel) === cellLabel),
       );
       const voiceEvents =
         existingIndex >= 0
           ? currentEvents.filter((_, eventIndex) => eventIndex !== existingIndex)
-          : [...currentEvents, { voice: activeRiffVoice, instrument, surface, index }];
+          : [...currentEvents, { voice: activeRiffVoice, instrument, surface, index, cellLabel }];
       return { ...current, voiceEvents };
     });
-  }, [activeRiffVoice, effectivePlan, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
+  }, [activeRiffVoice, effectivePlan, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
 
   const handleToggleRiffVoiceBeat = useCallback(
     (beatIndex: number) => handleToggleRiffVoiceEvent('beat', beatIndex),
@@ -9378,16 +9382,22 @@ function OrbitalPolymeter() {
     setRiffCycleStudy((current) => ({
       ...current,
       voiceEvents: (current.voiceEvents ?? []).filter(
-        (event) =>
-          !(
+        (event) => {
+          const fallbackCellLabel = current.riffCells[0]?.label ?? 'A';
+          const belongsToSelectedCell =
+            !current.riffSequenceEnabled ||
+            (event.cellLabel ?? fallbackCellLabel) === selectedRiffSequenceCellLabel;
+          return !(
+            belongsToSelectedCell &&
             event.voice === activeRiffVoice &&
             event.surface === 'subdivision' &&
             (activeRiffVoice !== 'drums' || event.instrument === selectedRiffVoiceInstrument)
-          ),
+          );
+        },
       ),
     }));
     setSelectedRiffCycleStep(null);
-  }, [activeRiffVoice, requireEditableRiffCycleStudy, selectedRiffVoiceInstrument]);
+  }, [activeRiffVoice, requireEditableRiffCycleStudy, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
 
   const handleRemoveLastRiffSequenceCell = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
@@ -14065,9 +14075,13 @@ function OrbitalPolymeter() {
   const riffEditableActiveSteps = riffSelectedSequenceCell?.activeSteps ?? riffCycleStudy.riff.activeSteps;
   const riffEditableAccents = riffSelectedSequenceCell?.accents ?? riffCycleStudy.riff.accents;
   const riffEditableColor = riffSelectedSequenceCell?.color ?? riffCycleStudy.riff.color;
+  const riffEditableVoiceEvents = getRiffVoiceEventsForCell(
+    riffCycleStudy,
+    riffSelectedSequenceCell?.label,
+  );
   const riffVoiceActiveSteps = Array.from({ length: riffEditableStepCount }, (_, index) =>
     activeRiffVoice !== 'riff' &&
-    (riffCycleStudy.voiceEvents ?? []).some(
+    riffEditableVoiceEvents.some(
       (event) =>
         event.voice === activeRiffVoice &&
         event.surface === 'subdivision' &&
@@ -19886,6 +19900,7 @@ function OrbitalPolymeter() {
                 overlayEditMode={riffOverlayEditMode && riffMobilePhrasePanelActive}
                 voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
                 selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
+                selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
                 selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
                 onReferenceStepChange={handleRiffMobileReferenceStepChange}
                 onSelectStep={handleSelectRiffCycleStep}
@@ -20293,7 +20308,7 @@ function OrbitalPolymeter() {
                               <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.12em] text-white/36">{label}</div>
                               <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
                                 {Array.from({ length: count }, (_, index) => {
-                                  const events = (riffCycleStudy.voiceEvents ?? []).filter(
+                                  const events = riffEditableVoiceEvents.filter(
                                     (event) => event.voice === activeRiffVoice && event.surface === surface && event.index === index,
                                   );
                                   return (
@@ -21062,7 +21077,7 @@ function OrbitalPolymeter() {
                               <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${riffCycleStudy.reference.numerator}, minmax(0, 1fr))` }}>
                                 {Array.from({ length: riffCycleStudy.reference.numerator }, (_, beatIndex) => {
                                   const instrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
-                                  const active = (riffCycleStudy.voiceEvents ?? []).some(
+                                  const active = riffEditableVoiceEvents.some(
                                     (event) => event.voice === activeRiffVoice && event.instrument === instrument && event.surface === 'beat' && event.index === beatIndex,
                                   );
                                   return (
@@ -22471,6 +22486,7 @@ function OrbitalPolymeter() {
                             displaySettings={canvasDisplayState.riff}
                             presentationMode
                             selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
+                            selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
                             audioEnabled={!muted}
                             voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
                             selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
@@ -22836,6 +22852,7 @@ function OrbitalPolymeter() {
           <RiffCycleCanvas
             study={riffCanvasStudy}
             selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
+            selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
             viewModeOverride={
               isMobile && presentationMode
                 ? riffMobileLaneHidden
@@ -24865,6 +24882,7 @@ function OrbitalPolymeter() {
                   overlayEditMode={riffOverlayEditMode && riffDesktopEditTab === 'phrase'}
                   voiceEditMode={activeRiffVoice !== 'riff' && !presentationMode}
                   selectedVoiceInstrument={activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument}
+                  selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
                   selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
                   onSelectStep={handleSelectRiffCycleStep}
                   onSetStepActive={(stepIndex, active) => {
@@ -25489,7 +25507,7 @@ function OrbitalPolymeter() {
                         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${riffCycleStudy.reference.numerator}, minmax(0, 1fr))` }}>
                           {Array.from({ length: riffCycleStudy.reference.numerator }, (_, beatIndex) => {
                             const instrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
-                            const active = (riffCycleStudy.voiceEvents ?? []).some(
+                            const active = riffEditableVoiceEvents.some(
                               (event) => event.voice === activeRiffVoice && event.instrument === instrument && event.surface === 'beat' && event.index === beatIndex,
                             );
                             return (
@@ -25976,7 +25994,7 @@ function OrbitalPolymeter() {
                               </div>
                               <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
                                 {Array.from({ length: count }, (_, index) => {
-                                  const events = (riffCycleStudy.voiceEvents ?? []).filter(
+                                  const events = riffEditableVoiceEvents.filter(
                                     (event) =>
                                       event.voice === activeRiffVoice &&
                                       event.surface === surface &&

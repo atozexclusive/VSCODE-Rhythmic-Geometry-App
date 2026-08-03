@@ -4,6 +4,8 @@ import {
   getReferenceStepsPerBar,
   getReferenceStepsPerSecond,
   getResetStepCount,
+  getRiffSequenceStateAtReferenceStep,
+  getRiffVoiceEventsForCell,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
   isReferenceBeatStart,
@@ -589,7 +591,8 @@ export function createRiffCycleExportAudioStream(
     const beatIndex = Math.floor(
       (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / stepsPerBeat,
     );
-    (study.voiceEvents ?? []).forEach((event) => {
+    const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
+    getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
       const shouldPlay =
         (event.surface === 'beat' && isReferenceBeatStart(study, referenceStep) && event.index === beatIndex) ||
         (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex);
