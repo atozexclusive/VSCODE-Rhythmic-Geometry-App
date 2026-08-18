@@ -80,7 +80,7 @@ const TAU = Math.PI * 2;
 const BAR_MARKER_FLASH_DURATION = 520;
 const REFERENCE_BEAT_FLASH_DURATION = 280;
 
-const SUBDIVISION_IMPACT_DURATION = 320;
+const SUBDIVISION_IMPACT_DURATION = REFERENCE_BEAT_FLASH_DURATION;
 
 interface RiffCyclePlaybackState {
   referenceProgress: number;
@@ -216,6 +216,28 @@ function drawVoiceImpactBloom(
   ctx.beginPath();
   ctx.arc(x, y, (7 + expansion * 9) * scale, 0, TAU);
   ctx.fill();
+  ctx.restore();
+}
+
+function drawSubdivisionImpactBloom(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  strength: number,
+  scale: number,
+  glowMultiplier: number,
+): void {
+  if (strength <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.7, strength + 0.08);
+  ctx.strokeStyle = 'rgba(174,227,255,0.68)';
+  ctx.lineWidth = (0.75 + strength * 0.6) * scale;
+  ctx.shadowBlur = (4 + strength * 9) * glowMultiplier * scale;
+  ctx.shadowColor = 'rgba(127,215,255,0.52)';
+  ctx.beginPath();
+  ctx.arc(x, y, (6.2 + strength * 3.6) * scale, 0, TAU);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -1046,20 +1068,14 @@ export default function RiffCycleCanvas({
       );
     }
     const getSubdivisionImpactStrength = (index: number) => {
-      const remaining = Math.max(
+      return Math.max(
         0,
-        ((subdivisionImpactUntilRef.current.get(index) ?? 0) - now) /
-          SUBDIVISION_IMPACT_DURATION,
+        Math.min(
+          1,
+          ((subdivisionImpactUntilRef.current.get(index) ?? 0) - now) /
+            SUBDIVISION_IMPACT_DURATION,
+        ),
       );
-      if (remaining <= 0) return 0;
-      const elapsed = 1 - remaining;
-      const attackEnd = 0.1;
-      if (elapsed < attackEnd) {
-        const attack = elapsed / attackEnd;
-        return 1 - (1 - attack) ** 2;
-      }
-      const release = 1 - (elapsed - attackEnd) / (1 - attackEnd);
-      return Math.max(0, release * release);
     };
     const selectedPoint =
       selectedStepRef.current == null ? null : riffPoints[selectedStepRef.current] ?? null;
@@ -1332,6 +1348,16 @@ export default function RiffCycleCanvas({
         ctx.lineWidth = active ? 1 * shellScale : 0.7 * shellScale;
         ctx.strokeStyle = active ? 'rgba(174, 227, 255, 0.5)' : 'rgba(255,255,255,0.13)';
         ctx.stroke();
+        if (active && nodeImpactStrength > 0) {
+          drawSubdivisionImpactBloom(
+            ctx,
+            point.x,
+            point.y,
+            nodeImpactStrength,
+            pointScale,
+            glowMultiplier,
+          );
+        }
       }
 
       const cursorPoint = getPulseLayerPoint(
@@ -1576,6 +1602,16 @@ export default function RiffCycleCanvas({
           ctx.fill();
           ctx.stroke();
           ctx.restore();
+          if (active && nodeImpactStrength > 0) {
+            drawSubdivisionImpactBloom(
+              ctx,
+              nodeX,
+              nodeY,
+              nodeImpactStrength,
+              shellScale,
+              glowMultiplier,
+            );
+          }
         });
       }
 
