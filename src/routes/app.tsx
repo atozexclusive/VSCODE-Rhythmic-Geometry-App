@@ -3104,6 +3104,9 @@ function CanvasDisplayControls({
   showInnerClockControls = false,
   showCellStripControl = false,
   showMeterNumberControl = false,
+  showCountControl = false,
+  countLabelsEnabled = false,
+  onToggleCountLabels,
 }: {
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
@@ -3111,6 +3114,9 @@ function CanvasDisplayControls({
   showInnerClockControls?: boolean;
   showCellStripControl?: boolean;
   showMeterNumberControl?: boolean;
+  showCountControl?: boolean;
+  countLabelsEnabled?: boolean;
+  onToggleCountLabels?: () => void;
 }) {
   const activeTheme = getCanvasDisplayTheme(settings.theme);
   const canvasSubheaderClass =
@@ -3542,10 +3548,30 @@ function CanvasDisplayControls({
             </StudyShellButton>
           </div>
         ) : null}
-        {showMeterNumberControl || showCellStripControl ? (
+        {showMeterNumberControl || showCellStripControl || showCountControl ? (
           <>
             <div className="h-px bg-white/6" />
             <div className="space-y-2">
+              {showCountControl ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
+                      Counts
+                    </div>
+                    <div className="mt-0.5 text-[8px] leading-snug text-white/32">
+                      Count labels by subdivision
+                    </div>
+                  </div>
+                  <StudyShellButton
+                    size="compact"
+                    tone="blue"
+                    highlighted={countLabelsEnabled}
+                    onClick={onToggleCountLabels}
+                  >
+                    {countLabelsEnabled ? 'On' : 'Off'}
+                  </StudyShellButton>
+                </div>
+              ) : null}
               {showMeterNumberControl ? (
                 <div className="flex items-center justify-between gap-2">
                   <div>
@@ -10103,6 +10129,17 @@ function OrbitalPolymeter() {
         showCountLabels: false,
       };
     });
+  }, [requireEditableRiffCycleStudy]);
+
+  const handleToggleRiffCountLabels = useCallback(() => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    setRiffCycleStudy((current) => ({
+      ...current,
+      showStepLabels: true,
+      showCountLabels: !current.showCountLabels,
+    }));
   }, [requireEditableRiffCycleStudy]);
 
   const handleToggleRiffPhraseBounds = useCallback(() => {
@@ -22499,6 +22536,9 @@ function OrbitalPolymeter() {
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showMeterNumberControl
+                      showCountControl
+                      countLabelsEnabled={Boolean(riffCycleStudy.showCountLabels)}
+                      onToggleCountLabels={handleToggleRiffCountLabels}
                       compact
                     />
                   </div>
@@ -24854,6 +24894,9 @@ function OrbitalPolymeter() {
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showMeterNumberControl
+                      showCountControl
+                      countLabelsEnabled={Boolean(riffCycleStudy.showCountLabels)}
+                      onToggleCountLabels={handleToggleRiffCountLabels}
                       compact
                     />
                   </div>
