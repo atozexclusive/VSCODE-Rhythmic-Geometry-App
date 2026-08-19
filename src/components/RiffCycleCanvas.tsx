@@ -230,13 +230,13 @@ function drawSubdivisionImpactBloom(
   if (strength <= 0) return;
 
   ctx.save();
-  ctx.globalAlpha = Math.min(0.7, strength + 0.08);
-  ctx.strokeStyle = 'rgba(255,255,255,0.68)';
-  ctx.lineWidth = (0.75 + strength * 0.6) * scale;
-  ctx.shadowBlur = (4 + strength * 9) * glowMultiplier * scale;
-  ctx.shadowColor = 'rgba(255,255,255,0.52)';
+  ctx.globalAlpha = Math.min(1, strength + 0.15);
+  ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+  ctx.lineWidth = 1.25 * scale;
+  ctx.shadowBlur = (7 + strength * 14) * glowMultiplier * scale;
+  ctx.shadowColor = 'rgba(255,255,255,0.42)';
   ctx.beginPath();
-  ctx.arc(x, y, (6.2 + strength * 3.6) * scale, 0, TAU);
+  ctx.arc(x, y, (7.5 + strength * 5.5) * scale, 0, TAU);
   ctx.stroke();
   ctx.restore();
 }
@@ -1354,7 +1354,7 @@ export default function RiffCycleCanvas({
             point.x,
             point.y,
             nodeImpactStrength,
-            pointScale,
+            shellScale,
             glowMultiplier,
           );
         }
