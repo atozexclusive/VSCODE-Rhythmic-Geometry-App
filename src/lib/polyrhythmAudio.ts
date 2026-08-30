@@ -128,8 +128,9 @@ function mapLayerPitch(
   layerIndex: number,
   beatCount: number,
 ): number {
+  const octaveMultiplier = 2 ** sound.octaveShift;
   if (sound.pitchMode === 'free') {
-    return clamp(baseFrequency * mapRegisterMultiplier(sound.register), 90, 1400);
+    return clamp(baseFrequency * mapRegisterMultiplier(sound.register) * octaveMultiplier, 45, 2800);
   }
 
   const scale = SCALE_PRESETS[sound.scaleName];
@@ -138,7 +139,11 @@ function mapLayerPitch(
   const degreeSource = layerIndex * 2 + Math.max(0, Math.round((beatCount - 3) / 3));
   const degree = degreeSource % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
-  return midiToFrequency(clamp(baseMidi + rootSemitone + scale.intervals[degree] + octave * 12, 32, 92));
+  return midiToFrequency(clamp(
+    baseMidi + rootSemitone + scale.intervals[degree] + octave * 12 + sound.octaveShift * 12,
+    20,
+    104,
+  ));
 }
 
 function triggerPalettePulse(
@@ -248,26 +253,76 @@ function triggerPalettePulse(
     return;
   }
 
-  if (palette === 'soft-piano') {
-    const level = clamp(gain * 0.78, 0.008, 0.11);
+  if (palette === 'meditation-pad') {
+    const level = clamp(gain * 0.68, 0.008, 0.095);
     withVoice({
       type: 'triangle',
       frequency,
       gain: level,
-      attack: 0.008,
-      release: 1.08,
-      filterFrequency: 1800,
-      filterQ: 0.48,
+      attack: 0.038,
+      release: 1.72,
+      filterFrequency: 1380,
+      filterQ: 0.38,
       atTime,
     }, target);
     withVoice({
       type: 'sine',
-      frequency: clamp(frequency * 2, 140, 4400),
-      gain: level * 0.22,
+      frequency: clamp(frequency * 1.5, 110, 3600),
+      gain: level * 0.3,
+      attack: 0.052,
+      release: 1.9,
+      filterFrequency: 2100,
+      filterQ: 0.3,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'crystal-bell') {
+    const level = clamp(gain * 0.64, 0.007, 0.09);
+    withVoice({
+      type: 'sine',
+      frequency,
+      gain: level,
       attack: 0.006,
-      release: 0.68,
-      filterFrequency: 3400,
-      filterQ: 0.34,
+      release: 1.58,
+      filterFrequency: 3900,
+      filterQ: 0.32,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 2.67, 150, 5200),
+      gain: level * 0.24,
+      attack: 0.004,
+      release: 1.1,
+      filterFrequency: 5200,
+      filterQ: 0.28,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'ambient-bloom') {
+    const level = clamp(gain * 0.65, 0.007, 0.092);
+    withVoice({
+      type: 'sine',
+      frequency,
+      gain: level,
+      attack: 0.024,
+      release: 1.42,
+      filterFrequency: 1650,
+      filterQ: 0.3,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'triangle',
+      frequency: clamp(frequency * 2, 140, 4200),
+      gain: level * 0.2,
+      attack: 0.045,
+      release: 1.66,
+      filterFrequency: 2500,
+      filterQ: 0.25,
       atTime,
     }, target);
     return;

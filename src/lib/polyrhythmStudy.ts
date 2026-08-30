@@ -9,7 +9,9 @@ export type PolyrhythmSoundPalette =
   | 'bright-marker'
   | 'chime'
   | 'warm-synth'
-  | 'soft-piano';
+  | 'meditation-pad'
+  | 'crystal-bell'
+  | 'ambient-bloom';
 export type PolyrhythmPitchMode = 'free' | 'keyed';
 export type PolyrhythmRegister = 'tight' | 'wide';
 export type PolyrhythmDisplayStyle = 'shared' | 'nested';
@@ -22,6 +24,7 @@ export interface PolyrhythmSoundSettings {
   rootNote: RootNote;
   scaleName: ScaleName;
   register: PolyrhythmRegister;
+  octaveShift: -1 | 0 | 1;
 }
 
 export interface PolyrhythmLayer {
@@ -150,10 +153,12 @@ function chooseDifferent<T>(items: readonly T[], current: T): T {
 function normalizePolyrhythmSoundSettings(
   settings: Partial<PolyrhythmSoundSettings> | undefined,
 ): PolyrhythmSoundSettings {
-  const rawPalette = settings?.palette as PolyrhythmSoundPalette | 'glass-tick' | undefined;
+  const rawPalette = settings?.palette as PolyrhythmSoundPalette | 'glass-tick' | 'soft-piano' | undefined;
   const normalizedPalette =
     rawPalette === 'glass-tick'
       ? 'bright-marker'
+      : rawPalette === 'soft-piano'
+        ? 'meditation-pad'
       : rawPalette;
   return {
     palette:
@@ -164,7 +169,9 @@ function normalizePolyrhythmSoundSettings(
         'bright-marker',
         'chime',
         'warm-synth',
-        'soft-piano',
+        'meditation-pad',
+        'crystal-bell',
+        'ambient-bloom',
       ].includes(normalizedPalette)
         ? normalizedPalette
         : 'study-pulse',
@@ -172,6 +179,9 @@ function normalizePolyrhythmSoundSettings(
     rootNote: settings?.rootNote ?? 'C',
     scaleName: settings?.scaleName ?? 'majorPentatonic',
     register: settings?.register === 'wide' ? 'wide' : 'tight',
+    octaveShift: settings?.octaveShift === -1 || settings?.octaveShift === 1
+      ? settings.octaveShift
+      : 0,
   };
 }
 
@@ -227,6 +237,7 @@ function createRandomPolyrhythmSoundSettings(
         : intensity === 'plus'
           ? randomChoice(['tight', 'wide'] as const)
           : randomChoice(['tight', 'tight', 'wide'] as const),
+    octaveShift: current?.octaveShift ?? 0,
   });
 }
 

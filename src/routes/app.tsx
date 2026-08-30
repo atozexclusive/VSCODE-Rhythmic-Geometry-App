@@ -17240,7 +17240,9 @@ function OrbitalPolymeter() {
                           ['bright-marker', 'Bright Marker'],
                           ['chime', 'Chime'],
                           ['warm-synth', 'Warm Synth'],
-                          ['soft-piano', 'Soft Piano'],
+                          ['meditation-pad', 'Meditation Pad'],
+                          ['crystal-bell', 'Crystal Bell'],
+                          ['ambient-bloom', 'Ambient Bloom'],
                         ].map(([id, label]) => (
                           <option key={id} value={id} style={{ background: '#181820' }}>
                             {label}
@@ -17254,6 +17256,20 @@ function OrbitalPolymeter() {
                         <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
                           Wide
                         </StudyShellButton>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Octave</div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === -1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: -1 })}>
+                            Down
+                          </StudyShellButton>
+                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 0} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 0 })}>
+                            Original
+                          </StudyShellButton>
+                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 1 })}>
+                            Up
+                          </StudyShellButton>
+                        </div>
                       </div>
                       {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
                         <div className="space-y-1.5">
@@ -19199,7 +19215,9 @@ function OrbitalPolymeter() {
                       <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
                       <option value="chime" style={{ background: '#181820' }}>Chime</option>
                       <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
-                      <option value="soft-piano" style={{ background: '#181820' }}>Soft Piano</option>
+                      <option value="meditation-pad" style={{ background: '#181820' }}>Meditation Pad</option>
+                      <option value="crystal-bell" style={{ background: '#181820' }}>Crystal Bell</option>
+                      <option value="ambient-bloom" style={{ background: '#181820' }}>Ambient Bloom</option>
                     </select>
                     <div className="grid grid-cols-2 gap-2">
                       <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
@@ -19208,6 +19226,20 @@ function OrbitalPolymeter() {
                       <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
                         Wide
                       </StudyShellButton>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Octave</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === -1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: -1 })}>
+                          Down
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 0} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 0 })}>
+                          Original
+                        </StudyShellButton>
+                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 1 })}>
+                          Up
+                        </StudyShellButton>
+                      </div>
                     </div>
                     {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
                       <div className="space-y-1.5">

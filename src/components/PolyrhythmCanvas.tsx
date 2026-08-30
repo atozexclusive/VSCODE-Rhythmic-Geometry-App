@@ -296,7 +296,6 @@ export default function PolyrhythmCanvas({
       sharedDisplay &&
       displayStudy.layers.length > 1 &&
       sharedCycleStepCount <= 192 &&
-      sharedCycleStepCount > Math.max(1, ...displayStudy.layers.map((layer) => layer.beatCount)) &&
       (currentStudy.showInactiveSteps || currentStudy.showStepLabels)
     ) {
       const gridRadius = sharedCycleRadius + (isMobileRef.current ? 13 : 18);
