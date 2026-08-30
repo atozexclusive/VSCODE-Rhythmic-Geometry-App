@@ -359,6 +359,91 @@ function triggerPaletteRiff(
     return;
   }
 
+  if (palette === 'chime') {
+    const level = clamp(gain * (accented ? 0.78 : 0.62), 0.014, 0.095);
+    withVoice({
+      type: 'sine',
+      frequency,
+      gain: level,
+      attack: 0.006,
+      release: accented ? 1.65 : 1.35,
+      filterFrequency: 3200,
+      filterQ: 0.42,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 2.01, 90, 4800),
+      gain: level * 0.34,
+      attack: 0.004,
+      release: accented ? 1.25 : 1.05,
+      filterFrequency: 4600,
+      filterQ: 0.38,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 3.98, 120, 6200),
+      gain: level * 0.12,
+      attack: 0.003,
+      release: accented ? 0.92 : 0.72,
+      filterFrequency: 6000,
+      filterQ: 0.32,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'warm-synth') {
+    const level = clamp(gain * (accented ? 0.86 : 0.72), 0.016, 0.11);
+    withVoice({
+      type: 'triangle',
+      frequency,
+      gain: level,
+      attack: 0.028,
+      release: accented ? 1.18 : 0.98,
+      filterFrequency: accented ? 1450 : 1120,
+      filterQ: 0.48,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 0.5, 38, 900),
+      gain: level * 0.28,
+      attack: 0.038,
+      release: accented ? 1.32 : 1.08,
+      filterFrequency: 760,
+      filterQ: 0.4,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'soft-piano') {
+    const level = clamp(gain * (accented ? 0.9 : 0.74), 0.016, 0.105);
+    withVoice({
+      type: 'triangle',
+      frequency,
+      gain: level,
+      attack: 0.007,
+      release: accented ? 1.28 : 1.05,
+      filterFrequency: accented ? 2100 : 1650,
+      filterQ: 0.5,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 2, 80, 4400),
+      gain: level * 0.24,
+      attack: 0.005,
+      release: accented ? 0.82 : 0.68,
+      filterFrequency: 3600,
+      filterQ: 0.36,
+      atTime,
+    }, target);
+    return;
+  }
+
   withVoice({
     type: accented ? 'triangle' : 'sine',
     frequency: frequency * 0.82,
