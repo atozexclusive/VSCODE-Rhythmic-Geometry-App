@@ -24,6 +24,28 @@ interface VoiceTarget {
   context: AudioContext;
   destination?: AudioNode;
   outputToSpeakers: boolean;
+  reverbAmount?: number;
+}
+
+const reverbImpulseCache = new WeakMap<AudioContext, AudioBuffer>();
+
+function getReverbImpulse(context: AudioContext): AudioBuffer {
+  const cached = reverbImpulseCache.get(context);
+  if (cached) {
+    return cached;
+  }
+  const duration = 1.8;
+  const frameCount = Math.floor(context.sampleRate * duration);
+  const impulse = context.createBuffer(2, frameCount, context.sampleRate);
+  for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+    const data = impulse.getChannelData(channel);
+    for (let index = 0; index < frameCount; index += 1) {
+      const decay = Math.pow(1 - index / frameCount, 2.8);
+      data[index] = (Math.random() * 2 - 1) * decay;
+    }
+  }
+  reverbImpulseCache.set(context, impulse);
+  return impulse;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -104,14 +126,28 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  if (target?.outputToSpeakers ?? true) {
-    gainNode.connect(getMasterOutput(context));
-  }
-  if (target?.destination) {
-    gainNode.connect(target.destination);
-  }
-  if (recordingDestination && !(target?.outputToSpeakers ?? true)) {
-    gainNode.connect(recordingDestination);
+  const connectOutput = (node: AudioNode) => {
+    if (target?.outputToSpeakers ?? true) {
+      node.connect(getMasterOutput(context));
+    }
+    if (target?.destination) {
+      node.connect(target.destination);
+    }
+    if (recordingDestination && !(target?.outputToSpeakers ?? true)) {
+      node.connect(recordingDestination);
+    }
+  };
+  connectOutput(gainNode);
+
+  const reverbAmount = clamp(target?.reverbAmount ?? 0, 0, 1);
+  if (reverbAmount > 0.001) {
+    const convolver = context.createConvolver();
+    const wetGain = context.createGain();
+    convolver.buffer = getReverbImpulse(context);
+    wetGain.gain.setValueAtTime(reverbAmount * 0.55, now);
+    gainNode.connect(convolver);
+    convolver.connect(wetGain);
+    connectOutput(wetGain);
   }
 
   oscillator.start(now);
@@ -407,9 +443,18 @@ export function triggerPolyrhythmPulse(options: {
     options.layerIndex,
   );
   const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
-  triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, options.target);
+  const context = options.target?.context ?? getAudioContext();
+  const voiceTarget = context
+    ? {
+        context,
+        destination: options.target?.destination,
+        outputToSpeakers: options.target?.outputToSpeakers ?? true,
+        reverbAmount: options.sound.reverbAmount ?? 0.2,
+      }
+    : options.target;
+  triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
   if (options.accented) {
-    triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, options.target);
+    triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
   }
 }
 

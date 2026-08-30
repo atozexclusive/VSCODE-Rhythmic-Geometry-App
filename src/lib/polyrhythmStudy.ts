@@ -25,6 +25,7 @@ export interface PolyrhythmSoundSettings {
   scaleName: ScaleName;
   register: PolyrhythmRegister;
   octaveShift: -1 | 0 | 1;
+  reverbAmount: number;
 }
 
 export interface PolyrhythmLayer {
@@ -184,6 +185,7 @@ function normalizePolyrhythmSoundSettings(
     octaveShift: settings?.octaveShift === -1 || settings?.octaveShift === 1
       ? settings.octaveShift
       : 0,
+    reverbAmount: Math.max(0, Math.min(1, settings?.reverbAmount ?? 0.2)),
   };
 }
 

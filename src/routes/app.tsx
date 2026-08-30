@@ -17307,6 +17307,23 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         </div>
                       </div>
+                      <div className="space-y-2 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-3">
+                        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
+                          <span>Reverb</span>
+                          <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0.2) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={polyrhythmStudy.soundSettings.reverbAmount ?? 0.2}
+                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
+                          className="touch-slider h-8 w-full"
+                          style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
+                          aria-label="Study reverb amount"
+                        />
+                      </div>
                       {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
                         <div className="space-y-1.5">
                           <div className="grid grid-cols-[82px,1fr] gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
@@ -19276,6 +19293,23 @@ function OrbitalPolymeter() {
                           Up
                         </StudyShellButton>
                       </div>
+                    </div>
+                    <div className="space-y-2 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2.5">
+                      <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
+                        <span>Reverb</span>
+                        <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0.2) * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={polyrhythmStudy.soundSettings.reverbAmount ?? 0.2}
+                        onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
+                        className="touch-slider h-7 w-full"
+                        style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
+                        aria-label="Study reverb amount"
+                      />
                     </div>
                     {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
                       <div className="space-y-1.5">
