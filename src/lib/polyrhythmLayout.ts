@@ -50,8 +50,9 @@ export function getPolyrhythmCanvasMetrics(
   width: number,
   height: number,
   isMobile: boolean,
+  options: { sidePadding?: number } = {},
 ): PolyrhythmCanvasMetrics {
-  const sidePadding = isMobile ? 24 : 56;
+  const sidePadding = options.sidePadding ?? (isMobile ? 24 : 56);
   const topPadding = isMobile ? 74 : 48;
   const bottomPadding = isMobile ? 94 : 116;
   const safeWidth = Math.max(1, width - sidePadding * 2);

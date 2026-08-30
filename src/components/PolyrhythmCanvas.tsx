@@ -200,7 +200,17 @@ export default function PolyrhythmCanvas({
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const currentStudy = studyRef.current;
-    const pointScale = exportVideoSizeRef.current ? SHORTS_EXPORT_POINT_SCALE : 1;
+    const exportLayoutMode = Boolean(exportVideoSize);
+    const portraitExportMode = Boolean(
+      exportVideoSize && exportVideoSize.height > exportVideoSize.width,
+    );
+    const renderAsMobile = isMobileRef.current || portraitExportMode;
+    const pointScale = portraitExportMode
+      ? SHORTS_EXPORT_POINT_SCALE * 1.16
+      : exportLayoutMode
+        ? 1.12
+        : 1;
+    const exportLabelScale = portraitExportMode ? 1.55 : exportLayoutMode ? 1.12 : 1;
     const currentDisplaySettings = displaySettingsRef.current;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
@@ -232,7 +242,8 @@ export default function PolyrhythmCanvas({
       focusedLayerStudy,
       rect.width,
       rect.height,
-      isMobileRef.current,
+      renderAsMobile,
+      { sidePadding: portraitExportMode ? 96 : undefined },
     );
     const playbackState = playbackStateHandleRef.current.current;
     const animationTimestamp = animationTimestampRef.current;
@@ -298,7 +309,7 @@ export default function PolyrhythmCanvas({
       sharedCycleStepCount <= 192 &&
       (currentStudy.showInactiveSteps || currentStudy.showStepLabels)
     ) {
-      const gridRadius = sharedCycleRadius + (isMobileRef.current ? 13 : 18);
+      const gridRadius = sharedCycleRadius + (renderAsMobile ? 13 : 18) * exportLabelScale;
       ctx.save();
       for (let index = 0; index < sharedCycleStepCount; index += 1) {
         const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
@@ -316,11 +327,11 @@ export default function PolyrhythmCanvas({
 
         if (currentStudy.showStepLabels) {
           const denseGrid = sharedCycleStepCount > 48;
-          const labelRadius = gridRadius + (denseGrid ? 9 : 13);
+          const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;
           const labelX = metrics.centerX + Math.cos(angle) * labelRadius;
           const labelY = metrics.centerY + Math.sin(angle) * labelRadius;
           ctx.globalAlpha = onLayerBoundary ? 0.42 : 0.24;
-          ctx.font = `${denseGrid ? 7 : 9}px "SF Mono", "Fira Code", monospace`;
+          ctx.font = `${(denseGrid ? 7 : 9) * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(
@@ -668,14 +679,14 @@ export default function PolyrhythmCanvas({
             shouldDrawLabel &&
             (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
           ) {
-            const labelRadius = layer.radius * metrics.scale + 14;
+            const labelRadius = layer.radius * metrics.scale + 14 * exportLabelScale;
             ctx.save();
             ctx.fillStyle = isSelectedStep
               ? 'rgba(255,255,255,0.88)'
               : point.active
                 ? 'rgba(255,255,255,0.72)'
                 : 'rgba(255,255,255,0.28)';
-            ctx.font = '10px "SF Mono", "Fira Code", monospace';
+            ctx.font = `${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(
@@ -718,7 +729,7 @@ export default function PolyrhythmCanvas({
         ) {
           ctx.save();
           ctx.fillStyle = isSelectedLayer ? layer.color : 'rgba(255,255,255,0.42)';
-          ctx.font = '11px "SF Mono", "Fira Code", monospace';
+          ctx.font = `${11 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'left';
           ctx.fillText(
             `${countActiveSteps(layer)}/${layer.beatCount}`,
