@@ -413,6 +413,27 @@ export function triggerPolyrhythmPulse(options: {
   }
 }
 
+export function triggerPolyrhythmBarMarker(atTime?: number, target?: VoiceTarget): void {
+  withVoice({
+    type: 'triangle',
+    frequency: 1046.5,
+    gain: 0.075,
+    attack: 0.003,
+    release: 0.16,
+    filterFrequency: 3200,
+    atTime,
+  }, target);
+  withVoice({
+    type: 'sine',
+    frequency: 1568,
+    gain: 0.025,
+    attack: 0.002,
+    release: 0.1,
+    filterFrequency: 4200,
+    atTime,
+  }, target);
+}
+
 export function createPolyrhythmExportAudioStream(
   study: PolyrhythmStudy,
   durationSeconds: number,
@@ -436,6 +457,16 @@ export function createPolyrhythmExportAudioStream(
   const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const cyclesPerSecond = study.bpm / 60 / 4;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
+
+  if (study.soundEnabled && study.barMarkerSoundEnabled && cyclesPerSecond > 0) {
+    const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond);
+    for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
+      const seconds = cycleIndex / cyclesPerSecond;
+      if (seconds <= audibleDuration) {
+        triggerPolyrhythmBarMarker(startTime + seconds, target);
+      }
+    }
+  }
 
   study.layers.forEach((layer, layerIndex) => {
     if (!study.soundEnabled || !layer.soundEnabled || cyclesPerSecond <= 0) {

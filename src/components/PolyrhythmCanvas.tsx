@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
-import { createPolyrhythmExportAudioStream, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
+import { createPolyrhythmExportAudioStream, triggerPolyrhythmBarMarker, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
 import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
@@ -142,6 +142,7 @@ export default function PolyrhythmCanvas({
   const playbackDriverRef = useRef(playbackDriver);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
   const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
+  const barMarkerFlashStartedAtRef = useRef<number | null>(null);
   const animationTimestampRef = useRef(0);
   const pointerStepHitRef = useRef<{
     layerId: string;
@@ -286,6 +287,31 @@ export default function PolyrhythmCanvas({
     ctx.lineTo(metrics.width - metrics.sidePadding + 12, metrics.centerY);
     ctx.stroke();
     ctx.restore();
+
+    if (currentStudy.barMarkerVisualEnabled && barMarkerFlashStartedAtRef.current != null) {
+      const elapsed = Math.max(0, animationTimestamp - barMarkerFlashStartedAtRef.current);
+      const duration = 560;
+      if (elapsed < duration) {
+        const progress = elapsed / duration;
+        const alpha = Math.pow(1 - progress, 2);
+        const radius = metrics.outerRadius + (6 + progress * 18) * exportLabelScale;
+        ctx.save();
+        ctx.strokeStyle = `rgba(136,204,255,${0.68 * alpha})`;
+        ctx.lineWidth = Math.max(1, 2.4 * exportLabelScale * (1 - progress * 0.35));
+        ctx.shadowColor = `rgba(136,204,255,${0.55 * alpha})`;
+        ctx.shadowBlur = 14 * exportLabelScale;
+        ctx.beginPath();
+        ctx.arc(metrics.centerX, metrics.centerY, radius, 0, TAU);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(210,239,255,${0.9 * alpha})`;
+        ctx.beginPath();
+        ctx.arc(metrics.centerX, metrics.centerY - radius, 3.5 * exportLabelScale, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        barMarkerFlashStartedAtRef.current = null;
+      }
+    }
 
     ctx.save();
     ctx.strokeStyle = sharedDisplay
@@ -753,6 +779,7 @@ export default function PolyrhythmCanvas({
       );
 
       if (playbackDriverRef.current && currentStudy.playing) {
+        const previousProgress = playbackState.progress;
         if (playbackState.lastTimestamp == null) {
           playbackState.lastTimestamp = timestamp;
         } else {
@@ -764,6 +791,15 @@ export default function PolyrhythmCanvas({
           playbackState.progress =
             (playbackState.progress + deltaSeconds * cyclesPerSecond) % 1;
           playbackState.lastTimestamp = timestamp;
+        }
+
+        if (playbackState.progress < previousProgress) {
+          if (currentStudy.barMarkerVisualEnabled) {
+            barMarkerFlashStartedAtRef.current = timestamp;
+          }
+          if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
+            triggerPolyrhythmBarMarker();
+          }
         }
 
         currentStudy.layers.forEach((layer, layerIndex) => {
@@ -806,6 +842,12 @@ export default function PolyrhythmCanvas({
       if (playbackDriverRef.current && currentStudy.playing && !playbackState.wasPlaying) {
         playbackState.previousPlaybackSteps.clear();
         playbackState.lastTimestamp = timestamp;
+        if (currentStudy.barMarkerVisualEnabled) {
+          barMarkerFlashStartedAtRef.current = timestamp;
+        }
+        if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
+          triggerPolyrhythmBarMarker();
+        }
       }
       playbackState.wasPlaying = currentStudy.playing;
 
@@ -822,6 +864,7 @@ export default function PolyrhythmCanvas({
   useEffect(() => {
     playbackStateHandleRef.current.current.previousPlaybackSteps.clear();
     hitPulsesRef.current = [];
+    barMarkerFlashStartedAtRef.current = null;
     draw();
   }, [draw, study]);
 
@@ -832,6 +875,7 @@ export default function PolyrhythmCanvas({
     playbackState.lastTimestamp = null;
     playbackState.wasPlaying = studyRef.current.playing;
     hitPulsesRef.current = [];
+    barMarkerFlashStartedAtRef.current = null;
     draw();
   }, [draw, restartToken]);
 

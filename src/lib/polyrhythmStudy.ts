@@ -51,6 +51,8 @@ export interface PolyrhythmStudy {
   soundEnabled: boolean;
   showInactiveSteps: boolean;
   showStepLabels: boolean;
+  barMarkerSoundEnabled?: boolean;
+  barMarkerVisualEnabled?: boolean;
   soundSettings: PolyrhythmSoundSettings;
 }
 
@@ -601,6 +603,8 @@ function createSingleLayerStudy(options: {
     soundEnabled: true,
     showInactiveSteps: true,
     showStepLabels: options.showStepLabels ?? true,
+    barMarkerSoundEnabled: false,
+    barMarkerVisualEnabled: false,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
   };
 }
@@ -643,6 +647,8 @@ function createSharedCycleStudy(options: {
     soundEnabled: true,
     showInactiveSteps: true,
     showStepLabels: options.showStepLabels ?? true,
+    barMarkerSoundEnabled: false,
+    barMarkerVisualEnabled: false,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
   };
 }

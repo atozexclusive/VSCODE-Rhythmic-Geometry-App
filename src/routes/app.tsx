@@ -8445,6 +8445,20 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleTogglePolyrhythmBarMarkerSound = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      barMarkerSoundEnabled: !current.barMarkerSoundEnabled,
+    }));
+  }, []);
+
+  const handleTogglePolyrhythmBarMarkerVisual = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      barMarkerVisualEnabled: !current.barMarkerVisualEnabled,
+    }));
+  }, []);
+
   const handleUpdatePolyrhythmDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
     if (!canUseProFeature(effectivePlan, 'canvas-options')) {
       showProPrompt('canvas-options');
@@ -8844,6 +8858,8 @@ function OrbitalPolymeter() {
       playing: polyrhythmStudy.playing,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
+      barMarkerSoundEnabled: polyrhythmStudy.barMarkerSoundEnabled,
+      barMarkerVisualEnabled: polyrhythmStudy.barMarkerVisualEnabled,
     };
     setPolyrhythmStudy(nextStudy);
     setActivePolyrhythmPresetId(null);
@@ -8851,7 +8867,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
+  }, [effectivePlan, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
 
   const handleRemixPolyrhythmStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -8864,6 +8880,8 @@ function OrbitalPolymeter() {
         playing: current.playing,
         showInactiveSteps: current.showInactiveSteps,
         showStepLabels: current.showStepLabels,
+        barMarkerSoundEnabled: current.barMarkerSoundEnabled,
+        barMarkerVisualEnabled: current.barMarkerVisualEnabled,
       };
       setActivePolyrhythmPresetId(null);
       setActivePolyrhythmSavedSceneId(null);
@@ -8887,6 +8905,8 @@ function OrbitalPolymeter() {
       playing: polyrhythmStudy.playing,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
+      barMarkerSoundEnabled: polyrhythmStudy.barMarkerSoundEnabled,
+      barMarkerVisualEnabled: polyrhythmStudy.barMarkerVisualEnabled,
     };
     setPolyrhythmStudy(nextStudy);
     setActivePolyrhythmPresetId(null);
@@ -8894,7 +8914,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
+  }, [effectivePlan, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels]);
 
   const handleLoadRiffCyclePreset = useCallback((presetId: string) => {
     const preset = RIFF_CYCLE_PRESETS.find((entry) => entry.id === presetId);
@@ -16985,6 +17005,22 @@ function OrbitalPolymeter() {
                                   >
                                     Numbers
                                   </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="green"
+                                    highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled)}
+                                    onClick={handleTogglePolyrhythmBarMarkerSound}
+                                  >
+                                    Bar Sound
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="green"
+                                    highlighted={Boolean(polyrhythmStudy.barMarkerVisualEnabled)}
+                                    onClick={handleTogglePolyrhythmBarMarkerVisual}
+                                  >
+                                    Bar Visual
+                                  </StudyShellButton>
                                 </div>
                               </div>
                               <div
@@ -19317,7 +19353,7 @@ function OrbitalPolymeter() {
                           labelStyle={desktopMenuSubheaderStyle}
                         />
                       </div>
-                      <div className="grid grid-cols-[0.95fr,1.05fr] gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                       <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmStudy.showInactiveSteps} onClick={handleTogglePolyrhythmInactiveSteps}>
                         Ghost Steps
                       </StudyShellButton>
@@ -19329,6 +19365,12 @@ function OrbitalPolymeter() {
                         className={utilityButtonClass}
                       >
                         Step Numbers
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled)} onClick={handleTogglePolyrhythmBarMarkerSound}>
+                        Bar Sound
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.barMarkerVisualEnabled)} onClick={handleTogglePolyrhythmBarMarkerVisual}>
+                        Bar Visual
                       </StudyShellButton>
                       </div>
                     </div>
