@@ -126,7 +126,6 @@ function mapLayerPitch(
   baseFrequency: number,
   sound: PolyrhythmSoundSettings,
   layerIndex: number,
-  beatCount: number,
 ): number {
   const octaveMultiplier = 2 ** sound.octaveShift;
   if (sound.pitchMode === 'free') {
@@ -136,7 +135,9 @@ function mapLayerPitch(
   const scale = SCALE_PRESETS[sound.scaleName];
   const rootSemitone = NOTE_NAMES.indexOf(sound.rootNote);
   const baseMidi = sound.register === 'wide' ? 50 : 43;
-  const degreeSource = layerIndex * 2 + Math.max(0, Math.round((beatCount - 3) / 3));
+  // A layer's rhythm and pitch are independent: changing its step count must
+  // never move it to another note in the selected scale.
+  const degreeSource = layerIndex * 2;
   const degree = degreeSource % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
   return midiToFrequency(clamp(
@@ -404,7 +405,6 @@ export function triggerPolyrhythmPulse(options: {
     options.frequency,
     options.sound,
     options.layerIndex,
-    options.beatCount,
   );
   const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
   triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, options.target);
