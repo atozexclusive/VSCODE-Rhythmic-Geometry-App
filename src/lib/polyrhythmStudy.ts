@@ -6,7 +6,10 @@ export type PolyrhythmSoundPalette =
   | 'study-pulse'
   | 'wood'
   | 'soft-synth'
-  | 'bright-marker';
+  | 'bright-marker'
+  | 'chime'
+  | 'warm-synth'
+  | 'soft-piano';
 export type PolyrhythmPitchMode = 'free' | 'keyed';
 export type PolyrhythmRegister = 'tight' | 'wide';
 export type PolyrhythmDisplayStyle = 'shared' | 'nested';
@@ -159,6 +162,9 @@ function normalizePolyrhythmSoundSettings(
         'wood',
         'soft-synth',
         'bright-marker',
+        'chime',
+        'warm-synth',
+        'soft-piano',
       ].includes(normalizedPalette)
         ? normalizedPalette
         : 'study-pulse',

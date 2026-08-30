@@ -188,6 +188,91 @@ function triggerPalettePulse(
     return;
   }
 
+  if (palette === 'chime') {
+    const level = clamp(gain * 0.7, 0.008, 0.11);
+    withVoice({
+      type: 'sine',
+      frequency,
+      gain: level,
+      attack: 0.008,
+      release: 1.45,
+      filterFrequency: 3400,
+      filterQ: 0.4,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 2.01, 120, 4800),
+      gain: level * 0.31,
+      attack: 0.005,
+      release: 1.08,
+      filterFrequency: 4800,
+      filterQ: 0.35,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 3.98, 180, 6200),
+      gain: level * 0.1,
+      attack: 0.004,
+      release: 0.76,
+      filterFrequency: 6000,
+      filterQ: 0.3,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'warm-synth') {
+    const level = clamp(gain * 0.74, 0.008, 0.105);
+    withVoice({
+      type: 'triangle',
+      frequency,
+      gain: level,
+      attack: 0.032,
+      release: 1.12,
+      filterFrequency: 1250,
+      filterQ: 0.45,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 0.5, 42, 800),
+      gain: level * 0.26,
+      attack: 0.04,
+      release: 1.26,
+      filterFrequency: 720,
+      filterQ: 0.38,
+      atTime,
+    }, target);
+    return;
+  }
+
+  if (palette === 'soft-piano') {
+    const level = clamp(gain * 0.78, 0.008, 0.11);
+    withVoice({
+      type: 'triangle',
+      frequency,
+      gain: level,
+      attack: 0.008,
+      release: 1.08,
+      filterFrequency: 1800,
+      filterQ: 0.48,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: clamp(frequency * 2, 140, 4400),
+      gain: level * 0.22,
+      attack: 0.006,
+      release: 0.68,
+      filterFrequency: 3400,
+      filterQ: 0.34,
+      atTime,
+    }, target);
+    return;
+  }
+
   withVoice({
     type: 'square',
     frequency: frequency * 1.12,

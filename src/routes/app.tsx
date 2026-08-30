@@ -17238,6 +17238,9 @@ function OrbitalPolymeter() {
                           ['wood', 'Wood'],
                           ['soft-synth', 'Soft Synth'],
                           ['bright-marker', 'Bright Marker'],
+                          ['chime', 'Chime'],
+                          ['warm-synth', 'Warm Synth'],
+                          ['soft-piano', 'Soft Piano'],
                         ].map(([id, label]) => (
                           <option key={id} value={id} style={{ background: '#181820' }}>
                             {label}
@@ -19194,6 +19197,9 @@ function OrbitalPolymeter() {
                       <option value="wood" style={{ background: '#181820' }}>Wood</option>
                       <option value="soft-synth" style={{ background: '#181820' }}>Soft Synth</option>
                       <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
+                      <option value="chime" style={{ background: '#181820' }}>Chime</option>
+                      <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
+                      <option value="soft-piano" style={{ background: '#181820' }}>Soft Piano</option>
                     </select>
                     <div className="grid grid-cols-2 gap-2">
                       <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
