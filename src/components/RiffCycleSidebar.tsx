@@ -191,9 +191,6 @@ const RIFF_SOUND_PALETTES: Array<{
   { id: 'dry-synth', label: 'Dry Synth' },
   { id: 'metal-tick', label: 'Metal Tick' },
   { id: 'low-pulse', label: 'Low Pulse' },
-  { id: 'chime', label: 'Chime' },
-  { id: 'warm-synth', label: 'Warm Synth' },
-  { id: 'soft-piano', label: 'Soft Piano' },
 ];
 
 const RIFF_REGISTERS: Array<{

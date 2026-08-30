@@ -17,10 +17,7 @@ export type RiffCycleSoundPalette =
   | 'muted-djent'
   | 'dry-synth'
   | 'metal-tick'
-  | 'low-pulse'
-  | 'chime'
-  | 'warm-synth'
-  | 'soft-piano';
+  | 'low-pulse';
 export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
@@ -371,9 +368,6 @@ function normalizeRiffCycleSoundSettings(
         'dry-synth',
         'metal-tick',
         'low-pulse',
-        'chime',
-        'warm-synth',
-        'soft-piano',
       ].includes(settings.palette)
         ? settings.palette
         : 'architectural',

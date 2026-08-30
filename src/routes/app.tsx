@@ -22030,9 +22030,6 @@ function OrbitalPolymeter() {
                                 <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
                                 <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
                                 <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
-                                <option value="chime" style={{ background: '#181820' }}>Chime</option>
-                                <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
-                                <option value="soft-piano" style={{ background: '#181820' }}>Soft Piano</option>
                               </select>
                             </div>
                             <div className="space-y-1.5">
@@ -24569,9 +24566,6 @@ function OrbitalPolymeter() {
                           <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
                           <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
                           <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
-                          <option value="chime" style={{ background: '#181820' }}>Chime</option>
-                          <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
-                          <option value="soft-piano" style={{ background: '#181820' }}>Soft Piano</option>
                         </select>
                       </div>
                     </div>
