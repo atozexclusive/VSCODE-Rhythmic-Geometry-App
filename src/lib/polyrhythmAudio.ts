@@ -449,7 +449,7 @@ export function triggerPolyrhythmPulse(options: {
         context,
         destination: options.target?.destination,
         outputToSpeakers: options.target?.outputToSpeakers ?? true,
-        reverbAmount: options.sound.reverbAmount ?? 0.2,
+        reverbAmount: options.sound.reverbAmount ?? 0,
       }
     : options.target;
   triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);

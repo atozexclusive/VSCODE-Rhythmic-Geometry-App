@@ -185,7 +185,7 @@ function normalizePolyrhythmSoundSettings(
     octaveShift: settings?.octaveShift === -1 || settings?.octaveShift === 1
       ? settings.octaveShift
       : 0,
-    reverbAmount: Math.max(0, Math.min(1, settings?.reverbAmount ?? 0.2)),
+    reverbAmount: Math.max(0, Math.min(1, settings?.reverbAmount ?? 0)),
   };
 }
 
