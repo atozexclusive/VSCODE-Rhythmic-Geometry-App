@@ -19,6 +19,7 @@ import {
   getLayerStepPoints,
   getPlaybackStepIndex,
   getSharedCycleStepCount,
+  type PolyrhythmLayer,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
 import {
@@ -93,6 +94,7 @@ interface PolyrhythmCanvasProps {
   onToggleStep: (layerId: string, stepIndex: number) => void;
   onToggleStepAccent?: (layerId: string, stepIndex: number) => void;
   onClearSelection: () => void;
+  onBarBoundary?: () => readonly PolyrhythmLayer[] | null | void;
   className?: string;
 }
 
@@ -116,6 +118,7 @@ export default function PolyrhythmCanvas({
   onToggleStep,
   onToggleStepAccent,
   onClearSelection,
+  onBarBoundary,
   className,
 }: PolyrhythmCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -137,6 +140,7 @@ export default function PolyrhythmCanvas({
   const showReferenceLayersRef = useRef(showReferenceLayers);
   const displaySettingsRef = useRef(displaySettings);
   const audioEnabledRef = useRef(audioEnabled);
+  const onBarBoundaryRef = useRef(onBarBoundary);
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
@@ -162,6 +166,7 @@ export default function PolyrhythmCanvas({
   showReferenceLayersRef.current = showReferenceLayers;
   displaySettingsRef.current = displaySettings;
   audioEnabledRef.current = audioEnabled;
+  onBarBoundaryRef.current = onBarBoundary;
   presentationModeRef.current = presentationMode;
   playbackStateHandleRef.current = playbackStateRef ?? localPlaybackStateRef;
   playbackDriverRef.current = playbackDriver;
@@ -793,6 +798,7 @@ export default function PolyrhythmCanvas({
           playbackState.lastTimestamp = timestamp;
         }
 
+        let incomingCellLayers: readonly PolyrhythmLayer[] | null = null;
         if (playbackState.progress < previousProgress) {
           if (currentStudy.barMarkerVisualEnabled) {
             barMarkerFlashStartedAtRef.current = timestamp;
@@ -800,11 +806,18 @@ export default function PolyrhythmCanvas({
           if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
             triggerPolyrhythmBarMarker();
           }
+          incomingCellLayers = onBarBoundaryRef.current?.() ?? null;
         }
 
-        currentStudy.layers.forEach((layer, layerIndex) => {
-          const currentStepIndex = getPlaybackStepIndex(layer, playbackState.progress);
-          const previousStepIndex = playbackState.previousPlaybackSteps.get(layer.id);
+        const playbackLayers = incomingCellLayers?.length
+          ? incomingCellLayers
+          : currentStudy.layers;
+        const layerProgress = incomingCellLayers?.length ? 0 : playbackState.progress;
+        playbackLayers.forEach((layer, layerIndex) => {
+          const currentStepIndex = getPlaybackStepIndex(layer, layerProgress);
+          const previousStepIndex = incomingCellLayers?.length
+            ? undefined
+            : playbackState.previousPlaybackSteps.get(layer.id);
           playbackState.previousPlaybackSteps.set(layer.id, currentStepIndex);
           const activeStepHit =
             previousStepIndex !== currentStepIndex && layer.activeSteps[currentStepIndex];
@@ -862,8 +875,14 @@ export default function PolyrhythmCanvas({
   }, [draw]);
 
   useEffect(() => {
-    playbackStateHandleRef.current.current.previousPlaybackSteps.clear();
-    hitPulsesRef.current = [];
+    const playbackState = playbackStateHandleRef.current.current;
+    playbackState.previousPlaybackSteps.clear();
+    study.layers.forEach((layer) => {
+      playbackState.previousPlaybackSteps.set(
+        layer.id,
+        getPlaybackStepIndex(layer, playbackState.progress),
+      );
+    });
     barMarkerFlashStartedAtRef.current = null;
     draw();
   }, [draw, study]);

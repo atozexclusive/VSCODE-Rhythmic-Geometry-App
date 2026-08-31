@@ -93,12 +93,15 @@ import {
   POLYRHYTHM_PRESET_GROUP_META,
   POLYRHYTHM_PRESETS,
   cloneStudy,
+  clonePolyrhythmLayers,
   countActiveSteps,
   createRandomPlusPolyrhythmStudy,
   createRandomPolyrhythmStudy,
   createDefaultPolyrhythmStudy,
   createEvenPulseMask,
   createPolyrhythmLayer,
+  createPolyrhythmStudyCell,
+  createPolyrhythmStudyPhrase,
   getSharedCycleStepCount,
   invertLayerSteps,
   remixPolyrhythmStudy,
@@ -111,6 +114,8 @@ import {
   type PolyrhythmSoundSettings,
   type PolyrhythmStudy,
   type PolyrhythmStudyPreset,
+  type PolyrhythmStudyCell,
+  type PolyrhythmStudyPhrase,
 } from '../lib/polyrhythmStudy';
 import { resumePolyrhythmAudio } from '../lib/polyrhythmAudio';
 import {
@@ -7820,6 +7825,43 @@ function OrbitalPolymeter() {
   const [polyrhythmLayerStepDraft, setPolyrhythmLayerStepDraft] = useState('');
   const [polyrhythmMobileEditorOpen, setPolyrhythmMobileEditorOpen] = useState(false);
   const [polyrhythmDesktopPatternEditorOpen, setPolyrhythmDesktopPatternEditorOpen] = useState(false);
+  const [selectedPolyrhythmChainCellId, setSelectedPolyrhythmChainCellId] = useState<string | null>(null);
+  const [selectedPolyrhythmChainPhraseId, setSelectedPolyrhythmChainPhraseId] = useState<string | null>(null);
+  const [activePolyrhythmChainPhraseId, setActivePolyrhythmChainPhraseId] = useState<string | null>(null);
+  const [polyrhythmChainPanelOpen, setPolyrhythmChainPanelOpen] = useState(false);
+  const polyrhythmChainBarsElapsedRef = useRef(0);
+
+  useEffect(() => {
+    if (!polyrhythmStudy.chainEnabled || !polyrhythmStudy.chainCells?.length) return;
+    if (polyrhythmStudy.chainCells.some((cell) => cell.id === selectedPolyrhythmChainCellId)) return;
+    setSelectedPolyrhythmChainCellId(polyrhythmStudy.chainCells[0].id);
+  }, [
+    polyrhythmStudy.chainEnabled,
+    polyrhythmStudy.chainCells,
+    selectedPolyrhythmChainCellId,
+  ]);
+  useEffect(() => {
+    if (!polyrhythmStudy.chainEnabled) return;
+    const phrases = polyrhythmStudy.chainPhrases ?? [];
+    if (phrases.some((phrase) => phrase.id === selectedPolyrhythmChainPhraseId)) return;
+    setSelectedPolyrhythmChainPhraseId(phrases[0]?.id ?? null);
+  }, [polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases, selectedPolyrhythmChainPhraseId]);
+  useEffect(() => {
+    if (!polyrhythmStudy.chainEnabled) return;
+    const phrases = polyrhythmStudy.chainPhrases ?? [];
+    if (phrases.some((phrase) => phrase.id === activePolyrhythmChainPhraseId)) return;
+    setActivePolyrhythmChainPhraseId(phrases[0]?.id ?? null);
+  }, [activePolyrhythmChainPhraseId, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
+  useEffect(() => {
+    if (!polyrhythmStudy.chainEnabled || !polyrhythmStudy.chainCells?.length || polyrhythmStudy.chainPhrases?.length) return;
+    setPolyrhythmStudy((current) => {
+      if (!current.chainEnabled || !current.chainCells?.length || current.chainPhrases?.length) return current;
+      return {
+        ...current,
+        chainPhrases: current.chainCells.map((cell) => createPolyrhythmStudyPhrase(cell.id, cell.bars)),
+      };
+    });
+  }, [polyrhythmStudy.chainCells, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
   const [studyEditorReferenceLayersVisible, setStudyEditorReferenceLayersVisible] = useState(true);
   const [polyrhythmDesktopQuickCollapsed, setPolyrhythmDesktopQuickCollapsed] = useState(true);
   const [polyrhythmDesktopUtilityCollapsed, setPolyrhythmDesktopUtilityCollapsed] = useState(true);
@@ -8409,8 +8451,199 @@ function OrbitalPolymeter() {
   }, [activePolyrhythmPresetId, polyrhythmStudy.playing]);
 
   const handleRestartPolyrhythmTransport = useCallback(() => {
+    polyrhythmChainBarsElapsedRef.current = 0;
+    const cells = polyrhythmStudy.chainCells ?? [];
+    const firstPhrase = polyrhythmStudy.chainEnabled ? polyrhythmStudy.chainPhrases?.[0] : null;
+    const firstCell = firstPhrase
+      ? cells.find((cell) => cell.id === firstPhrase.cellId) ?? cells[0]
+      : polyrhythmStudy.chainEnabled ? cells[0] : null;
+    if (firstCell) {
+      setActivePolyrhythmChainPhraseId(firstPhrase?.id ?? null);
+      setSelectedPolyrhythmChainPhraseId(firstPhrase?.id ?? null);
+      setSelectedPolyrhythmChainCellId(firstCell.id);
+      setSelectedPolyrhythmLayerId(firstCell.layers[0]?.id ?? null);
+      setSelectedPolyrhythmStep(null);
+      setPolyrhythmStudy((current) => ({
+        ...current,
+        layers: clonePolyrhythmLayers(firstCell.layers),
+      }));
+    }
     setPolyrhythmRestartToken((value) => value + 1);
+  }, [polyrhythmStudy.chainCells, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
+
+  useEffect(() => {
+    if (!polyrhythmStudy.chainEnabled || !selectedPolyrhythmChainCellId) {
+      return;
+    }
+    setPolyrhythmStudy((current) => {
+      const cells = current.chainCells ?? [];
+      if (!cells.some((cell) => cell.id === selectedPolyrhythmChainCellId)) {
+        return current;
+      }
+      return {
+        ...current,
+        chainCells: cells.map((cell) =>
+          cell.id === selectedPolyrhythmChainCellId
+            ? { ...cell, layers: clonePolyrhythmLayers(current.layers) }
+            : cell,
+        ),
+      };
+    });
+  }, [polyrhythmStudy.chainEnabled, polyrhythmStudy.layers, selectedPolyrhythmChainCellId]);
+
+  const handleTogglePolyrhythmChain = useCallback(() => {
+    setPolyrhythmStudy((current) => {
+      if (current.chainEnabled) {
+        polyrhythmChainBarsElapsedRef.current = 0;
+        return { ...current, chainEnabled: false };
+      }
+      const cells = current.chainCells?.length
+        ? current.chainCells
+        : [createPolyrhythmStudyCell(current.layers, 'A')];
+      const selectedCell = cells.find((cell) => cell.id === selectedPolyrhythmChainCellId) ?? cells[0];
+      const phrases = current.chainPhrases?.length
+        ? current.chainPhrases
+        : selectedCell ? [createPolyrhythmStudyPhrase(selectedCell.id, selectedCell.bars)] : [];
+      setSelectedPolyrhythmChainCellId(selectedCell?.id ?? null);
+      setSelectedPolyrhythmChainPhraseId(phrases[0]?.id ?? null);
+      setActivePolyrhythmChainPhraseId(phrases[0]?.id ?? null);
+      return {
+        ...current,
+        chainEnabled: true,
+        chainCells: cells,
+        chainPhrases: phrases,
+        layers: selectedCell ? clonePolyrhythmLayers(selectedCell.layers) : current.layers,
+      };
+    });
+    setPolyrhythmChainPanelOpen(true);
+  }, [selectedPolyrhythmChainCellId]);
+
+  const handleAddPolyrhythmChainCell = useCallback(() => {
+    setPolyrhythmStudy((current) => {
+      const cells = current.chainCells ?? [];
+      const name = String.fromCharCode(65 + (cells.length % 26));
+      const nextCell = createPolyrhythmStudyCell(current.layers, name);
+      setSelectedPolyrhythmChainCellId(nextCell.id);
+      polyrhythmChainBarsElapsedRef.current = 0;
+      return {
+        ...current,
+        chainEnabled: true,
+        chainCells: [...cells, nextCell],
+        layers: clonePolyrhythmLayers(nextCell.layers),
+      };
+    });
+    setSelectedPolyrhythmStep(null);
   }, []);
+
+  const handleSelectPolyrhythmChainCell = useCallback((cell: PolyrhythmStudyCell) => {
+    polyrhythmChainBarsElapsedRef.current = 0;
+    setSelectedPolyrhythmChainCellId(cell.id);
+    setSelectedPolyrhythmLayerId(cell.layers[0]?.id ?? null);
+    setSelectedPolyrhythmStep(null);
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: clonePolyrhythmLayers(cell.layers),
+    }));
+  }, []);
+
+  const handleSetPolyrhythmChainCellBars = useCallback((cellId: string, bars: number) => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      chainCells: current.chainCells?.map((cell) =>
+        cell.id === cellId ? { ...cell, bars: Math.max(1, Math.min(64, Math.round(bars))) } : cell,
+      ),
+    }));
+  }, []);
+
+  const handleAddPolyrhythmChainPhrase = useCallback((cellId: string) => {
+    setPolyrhythmStudy((current) => {
+      if (!current.chainCells?.some((cell) => cell.id === cellId)) return current;
+      const phrase = createPolyrhythmStudyPhrase(cellId, 1);
+      setSelectedPolyrhythmChainPhraseId(phrase.id);
+      return {
+        ...current,
+        chainEnabled: true,
+        chainPhrases: [...(current.chainPhrases ?? []), phrase],
+      };
+    });
+    polyrhythmChainBarsElapsedRef.current = 0;
+  }, []);
+
+  const handleSelectPolyrhythmChainPhrase = useCallback((phrase: PolyrhythmStudyPhrase) => {
+    const cell = polyrhythmStudy.chainCells?.find((candidate) => candidate.id === phrase.cellId);
+    setSelectedPolyrhythmChainPhraseId(phrase.id);
+    if (cell) handleSelectPolyrhythmChainCell(cell);
+  }, [handleSelectPolyrhythmChainCell, polyrhythmStudy.chainCells]);
+
+  const handleSetPolyrhythmChainPhraseBars = useCallback((phraseId: string, bars: number) => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      chainPhrases: current.chainPhrases?.map((phrase) =>
+        phrase.id === phraseId ? { ...phrase, bars: Math.max(1, Math.min(64, Math.round(bars))) } : phrase,
+      ),
+    }));
+  }, []);
+
+  const handleRemovePolyrhythmChainPhrase = useCallback((phraseId: string) => {
+    setPolyrhythmStudy((current) => {
+      const phrases = current.chainPhrases ?? [];
+      const removedIndex = phrases.findIndex((phrase) => phrase.id === phraseId);
+      const nextPhrases = phrases.filter((phrase) => phrase.id !== phraseId);
+      const next = nextPhrases[Math.min(Math.max(0, removedIndex), nextPhrases.length - 1)] ?? null;
+      setSelectedPolyrhythmChainPhraseId(next?.id ?? null);
+      return { ...current, chainPhrases: nextPhrases };
+    });
+    polyrhythmChainBarsElapsedRef.current = 0;
+  }, []);
+
+  const handleDuplicatePolyrhythmChainCell = useCallback(() => {
+    setPolyrhythmStudy((current) => {
+      const cells = current.chainCells ?? [];
+      const source = cells.find((cell) => cell.id === selectedPolyrhythmChainCellId);
+      if (!source) return current;
+      const duplicate = createPolyrhythmStudyCell(source.layers, `${source.name} copy`, source.bars);
+      const sourceIndex = cells.findIndex((cell) => cell.id === source.id);
+      const nextCells = [...cells];
+      nextCells.splice(sourceIndex + 1, 0, duplicate);
+      setSelectedPolyrhythmChainCellId(duplicate.id);
+      return { ...current, chainCells: nextCells, layers: clonePolyrhythmLayers(duplicate.layers) };
+    });
+  }, [selectedPolyrhythmChainCellId]);
+
+  const handleRemovePolyrhythmChainCell = useCallback((cellId: string) => {
+    setPolyrhythmStudy((current) => {
+      const cells = current.chainCells ?? [];
+      if (cells.length <= 1) return current;
+      const removedIndex = cells.findIndex((cell) => cell.id === cellId);
+      const nextCells = cells.filter((cell) => cell.id !== cellId);
+      const nextSelected = nextCells[Math.min(Math.max(0, removedIndex), nextCells.length - 1)] ?? nextCells[0];
+      setSelectedPolyrhythmChainCellId(nextSelected?.id ?? null);
+      setSelectedPolyrhythmLayerId(nextSelected?.layers[0]?.id ?? null);
+      return {
+        ...current,
+        chainCells: nextCells,
+        chainPhrases: current.chainPhrases?.filter((phrase) => phrase.cellId !== cellId),
+        layers: nextSelected ? clonePolyrhythmLayers(nextSelected.layers) : current.layers,
+      };
+    });
+  }, []);
+
+  const handlePolyrhythmChainBarBoundary = useCallback(() => {
+    if (!polyrhythmStudy.chainEnabled || !polyrhythmStudy.chainCells?.length) return null;
+    const cells = polyrhythmStudy.chainCells;
+    const phrases = polyrhythmStudy.chainPhrases?.length
+      ? polyrhythmStudy.chainPhrases
+      : cells.map((cell) => createPolyrhythmStudyPhrase(cell.id, cell.bars));
+    const currentIndex = Math.max(0, phrases.findIndex((phrase) => phrase.id === activePolyrhythmChainPhraseId));
+    const currentPhrase = phrases[currentIndex] ?? phrases[0];
+    polyrhythmChainBarsElapsedRef.current += 1;
+    if (polyrhythmChainBarsElapsedRef.current < Math.max(1, currentPhrase?.bars ?? 1)) return null;
+    polyrhythmChainBarsElapsedRef.current = 0;
+    const nextPhrase = phrases[(currentIndex + 1) % phrases.length] ?? phrases[0];
+    const nextCell = cells.find((cell) => cell.id === nextPhrase.cellId) ?? cells[0];
+    setActivePolyrhythmChainPhraseId(nextPhrase.id);
+    return nextCell.layers;
+  }, [activePolyrhythmChainPhraseId, polyrhythmStudy.chainCells, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
 
   const handleTogglePolyrhythmPlayback = useCallback(() => {
     resumePolyrhythmAudio();
@@ -14425,6 +14658,20 @@ function OrbitalPolymeter() {
   const selectedPolyrhythmOffsetSteps = selectedPolyrhythmLayer
     ? getPolyrhythmLayerOffsetSteps(selectedPolyrhythmLayer)
     : 0;
+  const polyrhythmPlaybackStudy = useMemo(() => {
+    if (!polyrhythmStudy.playing || !polyrhythmStudy.chainEnabled) return polyrhythmStudy;
+    const phrases = polyrhythmStudy.chainPhrases ?? [];
+    const activePhrase =
+      phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
+    const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
+    return activeCell ? { ...polyrhythmStudy, layers: activeCell.layers } : polyrhythmStudy;
+  }, [activePolyrhythmChainPhraseId, polyrhythmStudy]);
+  const polyrhythmPlaybackSelectedLayerId =
+    (selectedPolyrhythmLayerIndex >= 0
+      ? polyrhythmPlaybackStudy.layers[selectedPolyrhythmLayerIndex]?.id
+      : null) ??
+    polyrhythmPlaybackStudy.layers[0]?.id ??
+    null;
   const riffSequenceTimeline = getRiffSequenceTimeline(riffCycleStudy);
   const riffSelectedSequenceCell =
     RIFF_CELL_SEQUENCE_FEATURE_ENABLED && riffCycleStudy.riffSequenceEnabled
@@ -16287,6 +16534,180 @@ function OrbitalPolymeter() {
         </div>
       ) : null;
 
+    const renderPolyrhythmChainPanel = (compact = false) => {
+      const cells = polyrhythmStudy.chainCells ?? [];
+      const phrases = polyrhythmStudy.chainPhrases ?? [];
+      const selectedCell = cells.find((cell) => cell.id === selectedPolyrhythmChainCellId) ?? cells[0] ?? null;
+      return (
+        <div
+          className={`rounded-xl border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'}`}
+          style={{
+            background: polyrhythmStudy.chainEnabled
+              ? 'linear-gradient(180deg, rgba(114,241,184,0.07), rgba(255,255,255,0.025))'
+              : 'rgba(255,255,255,0.03)',
+            borderColor: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.25)' : 'rgba(255,255,255,0.1)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setPolyrhythmChainPanelOpen((open) => !open)}
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            >
+              <span
+                className="text-[10px] font-mono uppercase tracking-[0.18em]"
+                style={{ color: polyrhythmStudy.chainEnabled ? '#72F1B8' : 'rgba(255,255,255,0.52)' }}
+              >
+                Study Chain
+              </span>
+              <span
+                className="inline-flex rounded-full border px-1.5 py-0.5 text-[6.5px] font-mono uppercase tracking-[0.14em]"
+                style={{
+                  borderColor: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.12)',
+                  color: polyrhythmStudy.chainEnabled ? '#72F1B8' : 'rgba(255,255,255,0.38)',
+                  background: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.07)' : 'rgba(255,255,255,0.035)',
+                }}
+              >
+                Beta
+              </span>
+            </button>
+            <div className="flex items-center gap-2">
+              <StudyShellButton
+                size="compact"
+                tone="green"
+                highlighted={Boolean(polyrhythmStudy.chainEnabled)}
+                onClick={handleTogglePolyrhythmChain}
+              >
+                {polyrhythmStudy.chainEnabled ? 'On' : 'Off'}
+              </StudyShellButton>
+              <button
+                type="button"
+                onClick={() => setPolyrhythmChainPanelOpen((open) => !open)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/58"
+                aria-label={polyrhythmChainPanelOpen ? 'Collapse Study Chain' : 'Open Study Chain'}
+              >
+                {polyrhythmChainPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
+          </div>
+
+          {polyrhythmChainPanelOpen ? (
+            <div className="mt-3 space-y-3 border-t border-white/8 pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">Cell Library</span>
+                {selectedCell ? (
+                  <div className="flex items-center gap-1">
+                    <StudyShellButton size="compact" className="!h-7 px-2 text-[7px]" onClick={handleDuplicatePolyrhythmChainCell}>Duplicate</StudyShellButton>
+                    <StudyShellButton size="square" tone="red" icon={<Trash2 size={12} />} onClick={() => handleRemovePolyrhythmChainCell(selectedCell.id)} disabled={cells.length <= 1} aria-label="Delete selected Study cell" />
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                {cells.map((cell, index) => {
+                  const active = cell.id === selectedCell?.id;
+                  return (
+                    <button
+                      key={cell.id}
+                      type="button"
+                      onClick={() => handleSelectPolyrhythmChainCell(cell)}
+                      className="min-w-[6.4rem] shrink-0 rounded-xl border px-3 py-2 text-left transition active:scale-[0.98]"
+                      style={{
+                        background: active ? 'rgba(114,241,184,0.1)' : 'rgba(255,255,255,0.035)',
+                        borderColor: active ? 'rgba(114,241,184,0.32)' : 'rgba(255,255,255,0.09)',
+                        boxShadow: active ? '0 0 18px rgba(114,241,184,0.1)' : 'none',
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)' }}>
+                          {cell.name || `Cell ${index + 1}`}
+                        </span>
+                        <span className="text-[7px] font-mono text-white/28">{String.fromCharCode(65 + index)}</span>
+                      </div>
+                      <div className="mt-1 text-[12px] font-mono tracking-[0.08em] text-white/88">
+                        {cell.layers.map((layer) => layer.beatCount).join(':')}
+                      </div>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={handleAddPolyrhythmChainCell}
+                  className="flex min-h-[3.7rem] min-w-[3.7rem] shrink-0 items-center justify-center rounded-xl border border-[#7FD7FF]/20 bg-[#7FD7FF]/8 text-[#7FD7FF] transition active:scale-[0.97]"
+                  aria-label="Capture current stack as a new Study cell"
+                  title="Capture current stack"
+                >
+                  <Plus size={17} />
+                </button>
+              </div>
+
+              {!selectedCell ? (
+                <div className="text-[9px] leading-relaxed text-white/42">
+                  Turn Chain on to capture this complete layer stack as Cell A.
+                </div>
+              ) : null}
+
+              <div className="space-y-2 border-t border-white/8 pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">Sequence Order</span>
+                  <span className="text-[7px] font-mono uppercase tracking-[0.12em] text-white/28">
+                    {phrases.reduce((total, phrase) => total + phrase.bars, 0)} bars total
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {phrases.map((phrase, phraseIndex) => {
+                    const cell = cells.find((candidate) => candidate.id === phrase.cellId);
+                    const active = phrase.id === selectedPolyrhythmChainPhraseId;
+                    return (
+                      <div
+                        key={phrase.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectPolyrhythmChainPhrase(phrase)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') handleSelectPolyrhythmChainPhrase(phrase);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl border p-1.5 text-left transition active:scale-[0.99]"
+                        style={{
+                          background: active ? 'rgba(114,241,184,0.08)' : 'rgba(255,255,255,0.025)',
+                          borderColor: active ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.08)',
+                        }}
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/8 bg-white/[0.035] text-[9px] font-mono text-white/68">
+                          {cell?.name || `Cell ${phraseIndex + 1}`}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[7px] font-mono uppercase tracking-[0.12em] text-white/32">Phrase {phraseIndex + 1}</span>
+                          <span className="block truncate text-[10px] font-mono tracking-[0.08em] text-white/72">
+                            {cell?.layers.map((layer) => layer.beatCount).join(':') || 'Missing cell'}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center rounded-lg border border-white/9 bg-black/10 p-0.5" onClick={(event) => event.stopPropagation()}>
+                          <button type="button" onClick={() => handleSetPolyrhythmChainPhraseBars(phrase.id, phrase.bars - 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/52" aria-label={`Reduce Phrase ${phraseIndex + 1} bars`}><Minus size={12} /></button>
+                          <span className="min-w-[3.7rem] text-center text-[8px] font-mono uppercase tracking-[0.1em] text-white/58">{phrase.bars} bar{phrase.bars === 1 ? '' : 's'}</span>
+                          <button type="button" onClick={() => handleSetPolyrhythmChainPhraseBars(phrase.id, phrase.bars + 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/52" aria-label={`Increase Phrase ${phraseIndex + 1} bars`}><Plus size={12} /></button>
+                        </span>
+                        <span onClick={(event) => event.stopPropagation()}>
+                          <StudyShellButton size="square" tone="red" icon={<Trash2 size={11} />} onClick={() => handleRemovePolyrhythmChainPhrase(phrase.id)} aria-label={`Delete Phrase ${phraseIndex + 1}`} />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectedCell && handleAddPolyrhythmChainPhrase(selectedCell.id)}
+                  disabled={!selectedCell}
+                  className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/9 bg-white/[0.025] text-[8px] font-mono uppercase tracking-[0.14em] text-white/48 transition active:scale-[0.99] disabled:opacity-30"
+                >
+                  <Plus size={13} /> Add selected cell as phrase
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      );
+    };
+
     if (isMobile && !presentationMode) {
       const activePolyrhythmSavedScene =
         savedPolyrhythmScenes.find((scene) => scene.id === activePolyrhythmSavedSceneId) ?? null;
@@ -16301,9 +16722,9 @@ function OrbitalPolymeter() {
               style={polyrhythmMobileCanvasStyle}
             >
               <PolyrhythmCanvas
-                study={polyrhythmStudy}
+                study={polyrhythmPlaybackStudy}
                 restartToken={polyrhythmRestartToken}
-                selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+                selectedLayerId={polyrhythmPlaybackSelectedLayerId}
                 selectedStep={selectedPolyrhythmStep}
                 externalCanvasRef={canvasRef}
                 playbackStateRef={polyrhythmPlaybackStateRef}
@@ -16315,8 +16736,9 @@ function OrbitalPolymeter() {
                 onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
 	                onSelectStep={handleSelectPolyrhythmStep}
 	                onToggleStep={handleTogglePolyrhythmLayerStep}
-	                onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
+                onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
 	                onClearSelection={handleClearPolyrhythmSelection}
+                onBarBoundary={handlePolyrhythmChainBarBoundary}
                 className="absolute inset-0 h-full w-full"
               />
               <div className="absolute right-3 top-3 z-20 w-[min(21rem,calc(100%-1.5rem))]">
@@ -16538,6 +16960,7 @@ function OrbitalPolymeter() {
 
                 {polyrhythmMobileSection === 'edit' ? (
                   <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    {renderPolyrhythmChainPanel(true)}
                     {false ? (
                       <div className="space-y-3">
                         <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
@@ -17921,11 +18344,11 @@ function OrbitalPolymeter() {
                 </div>
                 <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-white/10 bg-[#12131a]">
                   <PolyrhythmCanvas
-                    study={polyrhythmStudy}
+                    study={polyrhythmPlaybackStudy}
                     restartToken={polyrhythmRestartToken}
-                    selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+                    selectedLayerId={polyrhythmPlaybackSelectedLayerId}
                     selectedStep={selectedPolyrhythmStep}
-                    displayLayerId={selectedPolyrhythmLayer?.id ?? null}
+                    displayLayerId={polyrhythmPlaybackSelectedLayerId}
                     soloLayerDisplay
                     showReferenceLayers
                     playbackStateRef={polyrhythmPlaybackStateRef}
@@ -17939,6 +18362,7 @@ function OrbitalPolymeter() {
 	                    onToggleStep={handleTogglePolyrhythmLayerStep}
 	                    onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
 	                    onClearSelection={handleClearPolyrhythmSelection}
+                    onBarBoundary={handlePolyrhythmChainBarBoundary}
                     className="absolute inset-0 h-full w-full"
                   />
                   <div className="absolute right-3 top-3 z-20 w-[min(21rem,calc(100%-1.5rem))]">
@@ -18325,9 +18749,9 @@ function OrbitalPolymeter() {
           className={isMobile ? 'absolute inset-0' : 'absolute inset-x-0 bottom-0 top-6'}
         >
           <PolyrhythmCanvas
-            study={polyrhythmStudy}
+            study={polyrhythmPlaybackStudy}
             restartToken={polyrhythmRestartToken}
-            selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+            selectedLayerId={polyrhythmPlaybackSelectedLayerId}
             selectedStep={selectedPolyrhythmStep}
             externalCanvasRef={canvasRef}
             playbackStateRef={polyrhythmPlaybackStateRef}
@@ -18340,6 +18764,7 @@ function OrbitalPolymeter() {
 	            onToggleStep={handleTogglePolyrhythmLayerStep}
 	            onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
 	            onClearSelection={handleClearPolyrhythmSelection}
+            onBarBoundary={handlePolyrhythmChainBarBoundary}
           />
           {!isMobile && !presentationMode ? (
             <div
@@ -18359,6 +18784,7 @@ function OrbitalPolymeter() {
             </div>
           ) : null}
         </div>
+
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/35 via-black/12 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/90 to-transparent" />
 
@@ -18648,6 +19074,8 @@ function OrbitalPolymeter() {
                   })}
                 </div>
               </div>
+
+              {renderPolyrhythmChainPanel(true)}
 
               {selectedPolyrhythmLayer ? (
                 <>
@@ -19644,11 +20072,11 @@ function OrbitalPolymeter() {
                 }}
               >
                 <PolyrhythmCanvas
-                  study={polyrhythmStudy}
+                  study={polyrhythmPlaybackStudy}
                   restartToken={polyrhythmRestartToken}
-                  selectedLayerId={selectedPolyrhythmLayer?.id ?? null}
+                  selectedLayerId={polyrhythmPlaybackSelectedLayerId}
                   selectedStep={selectedPolyrhythmStep}
-                  displayLayerId={selectedPolyrhythmLayer?.id ?? null}
+                  displayLayerId={polyrhythmPlaybackSelectedLayerId}
                   soloLayerDisplay
                   showReferenceLayers={studyEditorReferenceLayersVisible}
                   playbackStateRef={polyrhythmPlaybackStateRef}

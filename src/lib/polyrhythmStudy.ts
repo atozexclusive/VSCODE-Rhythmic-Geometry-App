@@ -41,6 +41,19 @@ export interface PolyrhythmLayer {
   gain: number;
 }
 
+export interface PolyrhythmStudyCell {
+  id: string;
+  name: string;
+  bars: number;
+  layers: PolyrhythmLayer[];
+}
+
+export interface PolyrhythmStudyPhrase {
+  id: string;
+  cellId: string;
+  bars: number;
+}
+
 export interface PolyrhythmStudy {
   id: string;
   name: string;
@@ -55,6 +68,9 @@ export interface PolyrhythmStudy {
   barMarkerSoundEnabled?: boolean;
   barMarkerVisualEnabled?: boolean;
   soundSettings: PolyrhythmSoundSettings;
+  chainEnabled?: boolean;
+  chainCells?: PolyrhythmStudyCell[];
+  chainPhrases?: PolyrhythmStudyPhrase[];
 }
 
 export interface PolyrhythmStudyPreset {
@@ -504,6 +520,22 @@ export function getPlaybackStepIndex(
 }
 
 export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
+  const cellIdMap = new Map<string, string>();
+  const chainCells = study.chainCells?.map((cell) => {
+    const nextId = generateStudyId();
+    cellIdMap.set(cell.id, nextId);
+    return {
+      ...cell,
+      id: nextId,
+      bars: clamp(Math.round(cell.bars || 1), 1, 64),
+      layers: cell.layers.map((layer) => ({
+        ...layer,
+        id: generateStudyId(),
+        activeSteps: [...layer.activeSteps],
+        accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
+      })),
+    };
+  });
   return {
     ...study,
     id: generateStudyId(),
@@ -514,6 +546,49 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       activeSteps: [...layer.activeSteps],
       accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
     })),
+    chainCells,
+    chainPhrases: study.chainPhrases?.map((phrase) => ({
+      ...phrase,
+      id: generateStudyId(),
+      cellId: cellIdMap.get(phrase.cellId) ?? phrase.cellId,
+      bars: clamp(Math.round(phrase.bars || 1), 1, 64),
+    })),
+  };
+}
+
+export function clonePolyrhythmLayers(
+  layers: readonly PolyrhythmLayer[],
+  regenerateIds = false,
+): PolyrhythmLayer[] {
+  return layers.map((layer) => ({
+    ...layer,
+    id: regenerateIds ? generateStudyId() : layer.id,
+    activeSteps: [...layer.activeSteps],
+    accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
+  }));
+}
+
+export function createPolyrhythmStudyCell(
+  layers: readonly PolyrhythmLayer[],
+  name: string,
+  bars = 1,
+): PolyrhythmStudyCell {
+  return {
+    id: generateStudyId(),
+    name,
+    bars: clamp(Math.round(bars || 1), 1, 64),
+    layers: clonePolyrhythmLayers(layers, true),
+  };
+}
+
+export function createPolyrhythmStudyPhrase(
+  cellId: string,
+  bars = 1,
+): PolyrhythmStudyPhrase {
+  return {
+    id: generateStudyId(),
+    cellId,
+    bars: clamp(Math.round(bars || 1), 1, 64),
   };
 }
 

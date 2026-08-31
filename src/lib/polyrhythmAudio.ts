@@ -513,13 +513,41 @@ export function createPolyrhythmExportAudioStream(
     }
   }
 
-  study.layers.forEach((layer, layerIndex) => {
-    if (!study.soundEnabled || !layer.soundEnabled || cyclesPerSecond <= 0) {
-      return;
+  const chainCells = study.chainEnabled && study.chainCells?.length
+    ? study.chainCells
+    : null;
+  const chainPhrases = chainCells
+    ? study.chainPhrases?.length
+      ? study.chainPhrases
+      : chainCells.map((cell) => ({ id: cell.id, cellId: cell.id, bars: cell.bars }))
+    : null;
+  const chainBarCount = chainPhrases?.reduce(
+    (total, phrase) => total + Math.max(1, Math.round(phrase.bars || 1)),
+    0,
+  ) ?? 0;
+  const layersForCycle = (cycleIndex: number) => {
+    if (!chainCells || chainBarCount <= 0) {
+      return study.layers;
     }
-    const beatCount = Math.max(1, Math.round(layer.beatCount || 1));
+    let barInChain = cycleIndex % chainBarCount;
+    for (const phrase of chainPhrases ?? []) {
+      const phraseBars = Math.max(1, Math.round(phrase.bars || 1));
+      if (barInChain < phraseBars) {
+        return chainCells.find((cell) => cell.id === phrase.cellId)?.layers ?? study.layers;
+      }
+      barInChain -= phraseBars;
+    }
+    return chainCells[0]?.layers ?? study.layers;
+  };
+
+  if (study.soundEnabled && cyclesPerSecond > 0) {
     const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond) + 1;
     for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
+      layersForCycle(cycleIndex).forEach((layer, layerIndex) => {
+        if (!layer.soundEnabled) {
+          return;
+        }
+        const beatCount = Math.max(1, Math.round(layer.beatCount || 1));
       for (let stepIndex = 0; stepIndex < beatCount; stepIndex += 1) {
         const progress = stepIndex / beatCount;
         const playbackStep = getPlaybackStepIndex(layer, progress);
@@ -541,8 +569,9 @@ export function createPolyrhythmExportAudioStream(
           target,
         });
       }
+      });
     }
-  });
+  }
 
   return destination.stream;
 }
