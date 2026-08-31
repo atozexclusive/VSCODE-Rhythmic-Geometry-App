@@ -222,11 +222,7 @@ import { buildRiffCycleMidiFile, type RiffMidiExportMode } from '../lib/riffCycl
 import { buildPolyrhythmMidiFile, type PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import { buildOrbitMidiFile } from '../lib/orbitMidi';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
-import {
-  CANVAS_EXPORT_PREROLL_SECONDS,
-  type VideoExportAspect,
-  type VideoExportDuration,
-} from '../lib/videoExport';
+import type { VideoExportAspect, VideoExportDuration } from '../lib/videoExport';
 
 function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: RiffVoiceInstrument; className?: string }) {
   return (
@@ -10948,23 +10944,7 @@ function OrbitalPolymeter() {
         setPolyrhythmRestartToken((value) => value + 1);
         setPolyrhythmStudy((current) => ({ ...current, playing: false }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        const chainBars = polyrhythmStudy.chainEnabled
-          ? (polyrhythmStudy.chainPhrases ?? []).reduce(
-              (total, phrase) => total + Math.max(1, Math.round(phrase.bars || 1)),
-              0,
-            )
-          : 0;
-        const completeChainSeconds = chainBars > 0
-          ? (chainBars * 240) / Math.max(1, polyrhythmStudy.bpm) + CANVAS_EXPORT_PREROLL_SECONDS
-          : 0;
-        const exportDurationSeconds = Math.max(
-          options.durationSeconds,
-          Math.ceil(completeChainSeconds),
-        );
-        await (canvasEl as any).__exportVideo({
-          ...options,
-          durationSeconds: exportDurationSeconds,
-        });
+        await (canvasEl as any).__exportVideo(options);
         setPolyrhythmStudy((current) => ({ ...current, playing: true }));
         toast.success('Study video exported.');
       } catch (error) {
