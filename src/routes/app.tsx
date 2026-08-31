@@ -14687,13 +14687,23 @@ function OrbitalPolymeter() {
     : 0;
   const polyrhythmPlaybackStudy = useMemo(() => {
     if ((!polyrhythmStudy.playing && !recordingVideo) || !polyrhythmStudy.chainEnabled) {
-      return polyrhythmStudy;
+      return recordingVideo
+        ? { ...polyrhythmStudy, playing: true }
+        : polyrhythmStudy;
     }
     const phrases = polyrhythmStudy.chainPhrases ?? [];
     const activePhrase =
       phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
     const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
-    return activeCell ? { ...polyrhythmStudy, layers: activeCell.layers } : polyrhythmStudy;
+    return activeCell
+      ? {
+          ...polyrhythmStudy,
+          playing: polyrhythmStudy.playing || recordingVideo,
+          layers: activeCell.layers,
+        }
+      : recordingVideo
+        ? { ...polyrhythmStudy, playing: true }
+        : polyrhythmStudy;
   }, [activePolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
   const polyrhythmPlaybackSelectedLayerId =
     (selectedPolyrhythmLayerIndex >= 0
@@ -16760,7 +16770,7 @@ function OrbitalPolymeter() {
                 playbackDriver={!polyrhythmMobileEditorOpen}
                 displaySettings={canvasDisplayState.polyrhythm}
                 presentationMode={presentationMode}
-                audioEnabled={!muted}
+                audioEnabled={recordingVideo || !muted}
                 onSelectLayer={handleSelectPolyrhythmLayer}
                 onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
 	                onSelectStep={handleSelectPolyrhythmStep}
@@ -18384,7 +18394,7 @@ function OrbitalPolymeter() {
                     playbackDriver={polyrhythmMobileEditorOpen}
                     displaySettings={canvasDisplayState.polyrhythm}
                     presentationMode
-                    audioEnabled={!muted}
+                    audioEnabled={recordingVideo || !muted}
                     onSelectLayer={handleSelectPolyrhythmLayer}
                     onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
 	                    onSelectStep={handleSelectPolyrhythmStep}
@@ -18786,7 +18796,7 @@ function OrbitalPolymeter() {
             playbackStateRef={polyrhythmPlaybackStateRef}
             displaySettings={canvasDisplayState.polyrhythm}
             presentationMode={presentationMode}
-            audioEnabled={!muted}
+            audioEnabled={recordingVideo || !muted}
             onSelectLayer={handleSelectPolyrhythmLayer}
             onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
 	            onSelectStep={handleSelectPolyrhythmStep}
@@ -20111,7 +20121,7 @@ function OrbitalPolymeter() {
                   playbackStateRef={polyrhythmPlaybackStateRef}
                   playbackDriver={false}
                   displaySettings={canvasDisplayState.polyrhythm}
-                  audioEnabled={!muted}
+                  audioEnabled={recordingVideo || !muted}
                   onSelectLayer={handleSelectPolyrhythmLayer}
                   onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
 	                  onSelectStep={handleSelectPolyrhythmStep}
