@@ -861,7 +861,12 @@ export default function PolyrhythmCanvas({
         if (currentStudy.barMarkerVisualEnabled) {
           barMarkerFlashStartedAtRef.current = timestamp;
         }
-        if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
+        if (
+          !exportPlaybackActiveRef.current &&
+          audioEnabledRef.current &&
+          currentStudy.soundEnabled &&
+          currentStudy.barMarkerSoundEnabled
+        ) {
           triggerPolyrhythmBarMarker();
         }
       }
