@@ -14687,23 +14687,13 @@ function OrbitalPolymeter() {
     : 0;
   const polyrhythmPlaybackStudy = useMemo(() => {
     if ((!polyrhythmStudy.playing && !recordingVideo) || !polyrhythmStudy.chainEnabled) {
-      return recordingVideo
-        ? { ...polyrhythmStudy, playing: true }
-        : polyrhythmStudy;
+      return polyrhythmStudy;
     }
     const phrases = polyrhythmStudy.chainPhrases ?? [];
     const activePhrase =
       phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
     const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
-    return activeCell
-      ? {
-          ...polyrhythmStudy,
-          playing: polyrhythmStudy.playing || recordingVideo,
-          layers: activeCell.layers,
-        }
-      : recordingVideo
-        ? { ...polyrhythmStudy, playing: true }
-        : polyrhythmStudy;
+    return activeCell ? { ...polyrhythmStudy, layers: activeCell.layers } : polyrhythmStudy;
   }, [activePolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
   const polyrhythmPlaybackSelectedLayerId =
     (selectedPolyrhythmLayerIndex >= 0

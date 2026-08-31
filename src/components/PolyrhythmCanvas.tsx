@@ -145,6 +145,7 @@ export default function PolyrhythmCanvas({
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
   const playbackDriverRef = useRef(playbackDriver);
   const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const exportPlaybackActiveRef = useRef(false);
   const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
   const barMarkerFlashStartedAtRef = useRef<number | null>(null);
   const animationTimestampRef = useRef(0);
@@ -157,7 +158,9 @@ export default function PolyrhythmCanvas({
   const longPressTimeoutRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
 
-  studyRef.current = study;
+  studyRef.current = exportPlaybackActiveRef.current
+    ? { ...study, playing: true }
+    : study;
   isMobileRef.current = isMobile;
   selectedLayerIdRef.current = selectedLayerId;
   selectedStepRef.current = selectedStep;
@@ -967,6 +970,7 @@ export default function PolyrhythmCanvas({
 
       exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
       let stream: MediaStream | null = null;
+      let playbackStartTimer: number | null = null;
       try {
         const playbackState = playbackStateHandleRef.current.current;
         playbackState.progress = 0;
@@ -1000,7 +1004,8 @@ export default function PolyrhythmCanvas({
         };
 
         const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
-        window.setTimeout(() => {
+        playbackStartTimer = window.setTimeout(() => {
+          exportPlaybackActiveRef.current = true;
           playbackState.lastTimestamp = null;
           playbackState.previousPlaybackSteps.clear();
           playbackState.wasPlaying = false;
@@ -1023,6 +1028,10 @@ export default function PolyrhythmCanvas({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } finally {
+        if (playbackStartTimer != null) {
+          window.clearTimeout(playbackStartTimer);
+        }
+        exportPlaybackActiveRef.current = false;
         stream?.getTracks().forEach((track) => track.stop());
         exportVideoSizeRef.current = null;
         draw();
