@@ -222,7 +222,11 @@ import { buildRiffCycleMidiFile, type RiffMidiExportMode } from '../lib/riffCycl
 import { buildPolyrhythmMidiFile, type PolyrhythmMidiExportMode } from '../lib/polyrhythmMidi';
 import { buildOrbitMidiFile } from '../lib/orbitMidi';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
-import type { VideoExportAspect, VideoExportDuration } from '../lib/videoExport';
+import {
+  CANVAS_EXPORT_PREROLL_SECONDS,
+  type VideoExportAspect,
+  type VideoExportDuration,
+} from '../lib/videoExport';
 
 function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: RiffVoiceInstrument; className?: string }) {
   return (
@@ -10930,6 +10934,13 @@ function OrbitalPolymeter() {
       try {
         setRecordingVideo(true);
         resumePolyrhythmAudio();
+        polyrhythmChainBarsElapsedRef.current = 0;
+        const firstChainPhrase = polyrhythmStudy.chainEnabled
+          ? polyrhythmStudy.chainPhrases?.[0]
+          : null;
+        if (firstChainPhrase) {
+          setActivePolyrhythmChainPhraseId(firstChainPhrase.id);
+        }
         polyrhythmPlaybackStateRef.current.progress = 0;
         polyrhythmPlaybackStateRef.current.lastTimestamp = null;
         polyrhythmPlaybackStateRef.current.previousPlaybackSteps.clear();
@@ -10937,7 +10948,23 @@ function OrbitalPolymeter() {
         setPolyrhythmRestartToken((value) => value + 1);
         setPolyrhythmStudy((current) => ({ ...current, playing: false }));
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        await (canvasEl as any).__exportVideo(options);
+        const chainBars = polyrhythmStudy.chainEnabled
+          ? (polyrhythmStudy.chainPhrases ?? []).reduce(
+              (total, phrase) => total + Math.max(1, Math.round(phrase.bars || 1)),
+              0,
+            )
+          : 0;
+        const completeChainSeconds = chainBars > 0
+          ? (chainBars * 240) / Math.max(1, polyrhythmStudy.bpm) + CANVAS_EXPORT_PREROLL_SECONDS
+          : 0;
+        const exportDurationSeconds = Math.max(
+          options.durationSeconds,
+          Math.ceil(completeChainSeconds),
+        );
+        await (canvasEl as any).__exportVideo({
+          ...options,
+          durationSeconds: exportDurationSeconds,
+        });
         setPolyrhythmStudy((current) => ({ ...current, playing: true }));
         toast.success('Study video exported.');
       } catch (error) {
@@ -10947,7 +10974,7 @@ function OrbitalPolymeter() {
         setRecordingVideo(false);
       }
     },
-    [effectivePlan, recordingVideo],
+    [effectivePlan, polyrhythmStudy, recordingVideo],
   );
   const handleExportPolyrhythmScene = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'export')) {
@@ -14659,13 +14686,15 @@ function OrbitalPolymeter() {
     ? getPolyrhythmLayerOffsetSteps(selectedPolyrhythmLayer)
     : 0;
   const polyrhythmPlaybackStudy = useMemo(() => {
-    if (!polyrhythmStudy.playing || !polyrhythmStudy.chainEnabled) return polyrhythmStudy;
+    if ((!polyrhythmStudy.playing && !recordingVideo) || !polyrhythmStudy.chainEnabled) {
+      return polyrhythmStudy;
+    }
     const phrases = polyrhythmStudy.chainPhrases ?? [];
     const activePhrase =
       phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
     const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
     return activeCell ? { ...polyrhythmStudy, layers: activeCell.layers } : polyrhythmStudy;
-  }, [activePolyrhythmChainPhraseId, polyrhythmStudy]);
+  }, [activePolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
   const polyrhythmPlaybackSelectedLayerId =
     (selectedPolyrhythmLayerIndex >= 0
       ? polyrhythmPlaybackStudy.layers[selectedPolyrhythmLayerIndex]?.id
