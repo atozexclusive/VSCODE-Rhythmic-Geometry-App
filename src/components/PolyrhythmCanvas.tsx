@@ -791,6 +791,26 @@ export default function PolyrhythmCanvas({
         (pulse) => timestamp - pulse.startedAt < HIT_PULSE_DURATION_MS,
       );
 
+      const playbackJustStarted =
+        playbackDriverRef.current && currentStudy.playing && !playbackState.wasPlaying;
+      if (playbackJustStarted) {
+        // Reset before evaluating the current step. Resetting after the first
+        // hit makes the following animation frame fire beat 1 a second time.
+        playbackState.previousPlaybackSteps.clear();
+        playbackState.lastTimestamp = timestamp;
+        if (currentStudy.barMarkerVisualEnabled) {
+          barMarkerFlashStartedAtRef.current = timestamp;
+        }
+        if (
+          !exportPlaybackActiveRef.current &&
+          audioEnabledRef.current &&
+          currentStudy.soundEnabled &&
+          currentStudy.barMarkerSoundEnabled
+        ) {
+          triggerPolyrhythmBarMarker();
+        }
+      }
+
       if (playbackDriverRef.current && currentStudy.playing) {
         const previousProgress = playbackState.progress;
         if (playbackState.lastTimestamp == null) {
@@ -860,21 +880,6 @@ export default function PolyrhythmCanvas({
         });
       }
 
-      if (playbackDriverRef.current && currentStudy.playing && !playbackState.wasPlaying) {
-        playbackState.previousPlaybackSteps.clear();
-        playbackState.lastTimestamp = timestamp;
-        if (currentStudy.barMarkerVisualEnabled) {
-          barMarkerFlashStartedAtRef.current = timestamp;
-        }
-        if (
-          !exportPlaybackActiveRef.current &&
-          audioEnabledRef.current &&
-          currentStudy.soundEnabled &&
-          currentStudy.barMarkerSoundEnabled
-        ) {
-          triggerPolyrhythmBarMarker();
-        }
-      }
       playbackState.wasPlaying = currentStudy.playing;
 
       draw();
