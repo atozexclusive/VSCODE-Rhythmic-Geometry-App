@@ -5,6 +5,7 @@ let audioContext: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let outputLimiter: DynamicsCompressorNode | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
+const activeVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
 
 const MASTER_GAIN_CEILING = 0.5;
 
@@ -152,6 +153,30 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
 
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.04);
+  const activeVoice = { oscillator, gain: gainNode };
+  activeVoices.add(activeVoice);
+  oscillator.addEventListener('ended', () => {
+    activeVoices.delete(activeVoice);
+  }, { once: true });
+}
+
+export function silencePolyrhythmAudio(): void {
+  const context = getAudioContext();
+  if (!context) {
+    activeVoices.clear();
+    return;
+  }
+
+  const now = context.currentTime;
+  activeVoices.forEach(({ oscillator, gain }) => {
+    try {
+      gain.gain.cancelAndHoldAtTime(now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+      oscillator.stop(now + 0.03);
+    } catch {
+      // The voice may already have reached its scheduled stop time.
+    }
+  });
 }
 
 function mapRegisterMultiplier(register: PolyrhythmSoundSettings['register']): number {

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
-import { getPolyrhythmAudioRecordingStream, triggerPolyrhythmBarMarker, triggerPolyrhythmPulse } from '../lib/polyrhythmAudio';
+import {
+  getPolyrhythmAudioRecordingStream,
+  silencePolyrhythmAudio,
+  triggerPolyrhythmBarMarker,
+  triggerPolyrhythmPulse,
+} from '../lib/polyrhythmAudio';
 import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
@@ -978,6 +983,7 @@ export default function PolyrhythmCanvas({
       let playbackStartTimer: number | null = null;
       try {
         const playbackState = playbackStateHandleRef.current.current;
+        silencePolyrhythmAudio();
         playbackState.progress = 0;
         playbackState.lastTimestamp = null;
         playbackState.previousPlaybackSteps.clear();
