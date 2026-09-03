@@ -83,6 +83,8 @@ export interface RiffCycleSoundSettings {
   accentPush: RiffCycleAccentPush;
   octaveShift?: -1 | 0 | 1;
   reverbAmount?: number;
+  referenceReverbAmount?: number;
+  subdivisionReverbAmount?: number;
   noteOrder?: RiffCycleNoteOrder;
 }
 
@@ -385,6 +387,8 @@ function normalizeRiffCycleSoundSettings(
     accentPush: settings?.accentPush === 'strong' ? 'strong' : 'soft',
     octaveShift: settings?.octaveShift === -1 || settings?.octaveShift === 1 ? settings.octaveShift : 0,
     reverbAmount: clamp(Number(settings?.reverbAmount ?? 0), 0, 1),
+    referenceReverbAmount: clamp(Number(settings?.referenceReverbAmount ?? 0), 0, 1),
+    subdivisionReverbAmount: clamp(Number(settings?.subdivisionReverbAmount ?? 0), 0, 1),
     noteOrder:
       settings?.noteOrder === 'descending' ||
       settings?.noteOrder === 'up-down' ||

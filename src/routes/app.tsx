@@ -7876,6 +7876,7 @@ function OrbitalPolymeter() {
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
   const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
   const [riffAudioPanelOpen, setRiffAudioPanelOpen] = useState(false);
+  const [riffAudioMixMode, setRiffAudioMixMode] = useState<'volume' | 'reverb'>('volume');
   const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(true);
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(true);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
@@ -20977,6 +20978,19 @@ function OrbitalPolymeter() {
 	                                </div>
 	                              </div>
 	                            </div>
+	                            <div className="ml-auto flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setRiffAudioMixMode((mode) => mode === 'volume' ? 'reverb' : 'volume')}
+                                className="flex h-8 items-center rounded-xl border px-2 text-[8px] font-mono uppercase tracking-[0.12em]"
+                                style={{
+                                  background: riffAudioMixMode === 'reverb' ? 'rgba(176,137,255,0.16)' : 'rgba(255,255,255,0.04)',
+                                  borderColor: riffAudioMixMode === 'reverb' ? 'rgba(176,137,255,0.34)' : 'rgba(255,255,255,0.1)',
+                                  color: riffAudioMixMode === 'reverb' ? '#C8A8FF' : 'rgba(255,255,255,0.58)',
+                                }}
+                              >
+                                Reverb
+                              </button>
 	                            <button
 	                              type="button"
 	                              onClick={handleToggleRiffCycleSound}
@@ -20988,8 +21002,9 @@ function OrbitalPolymeter() {
 	                              }}
 	                            >
 	                              {riffCycleStudy.soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
-	                              {riffCycleStudy.soundEnabled ? 'On' : 'Off'}
-	                            </button>
+                              {riffCycleStudy.soundEnabled ? 'On' : 'Off'}
+                            </button>
+                            </div>
 	                          </div>
 	                        </div>
 
@@ -21000,26 +21015,24 @@ function OrbitalPolymeter() {
 	                              label: 'Riff',
 	                              icon: <Music2 size={14} />,
 	                              enabled: riffCycleStudy.riff.soundEnabled,
-	                              value: riffCycleStudy.riff.gain,
-	                              max: 0.32,
+                              value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.reverbAmount ?? 0) : riffCycleStudy.riff.gain,
+                              max: riffAudioMixMode === 'reverb' ? 1 : 0.32,
 	                              color: riffCycleStudy.riff.color,
 	                              onToggle: () =>
 	                                handleUpdateRiffPhrase({
 	                                  soundEnabled: !riffCycleStudy.riff.soundEnabled,
 	                                }),
-	                              onChange: (gain: number) =>
-	                                handleUpdateRiffPhrase({
-	                                  gain,
-	                                  soundEnabled: gain > 0 ? true : riffCycleStudy.riff.soundEnabled,
-	                                }),
+                              onChange: (gain: number) => riffAudioMixMode === 'reverb'
+                                ? handleUpdateRiffSoundSettings({ reverbAmount: gain })
+                                : handleUpdateRiffPhrase({ gain, soundEnabled: gain > 0 ? true : riffCycleStudy.riff.soundEnabled }),
 	                            },
 	                            {
 	                              id: 'meter',
 	                              label: 'Meter',
 	                              icon: <CircleDot size={14} />,
 	                              enabled: riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled,
-	                              value: riffCycleStudy.referenceGain,
-	                              max: 0.18,
+                              value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.referenceReverbAmount ?? 0) : riffCycleStudy.referenceGain,
+                              max: riffAudioMixMode === 'reverb' ? 1 : 0.18,
 	                              color: '#FFFFFF',
 	                              onToggle: () =>
 	                                handleUpdateRiffAudioMix({
@@ -21027,8 +21040,9 @@ function OrbitalPolymeter() {
 	                                  referenceSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
 	                                  backbeatSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
 	                                }),
-	                              onChange: (referenceGain: number) =>
-	                                handleUpdateRiffAudioMix({
+                              onChange: (referenceGain: number) => riffAudioMixMode === 'reverb'
+                                ? handleUpdateRiffSoundSettings({ referenceReverbAmount: referenceGain })
+                                : handleUpdateRiffAudioMix({
 	                                  soundEnabled: true,
 	                                  referenceGain,
 	                                  referenceSoundEnabled: referenceGain > 0 ? true : riffCycleStudy.referenceSoundEnabled,
@@ -21040,11 +21054,15 @@ function OrbitalPolymeter() {
 	                              label: 'Subdivision',
 	                              icon: <Grid3X3 size={14} />,
 	                              enabled: riffCycleStudy.subdivisionSoundEnabled,
-	                              value: riffCycleStudy.subdivisionGain,
-	                              max: 0.12,
+                              value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.subdivisionReverbAmount ?? 0) : riffCycleStudy.subdivisionGain,
+                              max: riffAudioMixMode === 'reverb' ? 1 : 0.12,
 	                              color: '#7FD7FF',
 	                              onToggle: handleToggleRiffSubdivisionSound,
-	                              onChange: (subdivisionGain: number) => {
+                              onChange: (subdivisionGain: number) => {
+                                if (riffAudioMixMode === 'reverb') {
+                                  handleUpdateRiffSoundSettings({ subdivisionReverbAmount: subdivisionGain });
+                                  return;
+                                }
 	                                const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
 	                                handleUpdateRiffAudioMix({
 	                                  soundEnabled: true,
@@ -21114,7 +21132,7 @@ function OrbitalPolymeter() {
 	                                      })}
 	                                    </div>
 	                                  </div>
-	                                  <button
+	                                  {riffAudioMixMode === 'volume' ? <button
 	                                    type="button"
 	                                    onClick={control.onToggle}
 	                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
@@ -21127,7 +21145,7 @@ function OrbitalPolymeter() {
 	                                    title={`${control.enabled ? 'Mute' : 'Enable'} ${control.label}`}
 	                                  >
 	                                    {control.enabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
-	                                  </button>
+	                                  </button> : null}
 	                                </div>
 	                                <input
 	                                  type="range"
@@ -21138,7 +21156,7 @@ function OrbitalPolymeter() {
 	                                  onChange={(event) => control.onChange(parseFloat(event.target.value) || 0)}
 	                                  className="touch-slider rg-transport-tempo-track w-full"
 	                                  style={{ ['--slider-accent' as string]: control.color }}
-	                                  aria-label={`${control.label} volume`}
+	                                  aria-label={`${control.label} ${riffAudioMixMode}`}
 	                                />
 	                              </div>
 	                            );
@@ -27072,6 +27090,19 @@ function OrbitalPolymeter() {
                               </div>
                             </div>
                           </div>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setRiffAudioMixMode((mode) => mode === 'volume' ? 'reverb' : 'volume')}
+                              className="flex h-8 items-center rounded-xl border px-2 text-[8px] font-mono uppercase tracking-[0.12em]"
+                              style={{
+                                background: riffAudioMixMode === 'reverb' ? 'rgba(176,137,255,0.16)' : 'rgba(255,255,255,0.04)',
+                                borderColor: riffAudioMixMode === 'reverb' ? 'rgba(176,137,255,0.34)' : 'rgba(255,255,255,0.1)',
+                                color: riffAudioMixMode === 'reverb' ? '#C8A8FF' : 'rgba(255,255,255,0.58)',
+                              }}
+                            >
+                              Reverb
+                            </button>
                           <button
                             type="button"
                             onClick={handleToggleRiffCycleSound}
@@ -27085,6 +27116,7 @@ function OrbitalPolymeter() {
                             {riffCycleStudy.soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
                             {riffCycleStudy.soundEnabled ? 'On' : 'Off'}
                           </button>
+                          </div>
                         </div>
                       </div>
 
@@ -27095,26 +27127,24 @@ function OrbitalPolymeter() {
                           label: 'Riff',
                           icon: <Music2 size={14} />,
                           enabled: riffCycleStudy.riff.soundEnabled,
-                          value: riffCycleStudy.riff.gain,
-                          max: 0.32,
+                          value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.reverbAmount ?? 0) : riffCycleStudy.riff.gain,
+                          max: riffAudioMixMode === 'reverb' ? 1 : 0.32,
                           color: riffCycleStudy.riff.color,
                           onToggle: () =>
                             handleUpdateRiffPhrase({
                               soundEnabled: !riffCycleStudy.riff.soundEnabled,
                             }),
-                          onChange: (gain: number) =>
-                            handleUpdateRiffPhrase({
-                              gain,
-                              soundEnabled: gain > 0 ? true : riffCycleStudy.riff.soundEnabled,
-                            }),
+                          onChange: (gain: number) => riffAudioMixMode === 'reverb'
+                            ? handleUpdateRiffSoundSettings({ reverbAmount: gain })
+                            : handleUpdateRiffPhrase({ gain, soundEnabled: gain > 0 ? true : riffCycleStudy.riff.soundEnabled }),
                         },
                         {
                           id: 'meter',
                           label: 'Meter',
                           icon: <CircleDot size={14} />,
                           enabled: riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled,
-                          value: riffCycleStudy.referenceGain,
-                          max: 0.18,
+                          value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.referenceReverbAmount ?? 0) : riffCycleStudy.referenceGain,
+                          max: riffAudioMixMode === 'reverb' ? 1 : 0.18,
                           color: '#FFFFFF',
                           onToggle: () =>
                             handleUpdateRiffAudioMix({
@@ -27122,8 +27152,9 @@ function OrbitalPolymeter() {
                               referenceSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
                               backbeatSoundEnabled: !(riffCycleStudy.referenceSoundEnabled || riffCycleStudy.backbeatSoundEnabled),
                             }),
-                          onChange: (referenceGain: number) =>
-                            handleUpdateRiffAudioMix({
+                          onChange: (referenceGain: number) => riffAudioMixMode === 'reverb'
+                            ? handleUpdateRiffSoundSettings({ referenceReverbAmount: referenceGain })
+                            : handleUpdateRiffAudioMix({
                               soundEnabled: true,
                               referenceGain,
                               referenceSoundEnabled: referenceGain > 0 ? true : riffCycleStudy.referenceSoundEnabled,
@@ -27135,11 +27166,15 @@ function OrbitalPolymeter() {
                           label: 'Subdivision',
                           icon: <Grid3X3 size={14} />,
                           enabled: riffCycleStudy.subdivisionSoundEnabled,
-                          value: riffCycleStudy.subdivisionGain,
-                          max: 0.12,
+                          value: riffAudioMixMode === 'reverb' ? (riffCycleStudy.soundSettings.subdivisionReverbAmount ?? 0) : riffCycleStudy.subdivisionGain,
+                          max: riffAudioMixMode === 'reverb' ? 1 : 0.12,
                           color: '#7FD7FF',
                           onToggle: handleToggleRiffSubdivisionSound,
                           onChange: (subdivisionGain: number) => {
+                            if (riffAudioMixMode === 'reverb') {
+                              handleUpdateRiffSoundSettings({ subdivisionReverbAmount: subdivisionGain });
+                              return;
+                            }
                             const stepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
                             handleUpdateRiffAudioMix({
                               soundEnabled: true,
@@ -27209,7 +27244,7 @@ function OrbitalPolymeter() {
                                 })}
                               </div>
                             </div>
-                            <button
+                            {riffAudioMixMode === 'volume' ? <button
                               type="button"
                               onClick={control.onToggle}
                               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
@@ -27222,7 +27257,7 @@ function OrbitalPolymeter() {
                               title={`${control.enabled ? 'Mute' : 'Enable'} ${control.label}`}
                             >
                               {control.enabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
-                            </button>
+                            </button> : null}
                           </div>
                           <input
                             type="range"
@@ -27233,7 +27268,7 @@ function OrbitalPolymeter() {
                             onChange={(event) => control.onChange(parseFloat(event.target.value) || 0)}
                             className="touch-slider rg-transport-tempo-track w-full"
                             style={{ ['--slider-accent' as string]: control.color }}
-                            aria-label={`${control.label} volume`}
+                            aria-label={`${control.label} ${riffAudioMixMode}`}
                           />
                         </div>
                           );

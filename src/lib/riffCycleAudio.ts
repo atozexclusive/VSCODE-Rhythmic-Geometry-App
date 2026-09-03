@@ -695,8 +695,12 @@ export function triggerReferencePulse(sound?: RiffCycleSoundSettings, gain = 0.0
   if (gain <= 0) {
     return;
   }
+  const context = target?.context ?? getAudioContext();
+  const voiceTarget = sound && context
+    ? { ...target, context, outputToSpeakers: target?.outputToSpeakers ?? true, reverbAmount: sound.referenceReverbAmount ?? 0 }
+    : target;
   if (sound && sound.palette !== 'architectural') {
-    triggerReferencePalette(sound, gain, atTime, target);
+    triggerReferencePalette(sound, gain, atTime, voiceTarget);
     return;
   }
 
@@ -708,15 +712,19 @@ export function triggerReferencePulse(sound?: RiffCycleSoundSettings, gain = 0.0
     release: 0.045,
     filterFrequency: 3000,
     atTime,
-  }, target);
+  }, voiceTarget);
 }
 
 export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, gain = 0.11, atTime?: number, target?: VoiceTarget): void {
   if (gain <= 0) {
     return;
   }
+  const context = target?.context ?? getAudioContext();
+  const voiceTarget = sound && context
+    ? { ...target, context, outputToSpeakers: target?.outputToSpeakers ?? true, reverbAmount: sound.referenceReverbAmount ?? 0 }
+    : target;
   if (sound && sound.palette !== 'architectural') {
-    triggerBackbeatPalette(sound, gain, atTime, target);
+    triggerBackbeatPalette(sound, gain, atTime, voiceTarget);
     return;
   }
 
@@ -728,7 +736,7 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, gain = 0.1
     release: 0.12,
     filterFrequency: 1760,
     atTime,
-  }, target);
+  }, voiceTarget);
 }
 
 export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: number, atTime?: number, target?: VoiceTarget): void {
@@ -737,6 +745,10 @@ export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: n
   if (baseGain <= 0) {
     return;
   }
+  const context = target?.context ?? getAudioContext();
+  const voiceTarget = sound && context
+    ? { ...target, context, outputToSpeakers: target?.outputToSpeakers ?? true, reverbAmount: sound.subdivisionReverbAmount ?? 0 }
+    : target;
   withVoice({
     type: metal ? 'square' : 'triangle',
     frequency: metal ? 2480 : 2140,
@@ -747,7 +759,7 @@ export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: n
     filterType: 'highpass',
     filterQ: 0.74,
     atTime,
-  }, target);
+  }, voiceTarget);
 }
 
 export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
