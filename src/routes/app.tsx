@@ -3349,7 +3349,7 @@ function CanvasDisplayControls({
           {innerClockAutomation.enabled ? (
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-1.5">
-                {([4, 8, 16] as const).map((cycleBars) => (
+                {([2, 4, 8, 16] as const).map((cycleBars) => (
                   <StudyShellButton
                     key={`inner-clock-bars-${cycleBars}`}
                     size="compact"
@@ -22605,6 +22605,38 @@ function OrbitalPolymeter() {
                               </select>
                             </div>
                           </div>
+                          <div className="space-y-1.5">
+                            <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Octave</div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {([-1, 0, 1] as const).map((octaveShift) => (
+                                <StudyShellButton
+                                  key={`riff-mobile-octave-${octaveShift}`}
+                                  size="compact"
+                                  tone="green"
+                                  highlighted={(riffCycleStudy.soundSettings.octaveShift ?? 0) === octaveShift}
+                                  onClick={() => handleUpdateRiffSoundSettings({ octaveShift })}
+                                >
+                                  {octaveShift === -1 ? 'Down' : octaveShift === 1 ? 'Up' : 'Normal'}
+                                </StudyShellButton>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">
+                              <span>Reverb</span>
+                              <span>{Math.round((riffCycleStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              value={riffCycleStudy.soundSettings.reverbAmount ?? 0}
+                              onChange={(event) => handleUpdateRiffSoundSettings({ reverbAmount: Number(event.target.value) })}
+                              className="w-full accent-[#72F1B8]"
+                              aria-label="Riff reverb amount"
+                            />
+                          </div>
                           {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
                             <div className="space-y-1.5">
                               <div className="grid grid-cols-[82px,1fr] gap-2">
@@ -22641,6 +22673,20 @@ function OrbitalPolymeter() {
                                       {getFriendlyScaleLabel(name as ScaleName)}
                                     </option>
                                   ))}
+                                </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Note Order</div>
+                                <select
+                                  value={riffCycleStudy.soundSettings.noteOrder ?? 'ascending'}
+                                  onChange={(event) => handleUpdateRiffSoundSettings({ noteOrder: event.target.value as RiffCycleSoundSettings['noteOrder'] })}
+                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
+                                >
+                                  <option value="ascending" style={{ background: '#181820' }}>Ascending</option>
+                                  <option value="descending" style={{ background: '#181820' }}>Descending</option>
+                                  <option value="up-down" style={{ background: '#181820' }}>Ascending To Descending</option>
+                                  <option value="arpeggio" style={{ background: '#181820' }}>Arpeggio</option>
+                                  <option value="random" style={{ background: '#181820' }}>Random</option>
                                 </select>
                               </div>
                             </div>
@@ -25196,6 +25242,38 @@ function OrbitalPolymeter() {
                           <option value="wide" style={{ background: '#181820' }}>Wide</option>
                         </select>
                       </div>
+                      <div className="space-y-1">
+                        <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Octave</div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {([-1, 0, 1] as const).map((octaveShift) => (
+                            <StudyShellButton
+                              key={`riff-desktop-octave-${octaveShift}`}
+                              size="compact"
+                              tone="green"
+                              highlighted={(riffCycleStudy.soundSettings.octaveShift ?? 0) === octaveShift}
+                              onClick={() => handleUpdateRiffSoundSettings({ octaveShift })}
+                            >
+                              {octaveShift === -1 ? 'Down' : octaveShift === 1 ? 'Up' : 'Normal'}
+                            </StudyShellButton>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
+                          <span>Reverb</span>
+                          <span>{Math.round((riffCycleStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={riffCycleStudy.soundSettings.reverbAmount ?? 0}
+                          onChange={(event) => handleUpdateRiffSoundSettings({ reverbAmount: Number(event.target.value) })}
+                          className="w-full accent-[#72F1B8]"
+                          aria-label="Riff reverb amount"
+                        />
+                      </div>
                       {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
                         <>
                           <div className="h-px bg-white/6" />
@@ -25240,6 +25318,20 @@ function OrbitalPolymeter() {
                                 ))}
                               </select>
                             </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Note Order</div>
+                            <select
+                              value={riffCycleStudy.soundSettings.noteOrder ?? 'ascending'}
+                              onChange={(event) => handleUpdateRiffSoundSettings({ noteOrder: event.target.value as RiffCycleSoundSettings['noteOrder'] })}
+                              className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
+                            >
+                              <option value="ascending" style={{ background: '#181820' }}>Ascending</option>
+                              <option value="descending" style={{ background: '#181820' }}>Descending</option>
+                              <option value="up-down" style={{ background: '#181820' }}>Ascending To Descending</option>
+                              <option value="arpeggio" style={{ background: '#181820' }}>Arpeggio</option>
+                              <option value="random" style={{ background: '#181820' }}>Random</option>
+                            </select>
                           </div>
                         </>
                       ) : null}

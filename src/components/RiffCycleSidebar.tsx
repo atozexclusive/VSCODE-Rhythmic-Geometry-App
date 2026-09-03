@@ -1810,7 +1810,8 @@ export default function RiffCycleSidebar({
                 ))}
               </div>
               {study.soundSettings.pitchMode === 'keyed' ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
                     Key
                     <select
@@ -1847,6 +1848,21 @@ export default function RiffCycleSidebar({
                       ))}
                     </select>
                   </label>
+                  </div>
+                  <label className="space-y-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                    Note Order
+                    <select
+                      value={study.soundSettings.noteOrder ?? 'ascending'}
+                      onChange={(event) => onUpdateSoundSettings({ noteOrder: event.target.value as RiffCycleSoundSettings['noteOrder'] })}
+                      className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[14px] font-light text-white outline-none"
+                    >
+                      <option value="ascending" style={{ background: '#181820' }}>Ascending</option>
+                      <option value="descending" style={{ background: '#181820' }}>Descending</option>
+                      <option value="up-down" style={{ background: '#181820' }}>Ascending To Descending</option>
+                      <option value="arpeggio" style={{ background: '#181820' }}>Arpeggio</option>
+                      <option value="random" style={{ background: '#181820' }}>Random</option>
+                    </select>
+                  </label>
                 </div>
               ) : null}
             </div>
@@ -1880,6 +1896,38 @@ export default function RiffCycleSidebar({
                   </button>
                 ))}
               </div>
+              <div className="pt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">Octave</div>
+              <div className="grid grid-cols-3 gap-2">
+                {([-1, 0, 1] as const).map((octaveShift) => (
+                  <button
+                    key={`riff-sidebar-octave-${octaveShift}`}
+                    type="button"
+                    onClick={() => onUpdateSoundSettings({ octaveShift })}
+                    className="rounded-xl border px-2 py-2.5 text-[10px] font-mono uppercase tracking-[0.12em]"
+                    style={{
+                      background: (study.soundSettings.octaveShift ?? 0) === octaveShift ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
+                      borderColor: (study.soundSettings.octaveShift ?? 0) === octaveShift ? 'rgba(114,241,184,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: (study.soundSettings.octaveShift ?? 0) === octaveShift ? '#72F1B8' : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {octaveShift === -1 ? 'Down' : octaveShift === 1 ? 'Up' : 'Normal'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">
+                <span>Reverb</span>
+                <span>{Math.round((study.soundSettings.reverbAmount ?? 0) * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={study.soundSettings.reverbAmount ?? 0}
+                onChange={(event) => onUpdateSoundSettings({ reverbAmount: Number(event.target.value) })}
+                className="w-full accent-[#72F1B8]"
+                aria-label="Riff reverb amount"
+              />
             </div>
             <div className="rounded-xl border border-white/8 bg-white/[0.03] p-3 space-y-2">
               <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/48">

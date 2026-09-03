@@ -36,6 +36,24 @@ interface VoiceTarget {
   context: AudioContext;
   destination?: AudioNode;
   outputToSpeakers: boolean;
+  reverbAmount?: number;
+}
+
+const reverbImpulseCache = new WeakMap<AudioContext, AudioBuffer>();
+
+function getReverbImpulse(context: AudioContext): AudioBuffer {
+  const cached = reverbImpulseCache.get(context);
+  if (cached) return cached;
+  const frameCount = Math.floor(context.sampleRate * 1.8);
+  const impulse = context.createBuffer(2, frameCount, context.sampleRate);
+  for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+    const data = impulse.getChannelData(channel);
+    for (let index = 0; index < frameCount; index += 1) {
+      data[index] = (Math.random() * 2 - 1) * Math.pow(1 - index / frameCount, 2.8);
+    }
+  }
+  reverbImpulseCache.set(context, impulse);
+  return impulse;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -87,8 +105,9 @@ function mapRiffPitch(
   phraseIndex: number,
   accented: boolean,
 ): number {
+  const octaveMultiplier = 2 ** (sound.octaveShift ?? 0);
   if (sound.pitchMode === 'free') {
-    return clamp(baseFrequency * mapRegisterMultiplier(sound.register), 70, 1600);
+    return clamp(baseFrequency * mapRegisterMultiplier(sound.register) * octaveMultiplier, 40, 3200);
   }
 
   const scale = SCALE_PRESETS[sound.scaleName];
@@ -97,10 +116,24 @@ function mapRiffPitch(
     sound.register === 'wide' ? 48 : sound.register === 'mid-low' ? 43 : 36;
   const accentShift =
     accented ? (sound.accentPush === 'strong' ? 2 : 1) : 0;
-  const degreeSource = Math.max(0, phraseIndex) + accentShift;
+  const noteIndex = Math.max(0, phraseIndex) + accentShift;
+  const scaleLength = Math.max(1, scale.intervals.length);
+  let degreeSource = noteIndex;
+  if (sound.noteOrder === 'descending') {
+    degreeSource = Math.floor(noteIndex / scaleLength) * scaleLength + (scaleLength - 1 - (noteIndex % scaleLength));
+  } else if (sound.noteOrder === 'up-down') {
+    const span = Math.max(1, scaleLength * 2 - 2);
+    const position = noteIndex % span;
+    degreeSource = position < scaleLength ? position : span - position;
+  } else if (sound.noteOrder === 'arpeggio') {
+    const chordWalk = [0, 2, 4, 2];
+    degreeSource = chordWalk[noteIndex % chordWalk.length] % scaleLength;
+  } else if (sound.noteOrder === 'random') {
+    degreeSource = ((noteIndex * 1103515245 + 12345) >>> 16) % scaleLength;
+  }
   const degree = degreeSource % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
-  const midi = clamp(registerBaseMidi + rootSemitone + scale.intervals[degree] + octave * 12, 28, 84);
+  const midi = clamp(registerBaseMidi + rootSemitone + scale.intervals[degree] + octave * 12 + (sound.octaveShift ?? 0) * 12, 20, 96);
   return midiToFrequency(midi);
 }
 
@@ -141,6 +174,18 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   }
   if (recordingDestination) {
     gainNode.connect(recordingDestination);
+  }
+  const reverbAmount = clamp(target?.reverbAmount ?? 0, 0, 1);
+  if (reverbAmount > 0.001) {
+    const convolver = context.createConvolver();
+    const wetGain = context.createGain();
+    convolver.buffer = getReverbImpulse(context);
+    wetGain.gain.setValueAtTime(reverbAmount * 0.5, now);
+    gainNode.connect(convolver);
+    convolver.connect(wetGain);
+    if (target?.outputToSpeakers ?? true) wetGain.connect(context.destination);
+    if (target?.destination) wetGain.connect(target.destination);
+    if (recordingDestination) wetGain.connect(recordingDestination);
   }
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.06);
@@ -704,6 +749,10 @@ export function triggerRiffPulse(options: {
     options.phraseIndex,
     options.accented,
   );
+  const context = options.target?.context ?? getAudioContext();
+  const voiceTarget = context
+    ? { ...options.target, context, outputToSpeakers: options.target?.outputToSpeakers ?? true, reverbAmount: options.sound.reverbAmount ?? 0 }
+    : options.target;
   triggerPaletteRiff(
     options.sound.palette,
     frequency,
@@ -711,7 +760,7 @@ export function triggerRiffPulse(options: {
     options.accented,
     options.sound.accentPush,
     options.atTime,
-    options.target,
+    voiceTarget,
   );
 }
 

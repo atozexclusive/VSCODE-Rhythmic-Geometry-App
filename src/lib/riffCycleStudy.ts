@@ -21,6 +21,7 @@ export type RiffCycleSoundPalette =
 export type RiffCyclePitchMode = 'free' | 'keyed';
 export type RiffCycleRegister = 'low' | 'mid-low' | 'wide';
 export type RiffCycleAccentPush = 'soft' | 'strong';
+export type RiffCycleNoteOrder = 'ascending' | 'descending' | 'up-down' | 'arpeggio' | 'random';
 export type RiffBarMarkerInterval =
   | 'none'
   | 'pattern'
@@ -80,6 +81,9 @@ export interface RiffCycleSoundSettings {
   scaleName: ScaleName;
   register: RiffCycleRegister;
   accentPush: RiffCycleAccentPush;
+  octaveShift?: -1 | 0 | 1;
+  reverbAmount?: number;
+  noteOrder?: RiffCycleNoteOrder;
 }
 
 export interface ReferenceMeter {
@@ -379,6 +383,15 @@ function normalizeRiffCycleSoundSettings(
         ? settings.register
         : 'low',
     accentPush: settings?.accentPush === 'strong' ? 'strong' : 'soft',
+    octaveShift: settings?.octaveShift === -1 || settings?.octaveShift === 1 ? settings.octaveShift : 0,
+    reverbAmount: clamp(Number(settings?.reverbAmount ?? 0), 0, 1),
+    noteOrder:
+      settings?.noteOrder === 'descending' ||
+      settings?.noteOrder === 'up-down' ||
+      settings?.noteOrder === 'arpeggio' ||
+      settings?.noteOrder === 'random'
+        ? settings.noteOrder
+        : 'ascending',
   };
 }
 

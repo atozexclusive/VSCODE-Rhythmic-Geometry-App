@@ -19,7 +19,7 @@ export type CanvasAtmosphereId =
 
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
 export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
-export type CanvasSubdivisionGuideCycleBars = 4 | 8 | 16;
+export type CanvasSubdivisionGuideCycleBars = 2 | 4 | 8 | 16;
 export type CanvasInnerClockMode = 'off' | 'minimal' | 'full';
 
 export interface CanvasSubdivisionGuideAutomation {
@@ -330,7 +330,7 @@ function clampSubdivisionGuide(
 }
 
 function clampSubdivisionGuideCycleBars(value: unknown): CanvasSubdivisionGuideCycleBars {
-  return value === 4 || value === 8 || value === 16 ? value : 8;
+  return value === 2 || value === 4 || value === 8 || value === 16 ? value : 8;
 }
 
 function clampInnerClockMode(value: unknown, fallback: CanvasInnerClockMode | undefined): CanvasInnerClockMode {
