@@ -935,19 +935,35 @@ export default function RiffCycleCanvas({
     const sequenceTimeline = currentStudy.riffSequenceEnabled
       ? getRiffSequenceTimeline(currentStudy)
       : null;
-    const phraseAngle =
-      -Math.PI / 2 +
-      ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
-      (phraseProgress / visibleRiff.stepCount) * TAU;
+    const riffRotationOffset = ((currentStudy.riff.rotationOffset % 360) + 360) % 360;
+    const phraseMatchesReferenceBar =
+      visibleRiff.stepCount === stepsPerBar && riffRotationOffset === 0;
+    const phraseAngle = phraseMatchesReferenceBar
+      ? Math.atan2(
+          referenceCursorPoint.y - metrics.circleCenterY,
+          referenceCursorPoint.x - metrics.circleCenterX,
+        )
+      :
+          -Math.PI / 2 +
+          (riffRotationOffset / 360) * TAU +
+          (phraseProgress / visibleRiff.stepCount) * TAU;
     const phraseCursorPoint = {
       x: metrics.circleCenterX + Math.cos(phraseAngle) * metrics.innerRadius,
       y: metrics.circleCenterY + Math.sin(phraseAngle) * metrics.innerRadius,
     };
     const riffPoints = visibleRiff.activeSteps.map((active, index) => {
-      const angle =
-        -Math.PI / 2 +
-        ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
-        (index / visibleRiff.stepCount) * TAU;
+      const alignedReferencePoint = phraseMatchesReferenceBar
+        ? getReferenceStepPoint(renderStudy, metrics, index)
+        : null;
+      const angle = alignedReferencePoint
+        ? Math.atan2(
+            alignedReferencePoint.y - metrics.circleCenterY,
+            alignedReferencePoint.x - metrics.circleCenterX,
+          )
+        :
+            -Math.PI / 2 +
+            (riffRotationOffset / 360) * TAU +
+            (index / visibleRiff.stepCount) * TAU;
 
       return {
         index,
