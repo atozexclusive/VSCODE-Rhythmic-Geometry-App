@@ -1,5 +1,9 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
+  getEffectiveInnerClockMode,
+  type CanvasDisplaySettings,
+} from './canvasDisplayThemes';
+import {
   getEffectiveRiffStepStateAtReferenceStep,
   getReferenceStepsPerBar,
   getReferenceStepsPerSecond,
@@ -570,6 +574,7 @@ export function createRiffCycleExportAudioStream(
   study: RiffCycleStudy,
   durationSeconds: number,
   prerollSeconds = 0,
+  displaySettings?: CanvasDisplaySettings,
 ): MediaStream | null {
   const context = getAudioContext();
   if (!context || typeof context.createMediaStreamDestination !== 'function') {
@@ -620,7 +625,13 @@ export function createRiffCycleExportAudioStream(
     }
 
     const riffStepState = getEffectiveRiffStepStateAtReferenceStep(study, referenceStep);
-    if (study.soundEnabled && study.riff.soundEnabled && riffStepState.active) {
+    const innerClockAudioEnabled =
+      getEffectiveInnerClockMode(
+        displaySettings,
+        referenceStep,
+        getReferenceStepsPerBar(study.reference),
+      ) === 'full';
+    if (innerClockAudioEnabled && study.soundEnabled && study.riff.soundEnabled && riffStepState.active) {
       triggerRiffPulse({
         frequency: study.riff.pitchHz,
         gain: study.riff.gain,
@@ -638,7 +649,7 @@ export function createRiffCycleExportAudioStream(
       (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / stepsPerBeat,
     );
     const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
-    getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
+    if (innerClockAudioEnabled) getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
       const shouldPlay =
         (event.surface === 'beat' && isReferenceBeatStart(study, referenceStep) && event.index === beatIndex) ||
         (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||

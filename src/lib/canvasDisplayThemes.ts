@@ -49,6 +49,23 @@ export interface CanvasDisplaySettings {
   showMeterNumbers?: boolean;
 }
 
+export function getEffectiveInnerClockMode(
+  settings: CanvasDisplaySettings | undefined,
+  absoluteReferenceStep: number,
+  stepsPerBar: number,
+): CanvasInnerClockMode {
+  const manualMode = settings?.innerClock ?? 'full';
+  const automation = settings?.innerClockAutomation;
+  if (!automation?.enabled || automation.modes.length === 0) {
+    return manualMode;
+  }
+
+  const bar = Math.floor(absoluteReferenceStep / Math.max(1, stepsPerBar));
+  const cycleIndex =
+    Math.floor(bar / Math.max(1, automation.cycleBars)) % automation.modes.length;
+  return automation.modes[cycleIndex] ?? manualMode;
+}
+
 interface CanvasDisplayTheme {
   id: CanvasDisplayThemeId;
   label: string;

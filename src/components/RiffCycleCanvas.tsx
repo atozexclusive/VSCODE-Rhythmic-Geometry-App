@@ -10,6 +10,7 @@ import { useIsMobile } from '../hooks/use-mobile';
 import {
   DEFAULT_RIFF_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
+  getEffectiveInnerClockMode,
   getCanvasGlowMultiplier,
   getCanvasInactiveAlpha,
   getCanvasLineAlpha,
@@ -908,15 +909,11 @@ export default function RiffCycleCanvas({
     const meterSubdivisionMarksVisible =
       subdivisionGuideVisible && !(currentStudy.pulseLayerVisible && currentStudy.pulseLayerEnabled) && !denseReferenceMeter;
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
-    const manualInnerClockMode = currentDisplaySettings.innerClock ?? 'full';
-    const innerClockAutomation = currentDisplaySettings.innerClockAutomation;
-    const innerClockMode =
-      innerClockAutomation?.enabled
-        ? innerClockAutomation.modes[
-            Math.floor(currentSubdivisionGuideBar / Math.max(1, innerClockAutomation.cycleBars)) %
-              innerClockAutomation.modes.length
-          ] ?? manualInnerClockMode
-        : manualInnerClockMode;
+    const innerClockMode = getEffectiveInnerClockMode(
+      currentDisplaySettings,
+      currentAbsoluteReferenceStep,
+      stepsPerBar,
+    );
     const innerClockVisible = innerClockMode !== 'off';
     const innerClockMotionVisible = innerClockMode === 'full';
     const currentReferenceStep =
@@ -1784,7 +1781,9 @@ export default function RiffCycleCanvas({
           nextPoint.index > point.index
             ? nextPoint.index - point.index
             : visibleRiff.stepCount - point.index + nextPoint.index;
-        if (stepSpan <= 0) {
+        // Adjacent hits already connect through the riff shape. Only add a
+        // grouping bridge when it spans at least one inactive step.
+        if (stepSpan <= 1) {
           return;
         }
 
@@ -1814,14 +1813,12 @@ export default function RiffCycleCanvas({
         ctx.stroke();
         ctx.restore();
 
-        if (stepSpan > 1) {
-          labelCandidates.push({
-            x: labelX,
-            y: labelY,
-            label: String(stepSpan),
-            span: stepSpan,
-          });
-        }
+        labelCandidates.push({
+          x: labelX,
+          y: labelY,
+          label: String(stepSpan),
+          span: stepSpan,
+        });
       });
 
       const placedLabels: Array<{ x: number; y: number; radius: number }> = [];
@@ -3037,6 +3034,12 @@ export default function RiffCycleCanvas({
           currentStudy,
           currentAbsoluteReferenceStep,
         );
+        const innerClockAudioEnabled =
+          getEffectiveInnerClockMode(
+            displaySettingsRef.current,
+            currentAbsoluteReferenceStep,
+            getReferenceStepsPerBar(currentStudy.reference),
+          ) === 'full';
         const voiceImpactNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
         const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
@@ -3048,7 +3051,7 @@ export default function RiffCycleCanvas({
           currentStudy,
           currentAbsoluteReferenceStep,
         )?.cell.label;
-        getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
+        if (innerClockAudioEnabled) getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
           const shouldImpact =
             (event.surface === 'beat' && referenceBeatStart && event.index === beatIndex) ||
             (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||
@@ -3068,7 +3071,7 @@ export default function RiffCycleCanvas({
             attackUntil;
           laneAttackReferenceStepRef.current = currentAbsoluteReferenceStep;
           laneAttackUntilRef.current = attackUntil;
-          if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
+          if (innerClockAudioEnabled && audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
             triggerRiffPulse({
               frequency: currentStudy.riff.pitchHz,
               gain: currentStudy.riff.gain,
@@ -3217,6 +3220,7 @@ export default function RiffCycleCanvas({
             studyRef.current,
             durationSeconds,
             CANVAS_EXPORT_PREROLL_SECONDS,
+            displaySettingsRef.current,
           ),
         );
         const recorder = new MediaRecorder(stream, {
