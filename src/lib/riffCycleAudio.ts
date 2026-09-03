@@ -44,6 +44,7 @@ interface VoiceTarget {
 }
 
 const reverbImpulseCache = new WeakMap<AudioContext, AudioBuffer>();
+const reverbBusCache = new WeakMap<AudioContext, WeakMap<AudioNode, ConvolverNode>>();
 
 function getReverbImpulse(context: AudioContext): AudioBuffer {
   const cached = reverbImpulseCache.get(context);
@@ -58,6 +59,23 @@ function getReverbImpulse(context: AudioContext): AudioBuffer {
   }
   reverbImpulseCache.set(context, impulse);
   return impulse;
+}
+
+function getReverbBus(context: AudioContext, output: AudioNode): ConvolverNode {
+  let contextBuses = reverbBusCache.get(context);
+  if (!contextBuses) {
+    contextBuses = new WeakMap<AudioNode, ConvolverNode>();
+    reverbBusCache.set(context, contextBuses);
+  }
+
+  const existing = contextBuses.get(output);
+  if (existing) return existing;
+
+  const convolver = context.createConvolver();
+  convolver.buffer = getReverbImpulse(context);
+  convolver.connect(output);
+  contextBuses.set(output, convolver);
+  return convolver;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -170,27 +188,29 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  if (target?.outputToSpeakers ?? true) {
-    gainNode.connect(context.destination);
-  }
-  if (target?.destination) {
-    gainNode.connect(target.destination);
-  }
-  if (recordingDestination) {
-    gainNode.connect(recordingDestination);
-  }
+  const outputs = new Set<AudioNode>();
+  if (target?.outputToSpeakers ?? true) outputs.add(context.destination);
+  if (target?.destination) outputs.add(target.destination);
+  if (recordingDestination) outputs.add(recordingDestination);
+  outputs.forEach((output) => gainNode.connect(output));
+
   const reverbAmount = clamp(target?.reverbAmount ?? 0, 0, 1);
+  const reverbSends: GainNode[] = [];
   if (reverbAmount > 0.001) {
-    const convolver = context.createConvolver();
-    const wetGain = context.createGain();
-    convolver.buffer = getReverbImpulse(context);
-    wetGain.gain.setValueAtTime(reverbAmount * 0.5, now);
-    gainNode.connect(convolver);
-    convolver.connect(wetGain);
-    if (target?.outputToSpeakers ?? true) wetGain.connect(context.destination);
-    if (target?.destination) wetGain.connect(target.destination);
-    if (recordingDestination) wetGain.connect(recordingDestination);
+    outputs.forEach((output) => {
+      const send = context.createGain();
+      send.gain.setValueAtTime(reverbAmount * 0.5, now);
+      gainNode.connect(send);
+      send.connect(getReverbBus(context, output));
+      reverbSends.push(send);
+    });
   }
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    filter.disconnect();
+    gainNode.disconnect();
+    reverbSends.forEach((send) => send.disconnect());
+  };
   oscillator.start(now);
   oscillator.stop(now + options.release + 0.06);
 }
