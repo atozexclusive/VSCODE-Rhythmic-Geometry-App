@@ -90,6 +90,11 @@ function getReferenceBeatFlashDuration(reference: RiffCycleStudy['reference']): 
   return Math.max(90, Math.min(REFERENCE_BEAT_FLASH_DURATION, beatIntervalMs * 0.78));
 }
 
+function getMeterImpactRingVisibility(reference: RiffCycleStudy['reference']): number {
+  if (reference.denominator !== 8) return 1;
+  return Math.max(0, Math.min(1, (160 - reference.bpm) / 20));
+}
+
 interface RiffCyclePlaybackState {
   referenceProgress: number;
   lastTimestamp: number | null;
@@ -1064,6 +1069,7 @@ export default function RiffCycleCanvas({
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const referenceBeatFlashDuration = getReferenceBeatFlashDuration(renderStudy.reference);
+    const meterImpactRingVisibility = getMeterImpactRingVisibility(renderStudy.reference);
     const subdivisionStepWithinBar =
       ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
     if (currentStudy.playing && subdivisionImpactStepRef.current !== currentAbsoluteReferenceStep) {
@@ -1460,11 +1466,11 @@ export default function RiffCycleCanvas({
         ctx.fill();
         ctx.restore();
 
-        if (beatFlashStrength > 0) {
+        if (beatFlashStrength > 0 && meterImpactRingVisibility > 0) {
           ctx.save();
           ctx.strokeStyle = isBackbeatVertex ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
           ctx.lineWidth = (isBackbeatVertex ? 2.25 : 1.55) * shellScale;
-          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
+          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15) * meterImpactRingVisibility;
           ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier * shellScale;
           ctx.shadowColor = isBackbeatVertex ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
           ctx.beginPath();
@@ -1473,9 +1479,9 @@ export default function RiffCycleCanvas({
           ctx.restore();
         }
 
-        if (eighthNoteTailStrength > 0) {
+        if (eighthNoteTailStrength > 0 && meterImpactRingVisibility > 0) {
           ctx.save();
-          ctx.globalAlpha = eighthNoteTailStrength * 0.24;
+          ctx.globalAlpha = eighthNoteTailStrength * 0.24 * meterImpactRingVisibility;
           ctx.strokeStyle = isBackbeatVertex
             ? 'rgba(255,136,194,0.78)'
             : 'rgba(255,255,255,0.7)';
@@ -1601,11 +1607,11 @@ export default function RiffCycleCanvas({
         ctx.fill();
         ctx.restore();
 
-        if (beatFlashStrength > 0) {
+        if (beatFlashStrength > 0 && meterImpactRingVisibility > 0) {
           ctx.save();
           ctx.strokeStyle = isBackbeat ? 'rgba(255,136,194,0.86)' : 'rgba(255,255,255,0.72)';
           ctx.lineWidth = (isBackbeat ? 2.25 : 1.55) * shellScale;
-          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15);
+          ctx.globalAlpha = Math.min(1, beatFlashStrength + 0.15) * meterImpactRingVisibility;
           ctx.shadowBlur = (9 + beatFlashStrength * 18) * glowMultiplier * shellScale;
           ctx.shadowColor = isBackbeat ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
           ctx.beginPath();
