@@ -87,7 +87,11 @@ const SUBDIVISION_IMPACT_DURATION = REFERENCE_BEAT_FLASH_DURATION;
 function getReferenceBeatFlashDuration(reference: RiffCycleStudy['reference']): number {
   const beatIntervalMs =
     (getReferenceStepsPerBeat(reference) / getReferenceStepsPerSecond(reference)) * 1000;
-  return Math.max(90, Math.min(REFERENCE_BEAT_FLASH_DURATION, beatIntervalMs * 0.78));
+  const intervalShare = reference.denominator === 8 ? 0.92 : 0.78;
+  return Math.max(
+    90,
+    Math.min(REFERENCE_BEAT_FLASH_DURATION, beatIntervalMs * intervalShare),
+  );
 }
 
 function getMeterImpactRingVisibility(reference: RiffCycleStudy['reference']): number {
