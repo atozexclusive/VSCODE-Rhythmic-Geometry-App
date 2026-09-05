@@ -80,6 +80,7 @@ import {
 const TAU = Math.PI * 2;
 const BAR_MARKER_FLASH_DURATION = 520;
 const REFERENCE_BEAT_FLASH_DURATION = 280;
+const EIGHTH_NOTE_METER_TAIL_DURATION = 360;
 
 const SUBDIVISION_IMPACT_DURATION = REFERENCE_BEAT_FLASH_DURATION;
 
@@ -723,6 +724,7 @@ export default function RiffCycleCanvas({
   const referenceBeatFlashUntilRef = useRef(0);
   const referenceBeatFlashStepRef = useRef<number | null>(null);
   const referenceBeatFlashBeatRef = useRef<number | null>(null);
+  const eighthNoteMeterTailUntilRef = useRef<Map<number, number>>(new Map());
   const barMarkerFlashUntilRef = useRef(0);
   const barMarkerFlashStepRef = useRef<number | null>(null);
   const riffAttackUntilRef = useRef<number[]>([]);
@@ -1416,6 +1418,16 @@ export default function RiffCycleCanvas({
           referenceBeatFlashBeatRef.current === index
             ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / referenceBeatFlashDuration)
             : 0;
+        const eighthNoteTailRemaining =
+          renderStudy.reference.denominator === 8
+            ? Math.max(
+                0,
+                ((eighthNoteMeterTailUntilRef.current.get(index) ?? 0) - now) /
+                  EIGHTH_NOTE_METER_TAIL_DURATION,
+              )
+            : 0;
+        const eighthNoteTailStrength = eighthNoteTailRemaining * eighthNoteTailRemaining;
+        const eighthNoteTailProgress = 1 - eighthNoteTailRemaining;
         const vertexRadius =
           ((index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) +
             beatFlashStrength * (isBackbeatVertex ? 3.4 : 3)) *
@@ -1457,6 +1469,29 @@ export default function RiffCycleCanvas({
           ctx.shadowColor = isBackbeatVertex ? 'rgba(255,136,194,0.6)' : 'rgba(255,255,255,0.42)';
           ctx.beginPath();
           ctx.arc(vertex.x, vertex.y, vertexRadius + (6 + beatFlashStrength * 4) * shellScale, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (eighthNoteTailStrength > 0) {
+          ctx.save();
+          ctx.globalAlpha = eighthNoteTailStrength * 0.24;
+          ctx.strokeStyle = isBackbeatVertex
+            ? 'rgba(255,136,194,0.78)'
+            : 'rgba(255,255,255,0.7)';
+          ctx.lineWidth = 1.15 * shellScale;
+          ctx.shadowBlur = (6 + eighthNoteTailStrength * 8) * glowMultiplier * shellScale;
+          ctx.shadowColor = isBackbeatVertex
+            ? 'rgba(255,136,194,0.4)'
+            : 'rgba(255,255,255,0.3)';
+          ctx.beginPath();
+          ctx.arc(
+            vertex.x,
+            vertex.y,
+            vertexRadius + (7 + eighthNoteTailProgress * 10) * shellScale,
+            0,
+            TAU,
+          );
           ctx.stroke();
           ctx.restore();
         }
@@ -3003,6 +3038,14 @@ export default function RiffCycleCanvas({
           );
           referenceBeatFlashUntilRef.current =
             now + getReferenceBeatFlashDuration(currentStudy.reference);
+          if (currentStudy.reference.denominator === 8) {
+            eighthNoteMeterTailUntilRef.current.set(
+              referenceBeatFlashBeatRef.current,
+              now + EIGHTH_NOTE_METER_TAIL_DURATION,
+            );
+          } else {
+            eighthNoteMeterTailUntilRef.current.clear();
+          }
         }
         if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled && currentStudy.referenceGain > 0) {
           triggerReferencePulse(currentStudy.soundSettings, currentStudy.referenceGain);
@@ -3207,6 +3250,7 @@ export default function RiffCycleCanvas({
         referenceBeatFlashUntilRef.current = 0;
         referenceBeatFlashStepRef.current = null;
         referenceBeatFlashBeatRef.current = null;
+        eighthNoteMeterTailUntilRef.current.clear();
         barMarkerFlashUntilRef.current = 0;
         barMarkerFlashStepRef.current = null;
         riffAttackUntilRef.current = [];
@@ -3293,6 +3337,7 @@ export default function RiffCycleCanvas({
     playbackState.wasPlaying = studyRef.current.playing;
     laneAttackReferenceStepRef.current = null;
     laneAttackUntilRef.current = 0;
+    eighthNoteMeterTailUntilRef.current.clear();
     resetFlashUntilRef.current =
       (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 260;
     draw();
