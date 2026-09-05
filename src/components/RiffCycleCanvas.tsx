@@ -83,6 +83,12 @@ const REFERENCE_BEAT_FLASH_DURATION = 280;
 
 const SUBDIVISION_IMPACT_DURATION = REFERENCE_BEAT_FLASH_DURATION;
 
+function getReferenceBeatFlashDuration(reference: RiffCycleStudy['reference']): number {
+  const beatIntervalMs =
+    (getReferenceStepsPerBeat(reference) / getReferenceStepsPerSecond(reference)) * 1000;
+  return Math.max(90, Math.min(REFERENCE_BEAT_FLASH_DURATION, beatIntervalMs * 0.78));
+}
+
 interface RiffCyclePlaybackState {
   referenceProgress: number;
   lastTimestamp: number | null;
@@ -935,35 +941,19 @@ export default function RiffCycleCanvas({
     const sequenceTimeline = currentStudy.riffSequenceEnabled
       ? getRiffSequenceTimeline(currentStudy)
       : null;
-    const riffRotationOffset = ((currentStudy.riff.rotationOffset % 360) + 360) % 360;
-    const phraseMatchesReferenceBar =
-      visibleRiff.stepCount === stepsPerBar && riffRotationOffset === 0;
-    const phraseAngle = phraseMatchesReferenceBar
-      ? Math.atan2(
-          referenceCursorPoint.y - metrics.circleCenterY,
-          referenceCursorPoint.x - metrics.circleCenterX,
-        )
-      :
-          -Math.PI / 2 +
-          (riffRotationOffset / 360) * TAU +
-          (phraseProgress / visibleRiff.stepCount) * TAU;
+    const phraseAngle =
+      -Math.PI / 2 +
+      ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
+      (phraseProgress / visibleRiff.stepCount) * TAU;
     const phraseCursorPoint = {
       x: metrics.circleCenterX + Math.cos(phraseAngle) * metrics.innerRadius,
       y: metrics.circleCenterY + Math.sin(phraseAngle) * metrics.innerRadius,
     };
     const riffPoints = visibleRiff.activeSteps.map((active, index) => {
-      const alignedReferencePoint = phraseMatchesReferenceBar
-        ? getReferenceStepPoint(renderStudy, metrics, index)
-        : null;
-      const angle = alignedReferencePoint
-        ? Math.atan2(
-            alignedReferencePoint.y - metrics.circleCenterY,
-            alignedReferencePoint.x - metrics.circleCenterX,
-          )
-        :
-            -Math.PI / 2 +
-            (riffRotationOffset / 360) * TAU +
-            (index / visibleRiff.stepCount) * TAU;
+      const angle =
+        -Math.PI / 2 +
+        ((currentStudy.riff.rotationOffset % 360) / 360) * TAU +
+        (index / visibleRiff.stepCount) * TAU;
 
       return {
         index,
@@ -1071,6 +1061,7 @@ export default function RiffCycleCanvas({
     const flashActive =
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const referenceBeatFlashDuration = getReferenceBeatFlashDuration(renderStudy.reference);
     const subdivisionStepWithinBar =
       ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
     if (currentStudy.playing && subdivisionImpactStepRef.current !== currentAbsoluteReferenceStep) {
@@ -1423,7 +1414,7 @@ export default function RiffCycleCanvas({
           activeBackbeatStepPositions.includes(index * stepsPerBeat + 1);
         const beatFlashStrength =
           referenceBeatFlashBeatRef.current === index
-            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / referenceBeatFlashDuration)
             : 0;
         const vertexRadius =
           ((index === 0 ? 6.2 : isBackbeatVertex ? 5.8 : 5.1) +
@@ -1549,7 +1540,7 @@ export default function RiffCycleCanvas({
         }
         const beatFlashStrength =
           referenceBeatFlashStepRef.current === index
-            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / referenceBeatFlashDuration)
             : 0;
         const pointRadius =
           ((isDownbeat ? 5.8 : isBackbeat ? 5.1 : isBeat ? 4.2 : 2.4) +
@@ -2303,7 +2294,7 @@ export default function RiffCycleCanvas({
         const size = 19 * shellScale * (event.instrument === 'snare' ? 1.05 : 1);
         const nativeImpactRemaining =
           referenceBeatFlashBeatRef.current === event.index
-            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / REFERENCE_BEAT_FLASH_DURATION)
+            ? Math.max(0, (referenceBeatFlashUntilRef.current - now) / referenceBeatFlashDuration)
             : 0;
         const voiceImpactRemaining = Math.max(
           0,
@@ -3010,7 +3001,8 @@ export default function RiffCycleCanvas({
           referenceBeatFlashBeatRef.current = Math.floor(
             referenceBeatFlashStepRef.current / getReferenceStepsPerBeat(currentStudy.reference),
           );
-          referenceBeatFlashUntilRef.current = now + REFERENCE_BEAT_FLASH_DURATION;
+          referenceBeatFlashUntilRef.current =
+            now + getReferenceBeatFlashDuration(currentStudy.reference);
         }
         if (audioEnabledRef.current && currentStudy.soundEnabled && referenceBeatStart && currentStudy.referenceSoundEnabled && currentStudy.referenceGain > 0) {
           triggerReferencePulse(currentStudy.soundSettings, currentStudy.referenceGain);
