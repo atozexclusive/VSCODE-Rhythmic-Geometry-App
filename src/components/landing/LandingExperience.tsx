@@ -155,8 +155,8 @@ export function LandingExperience({ isPro, isSignedIn, onAccountOpen }: LandingE
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (!root || preference.matches || !('IntersectionObserver' in window)) return;
     const sections = Array.from(root.querySelectorAll<HTMLElement>('main > .rg-section'));
-    // Let The Instrument follow the opening title immediately; later sections keep their reveals.
-    const revealSections = sections.slice(1);
+    // Include The Instrument so the hero-to-instrument transition reveals on scroll.
+    const revealSections = sections;
     const revealTargets = new Map<Element, HTMLElement>();
     const reveal = (section: HTMLElement) => {
       section.classList.remove('rg-reveal-pending');

@@ -55,7 +55,11 @@
 .rg-hero-art img[data-mode='riff-cycle-study'] { --art-ratio: 1.85471; }
 .rg-hero-art img.is-active { opacity: 1; }
 .rg-hero::after { content: ''; position: absolute; z-index: -1; inset: 0; background: radial-gradient(ellipse at center, #070e16cc 0%, #070e164d 38%, transparent 79%); }
-.rg-hero-content { width: min(900px, 100%); text-align: center; }
+.rg-hero::before { content: ''; position: absolute; z-index: 0; left: 0; right: 0; bottom: 0; height: 210px; pointer-events: none; background: linear-gradient(to bottom, transparent, #090c10 92%); }
+.rg-hero-content { position: relative; z-index: 1; width: min(900px, 100%); text-align: center; }
+.rg-modes { position: relative; }
+.rg-modes::before { content: ''; position: absolute; z-index: 2; left: 0; right: 0; top: -120px; height: 140px; pointer-events: none; background: linear-gradient(to bottom, transparent, var(--rg-bg) 88%); }
+.rg-modes > * { position: relative; z-index: 3; }
 .rg-hero .rg-eyebrow { justify-content: center; color: #adc8c6; margin-bottom: 31px; }
 .rg-status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--mode-accent); }
 .rg-hero h1 { font-size: clamp(48px, 5.45vw, 84px); line-height: 1.04; letter-spacing: -.055em; }
@@ -251,7 +255,7 @@
   .rg-mobile-launch { display: inline-flex; min-height: 32px; padding: 7px 9px; font-size: 9px; gap: 5px; }
   .rg-mobile-launch svg { width: 12px; }
   .rg-hero { min-height: calc(100svh - 64px); padding: 42px 18px 58px; }
-  .rg-hero-content { min-height: calc(100svh - 280px); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; }
+  .rg-hero-content { min-height: calc(100svh - 220px); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; }
   .rg-hero .rg-eyebrow { max-width: 260px; margin: 0 auto 8px; font-size: 8px; letter-spacing: .1em; }
   .rg-hero h1 { font-size: clamp(35px, 9.4vw, 50px); line-height: 1.09; letter-spacing: -.05em; }
   .rg-hero-intro { font-size: 14px; margin: 0 !important; max-width: 290px; }
