@@ -532,7 +532,7 @@
 }
 
 .rg-scroll-reveal { transition: opacity 1.1s ease, transform 1.1s cubic-bezier(.22, 1, .36, 1); }
-.rg-scroll-reveal.rg-reveal-pending { opacity: 0; transform: translateY(24px); }
+.rg-scroll-reveal.rg-reveal-pending { opacity: .22; transform: translateY(12px); }
 @keyframes rg-opening-in {
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: none; }
