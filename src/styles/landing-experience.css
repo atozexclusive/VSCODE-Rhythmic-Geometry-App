@@ -242,18 +242,18 @@
 
 @container (max-width: 540px) {
   .rg-site-frame { width: calc(100% - 20px); }
-  .rg-site-header { padding: 10px 12px; min-height: 64px; gap: 4px; }
-  .rg-site-header .rg-wordmark { font-size: 11px; letter-spacing: .28em; }
-  .rg-header-actions { gap: 4px; }
+  .rg-site-header { flex-wrap: nowrap; padding: 10px 12px; min-height: 64px; gap: 8px; }
+  .rg-site-header .rg-wordmark { font-size: 9.5px; letter-spacing: .25em; }
+  .rg-header-actions { gap: 4px; margin-left: auto; }
   .rg-account-button { min-width: 26px; }
   .rg-icon-button { width: 30px; }
   .rg-desktop-launch { display: none; }
-  .rg-mobile-launch { display: inline-flex; min-height: 32px; padding: 7px 9px; font-size: 10px; gap: 5px; }
+  .rg-mobile-launch { display: inline-flex; min-height: 32px; padding: 7px 9px; font-size: 9px; gap: 5px; }
   .rg-mobile-launch svg { width: 12px; }
-  .rg-hero { min-height: 0; padding: 32px 18px 36px; }
-  .rg-hero .rg-eyebrow { max-width: 260px; margin-inline: auto; margin-bottom: 20px; font-size: 8px; letter-spacing: .1em; }
+  .rg-hero { min-height: calc(100svh - 64px); padding: 28px 18px 44px; }
+  .rg-hero .rg-eyebrow { max-width: 260px; margin-inline: auto; margin-bottom: 12px; font-size: 8px; letter-spacing: .1em; }
   .rg-hero h1 { font-size: clamp(35px, 9.4vw, 50px); line-height: 1.09; letter-spacing: -.05em; }
-  .rg-hero-intro { font-size: 14px; margin-top: 18px !important; margin-bottom: 20px !important; max-width: 290px; }
+  .rg-hero-intro { font-size: 14px; margin-top: 14px !important; margin-bottom: 16px !important; max-width: 290px; }
   .rg-mode-picker { display: flex; max-width: 330px; margin-inline: auto; }
   .rg-mode-picker button { flex: 1; min-width: 0; min-height: 42px; padding: 9px 8px; font-size: 12px; gap: 7px; }
   .rg-mode-picker svg { width: 15px; }
@@ -294,7 +294,16 @@
 }
 
 @container (max-width: 360px) {
-  .rg-site-header { flex-wrap: wrap; gap: 8px; }
+  .rg-site-header { flex-wrap: nowrap; gap: 4px; padding-inline: 8px; }
+  .rg-site-header .rg-wordmark { flex-basis: auto; font-size: 8px; letter-spacing: .2em; }
+  .rg-header-actions { margin-left: auto; }
+  .rg-header-actions { gap: 2px; }
+  .rg-header-actions .rg-account-button, .rg-header-actions .rg-icon-button { min-width: 30px; width: 30px; min-height: 32px; }
+  .rg-header-actions .rg-mobile-launch { min-height: 30px; padding-inline: 8px; font-size: 8px; }
+}
+
+@container (max-width: 360px) {
+  .rg-site-header { flex-wrap: nowrap; gap: 4px; }
   .rg-header-actions { margin-left: auto; }
 }
 
@@ -516,8 +525,8 @@
   .rg-modes .rg-mode-copy-mobile { display: block; max-width: 34ch; margin-top: 10px; line-height: 1.55; text-wrap: pretty; }
 }
 @container (max-width: 540px) {
-  .rg-site-header { flex-wrap: wrap; gap: 8px; }
-  .rg-site-header > .rg-wordmark { flex-basis: 100%; }
+  .rg-site-header { flex-wrap: nowrap; gap: 8px; }
+  .rg-site-header > .rg-wordmark { flex-basis: auto; }
   .rg-header-actions { gap: 8px; margin-left: auto; }
   .rg-header-actions .rg-account-button, .rg-header-actions .rg-icon-button { min-width: 44px; width: 44px; min-height: 44px; }
   .rg-header-actions .rg-mobile-launch { min-height: 44px; padding-inline: 14px; }
@@ -529,6 +538,11 @@
   .rg-pro-highlights { gap: 17px; margin-top: 24px; }
   .rg-pro .rg-pro-button { width: 100%; }
   .rg-pro-heading small { text-align: center; }
+}
+
+@container (max-width: 360px) {
+  .rg-site-header { flex-wrap: wrap; }
+  .rg-site-header > .rg-wordmark { flex-basis: 100%; }
 }
 
 .rg-scroll-reveal { transition: opacity 1.1s ease, transform 1.1s cubic-bezier(.22, 1, .36, 1); }
@@ -545,4 +559,12 @@
   .rg-scroll-reveal.rg-reveal-pending { opacity: 1; transform: none; }
   .rg-experience *, .rg-experience *::before, .rg-experience *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
   .rg-button:hover, .rg-mode-image:hover img, .rg-scene:hover img { transform: none; }
+}
+
+@container (max-width: 360px) {
+  .rg-site-header { flex-wrap: nowrap; gap: 4px; padding-inline: 8px; }
+  .rg-site-header > .rg-wordmark { flex-basis: auto; font-size: 8px; letter-spacing: .2em; }
+  .rg-header-actions { gap: 2px; margin-left: auto; }
+  .rg-header-actions .rg-account-button, .rg-header-actions .rg-icon-button { min-width: 30px; width: 30px; min-height: 32px; }
+  .rg-header-actions .rg-mobile-launch { min-height: 30px; padding-inline: 8px; font-size: 8px; }
 }
