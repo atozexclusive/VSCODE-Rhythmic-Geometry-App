@@ -256,7 +256,6 @@ export function LandingExperience({ isPro, isSignedIn, onAccountOpen }: LandingE
               {SITE_MODE_CARDS.map((mode, index) => <img key={mode.id} data-mode={mode.id} src={deliveryImage(mode.image)} alt="" className={activeModeId === mode.id ? 'is-active' : ''} loading={index === 0 ? 'eager' : 'lazy'} fetchPriority={index === 0 ? 'high' : 'auto'} decoding="async" />)}
             </div>
             <div className="rg-hero-content">
-              <p className="rg-eyebrow">See the structure inside rhythm</p>
               <h1><span>Rhythm</span> Visualized<br />Through <span>Geometry</span></h1>
               <p className="rg-hero-intro">A moving visual instrument for exploring rhythm as structure.</p>
               <div className="rg-mode-picker" role="tablist" aria-label="Choose a rhythm mode">

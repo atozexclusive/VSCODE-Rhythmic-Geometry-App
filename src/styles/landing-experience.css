@@ -325,7 +325,8 @@
 .rg-feature-visual figcaption, .rg-philosophy-copy p + p { font-size: 14px; }
 .rg-section-heading > p:not(.rg-eyebrow), .rg-mode-description > p,
 .rg-feature div[role='region'] p, .rg-pro-heading > p:not(.rg-eyebrow) { font-size: 16px; line-height: 1.7; }
-.rg-pro-heading small, .rg-footer p { font-size: 12px; }
+.rg-pro-heading small { font-size: 12px; }
+.rg-footer p { font-size: 10px; line-height: 1.65; opacity: .72; }
 .rg-button, .rg-mode-picker button { font-size: 14px; }
 .rg-header-launch { font-size: 12px; }
 .rg-feature-visual figcaption > span:first-child { max-width: 38ch; }
@@ -520,6 +521,7 @@
 .rg-mode-copy-mobile { display: none; }
 @container (max-width: 800px) {
   .rg-feature-visual-desktop { display: none; }
+  .rg-modes .rg-mode-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
   .rg-feature-visual-mobile { display: block; width: 100%; margin-top: 24px; }
   .rg-feature-visual-mobile img { margin-inline: auto; }
   .rg-tools { gap: 0; }
@@ -529,6 +531,15 @@
   .rg-modes .rg-mode-description { padding-top: 0; }
   .rg-modes .rg-mode-copy-desktop { display: none; }
   .rg-modes .rg-mode-copy-mobile { display: block; max-width: 34ch; margin-top: 10px; line-height: 1.55; text-wrap: pretty; }
+}
+@container (max-width: 540px) {
+  .rg-modes .rg-mode-title { gap: 5px; }
+  .rg-modes .rg-mode-title h3 { font-size: 18px; }
+  .rg-modes .rg-mode-title svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .rg-modes .rg-mode-description h4 { font-size: 15px; line-height: 1.4; }
+  .rg-modes .rg-mode-copy-mobile { display: none; }
+  .rg-modes .rg-mode-description .rg-text-link { font-size: 11px; gap: 4px; margin-top: auto; }
+  .rg-modes .rg-mode-description .rg-text-link svg { width: 12px; flex-shrink: 0; }
 }
 @container (max-width: 540px) {
   .rg-site-header { flex-wrap: nowrap; gap: 8px; }
