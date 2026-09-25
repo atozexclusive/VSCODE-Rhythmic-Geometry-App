@@ -220,28 +220,6 @@ function drawVoiceImpactBloom(
   ctx.restore();
 }
 
-function drawSubdivisionImpactBloom(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  strength: number,
-  scale: number,
-  glowMultiplier: number,
-): void {
-  if (strength <= 0) return;
-
-  ctx.save();
-  ctx.globalAlpha = Math.min(1, strength + 0.15);
-  ctx.strokeStyle = 'rgba(255,255,255,0.72)';
-  ctx.lineWidth = 1.25 * scale;
-  ctx.shadowBlur = (7 + strength * 14) * glowMultiplier * scale;
-  ctx.shadowColor = 'rgba(255,255,255,0.42)';
-  ctx.beginPath();
-  ctx.arc(x, y, (7.5 + strength * 5.5) * scale, 0, TAU);
-  ctx.stroke();
-  ctx.restore();
-}
-
 type RiffCanvasPoint = {
   index: number;
   angle: number;
@@ -1345,16 +1323,6 @@ export default function RiffCycleCanvas({
         ctx.lineWidth = active ? 1 * shellScale : 0.7 * shellScale;
         ctx.strokeStyle = active ? 'rgba(174, 227, 255, 0.5)' : 'rgba(255,255,255,0.13)';
         ctx.stroke();
-        if (active && nodeImpactStrength > 0) {
-          drawSubdivisionImpactBloom(
-            ctx,
-            point.x,
-            point.y,
-            nodeImpactStrength,
-            shellScale,
-            glowMultiplier,
-          );
-        }
       }
 
       const cursorPoint = getPulseLayerPoint(
@@ -1599,16 +1567,6 @@ export default function RiffCycleCanvas({
           ctx.fill();
           ctx.stroke();
           ctx.restore();
-          if (active && nodeImpactStrength > 0) {
-            drawSubdivisionImpactBloom(
-              ctx,
-              nodeX,
-              nodeY,
-              nodeImpactStrength,
-              shellScale,
-              glowMultiplier,
-            );
-          }
         });
       }
 
