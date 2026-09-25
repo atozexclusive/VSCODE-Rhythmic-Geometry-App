@@ -585,3 +585,5 @@
   .rg-header-actions .rg-account-button, .rg-header-actions .rg-icon-button { min-width: 30px; width: 30px; min-height: 32px; }
   .rg-header-actions .rg-mobile-launch { min-height: 30px; padding-inline: 8px; font-size: 8px; }
 }
+
+.rg-mode-heading-line { white-space: nowrap; }

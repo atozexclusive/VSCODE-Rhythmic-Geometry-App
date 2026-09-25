@@ -127,6 +127,12 @@ function ModeIcon({ id, size = 18 }: { id: SiteModeId; size?: number }) {
   return <SquarePlay size={size} aria-hidden="true" />;
 }
 
+const modeHeadingLines: Record<SiteModeId, [string, string]> = {
+  orbital: ['See rhythm', 'as motion'],
+  'polyrhythm-study': ['See how', 'rhythm aligns'],
+  'riff-cycle-study': ['Build rhythm', 'as structure'],
+};
+
 const mobileModeDescriptions: Record<SiteModeId, string> = {
   orbital: 'Watch repeating cycles trace geometric patterns.',
   'polyrhythm-study': 'See where layered rhythms meet and align.',
@@ -301,7 +307,7 @@ export function LandingExperience({ isPro, isSignedIn, onAccountOpen }: LandingE
               {SITE_MODE_CARDS.map((mode) => <article key={mode.id} className="rg-mode-column" style={{ '--mode-accent': mode.accent } as CSSProperties}>
                 <div className="rg-mode-title"><ModeIcon id={mode.id} /><h3>{mode.name}</h3></div>
                 <a href={getModeLaunchHref(mode.id)} className="rg-mode-image" aria-label={mode.launchLabel}><img src={deliveryImage(mode.image)} alt={mode.alt} loading="lazy" decoding="async" /></a>
-                <div className="rg-mode-description"><h4>{mode.eyebrow}</h4><p className="rg-mode-copy-desktop">{mode.description}</p><p className="rg-mode-copy-mobile">{mobileModeDescriptions[mode.id]}</p><a className="rg-text-link" href={getModeLaunchHref(mode.id)}>{mode.launchLabel}<ArrowRight size={15} /></a></div>
+                <div className="rg-mode-description"><h4><span className="rg-mode-heading-line">{modeHeadingLines[mode.id][0]}</span><br /><span className="rg-mode-heading-line">{modeHeadingLines[mode.id][1]}</span></h4><p className="rg-mode-copy-desktop">{mode.description}</p><p className="rg-mode-copy-mobile">{mobileModeDescriptions[mode.id]}</p><a className="rg-text-link" href={getModeLaunchHref(mode.id)}>{mode.launchLabel}<ArrowRight size={15} /></a></div>
               </article>)}
             </div>
           </section>
