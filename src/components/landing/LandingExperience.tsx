@@ -129,7 +129,7 @@ function ModeIcon({ id, size = 18 }: { id: SiteModeId; size?: number }) {
 
 const modeHeadingLines: Record<SiteModeId, [string, string]> = {
   orbital: ['See rhythm', 'as motion'],
-  'polyrhythm-study': ['See how', 'rhythm aligns'],
+  'polyrhythm-study': ['Explore rhythm', 'as layers'],
   'riff-cycle-study': ['Build rhythm', 'as structure'],
 };
 
