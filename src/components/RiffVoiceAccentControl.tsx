@@ -13,7 +13,7 @@ export function RiffVoiceAccentControl({ beat, instrument, value, pattern, cycle
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
   const setInterval = (next: number) => {
-    const interval = Math.max(0, Math.min(25, next)) || undefined;
+    const interval = Math.max(0, Math.min(100, next)) || undefined;
     onChange(interval, interval != null && pattern != null
       ? Array.from({ length: interval }, (_, index) => pattern[index] ?? false)
       : undefined);
@@ -51,22 +51,22 @@ export function RiffVoiceAccentControl({ beat, instrument, value, pattern, cycle
                 pattern="[0-9]*"
                 value={draft ?? (value == null ? 'Off' : String(value))}
                 onFocus={(event) => { setDraft(String(value ?? 0)); event.currentTarget.select(); }}
-                onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
                 onBlur={() => { if (draft != null && draft !== '') setInterval(Number(draft)); setDraft(null); }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') event.currentTarget.blur();
                   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                     event.preventDefault();
-                    const next = Math.max(0, Math.min(25, Number(draft ?? value ?? 0) + (event.key === 'ArrowUp' ? 1 : -1)));
+                    const next = Math.max(0, Math.min(100, Number(draft ?? value ?? 0) + (event.key === 'ArrowUp' ? 1 : -1)));
                     setDraft(String(next)); setInterval(next);
                   }
                 }}
                 className="w-7 bg-transparent text-center tabular-nums outline-none focus-visible:rounded focus-visible:ring-1 focus-visible:ring-[#FFD166]/50"
-                aria-label="Accent length, 0 for off, 1 to 25 steps"
+                aria-label="Accent length, 0 for off, 1 to 100 steps"
               />
               {value != null && <span>{value === 1 ? 'every hit' : 'steps'}</span>}
             </label>
-            <button type="button" aria-label="Increase accent length" disabled={value === 25}
+            <button type="button" aria-label="Increase accent length" disabled={value === 100}
               onClick={() => setInterval((value ?? 0) + 1)}
               className="h-7 w-7 shrink-0 rounded-lg border border-white/15 bg-white/5 text-xs text-white/65 hover:bg-white/10 disabled:opacity-30">+</button>
           </div>

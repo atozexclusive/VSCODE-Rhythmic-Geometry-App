@@ -1505,7 +1505,7 @@ export function getRiffVoiceEventsForCell(
 
 export function getRiffVoiceRepeatInterval(event: RiffVoiceEvent): number | null {
   const value = event.repeatEverySteps;
-  return value != null && Number.isInteger(value) && value >= 1 && value <= 25 ? value : null;
+  return value != null && Number.isInteger(value) && value >= 1 && value <= 100 ? value : null;
 }
 
 /** Use the same forced-reset boundary as the riff, not each bar or phrase loop. */

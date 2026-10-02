@@ -14,7 +14,7 @@ test('every third step crosses bars and resolves after three 16-step bars', () =
   assert.equal(isRiffVoiceEventAtStep(study, crash, 64), true); // restart even when the previous accent cycle is incomplete
 });
 test('all intervals restart on the riff downbeat', () => {
-  for (let interval = 1; interval <= 25; interval++) {
+  for (let interval = 1; interval <= 100; interval++) {
     const event = { ...crash, index: 5, repeatEverySteps: interval };
     const result = hits(event, 0, 64);
     assert.equal(result[0], 0);
@@ -32,7 +32,7 @@ test('normal voices retain their original phrase/bar playback', () => {
   assert.deepEqual(hits({ ...crash, surface: 'reference-subdivision', index: 2, repeatEverySteps: undefined }, 0, 33), [2, 18]);
 });
 test('invalid repeat values use normal playback rather than losing the voice', () => {
-  for (const value of [0, -3, 2.5, 26, NaN, Infinity]) {
+  for (const value of [0, -3, 2.5, 101, NaN, Infinity]) {
     assert.deepEqual(hits({ ...crash, repeatEverySteps: value }, 0, 33), [0, 16, 32]);
   }
 });

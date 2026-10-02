@@ -9910,7 +9910,7 @@ function OrbitalPolymeter() {
 
   const handleSetRiffVoiceRepeat = useCallback((surface: RiffVoiceSurface, index: number, interval: number | undefined, pattern?: boolean[], accentCycleFlash?: boolean) => {
     if (!canUseProFeature(effectivePlan, 'riff-voices') || activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) return;
-    if (interval != null && (!Number.isInteger(interval) || interval < 1 || interval > 25)) return;
+    if (interval != null && (!Number.isInteger(interval) || interval < 1 || interval > 100)) return;
     const instrument: RiffVoiceInstrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
     setRiffCycleStudy((current) => {
       const events = current.voiceEvents ?? [];
