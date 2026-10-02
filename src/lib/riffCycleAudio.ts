@@ -10,6 +10,7 @@ import {
   getResetStepCount,
   getRiffSequenceStateAtReferenceStep,
   getRiffVoiceEventsForCell,
+  isRiffVoiceEventAtStep,
   isBackbeatStep,
   isForcedResetAtReferenceStep,
   isReferenceBeatStart,
@@ -663,17 +664,9 @@ export function createRiffCycleExportAudioStream(
       });
     }
 
-    const stepsPerBar = getReferenceStepsPerBar(study.reference);
-    const stepsPerBeat = Math.max(1, Math.round(stepsPerBar / Math.max(1, study.reference.numerator)));
-    const beatIndex = Math.floor(
-      (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / stepsPerBeat,
-    );
     const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
     if (innerClockAudioEnabled) getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
-      const shouldPlay =
-        (event.surface === 'beat' && isReferenceBeatStart(study, referenceStep) && event.index === beatIndex) ||
-        (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||
-        (event.surface === 'reference-subdivision' && event.index === ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
+      const shouldPlay = isRiffVoiceEventAtStep(study, event, referenceStep);
       if (study.soundEnabled && shouldPlay) {
         triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, atTime, target, event.midiNote);
       }

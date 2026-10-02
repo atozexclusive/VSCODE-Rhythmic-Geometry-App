@@ -7,6 +7,7 @@ import {
   getReferenceStepsPerBar,
   getRiffSequenceStateAtReferenceStep,
   getRiffVoiceEventsForCell,
+  isRiffVoiceEventAtStep,
   isPhraseRestartAtReferenceStep,
   RIFF_MAX_METER_NUMERATOR,
   type RiffCycleStudy,
@@ -358,15 +359,9 @@ export function buildRiffCycleMidiFile(
       riffEvents.push(...createNoteEvents(tick, 0, midiNote, velocity, noteLengthTicks));
     }
 
-    const beatIndex = Math.floor(
-      (((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) / Math.max(1, stepsPerBeat),
-    );
     const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
     getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
-      const shouldRender =
-        (event.surface === 'beat' && referenceStep % stepsPerBeat === 0 && event.index === beatIndex) ||
-        (event.surface === 'subdivision' && event.index === stepState.phraseIndex) ||
-        (event.surface === 'reference-subdivision' && event.index === ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
+      const shouldRender = isRiffVoiceEventAtStep(study, event, referenceStep);
       if (!shouldRender) return;
       if (event.voice === 'drums' && event.instrument !== 'guitar') {
         drumEvents.push(

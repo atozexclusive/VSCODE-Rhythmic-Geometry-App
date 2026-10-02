@@ -14,6 +14,7 @@ import FlowCanvas from '../components/FlowCanvas';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar, { PolyrhythmSceneThumbnail } from '../components/PolyrhythmSidebar';
 import RiffCycleCanvas from '../components/RiffCycleCanvas';
+import { RiffVoiceAccentControl } from '../components/RiffVoiceAccentControl';
 import RiffCycleSidebar, { RiffSceneThumbnail } from '../components/RiffCycleSidebar';
 import InfoTip from '../components/InfoTip';
 import {
@@ -7884,6 +7885,7 @@ function OrbitalPolymeter() {
   const [riffOverlayEditMode, setRiffOverlayEditMode] = useState(false);
   const [riffVoicesOpen, setRiffVoicesOpen] = useState(false);
   const [activeRiffVoice, setActiveRiffVoice] = useState<'riff' | RiffVoiceId>('riff');
+  const [riffVoiceAccentBeat, setRiffVoiceAccentBeat] = useState(0);
   const [selectedRiffVoiceInstrument, setSelectedRiffVoiceInstrument] =
     useState<RiffVoiceInstrument>('snare');
   const [selectedGuitarMidiNote, setSelectedGuitarMidiNote] = useState(60);
@@ -9837,6 +9839,7 @@ function OrbitalPolymeter() {
   }, [riffCycleStudy]);
 
   const handleToggleRiffVoiceEvent = useCallback((surface: RiffVoiceSurface, index: number) => {
+    if (surface === 'beat') setRiffVoiceAccentBeat(index);
     if (
       !canUseProFeature(effectivePlan, 'riff-voices') ||
       activeRiffVoice === 'riff' ||
@@ -9904,6 +9907,28 @@ function OrbitalPolymeter() {
       return { ...current, voiceEvents };
     });
   }, [activeRiffVoice, effectivePlan, guitarPitchArmed, requireEditableRiffCycleStudy, riffGuitarPitchMode, selectedGuitarMidiNote, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
+
+  const handleSetRiffVoiceRepeat = useCallback((surface: RiffVoiceSurface, index: number, interval: number | undefined, pattern?: boolean[], accentCycleFlash?: boolean) => {
+    if (!canUseProFeature(effectivePlan, 'riff-voices') || activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) return;
+    if (interval != null && (!Number.isInteger(interval) || interval < 1 || interval > 25)) return;
+    const instrument: RiffVoiceInstrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
+    setRiffCycleStudy((current) => {
+      const events = current.voiceEvents ?? [];
+      const cellLabel = current.riffSequenceEnabled ? selectedRiffSequenceCellLabel : undefined;
+      const fallback = current.riffCells[0]?.label ?? 'A';
+      const existing = events.findIndex((event) => event.voice === activeRiffVoice && event.instrument === instrument &&
+        event.surface === surface && event.index === index &&
+        (!current.riffSequenceEnabled || (event.cellLabel ?? fallback) === cellLabel));
+      if (existing < 0 && interval == null) return current;
+      const repeatPattern = interval != null && pattern != null
+        ? Array.from({ length: interval }, (_, i) => pattern[i] === true) : undefined;
+      const voiceEvents = existing >= 0
+        ? events.map((event, i) => i === existing ? { ...event, repeatEverySteps: interval, repeatPattern, accentCycleFlash: accentCycleFlash ?? event.accentCycleFlash } : event)
+        : [...events, { voice: activeRiffVoice, instrument, surface, index, cellLabel, repeatEverySteps: interval, repeatPattern, accentCycleFlash,
+            ...(activeRiffVoice === 'guitar' ? { midiNote: selectedGuitarMidiNote } : {}) }];
+      return { ...current, voiceEvents };
+    });
+  }, [activeRiffVoice, effectivePlan, requireEditableRiffCycleStudy, selectedGuitarMidiNote, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
 
   const handleSetSelectedGuitarPitch = useCallback((midiNote: number) => {
     setSelectedGuitarMidiNote(midiNote);
@@ -14715,6 +14740,23 @@ function OrbitalPolymeter() {
     riffCycleStudy,
     riffSelectedSequenceCell?.label,
   );
+  const riffAccentBeat = Math.min(riffVoiceAccentBeat, riffCycleStudy.reference.numerator - 1);
+  const riffAccentInstrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
+  const riffAccentEvent = riffEditableVoiceEvents.find((event) => event.voice === activeRiffVoice &&
+    event.instrument === riffAccentInstrument && event.surface === 'beat' && event.index === riffAccentBeat);
+  const riffVoiceAccentControl = activeRiffVoice !== 'riff' ? (
+    <RiffVoiceAccentControl
+      key={`${activeRiffVoice}-${riffAccentInstrument}-${selectedRiffSequenceCellLabel}-${riffAccentBeat}`}
+      beat={riffAccentBeat + 1}
+      instrument={riffAccentInstrument}
+      value={riffAccentEvent?.repeatEverySteps}
+      pattern={riffAccentEvent?.repeatPattern}
+      cycleFlash={riffAccentEvent?.accentCycleFlash === true}
+      onCycleFlashChange={(enabled) => handleSetRiffVoiceRepeat('beat', riffAccentBeat, riffAccentEvent?.repeatEverySteps, riffAccentEvent?.repeatPattern, enabled)}
+      onChange={(interval, pattern) => handleSetRiffVoiceRepeat('beat', riffAccentBeat, interval, pattern)}
+    />
+  ) : null;
+
   const riffVoiceActiveSteps = Array.from({ length: riffEditableStepCount }, (_, index) =>
     activeRiffVoice !== 'riff' &&
     riffEditableVoiceEvents.some(
@@ -21283,10 +21325,11 @@ function OrbitalPolymeter() {
                                   );
                                 })}
                               </div>
+                              {surface === 'beat' ? riffVoiceAccentControl : null}
                             </div>
                           ))}
                           <div className="text-[8px] leading-snug text-[#9FDEFF]/60">
-                            You can also tap the outer beat nodes or inner riff nodes directly on the canvas.
+                            Tap a quarter note, then use Accent to repeat that voice across bar lines.
                           </div>
                         </div>
                       ) : null}
@@ -22069,6 +22112,7 @@ function OrbitalPolymeter() {
                                   );
                                 })}
                               </div>
+                              {riffVoiceAccentControl}
                             </div>
                           ) : null}
 	                        </div>
@@ -27021,13 +27065,14 @@ function OrbitalPolymeter() {
                                   );
                                 })}
                               </div>
+                              {surface === 'beat' ? riffVoiceAccentControl : null}
                             </div>
                           ))}
                         </div>
                       ) : null}
                       {activeRiffVoice !== 'riff' ? (
                         <div className="rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] px-2.5 py-2 text-[8px] font-mono uppercase tracking-[0.1em] text-[#9FDEFF]/70">
-                          Outer shape = quarter-note beats · inner circle = riff subdivisions
+                          Tap a quarter note, then use Accent to repeat that voice across bar lines.
                         </div>
                       ) : null}
                     </StudyShellPanel>

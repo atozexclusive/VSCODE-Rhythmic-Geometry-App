@@ -64,6 +64,12 @@ export interface RiffVoiceEvent {
   surface: RiffVoiceSurface;
   index: number;
   midiNote?: number;
+  /** Accent cycle length in reference-grid steps; restarts with the riff reset. */
+  repeatEverySteps?: number;
+  /** Optional custom hits within the accent cycle. Missing means only step 1. */
+  repeatPattern?: boolean[];
+  /** Optional, silent completion pulse around the voice symbol. */
+  accentCycleFlash?: boolean;
   cellLabel?: RiffSequenceCellLabel;
 }
 
@@ -1162,7 +1168,7 @@ export function createRiffCycleStudy(
       riffSequence,
     ),
     riffSequencePhrases,
-    voiceEvents: (overrides.voiceEvents ?? []).map((event) => ({ ...event })),
+    voiceEvents: (overrides.voiceEvents ?? []).map((event) => ({ ...event, repeatPattern: event.repeatPattern?.slice() })),
     playing: overrides.playing ?? false,
     soundEnabled: overrides.soundEnabled ?? true,
     referenceSoundEnabled: overrides.referenceSoundEnabled ?? true,
@@ -1264,7 +1270,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       riffSequence,
     ),
     riffSequencePhrases,
-    voiceEvents: (study.voiceEvents ?? []).map((event) => ({ ...event })),
+    voiceEvents: (study.voiceEvents ?? []).map((event) => ({ ...event, repeatPattern: event.repeatPattern?.slice() })),
     showPhraseFill: study.showPhraseFill ?? true,
     showPhraseGroupings: Boolean(study.showPhraseGroupings),
     subdivisionSoundEnabled: Boolean(study.subdivisionSoundEnabled),
@@ -1495,6 +1501,63 @@ export function getRiffVoiceEventsForCell(
   }
   const effectiveLabel = cellLabel ?? fallbackLabel;
   return events.filter((event) => (event.cellLabel ?? fallbackLabel) === effectiveLabel);
+}
+
+export function getRiffVoiceRepeatInterval(event: RiffVoiceEvent): number | null {
+  const value = event.repeatEverySteps;
+  return value != null && Number.isInteger(value) && value >= 1 && value <= 25 ? value : null;
+}
+
+/** Use the same forced-reset boundary as the riff, not each bar or phrase loop. */
+export function getRiffVoiceResetStart(study: RiffCycleStudy, referenceStep: number): number {
+  const resetSteps = study.riffSequenceEnabled && study.riffSequenceChainEnabled &&
+    normalizeRiffSequenceBarsMode(study.riffSequenceBarsMode) === 'global'
+    ? normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay) * getReferenceStepsPerBar(study.reference)
+    : getResetStepCount(study);
+  return resetSteps == null ? 0 : Math.floor(Math.max(0, referenceStep) / resetSteps) * resetSteps;
+}
+
+/** A completed accent cycle, excluding riff resets so the bar flash takes priority. */
+export function getLastRiffVoiceCycleCompletion(study: RiffCycleStudy, event: RiffVoiceEvent, referenceStep: number): number | null {
+  const interval = getRiffVoiceRepeatInterval(event);
+  if (interval == null || referenceStep < 0) return null;
+  const start = getRiffVoiceResetStart(study, referenceStep);
+  const cycles = Math.floor((referenceStep - start) / interval);
+  return cycles > 0 ? start + cycles * interval : null;
+}
+
+export function getLastRiffVoiceRepeatStep(
+  study: RiffCycleStudy, event: RiffVoiceEvent, referenceStep: number,
+): number | null {
+  const interval = getRiffVoiceRepeatInterval(event);
+  if (interval == null || referenceStep < 0) return null;
+  const start = getRiffVoiceResetStart(study, referenceStep);
+  const localStep = Math.floor(referenceStep - start);
+  // Search at most one short cycle; never carry a pre-reset flash into the new cycle.
+  for (let distance = 0; distance < interval && distance <= localStep; distance++) {
+    const candidate = localStep - distance;
+    const phase = candidate % interval;
+    const active = event.repeatPattern == null ? phase === 0 : event.repeatPattern[phase] === true;
+    if (active) return start + candidate;
+  }
+  return null;
+}
+
+/** Shared by live playback, rendered audio, and MIDI so all three agree. */
+export function isRiffVoiceEventAtStep(
+  study: RiffCycleStudy, event: RiffVoiceEvent, referenceStep: number,
+): boolean {
+  if (getRiffVoiceRepeatInterval(event) != null) {
+    return getLastRiffVoiceRepeatStep(study, event, referenceStep) === referenceStep;
+  }
+  const stepsPerBar = getReferenceStepsPerBar(study.reference);
+  const stepInBar = ((referenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+  if (event.surface === 'beat') {
+    return isReferenceBeatStart(study, referenceStep) &&
+      Math.floor(stepInBar / getReferenceStepsPerBeat(study.reference)) === event.index;
+  }
+  if (event.surface === 'reference-subdivision') return event.index === stepInBar;
+  return event.index === getEffectiveRiffStepStateAtReferenceStep(study, referenceStep).phraseIndex;
 }
 
 export function getRiffSequenceStateAtReferenceStep(

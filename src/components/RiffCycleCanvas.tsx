@@ -39,6 +39,10 @@ import {
   getRiffSequenceStateAtReferenceStep,
   getRiffSequenceTimeline,
   getRiffVoiceEventsForCell,
+  isRiffVoiceEventAtStep,
+  getRiffVoiceRepeatInterval,
+  getLastRiffVoiceRepeatStep,
+  getLastRiffVoiceCycleCompletion,
   getRiffStepIndexAtReferenceStep,
   getVisibleRiffPhraseAtReferenceStep,
   getVisibleRiffReferenceAtReferenceStep,
@@ -2230,7 +2234,8 @@ export default function RiffCycleCanvas({
       voiceEditModeRef.current && !currentStudy.playing
         ? selectedSequenceCellLabel
         : getRiffSequenceStateAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)?.cell.label;
-    const voiceEvents = getRiffVoiceEventsForCell(currentStudy, voiceCellLabel);
+    const allVoiceEvents = getRiffVoiceEventsForCell(currentStudy, voiceCellLabel);
+    const voiceEvents = allVoiceEvents.filter((event) => !currentStudy.playing || getRiffVoiceRepeatInterval(event) == null);
     voiceEvents
       .filter((event) => event.surface === 'beat')
       .forEach((event) => {
@@ -2367,6 +2372,48 @@ export default function RiffCycleCanvas({
         point.y,
         size * (event.instrument === 'cymbal' ? 1.35 : 1.22),
       );
+      ctx.restore();
+    });
+
+    // Repeating voices move with the last hit and disappear between attacks.
+    if (currentStudy.playing && getEffectiveInnerClockMode(displaySettingsRef.current, currentAbsoluteReferenceStep, stepsPerBar) === 'full') allVoiceEvents.forEach((event) => {
+      if (event.accentCycleFlash) {
+        const completedAt = getLastRiffVoiceCycleCompletion(currentStudy, event, currentAbsoluteReferenceStep);
+        if (completedAt != null) {
+          const age = (referenceProgress - completedAt) / getReferenceStepsPerSecond(currentStudy.reference);
+          const fade = Math.max(0, 1 - age / 0.35);
+          const completionIndex = event.surface === 'subdivision'
+            ? getEffectiveRiffStepStateAtReferenceStep(currentStudy, completedAt).phraseIndex
+            : completedAt % stepsPerBar;
+          const completionPoint = event.surface === 'subdivision' ? riffPoints[completionIndex] : metrics.referencePerimeterPoints[completionIndex];
+          if (fade > 0 && completionPoint) {
+            ctx.save();
+            ctx.globalAlpha = fade * 0.38;
+            ctx.strokeStyle = '#FFD166';
+            ctx.lineWidth = 2 * shellScale;
+            ctx.beginPath();
+            ctx.arc(completionPoint.x, completionPoint.y, (19 + (1 - fade) * 12) * shellScale, 0, Math.PI * 2);
+            ctx.stroke();
+            // Also show the cycle boundary when custom step 1 is a rest.
+            drawRiffVoiceIcon(ctx, event.instrument, completionPoint.x, completionPoint.y, 26 * shellScale);
+            ctx.restore();
+          }
+        }
+      }
+      const lastHit = getLastRiffVoiceRepeatStep(currentStudy, event, currentAbsoluteReferenceStep);
+      if (lastHit == null) return;
+      const elapsedSeconds = (referenceProgress - lastHit) / getReferenceStepsPerSecond(currentStudy.reference);
+      const remaining = Math.max(0, 1 - elapsedSeconds / 0.26);
+      if (remaining <= 0) return;
+      const index = event.surface === 'subdivision'
+        ? getEffectiveRiffStepStateAtReferenceStep(currentStudy, lastHit).phraseIndex
+        : lastHit % stepsPerBar;
+      const point = event.surface === 'subdivision' ? riffPoints[index] : metrics.referencePerimeterPoints[index];
+      if (!point) return;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, remaining);
+      drawVoiceImpactBloom(ctx, point.x, point.y, remaining, shellScale, 'rgba(255,209,102,0.96)');
+      drawRiffVoiceIcon(ctx, event.instrument, point.x, point.y, 24 * shellScale);
       ctx.restore();
     });
 
@@ -3010,10 +3057,7 @@ export default function RiffCycleCanvas({
           currentAbsoluteReferenceStep,
         )?.cell.label;
         if (innerClockAudioEnabled) getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
-          const shouldImpact =
-            (event.surface === 'beat' && referenceBeatStart && event.index === beatIndex) ||
-            (event.surface === 'subdivision' && event.index === riffStepState.phraseIndex) ||
-            (event.surface === 'reference-subdivision' && event.index === ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar);
+          const shouldImpact = isRiffVoiceEventAtStep(currentStudy, event, currentAbsoluteReferenceStep);
           if (shouldImpact) {
             voiceImpactUntilRef.current.set(getVoiceImpactKey(event), voiceImpactNow + 260);
             if (audioEnabledRef.current && currentStudy.soundEnabled) {
