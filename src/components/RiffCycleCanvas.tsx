@@ -2274,7 +2274,7 @@ export default function RiffCycleCanvas({
           event.instrument,
           vertex.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
           vertex.y,
-          size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode ? 2 : 1) : 1.22),
+          size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode && event.index !== 0 ? 1.5 : 1) : 1.22),
         );
         ctx.restore();
       });
@@ -2319,7 +2319,7 @@ export default function RiffCycleCanvas({
         event.instrument,
         point.x + offsetX + (event.instrument === 'snare' ? pointScale : event.instrument === 'guitar' ? 4 * pointScale : 0),
         point.y,
-        size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode ? 2 : 1) : 1.22),
+        size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode && event.index !== 0 ? 1.5 : 1) : 1.22),
       );
       ctx.restore();
     });
@@ -2370,7 +2370,7 @@ export default function RiffCycleCanvas({
         event.instrument,
         point.x + offsetX + (event.instrument === 'snare' ? shellScale : event.instrument === 'guitar' ? 4 * shellScale : 0),
         point.y,
-        size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode ? 2 : 1) : 1.22),
+        size * (event.instrument === 'cymbal' ? 1.35 * (exportLayoutMode && event.index !== 0 ? 1.5 : 1) : 1.22),
       );
       ctx.restore();
     });
@@ -2395,7 +2395,7 @@ export default function RiffCycleCanvas({
             ctx.arc(completionPoint.x, completionPoint.y, (19 + (1 - fade) * 12) * shellScale, 0, Math.PI * 2);
             ctx.stroke();
             // Also show the cycle boundary when custom step 1 is a rest.
-            drawRiffVoiceIcon(ctx, event.instrument, completionPoint.x, completionPoint.y, 26 * shellScale * (exportLayoutMode && event.instrument === 'cymbal' ? 2 : 1));
+            drawRiffVoiceIcon(ctx, event.instrument, completionPoint.x, completionPoint.y, 26 * shellScale * (exportLayoutMode && event.instrument === 'cymbal' && completionIndex !== 0 ? 1.5 : 1));
             ctx.restore();
           }
         }
@@ -2413,7 +2413,7 @@ export default function RiffCycleCanvas({
       ctx.save();
       ctx.globalAlpha = Math.min(1, remaining);
       drawVoiceImpactBloom(ctx, point.x, point.y, remaining, shellScale, 'rgba(255,209,102,0.96)');
-      drawRiffVoiceIcon(ctx, event.instrument, point.x, point.y, 24 * shellScale * (exportLayoutMode && event.instrument === 'cymbal' ? 2 : 1));
+      drawRiffVoiceIcon(ctx, event.instrument, point.x, point.y, 24 * shellScale * (exportLayoutMode && event.instrument === 'cymbal' && index !== 0 ? 1.5 : 1));
       ctx.restore();
     });
 
