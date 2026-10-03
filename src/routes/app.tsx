@@ -9908,7 +9908,7 @@ function OrbitalPolymeter() {
     });
   }, [activeRiffVoice, effectivePlan, guitarPitchArmed, requireEditableRiffCycleStudy, riffGuitarPitchMode, selectedGuitarMidiNote, selectedRiffSequenceCellLabel, selectedRiffVoiceInstrument]);
 
-  const handleSetRiffVoiceRepeat = useCallback((surface: RiffVoiceSurface, index: number, interval: number | undefined, pattern?: boolean[], accentCycleFlash?: boolean) => {
+  const handleSetRiffVoiceRepeat = useCallback((surface: RiffVoiceSurface, index: number, interval: number | undefined, pattern?: boolean[], accentCycleFlash?: boolean, accentSurface?: 'bar' | 'riff') => {
     if (!canUseProFeature(effectivePlan, 'riff-voices') || activeRiffVoice === 'riff' || !requireEditableRiffCycleStudy()) return;
     if (interval != null && (!Number.isInteger(interval) || interval < 1 || interval > 100)) return;
     const instrument: RiffVoiceInstrument = activeRiffVoice === 'guitar' ? 'guitar' : selectedRiffVoiceInstrument;
@@ -9923,8 +9923,8 @@ function OrbitalPolymeter() {
       const repeatPattern = interval != null && pattern != null
         ? Array.from({ length: interval }, (_, i) => pattern[i] === true) : undefined;
       const voiceEvents = existing >= 0
-        ? events.map((event, i) => i === existing ? { ...event, repeatEverySteps: interval, repeatPattern, accentCycleFlash: accentCycleFlash ?? event.accentCycleFlash } : event)
-        : [...events, { voice: activeRiffVoice, instrument, surface, index, cellLabel, repeatEverySteps: interval, repeatPattern, accentCycleFlash,
+        ? events.map((event, i) => i === existing ? { ...event, repeatEverySteps: interval, repeatPattern, accentCycleFlash: accentCycleFlash ?? event.accentCycleFlash, accentSurface: accentSurface ?? event.accentSurface } : event)
+        : [...events, { voice: activeRiffVoice, instrument, surface, index, cellLabel, repeatEverySteps: interval, repeatPattern, accentCycleFlash, accentSurface,
             ...(activeRiffVoice === 'guitar' ? { midiNote: selectedGuitarMidiNote } : {}) }];
       return { ...current, voiceEvents };
     });
@@ -14751,6 +14751,8 @@ function OrbitalPolymeter() {
       instrument={riffAccentInstrument}
       value={riffAccentEvent?.repeatEverySteps}
       pattern={riffAccentEvent?.repeatPattern}
+      accentSurface={riffAccentEvent?.accentSurface ?? 'bar'}
+      onAccentSurfaceChange={(surface) => handleSetRiffVoiceRepeat('beat', riffAccentBeat, riffAccentEvent?.repeatEverySteps, riffAccentEvent?.repeatPattern, undefined, surface)}
       cycleFlash={riffAccentEvent?.accentCycleFlash === true}
       onCycleFlashChange={(enabled) => handleSetRiffVoiceRepeat('beat', riffAccentBeat, riffAccentEvent?.repeatEverySteps, riffAccentEvent?.repeatPattern, enabled)}
       onChange={(interval, pattern) => handleSetRiffVoiceRepeat('beat', riffAccentBeat, interval, pattern)}

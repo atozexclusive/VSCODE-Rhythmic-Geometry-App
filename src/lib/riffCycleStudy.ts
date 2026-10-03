@@ -70,6 +70,8 @@ export interface RiffVoiceEvent {
   repeatPattern?: boolean[];
   /** Optional, silent completion pulse around the voice symbol. */
   accentCycleFlash?: boolean;
+  /** Shape used to display repeating accents; timing remains in grid steps. */
+  accentSurface?: 'bar' | 'riff';
   cellLabel?: RiffSequenceCellLabel;
 }
 

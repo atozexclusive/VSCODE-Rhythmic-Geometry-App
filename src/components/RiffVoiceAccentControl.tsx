@@ -1,11 +1,13 @@
 import { useId, useState } from 'react';
 
-export function RiffVoiceAccentControl({ beat, instrument, value, pattern, cycleFlash, onCycleFlashChange, onChange }: {
+export function RiffVoiceAccentControl({ beat, instrument, value, pattern, cycleFlash, accentSurface, onAccentSurfaceChange, onCycleFlashChange, onChange }: {
   beat: number;
   instrument: string;
   value?: number;
   pattern?: boolean[];
   cycleFlash?: boolean;
+  accentSurface: 'bar' | 'riff';
+  onAccentSurfaceChange: (surface: 'bar' | 'riff') => void;
   onCycleFlashChange: (enabled: boolean) => void;
   onChange: (interval: number | undefined, pattern?: boolean[]) => void;
 }) {
@@ -70,6 +72,18 @@ export function RiffVoiceAccentControl({ beat, instrument, value, pattern, cycle
               onClick={() => setInterval((value ?? 0) + 1)}
               className="h-7 w-7 shrink-0 rounded-lg border border-white/15 bg-white/5 text-xs text-white/65 hover:bg-white/10 disabled:opacity-30">+</button>
           </div>
+          {value != null && (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[8px] uppercase tracking-wider text-white/45">Show on</span>
+              <div role="group" aria-label="Accent display shape" className="inline-flex gap-0.5 rounded-md border border-white/10 p-0.5">
+                {(['bar', 'riff'] as const).map((surface) => (
+                  <button key={surface} type="button" aria-pressed={accentSurface === surface}
+                    onClick={() => onAccentSurfaceChange(surface)}
+                    className="h-6 rounded px-3 text-[9px] capitalize text-white/50 hover:bg-white/5 aria-pressed:bg-[#FFD166]/15 aria-pressed:text-[#FFD166]">{surface}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"

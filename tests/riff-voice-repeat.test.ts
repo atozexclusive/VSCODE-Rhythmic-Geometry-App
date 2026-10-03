@@ -119,3 +119,18 @@ test('completion pulse marks whole cycles but yields to riff reset', () => {
   const restored = createRiffCycleStudy(JSON.parse(JSON.stringify(createRiffCycleStudy({voiceEvents: [event]}))));
   assert.equal(restored.voiceEvents![0].accentCycleFlash, true);
 });
+
+test('accent display shape survives saving without changing hit timing', () => {
+  const riffEvent: RiffVoiceEvent = { ...crash, accentSurface: 'riff' };
+  const restored = cloneRiffCycleStudy(createRiffCycleStudy(JSON.parse(JSON.stringify(createRiffCycleStudy({ voiceEvents: [riffEvent] })))));
+  assert.equal(restored.voiceEvents![0].accentSurface, 'riff');
+  assert.deepEqual(hits(riffEvent, 0, 130), hits({ ...riffEvent, accentSurface: 'bar' }, 0, 130));
+});
+
+test('initial voice preview follows actual first-step hits', () => {
+  const laterSnare: RiffVoiceEvent = { voice: 'drums', instrument: 'snare', surface: 'beat', index: 1 };
+  assert.equal(isRiffVoiceEventAtStep(study, laterSnare, 0), false);
+  assert.equal(isRiffVoiceEventAtStep(study, laterSnare, 4), true);
+  assert.equal(isRiffVoiceEventAtStep(study, { ...laterSnare, index: 0 }, 0), true);
+  assert.equal(isRiffVoiceEventAtStep(study, { ...laterSnare, repeatEverySteps: 3, repeatPattern: [false, true, false], accentSurface: 'riff' }, 0), false);
+});
