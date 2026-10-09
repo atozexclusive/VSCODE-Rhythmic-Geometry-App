@@ -176,6 +176,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const displaySettingsRef = useRef(displaySettings);
     const presentationModeRef = useRef(presentationMode);
     const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
+    const exportStillActiveRef = useRef(false);
     const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
     const hoverOrbitIdRef = useRef<string | null>(null);
@@ -520,46 +521,48 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const previousHudVisible = hudVisibleRef.current;
           hudVisibleRef.current = false;
+          exportStillActiveRef.current = true;
           forceUpdate((value) => value + 1);
-          await waitForFrame();
-          await waitForFrame();
 
-          const exportSpec = EXPORT_ASPECTS[aspect];
-          const exportCanvas = document.createElement('canvas');
-          exportCanvas.width = exportSpec.width * scale;
-          exportCanvas.height = exportSpec.height * scale;
-          const exportCtx = exportCanvas.getContext('2d');
+          try {
+            await waitForFrame();
+            await waitForFrame();
 
-          if (!exportCtx) {
+            const exportSpec = EXPORT_ASPECTS[aspect];
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = exportSpec.width * scale;
+            exportCanvas.height = exportSpec.height * scale;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            if (!exportCtx) return;
+
+            exportCtx.fillStyle = '#0a0a0f';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+            const sourceWidth = canvas.width;
+            const sourceHeight = canvas.height;
+            const containScale = Math.min(exportCanvas.width / sourceWidth, exportCanvas.height / sourceHeight);
+            const drawWidth = sourceWidth * containScale;
+            const drawHeight = sourceHeight * containScale;
+            const offsetX = (exportCanvas.width - drawWidth) / 2;
+            const offsetY = (exportCanvas.height - drawHeight) / 2;
+
+            exportCtx.imageSmoothingEnabled = true;
+            exportCtx.imageSmoothingQuality = 'high';
+            exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const link = document.createElement('a');
+            link.href = exportCanvas.toDataURL('image/png');
+            link.download = `rhythmic-geometry-${aspect}-${scale}x-${timestamp}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } finally {
+            exportStillActiveRef.current = false;
             hudVisibleRef.current = previousHudVisible;
-            return;
+            forceUpdate((value) => value + 1);
           }
-
-          exportCtx.fillStyle = '#0a0a0f';
-          exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-          const sourceWidth = canvas.width;
-          const sourceHeight = canvas.height;
-          const containScale = Math.min(exportCanvas.width / sourceWidth, exportCanvas.height / sourceHeight);
-          const drawWidth = sourceWidth * containScale;
-          const drawHeight = sourceHeight * containScale;
-          const offsetX = (exportCanvas.width - drawWidth) / 2;
-          const offsetY = (exportCanvas.height - drawHeight) / 2;
-
-          exportCtx.imageSmoothingEnabled = true;
-          exportCtx.imageSmoothingQuality = 'high';
-          exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
-
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const link = document.createElement('a');
-          link.href = exportCanvas.toDataURL('image/png');
-          link.download = `rhythmic-geometry-${aspect}-${scale}x-${timestamp}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-
-          hudVisibleRef.current = previousHudVisible;
-          forceUpdate((value) => value + 1);
         };
 
         (canvas as any).__captureThumbnail = async () => {
@@ -922,8 +925,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const now = timestamp;
           const state = engineRef.current;
-          const exportTraceBoost = exportVideoSize ? 2.2 : 1;
-          const exportTraceOpacityBoost = exportVideoSize ? 1.85 : 1;
+          const isExportRendering = Boolean(exportVideoSize) || exportStillActiveRef.current;
+          const exportTraceBoost = isExportRendering ? 2.2 : 1;
+          const exportTraceOpacityBoost = isExportRendering ? 1.85 : 1;
           const pointScale = exportVideoSize ? SHORTS_EXPORT_POINT_SCALE : 1;
           if (state.elapsedBeats < previousElapsedBeatsRef.current) {
             previousElapsedBeatsRef.current = state.elapsedBeats;
@@ -1585,8 +1589,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.beginPath();
           ctx.arc(renderCx, renderCy, r, 0, TAU);
           ctx.strokeStyle = orbit.color;
-          ctx.globalAlpha = 0.18;
-          ctx.lineWidth = 1;
+          ctx.globalAlpha = isExportRendering ? 0.34 : 0.18;
+          ctx.lineWidth = isExportRendering ? 1.6 : 1;
           ctx.stroke();
           ctx.restore();
 
@@ -1712,8 +1716,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           normalizedInterferenceSettings.showConnectors
         ) {
           ctx.save();
-          ctx.globalAlpha = 0.36;
-          ctx.lineWidth = 0.9;
+          ctx.globalAlpha = isExportRendering ? 0.7 : 0.36;
+          ctx.lineWidth = isExportRendering ? 1.65 : 0.9;
           ctx.strokeStyle = currentInnerOrbit?.color ?? '#ffffff';
           ctx.beginPath();
           ctx.moveTo(currentInnerPoint.x, currentInnerPoint.y);
