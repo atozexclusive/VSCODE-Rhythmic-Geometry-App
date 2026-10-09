@@ -1058,11 +1058,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             playResonanceBeep(
               {
                 orbitIndex,
+                hitIndex: orbit.lastTriggerBeat,
                 pulseCount: orbit.pulseCount,
                 radius: orbit.radius,
                 color: orbit.color,
                 harmonyDegree: orbit.harmonyDegree,
                 harmonyRegister: orbit.harmonyRegister,
+                volume: orbit.volume, reverbAmount: orbit.reverbAmount, soundEnabled: orbit.soundEnabled,
               },
               harmonySettingsRef.current,
               0.12,
@@ -1094,7 +1096,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 : [selectedInnerOrbit, selectedOuterOrbit];
           const previousSweepT = getSweepParameter(previousElapsedBeats);
           const currentSweepT = getSweepParameter(state.elapsedBeats);
-          const playSweepOrbitBeep = (sweepOrbit: Orbit) => {
+          const playSweepOrbitBeep = (sweepOrbit: Orbit, hitIndex = 0) => {
             const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === sweepOrbit.id);
             if (orbitIndex < 0) {
               return;
@@ -1103,6 +1105,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             playResonanceBeep(
               {
                 orbitIndex,
+                hitIndex,
                 pulseCount: sweepOrbit.pulseCount,
                 radius:
                   sweepOrbit.id === selectedInnerOrbit.id
@@ -1115,6 +1118,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 color: sweepOrbit.color,
                 harmonyDegree: sweepOrbit.harmonyDegree,
                 harmonyRegister: sweepOrbit.harmonyRegister,
+                volume: sweepOrbit.volume, reverbAmount: sweepOrbit.reverbAmount, soundEnabled: sweepOrbit.soundEnabled,
               },
               harmonySettingsRef.current,
               0.12,
@@ -1185,7 +1189,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                         return sweepOrbit.id === selectedInnerOrbit.id ? pairPositions.innerPoint : pairPositions.outerPoint;
                       })();
 
-                playSweepOrbitBeep(sweepOrbit);
+                playSweepOrbitBeep(sweepOrbit, rotationIndex);
               }
             }
           }

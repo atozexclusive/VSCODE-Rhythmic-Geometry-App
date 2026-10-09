@@ -10,6 +10,8 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHel
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
+import OrbitAudioMixer from '../components/OrbitAudioMixer';
+import OrbitSoundOptions from '../components/OrbitSoundOptions';
 import FlowCanvas from '../components/FlowCanvas';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar, { PolyrhythmSceneThumbnail } from '../components/PolyrhythmSidebar';
@@ -38,6 +40,7 @@ import {
   resumeAudio,
   stopAllAudio,
   toggleAudioMute,
+  updateOrbitAudioMix,
 } from '../lib/audioEngine';
 import {
   type Orbit,
@@ -5256,13 +5259,13 @@ interface ImportedSceneFile {
 }
 
 const DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
-  orbits: DEFAULT_ORBITS.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
+  orbits: DEFAULT_ORBITS.map(({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister, volume, reverbAmount, soundEnabled }) => ({
     pulseCount,
     radius,
     direction,
     color,
     harmonyDegree,
-    harmonyRegister,
+    harmonyRegister, volume, reverbAmount, soundEnabled,
   })),
   speedMultiplier: DEFAULT_SCENE_SPEED,
   traceMode: true,
@@ -7876,6 +7879,7 @@ function OrbitalPolymeter() {
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
   const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
   const [riffAudioPanelOpen, setRiffAudioPanelOpen] = useState(false);
+  const [orbitAudioMixOpen, setOrbitAudioMixOpen] = useState(false);
   const [riffAudioMixMode, setRiffAudioMixMode] = useState<'volume' | 'reverb'>('volume');
   const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(true);
   const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(true);
@@ -12896,11 +12900,11 @@ function OrbitalPolymeter() {
         getTempoAnchorPulseCount(engineState.orbits, geometryMode, interferenceSettings, standardTimingMode),
         getOrbitTempoMode(geometryMode, standardTimingMode),
       );
-      resetEngine(engineState);
-      handleClearTraces();
+      // Keep the current phase, note sequence, and trails as the tempo changes.
+      // The animation loop applies the new speed to subsequent frame deltas.
       rerender();
     },
-    [engineState, geometryMode, handleClearTraces, interferenceSettings, rerender, standardTimingMode],
+    [engineState, geometryMode, interferenceSettings, rerender, standardTimingMode],
   );
 
   const handleHarmonyChange = useCallback((updates: Partial<HarmonySettings>) => {
@@ -12908,10 +12912,14 @@ function OrbitalPolymeter() {
       return;
     }
     requireProFeature('sound-editing', () => {
-      setHarmonySettings((current) => ({ ...current, ...updates }));
+      setHarmonySettings((current) => ({ ...current, ...(updates.tonePreset === 'original' ? { noteMotion: 'fixed' as const, pitchSpacing: 'standard' as const } : {}), ...updates }));
       setActiveSceneSource('custom');
     });
   }, [requireProFeature, requireUnlockedSceneEditing]);
+
+  useEffect(() => {
+    updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0);
+  }, [engineState, harmonySettings.reverbAmount]);
 
   const handleReset = useCallback(() => {
     stopAllAudio();
@@ -13011,7 +13019,7 @@ function OrbitalPolymeter() {
   const handleUpdateOrbit = useCallback(
     (
       id: string,
-      updates: Partial<Pick<Orbit, 'pulseCount' | 'radius' | 'direction' | 'color' | 'harmonyDegree' | 'harmonyRegister'>>,
+      updates: Partial<Pick<Orbit, 'pulseCount' | 'radius' | 'direction' | 'color' | 'harmonyDegree' | 'harmonyRegister' | 'volume' | 'reverbAmount' | 'soundEnabled'>>,
     ) => {
       if (requireUnlockedSceneEditing()) {
         return;
@@ -13022,7 +13030,8 @@ function OrbitalPolymeter() {
       if (
         (typeof updates.color === 'string' ||
           typeof updates.harmonyDegree === 'number' ||
-          typeof updates.harmonyRegister === 'number')
+          typeof updates.harmonyRegister === 'number' || typeof updates.volume === 'number' ||
+          typeof updates.reverbAmount === 'number' || typeof updates.soundEnabled === 'boolean')
       ) {
         const feature =
           typeof updates.color === 'string' ? 'color-editing' : 'sound-editing';
@@ -13039,6 +13048,7 @@ function OrbitalPolymeter() {
           return;
         }
         Object.assign(orbit, updates);
+        updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0);
         setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
         if (typeof updates.direction === 'number' || typeof updates.pulseCount === 'number') {
           resetEngine(engineState);
@@ -13048,7 +13058,7 @@ function OrbitalPolymeter() {
         rerender();
       }
     },
-    [effectivePlan, engineState, handleClearTraces, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
+    [effectivePlan, engineState, handleClearTraces, harmonySettings.reverbAmount, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, rerender],
   );
 
   const handleDeleteOrbit = useCallback(
@@ -13768,13 +13778,13 @@ function OrbitalPolymeter() {
 
   const buildCurrentSceneSnapshot = useCallback((): SceneSnapshot => ({
     orbits: engineState.orbits.map(
-      ({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister }) => ({
+      ({ pulseCount, radius, direction, color, harmonyDegree, harmonyRegister, volume, reverbAmount, soundEnabled }) => ({
         pulseCount,
         radius,
         direction,
         color,
         harmonyDegree,
-        harmonyRegister,
+        harmonyRegister, volume, reverbAmount, soundEnabled,
       }),
     ),
     speedMultiplier: engineState.speedMultiplier,
@@ -27410,6 +27420,12 @@ function OrbitalPolymeter() {
           />
 
           <TransportBar
+            harmonySettings={harmonySettings}
+            onHarmonyChange={handleHarmonyChange}
+            orbitReverb={harmonySettings.reverbAmount ?? 0}
+            onOrbitReverbChange={(reverbAmount) => handleHarmonyChange({ reverbAmount })}
+            audioOrbits={engineState.orbits}
+            onOrbitMixChange={handleUpdateOrbit}
             playing={engineState.playing}
             speedMultiplier={engineState.speedMultiplier}
             baseBpm={engineState.baseBPM}
@@ -27588,7 +27604,8 @@ function OrbitalPolymeter() {
                 </button>
                 <button
                   data-guide="mobile-audio"
-                  onClick={handleToggleMute}
+                  aria-expanded={orbitAudioMixOpen}
+                  onClick={() => setOrbitAudioMixOpen((open) => !open)}
                   className="relative overflow-hidden px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
                   style={{
                     background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
@@ -27597,9 +27614,14 @@ function OrbitalPolymeter() {
                   }}
                 >
                   {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{muted ? 'Muted' : 'Sound'}</span>
+                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">Audio</span>
                 </button>
               </div>
+              {orbitAudioMixOpen && <OrbitAudioMixer inline harmony={harmonySettings} onHarmonyChange={handleHarmonyChange} reverbAmount={harmonySettings.reverbAmount ?? 0}
+                onReverbChange={(reverbAmount) => handleHarmonyChange({ reverbAmount })} orbits={engineState.orbits} muted={muted}
+                onToggleMute={handleToggleMute} onChange={handleUpdateOrbit}
+                onClose={() => setOrbitAudioMixOpen(false)}
+                onSoundSettings={() => { setOrbitAudioMixOpen(false); openOnlyOrbitMobileMenu('sound'); }} />}
               <div data-guide="mobile-speed" className="space-y-1">
                 <div className="rg-transport-tempo-row flex items-center gap-3">
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -28578,6 +28600,7 @@ function OrbitalPolymeter() {
 
               {mobileSoundOpen && !soundEditingLocked && (
                 <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <OrbitSoundOptions settings={harmonySettings} onChange={handleHarmonyChange} includeKey={false} />
                   <button
                     onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
                     className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
@@ -29028,6 +29051,12 @@ function OrbitalPolymeter() {
       {/* Transport Bar */}
       <div className={isMobile ? 'relative z-20 mt-0' : ''}>
         <TransportBar
+            harmonySettings={harmonySettings}
+            onHarmonyChange={handleHarmonyChange}
+            orbitReverb={harmonySettings.reverbAmount ?? 0}
+            onOrbitReverbChange={(reverbAmount) => handleHarmonyChange({ reverbAmount })}
+            audioOrbits={engineState.orbits}
+            onOrbitMixChange={handleUpdateOrbit}
           playing={engineState.playing}
           speedMultiplier={engineState.speedMultiplier}
           baseBpm={engineState.baseBPM}

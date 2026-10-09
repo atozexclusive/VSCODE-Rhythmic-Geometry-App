@@ -12,6 +12,9 @@ export interface Orbit {
   radius: number;           // px from center
   direction: 1 | -1;        // 1 = CW, -1 = CCW
   color: string;            // hex color
+  volume?: number;         // per-layer level, 0–1 (default 1)
+  reverbAmount?: number;   // per-layer reverb send, 0–1
+  soundEnabled?: boolean;  // defaults to true
   harmonyDegree?: number;   // optional manual scale degree
   harmonyRegister?: -1 | 0 | 1; // optional register offset for scale mode
   phase: number;            // current angle in radians [0, 2π)

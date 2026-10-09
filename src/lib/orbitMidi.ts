@@ -1,6 +1,5 @@
 import {
-  NOTE_NAMES,
-  SCALE_PRESETS,
+  voiceToFrequency,
   type HarmonySettings,
 } from './audioEngine';
 import {
@@ -84,74 +83,6 @@ function frequencyToMidi(frequency: number): number {
   return Math.round(69 + 12 * Math.log2(Math.max(1, frequency) / 440));
 }
 
-function colorToHue(hex: string): number {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  if (max !== min) {
-    const d = max - min;
-    if (max === r) {
-      h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-    } else if (max === g) {
-      h = ((b - r) / d + 2) / 6;
-    } else {
-      h = ((r - g) / d + 4) / 6;
-    }
-  }
-  return h;
-}
-
-function originalOrbitMidiNote(color: string): number {
-  const pentatonic = [
-    261.63, 293.66, 329.63, 392.0, 440.0,
-    523.25, 587.33, 659.25, 783.99, 880.0,
-    1046.5, 1174.66, 1318.51, 1567.98, 1760.0,
-  ];
-  const index = Math.floor(colorToHue(color) * (pentatonic.length - 1));
-  return clamp(frequencyToMidi(pentatonic[Math.min(index, pentatonic.length - 1)]), 48, 96);
-}
-
-function quantizedOrbitMidiNote(
-  orbit: Orbit,
-  harmony: HarmonySettings,
-  orbitIndex: number,
-): number {
-  const scale = SCALE_PRESETS[harmony.scaleName];
-  const rootSemitone = NOTE_NAMES.indexOf(harmony.rootNote);
-  const baseMidi = 60 + rootSemitone;
-
-  let degreeSource = 0;
-  if (harmony.manualOrbitRoles && typeof orbit.harmonyDegree === 'number') {
-    const register = orbit.harmonyRegister ?? 0;
-    degreeSource = Math.max(0, orbit.harmonyDegree) + register * scale.intervals.length;
-  } else if (harmony.mappingMode === 'orbit-index') {
-    degreeSource = orbitIndex;
-  } else if (harmony.mappingMode === 'pulse-count') {
-    degreeSource = Math.max(0, orbit.pulseCount - 2);
-  } else if (harmony.mappingMode === 'radius') {
-    degreeSource = Math.max(0, Math.round((orbit.radius - 40) / 30));
-  } else {
-    degreeSource = Math.floor(colorToHue(orbit.color) * scale.intervals.length * 3);
-  }
-
-  const degree = ((degreeSource % scale.intervals.length) + scale.intervals.length) % scale.intervals.length;
-  const octave = Math.floor(degreeSource / scale.intervals.length);
-  return clamp(baseMidi + octave * 12 + scale.intervals[degree], 28, 96);
-}
-
-function getOrbitMidiNote(
-  orbit: Orbit,
-  harmony: HarmonySettings,
-  orbitIndex: number,
-): number {
-  return harmony.tonePreset === 'original'
-    ? originalOrbitMidiNote(orbit.color)
-    : quantizedOrbitMidiNote(orbit, harmony, orbitIndex);
-}
-
 export function buildOrbitMidiFile(
   orbits: Orbit[],
   harmony: HarmonySettings,
@@ -200,14 +131,15 @@ export function buildOrbitMidiFile(
   }
 
   orbits.forEach((orbit, orbitIndex) => {
+    if (orbit.soundEnabled === false || orbit.volume === 0) return;
     const pulseCount = Math.max(1, orbit.pulseCount);
     const useCycleCount = ENABLE_STANDARD_TURNS_PER_CYCLE && countMode === 'turns-per-cycle';
     const intervalBeats =
       useCycleCount
         ? Math.max(1, anchorPulseCount) / pulseCount
         : pulseCount / Math.max(1, anchorPulseCount);
-    const note = getOrbitMidiNote(orbit, harmony, orbitIndex);
-    const velocity = clamp(86 + ((orbitIndex % 4) * 6), 72, 112);
+
+    const velocity = clamp(Math.round((86 + ((orbitIndex % 4) * 6)) * (orbit.volume ?? 1)), 1, 112);
     const noteLengthTicks = Math.max(24, Math.min(Math.round(intervalBeats * MIDI_PPQ * 0.8), Math.round(MIDI_PPQ * 0.6)));
     const countLabel = useCycleCount ? 'turns/cycle' : 'beats/turn';
 
@@ -217,7 +149,9 @@ export function buildOrbitMidiFile(
       bytes: textEventBytes(0x01, `Orbit ${orbitIndex + 1} · ${pulseCount} ${countLabel}`),
     });
 
-    for (let beat = 0; beat < totalBeats; beat += intervalBeats) {
+    let hitIndex = 0;
+    for (let beat = 0; beat < totalBeats; beat += intervalBeats, hitIndex++) {
+      const note = clamp(frequencyToMidi(voiceToFrequency({ ...orbit, orbitIndex, hitIndex }, harmony)), 0, 127);
       const tick = Math.round(beat * MIDI_PPQ);
       events.push({
         tick,

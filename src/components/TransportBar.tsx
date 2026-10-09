@@ -28,8 +28,19 @@ import {
   type CanvasGlowLevel,
 } from '../lib/canvasDisplayThemes';
 import InfoTip from './InfoTip';
+import { createPortal } from 'react-dom';
+import OrbitAudioMixer, { type OrbitMixUpdates } from './OrbitAudioMixer';
+import type { Orbit } from '../lib/orbitalEngine';
+import OrbitSoundOptions from './OrbitSoundOptions';
+import type { HarmonySettings } from '../lib/audioEngine';
 
 interface TransportBarProps {
+  harmonySettings: HarmonySettings;
+  onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
+  orbitReverb: number;
+  onOrbitReverbChange: (value: number) => void;
+  audioOrbits: Orbit[];
+  onOrbitMixChange: (id: string, updates: OrbitMixUpdates) => void;
   playing: boolean;
   speedMultiplier: number;
   baseBpm: number;
@@ -168,6 +179,12 @@ function EditableTempoValue({
 }
 
 export default function TransportBar({
+  harmonySettings,
+  onHarmonyChange,
+  orbitReverb,
+  onOrbitReverbChange,
+  audioOrbits,
+  onOrbitMixChange,
   playing,
   speedMultiplier,
   baseBpm,
@@ -229,6 +246,7 @@ export default function TransportBar({
   const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(false);
   const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(false);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
+  const [audioMixOpen, setAudioMixOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
   const [desktopOrbitPanelTop, setDesktopOrbitPanelTop] = useState<number | null>(null);
   const closeDesktopUtilitySections = useCallback(() => {
@@ -573,6 +591,13 @@ export default function TransportBar({
     </div>
   );
 
+  const audioMixPanel = audioMixOpen ? createPortal(
+    <OrbitAudioMixer harmony={harmonySettings} onHarmonyChange={onHarmonyChange} reverbAmount={orbitReverb} onReverbChange={onOrbitReverbChange} orbits={audioOrbits} muted={muted} onToggleMute={onToggleMute}
+      onChange={onOrbitMixChange} onClose={() => setAudioMixOpen(false)}
+      onSoundSettings={presentationMode ? undefined : () => { setAudioMixOpen(false); closeDesktopUtilitySections(); setDesktopSettingsPanelOpen(true); setDesktopUtilityAudioOpen(true); }} />,
+    document.body,
+  ) : null;
+
   if (presentationMode) {
     return (
       <div
@@ -583,6 +608,7 @@ export default function TransportBar({
             : undefined
         }
       >
+        {audioMixPanel}
         <div
           className={`rounded-2xl border ${isMobile ? 'space-y-2.5 px-3 py-3' : 'grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3 px-4 py-3'}`}
           style={{
@@ -722,7 +748,7 @@ export default function TransportBar({
                       onLockedFeature?.('sound-editing');
                       return;
                     }
-                    onToggleMute();
+                    setAudioMixOpen((open) => !open);
                   }}
                   className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
                   style={getLockedStyle({
@@ -730,10 +756,10 @@ export default function TransportBar({
                     border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
                     color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
                   }, lockedFeatures.soundEditing)}
-                  title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
+                  title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
                 >
                   {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                  <span>{muted ? 'Unmute' : 'Mute'}</span>
+                  <span>Audio</span>
                   {lockedFeatures.soundEditing ? lockBadge : null}
                 </button>
                 <button
@@ -858,7 +884,7 @@ export default function TransportBar({
                 onLockedFeature?.('sound-editing');
                 return;
               }
-              onToggleMute();
+              setAudioMixOpen((open) => !open);
             }}
             className={`${desktopDockButtonStyle} relative overflow-hidden`}
             style={getLockedStyle({
@@ -866,10 +892,10 @@ export default function TransportBar({
               border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
               color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
             }, lockedFeatures.soundEditing)}
-            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
+            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
           >
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-            <span>{muted ? 'Unmute' : 'Mute'}</span>
+            <span>Audio</span>
             {lockedFeatures.soundEditing ? lockBadge : null}
           </button>
           <button
@@ -900,6 +926,7 @@ export default function TransportBar({
         paddingBottom: isMobile ? '0px' : '0px',
       }}
     >
+      {audioMixPanel}
       <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-3 lg:px-6 pt-3'}`}>
         {!isMobile ? (
           <div className="pointer-events-none mb-2">
@@ -1530,6 +1557,7 @@ export default function TransportBar({
                     onToggle: () => toggleDesktopUtilitySection('audio'),
                     children: (
                       <>
+                        <OrbitSoundOptions settings={harmonySettings} onChange={onHarmonyChange} includeKey={false} />
                         <div className={standardUtilityGroupClass}>
                           <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
                             Sound Mode
@@ -1762,7 +1790,7 @@ export default function TransportBar({
                     onLockedFeature?.('sound-editing');
                     return;
                   }
-                  onToggleMute();
+                  setAudioMixOpen((open) => !open);
                 }}
                 className="relative overflow-hidden px-3 py-2 rounded-lg text-[10px] font-mono font-light transition-all duration-200 active:scale-95"
                 style={getLockedStyle({
@@ -1770,7 +1798,7 @@ export default function TransportBar({
                   border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.35)' : 'rgba(255, 255, 255, 0.1)'}`,
                   color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.6)',
                 }, lockedFeatures.soundEditing)}
-                title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
+                title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
               >
                 {muted ? 'MUTED' : 'AUDIO'}
                 {lockedFeatures.soundEditing ? lockBadge : null}
@@ -1961,7 +1989,7 @@ export default function TransportBar({
                 onLockedFeature?.('sound-editing');
                 return;
               }
-              onToggleMute();
+              setAudioMixOpen((open) => !open);
             }}
             className={`${desktopUtilityButtonStyle} relative overflow-hidden`}
             style={getLockedStyle({
@@ -1970,11 +1998,11 @@ export default function TransportBar({
               color: muted ? 'rgba(255,255,255,0.72)' : '#7FD7FF',
               boxShadow: muted ? 'none' : '0 0 0 1px rgba(127,215,255,0.16) inset',
             }, lockedFeatures.soundEditing)}
-            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : muted ? 'Unmute audio' : 'Mute audio'}
+            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
           >
             <span className="flex items-center gap-2">
               {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-              <span>{muted ? 'Unmute' : 'Mute'}</span>
+              <span>Audio</span>
             </span>
             {lockedFeatures.soundEditing ? lockBadge : null}
           </button>
