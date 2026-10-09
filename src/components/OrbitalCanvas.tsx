@@ -214,8 +214,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       if (traceCanvas && traceCtx) {
         traceCtx.setTransform(1, 0, 0, 1, 0, 0);
         traceCtx.clearRect(0, 0, traceCanvas.width, traceCanvas.height);
-        const dpr = window.devicePixelRatio || 1;
-        traceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const traceDpr = exportVideoSizeRef.current ? 1 : window.devicePixelRatio || 1;
+        traceCtx.setTransform(traceDpr, 0, 0, traceDpr, 0, 0);
       }
       traceSegmentCountRef.current = 0;
     }, []);
