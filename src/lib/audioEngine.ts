@@ -16,14 +16,14 @@ let currentTriggerRate = 0; // triggers per second
 const lastAudibleTriggerByVoice = new Map<number, number>();
 let muted = false;
 
-const MASTER_GAIN_CEILING = 0.62;
+const MASTER_GAIN_CEILING = 0.5;
 const DENSE_TRIGGER_RATE = 35;
 const VERY_DENSE_TRIGGER_RATE = 85;
 const EXTREME_TRIGGER_RATE = 150;
 const LIVE_TRIGGER_LOOKAHEAD_SECONDS = 0.012;
-const STANDARD_NOTE_ATTACK_SECONDS = 0.018;
-const STANDARD_NOTE_RELEASE_SECONDS = 0.32;
-const STANDARD_NOTE_SILENCE_SECONDS = 0.34;
+const STANDARD_NOTE_ATTACK_SECONDS = 0.004;
+const STANDARD_NOTE_RELEASE_SECONDS = 0.08;
+const STANDARD_NOTE_SILENCE_SECONDS = 0.095;
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -118,11 +118,11 @@ function getAudioContext(): AudioContext {
     masterGain = audioCtx.createGain();
     masterGain.gain.value = MASTER_GAIN_CEILING;
     outputLimiter = audioCtx.createDynamicsCompressor();
-    outputLimiter.threshold.value = -18;
-    outputLimiter.knee.value = 18;
+    outputLimiter.threshold.value = -20;
+    outputLimiter.knee.value = 24;
     outputLimiter.ratio.value = 12;
-    outputLimiter.attack.value = 0.003;
-    outputLimiter.release.value = 0.12;
+    outputLimiter.attack.value = 0.001;
+    outputLimiter.release.value = 0.08;
     masterGain.connect(outputLimiter);
     outputLimiter.connect(audioCtx.destination);
     if (recordingDestination) {
@@ -337,7 +337,7 @@ function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, freq
   if (!preset) return false;
   const compression = Math.max(1, speed / 2);
   const duration = Math.max(0.06, preset.duration / compression);
-  const attack = Math.min(Math.max(0.008, preset.attack), duration / 3);
+  const attack = Math.min(preset.attack, duration / 3);
   for (const [type, ratio, weight, detune] of preset.partials) {
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -441,7 +441,7 @@ export function playResonanceBeep(
     osc.connect(gain);
     gain.connect(master);
     osc.start(now);
-    osc.stop(now + STANDARD_NOTE_SILENCE_SECONDS + 0.01);
+    osc.stop(now + 0.1);
   } catch {
     // Silently fail if audio context is unavailable
   }
@@ -549,7 +549,7 @@ function scheduleResonanceBeep(
   osc.connect(gain);
   gain.connect(output);
   osc.start(atTime);
-  osc.stop(atTime + STANDARD_NOTE_SILENCE_SECONDS + 0.01);
+  osc.stop(atTime + 0.1);
 }
 
 export function createOrbitExportAudioStream(
