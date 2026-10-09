@@ -321,6 +321,27 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             : sortedRadii.length >= 2
               ? sortedRadii[0] + sortedRadii[1]
               : maxRadius;
+        const exportVideoSize = exportVideoSizeRef.current;
+        if (exportVideoSize && orbits.length > 0) {
+          const isShortsExport = exportVideoSize.height > exportVideoSize.width;
+          const exportPadding = isShortsExport ? 44 : 56;
+          const targetRadius = Math.max(1, Math.min(width, height) / 2 - exportPadding);
+          const exportVisualRadius =
+            geometryModeRef.current === 'interference-trace'
+              ? Math.max(maxRadius, interferenceRadiusBudget)
+              : maxRadius;
+          const effectiveVisualRadius = Math.max(1, exportVisualRadius + 12);
+          const orbitScale = Math.min(1.6, targetRadius / effectiveVisualRadius);
+
+          return {
+            cx,
+            cy: height / 2,
+            orbitScale,
+            targetRadius,
+            maxRadius,
+            effectiveVisualRadius,
+          };
+        }
         if (!isMobileRef.current || orbits.length === 0) {
           return {
             cx,
