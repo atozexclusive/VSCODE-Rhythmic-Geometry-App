@@ -176,6 +176,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const displaySettingsRef = useRef(displaySettings);
     const presentationModeRef = useRef(presentationMode);
     const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
+    const exportVideoActiveRef = useRef(false);
     const exportStillActiveRef = useRef(false);
     const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
@@ -629,6 +630,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const previousHudVisible = hudVisibleRef.current;
           hudVisibleRef.current = false;
           exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
+          exportVideoActiveRef.current = true;
           forceUpdate((value) => value + 1);
           let stream: MediaStream | null = null;
           try {
@@ -688,6 +690,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             URL.revokeObjectURL(url);
           } finally {
             stream?.getTracks().forEach((track) => track.stop());
+            exportVideoActiveRef.current = false;
             exportVideoSizeRef.current = null;
             hudVisibleRef.current = previousHudVisible;
             forceUpdate((value) => value + 1);
@@ -1281,7 +1284,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
 
         // ---- Trace lines (the sweep geometry Mark loves) ----
-        if (traceModeRef.current && state.orbits.length >= 2) {
+        if ((traceModeRef.current || exportVideoActiveRef.current) && state.orbits.length >= 2) {
           const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
           if (deltaBeats > 0) {
             if (isSweepMode) {
