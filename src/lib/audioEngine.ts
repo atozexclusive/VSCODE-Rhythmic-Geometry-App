@@ -343,6 +343,7 @@ function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, freq
     gain.gain.setValueAtTime(0, atTime);
     gain.gain.linearRampToValueAtTime(volume * weight / Math.sqrt(compression), atTime + attack);
     gain.gain.exponentialRampToValueAtTime(0.0001, atTime + duration);
+    gain.gain.linearRampToValueAtTime(0, atTime + duration + 0.012);
     oscillator.connect(gain); gain.connect(destination);
     oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
     oscillator.start(atTime); oscillator.stop(atTime + duration + 0.02);
@@ -387,7 +388,8 @@ export function playResonanceBeep(
       gain.gain.linearRampToValueAtTime(chordVol, now + 0.01);
       // Long sustain, gentle release
       gain.gain.setValueAtTime(chordVol, now + 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      gain.gain.linearRampToValueAtTime(0, now + 0.415);
 
       osc.connect(gain);
       gain.connect(master);
@@ -408,7 +410,8 @@ export function playResonanceBeep(
       const duration = Math.max(0.018, 0.08 / speedFactor);
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(fastVol, now + 0.003);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      gain.gain.linearRampToValueAtTime(0, now + duration + 0.006);
 
       osc.connect(gain);
       gain.connect(master);
@@ -424,13 +427,14 @@ export function playResonanceBeep(
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(safeVolume, now + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    gain.gain.linearRampToValueAtTime(safeVolume, now + 0.007);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    gain.gain.linearRampToValueAtTime(0, now + 0.105);
 
     osc.connect(gain);
     gain.connect(master);
     osc.start(now);
-    osc.stop(now + 0.1);
+    osc.stop(now + 0.11);
   } catch {
     // Silently fail if audio context is unavailable
   }
@@ -494,7 +498,8 @@ function scheduleResonanceBeep(
     gain.gain.setValueAtTime(0, atTime);
     gain.gain.linearRampToValueAtTime(chordVol, atTime + 0.01);
     gain.gain.setValueAtTime(chordVol, atTime + 0.15);
-    gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.4);
+    gain.gain.linearRampToValueAtTime(0, atTime + 0.415);
 
     osc.connect(gain);
     gain.connect(output);
@@ -514,7 +519,8 @@ function scheduleResonanceBeep(
     const duration = Math.max(0.018, 0.08 / speedFactor);
     gain.gain.setValueAtTime(0, atTime);
     gain.gain.linearRampToValueAtTime(fastVol, atTime + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.001, atTime + duration);
+    gain.gain.exponentialRampToValueAtTime(0.0001, atTime + duration);
+    gain.gain.linearRampToValueAtTime(0, atTime + duration + 0.006);
 
     osc.connect(gain);
     gain.connect(output);
@@ -529,13 +535,14 @@ function scheduleResonanceBeep(
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, atTime);
-  gain.gain.linearRampToValueAtTime(safeVolume, atTime + 0.004);
-  gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.08);
+  gain.gain.linearRampToValueAtTime(safeVolume, atTime + 0.007);
+  gain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.09);
+  gain.gain.linearRampToValueAtTime(0, atTime + 0.105);
 
   osc.connect(gain);
   gain.connect(output);
   osc.start(atTime);
-  osc.stop(atTime + 0.1);
+  osc.stop(atTime + 0.11);
 }
 
 export function createOrbitExportAudioStream(
