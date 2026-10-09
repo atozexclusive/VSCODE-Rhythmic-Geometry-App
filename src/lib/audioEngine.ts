@@ -49,6 +49,12 @@ export type RootNote = typeof NOTE_NAMES[number];
 export type ScaleName = keyof typeof SCALE_PRESETS;
 export type HarmonyMappingMode = 'orbit-index' | 'pulse-count' | 'radius' | 'color-hue';
 export type TonePreset = 'original' | 'scale-quantized';
+export const ORBIT_SOUND_PALETTES = [
+  ['standard', 'Standard'], ['soft-pad', 'Soft Pad'], ['warm-pad', 'Warm Pad'],
+  ['bell', 'Bell'], ['pluck', 'Pluck'], ['organ', 'Organ'], ['bass', 'Soft Bass'],
+] as const;
+export type OrbitSoundPalette = typeof ORBIT_SOUND_PALETTES[number][0];
+export type OrbitNoteMotion = 'fixed' | 'ascending' | 'descending' | 'up-down' | 'arpeggio';
 
 export function getFriendlyScaleLabel(
   scaleName: ScaleName,
@@ -61,6 +67,12 @@ export function getFriendlyScaleLabel(
 }
 
 export interface HarmonySettings {
+  soundPalette?: OrbitSoundPalette;
+  noteMotion?: OrbitNoteMotion;
+  pitchSpacing?: 'standard' | 'close' | 'wide';
+  octaveShift?: number;
+  arpeggioOctaves?: number;
+  reverbAmount?: number; // shared by every Orbit layer
   tonePreset: TonePreset;
   rootNote: RootNote;
   scaleName: ScaleName;
@@ -69,6 +81,10 @@ export interface HarmonySettings {
 }
 
 export interface ResonanceVoice {
+  hitIndex?: number;
+  volume?: number;
+  reverbAmount?: number;
+  soundEnabled?: boolean;
   orbitIndex: number;
   pulseCount: number;
   radius: number;
@@ -172,21 +188,32 @@ function quantizedFrequency(
     degreeSource = Math.floor(colorToHue(voice.color) * scale.intervals.length * 3);
   }
 
-  const degree = degreeSource % scale.intervals.length;
+  if (harmony.pitchSpacing === 'close') degreeSource = voice.orbitIndex % scale.intervals.length;
+  if (harmony.pitchSpacing === 'wide') degreeSource = voice.orbitIndex * scale.intervals.length;
+  const span = scale.intervals.length * Math.max(1, Math.min(3, Math.round(harmony.arpeggioOctaves ?? 1)));
+  const hit = Math.max(0, Math.floor(voice.hitIndex ?? 0));
+  const motion = harmony.noteMotion ?? 'fixed';
+  if (motion === 'ascending') degreeSource += hit % span;
+  if (motion === 'descending') degreeSource += span - 1 - hit % span;
+  if (motion === 'up-down') {
+    const phase = hit % Math.max(1, 2 * (span - 1));
+    degreeSource += phase < span ? phase : 2 * (span - 1) - phase;
+  }
+  if (motion === 'arpeggio') degreeSource += (hit * 2) % span;
+  const degree = ((degreeSource % scale.intervals.length) + scale.intervals.length) % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
   const midi = Math.min(96, baseMidi + octave * 12 + scale.intervals[degree]);
   return midiToFrequency(midi);
 }
 
-function voiceToFrequency(
+export function voiceToFrequency(
   voice: ResonanceVoice,
   harmony: HarmonySettings,
 ): number {
-  if (harmony.tonePreset === 'original') {
-    return originalColorFrequency(voice.color);
-  }
-
-  return quantizedFrequency(voice, harmony);
+  const octave = Math.max(-2, Math.min(2, Math.round(harmony.octaveShift ?? 0)));
+  const useScale = harmony.tonePreset !== 'original' || (harmony.noteMotion != null && harmony.noteMotion !== 'fixed') || (harmony.pitchSpacing != null && harmony.pitchSpacing !== 'standard');
+  const frequency = useScale ? quantizedFrequency(voice, harmony) : originalColorFrequency(voice.color);
+  return Math.max(20, Math.min(12000, frequency * 2 ** octave));
 }
 
 /**
@@ -247,6 +274,82 @@ function shouldDropDenseTrigger(triggerRate: number, voiceKey: number): boolean 
  * - Fast (3x-6x): Shorter beep, reduced volume
  * - Very fast (> 6x): Sustained tone that fades, like a chord
  */
+// Each destination owns its mixer graph, so export effects stay isolated from live audio.
+const orbitMixGraphs = new WeakMap<AudioNode, {
+  reverb: ConvolverNode;
+  layers: Map<number, { input: GainNode; send: GainNode }>;
+}>();
+function getOrbitVoiceOutput(ctx: AudioContext, destination: AudioNode, voice: ResonanceVoice): GainNode {
+  let graph = orbitMixGraphs.get(destination);
+  if (!graph) {
+    const reverb = ctx.createConvolver();
+    const length = Math.floor(ctx.sampleRate * 1.6);
+    const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = impulse.getChannelData(channel);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+    }
+    reverb.buffer = impulse;
+    reverb.connect(destination);
+    graph = { reverb, layers: new Map() };
+    orbitMixGraphs.set(destination, graph);
+  }
+  const volume = Number.isFinite(voice.volume) ? Math.max(0, Math.min(1, voice.volume!)) : 1;
+  const reverb = Number.isFinite(voice.reverbAmount) ? Math.max(0, Math.min(1, voice.reverbAmount!)) : 0;
+  let layer = graph.layers.get(voice.orbitIndex);
+  if (!layer) {
+    const input = ctx.createGain();
+    const send = ctx.createGain();
+    input.gain.value = voice.soundEnabled === false ? 0 : volume;
+    send.gain.value = reverb * 0.65;
+    input.connect(destination);
+    input.connect(send);
+    send.connect(graph.reverb);
+    layer = { input, send };
+    graph.layers.set(voice.orbitIndex, layer);
+  }
+  layer.input.gain.setTargetAtTime(voice.soundEnabled === false ? 0 : volume, ctx.currentTime, 0.01);
+  layer.send.gain.setTargetAtTime(reverb * 0.65, ctx.currentTime, 0.01);
+  return layer.input;
+}
+
+export function updateOrbitAudioMix(orbits: EngineState['orbits'], reverbAmount = 0): void {
+  if (!audioCtx || !masterGain) return;
+  orbits.forEach((orbit, orbitIndex) => getOrbitVoiceOutput(audioCtx!, masterGain!, { ...orbit, orbitIndex, reverbAmount }));
+}
+
+function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, frequency: number,
+  palette: OrbitSoundPalette | undefined, volume: number, atTime: number, speed: number): boolean {
+  if (!palette || palette === 'standard') return false;
+  const presets: Record<Exclude<OrbitSoundPalette, 'standard'>, { attack: number; duration: number; partials: Array<[OscillatorType, number, number, number]> }> = {
+    'soft-pad': { attack: 0.09, duration: 1.1, partials: [['sine', 1, 0.6, -4], ['triangle', 1, 0.4, 4]] },
+    'warm-pad': { attack: 0.06, duration: 0.9, partials: [['triangle', 1, 0.65, -3], ['sine', 0.5, 0.35, 3]] },
+    bell: { attack: 0.003, duration: 0.9, partials: [['sine', 1, 0.75, 0], ['sine', 2.76, 0.25, 0]] },
+    pluck: { attack: 0.003, duration: 0.22, partials: [['triangle', 1, 0.8, 0], ['sine', 2, 0.2, 0]] },
+    organ: { attack: 0.015, duration: 0.45, partials: [['sine', 1, 0.6, 0], ['sine', 2, 0.25, 0], ['sine', 4, 0.15, 0]] },
+    bass: { attack: 0.008, duration: 0.3, partials: [['sine', 0.5, 0.7, 0], ['triangle', 1, 0.3, 0]] },
+  };
+  const preset = presets[palette];
+  if (!preset) return false;
+  const compression = Math.max(1, speed / 2);
+  const duration = Math.max(0.06, preset.duration / compression);
+  const attack = Math.min(preset.attack, duration / 3);
+  for (const [type, ratio, weight, detune] of preset.partials) {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(Math.min(12000, frequency * ratio), atTime);
+    oscillator.detune.setValueAtTime(detune, atTime);
+    gain.gain.setValueAtTime(0, atTime);
+    gain.gain.linearRampToValueAtTime(volume * weight / Math.sqrt(compression), atTime + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, atTime + duration);
+    oscillator.connect(gain); gain.connect(destination);
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    oscillator.start(atTime); oscillator.stop(atTime + duration + 0.02);
+  }
+  return true;
+}
+
 export function playResonanceBeep(
   voice: ResonanceVoice,
   harmony: HarmonySettings = DEFAULT_HARMONY_SETTINGS,
@@ -258,7 +361,8 @@ export function playResonanceBeep(
   }
   try {
     const ctx = getAudioContext();
-    const master = getMasterGain();
+    const master = getOrbitVoiceOutput(ctx, getMasterGain(), { ...voice, reverbAmount: harmony.reverbAmount ?? 0 });
+    if (voice.soundEnabled === false || voice.volume === 0) return;
     const now = ctx.currentTime;
     const freq = voiceToFrequency(voice, harmony);
 
@@ -268,6 +372,7 @@ export function playResonanceBeep(
     }
     const safetyGain = getTriggerRateGain(triggerRate);
     const safeVolume = Math.min(volume, 0.12) * safetyGain;
+    if (scheduleOrbitInstrument(ctx, master, freq, harmony.soundPalette, safeVolume, now, Math.max(speedMultiplier, triggerRate / 12))) return;
 
     // Very fast: sustained chord tone
     if (speedMultiplier > 6.0 || triggerRate >= VERY_DENSE_TRIGGER_RATE) {
@@ -372,8 +477,11 @@ function scheduleResonanceBeep(
   target: ExportAudioTarget,
 ): void {
   const ctx = target.context;
+  const output = getOrbitVoiceOutput(ctx, target.destination, { ...voice, reverbAmount: harmony.reverbAmount ?? 0 });
+  if (voice.soundEnabled === false || voice.volume === 0) return;
   const freq = voiceToFrequency(voice, harmony);
   const safeVolume = Math.min(volume, 0.12);
+  if (scheduleOrbitInstrument(ctx, output, freq, harmony.soundPalette, safeVolume, atTime, speedMultiplier)) return;
 
   if (speedMultiplier > 6.0) {
     const osc = ctx.createOscillator();
@@ -389,7 +497,7 @@ function scheduleResonanceBeep(
     gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.4);
 
     osc.connect(gain);
-    gain.connect(target.destination);
+    gain.connect(output);
     osc.start(atTime);
     osc.stop(atTime + 0.42);
     return;
@@ -409,7 +517,7 @@ function scheduleResonanceBeep(
     gain.gain.exponentialRampToValueAtTime(0.001, atTime + duration);
 
     osc.connect(gain);
-    gain.connect(target.destination);
+    gain.connect(output);
     osc.start(atTime);
     osc.stop(atTime + duration + 0.01);
     return;
@@ -425,7 +533,7 @@ function scheduleResonanceBeep(
   gain.gain.exponentialRampToValueAtTime(0.001, atTime + 0.08);
 
   osc.connect(gain);
-  gain.connect(target.destination);
+  gain.connect(output);
   osc.start(atTime);
   osc.stop(atTime + 0.1);
 }
@@ -475,11 +583,13 @@ export function createOrbitExportAudioStream(
         scheduleResonanceBeep(
           {
             orbitIndex,
+            hitIndex: rotationIndex,
             pulseCount: orbit.pulseCount,
             radius: orbit.radius,
             color: orbit.color,
             harmonyDegree: orbit.harmonyDegree,
             harmonyRegister: orbit.harmonyRegister,
+            volume: orbit.volume, reverbAmount: orbit.reverbAmount, soundEnabled: orbit.soundEnabled,
           },
           harmony,
           0.12,
