@@ -551,6 +551,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             exportCtx.imageSmoothingQuality = 'high';
             exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
 
+            // The persistent geometry lives on a separate transparent canvas.
+            // Composite it explicitly so PNG capture never drops the traced
+            // shape when the visible canvas is repainted for export.
+            exportCtx.save();
+            exportCtx.globalCompositeOperation = 'screen';
+            exportCtx.globalAlpha = 1;
+            exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
+            exportCtx.globalAlpha = 0.7;
+            exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
+            exportCtx.restore();
+
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const link = document.createElement('a');
             link.href = exportCanvas.toDataURL('image/png');
