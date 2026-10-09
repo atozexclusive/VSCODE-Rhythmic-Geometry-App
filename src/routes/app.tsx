@@ -3110,6 +3110,7 @@ function CanvasDisplayControls({
   settings,
   onChange,
   compact = false,
+  showSquareGridControl = false,
   showInnerClockControls = false,
   showCellStripControl = false,
   showMeterNumberControl = false,
@@ -3120,6 +3121,7 @@ function CanvasDisplayControls({
   settings: CanvasDisplaySettings;
   onChange: (settings: Partial<CanvasDisplaySettings>) => void;
   compact?: boolean;
+  showSquareGridControl?: boolean;
   showInnerClockControls?: boolean;
   showCellStripControl?: boolean;
   showMeterNumberControl?: boolean;
@@ -3243,6 +3245,42 @@ function CanvasDisplayControls({
           })}
         </div>
       </div>
+
+      {showSquareGridControl ? (
+        <div
+          className={canvasCardClass}
+          style={{
+            background: 'rgba(136,204,255,0.032)',
+            borderColor: 'rgba(136,204,255,0.12)',
+            boxShadow: 'inset 0 1px 0 rgba(136,204,255,0.04)',
+          }}
+        >
+          <InlineInfoLabel
+            infoId="canvas_display"
+            label="Square Grid"
+            labelClassName={canvasSubheaderClass}
+            labelStyle={canvasSubheaderStyle}
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            <StudyShellButton
+              size="compact"
+              tone="blue"
+              highlighted={settings.squareGrid !== false}
+              onClick={() => onChange({ squareGrid: true })}
+            >
+              On
+            </StudyShellButton>
+            <StudyShellButton
+              size="compact"
+              tone="neutral"
+              highlighted={settings.squareGrid === false}
+              onClick={() => onChange({ squareGrid: false })}
+            >
+              Off
+            </StudyShellButton>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className={canvasCardClass}
@@ -28513,6 +28551,7 @@ function OrbitalPolymeter() {
                     settings={canvasDisplayState.orbit}
                     onChange={handleUpdateOrbitDisplay}
                     compact
+                    showSquareGridControl
                   />
                 </div>
               ) : null}
