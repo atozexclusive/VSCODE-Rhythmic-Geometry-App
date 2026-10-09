@@ -234,12 +234,14 @@ function advanceEngineByDeltaBeats(
     const currentBeatIndex = Math.floor(totalRotations);
 
     if (currentBeatIndex > orbit.lastTriggerBeat) {
-      const pos = resonancePosition(orbit, centerX, centerY);
       triggers.push({
         orbitId: orbit.id,
         color: orbit.color,
-        x: pos.x,
-        y: pos.y,
+        // A trigger represents the exact completed-rotation crossing. The
+        // current phase can already be a fraction past it by render time, so
+        // anchor the impact to the precise 12 o'clock point on the ring.
+        x: centerX,
+        y: centerY - orbit.radius,
         radius: orbit.radius,
       });
       orbit.lastTriggerBeat = currentBeatIndex;

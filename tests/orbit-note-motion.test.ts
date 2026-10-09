@@ -38,3 +38,13 @@ test('restart resets hit indices and MIDI uses the same ascending scale', () => 
   }
   assert.deepEqual(pitches.slice(0,6), [60,62,64,67,69,60]);
 });
+test('orbit impacts stay centered on the exact 12 o\'clock crossing', () => {
+  const orbit = createOrbit({ ...DEFAULT_ORBITS[0], radius: 90, pulseCount: 3 });
+  const state = { orbits: [orbit], playing: true, speedMultiplier: 1, elapsedBeats: 0, lastTimestamp: 0, baseBPM: 120 };
+  const [impact] = tick(state, 100, 240, 180);
+
+  assert.deepEqual(
+    { x: impact.x, y: impact.y },
+    { x: 240, y: 90 },
+  );
+});
