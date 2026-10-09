@@ -20,6 +20,10 @@ const MASTER_GAIN_CEILING = 0.62;
 const DENSE_TRIGGER_RATE = 35;
 const VERY_DENSE_TRIGGER_RATE = 85;
 const EXTREME_TRIGGER_RATE = 150;
+const LIVE_TRIGGER_LOOKAHEAD_SECONDS = 0.012;
+const STANDARD_NOTE_ATTACK_SECONDS = 0.018;
+const STANDARD_NOTE_RELEASE_SECONDS = 0.32;
+const STANDARD_NOTE_SILENCE_SECONDS = 0.34;
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 
@@ -333,7 +337,7 @@ function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, freq
   if (!preset) return false;
   const compression = Math.max(1, speed / 2);
   const duration = Math.max(0.06, preset.duration / compression);
-  const attack = Math.min(preset.attack, duration / 3);
+  const attack = Math.min(Math.max(0.008, preset.attack), duration / 3);
   for (const [type, ratio, weight, detune] of preset.partials) {
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -364,7 +368,10 @@ export function playResonanceBeep(
     const ctx = getAudioContext();
     const master = getOrbitVoiceOutput(ctx, getMasterGain(), { ...voice, reverbAmount: harmony.reverbAmount ?? 0 });
     if (voice.soundEnabled === false || voice.volume === 0) return;
-    const now = ctx.currentTime;
+    // Give Web Audio a small scheduling cushion. Starting an oscillator at
+    // currentTime can miss the beginning of its gain ramp on mobile devices,
+    // producing a sharp discontinuity that sounds like a crackle.
+    const now = ctx.currentTime + LIVE_TRIGGER_LOOKAHEAD_SECONDS;
     const freq = voiceToFrequency(voice, harmony);
 
     const triggerRate = updateTriggerRate();
@@ -427,14 +434,14 @@ export function playResonanceBeep(
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(safeVolume, now + 0.007);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
-    gain.gain.linearRampToValueAtTime(0, now + 0.105);
+    gain.gain.linearRampToValueAtTime(safeVolume, now + STANDARD_NOTE_ATTACK_SECONDS);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + STANDARD_NOTE_RELEASE_SECONDS);
+    gain.gain.linearRampToValueAtTime(0, now + STANDARD_NOTE_SILENCE_SECONDS);
 
     osc.connect(gain);
     gain.connect(master);
     osc.start(now);
-    osc.stop(now + 0.11);
+    osc.stop(now + STANDARD_NOTE_SILENCE_SECONDS + 0.01);
   } catch {
     // Silently fail if audio context is unavailable
   }
@@ -535,14 +542,14 @@ function scheduleResonanceBeep(
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, atTime);
-  gain.gain.linearRampToValueAtTime(safeVolume, atTime + 0.007);
-  gain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.09);
-  gain.gain.linearRampToValueAtTime(0, atTime + 0.105);
+  gain.gain.linearRampToValueAtTime(safeVolume, atTime + STANDARD_NOTE_ATTACK_SECONDS);
+  gain.gain.exponentialRampToValueAtTime(0.0001, atTime + STANDARD_NOTE_RELEASE_SECONDS);
+  gain.gain.linearRampToValueAtTime(0, atTime + STANDARD_NOTE_SILENCE_SECONDS);
 
   osc.connect(gain);
   gain.connect(output);
   osc.start(atTime);
-  osc.stop(atTime + 0.11);
+  osc.stop(atTime + STANDARD_NOTE_SILENCE_SECONDS + 0.01);
 }
 
 export function createOrbitExportAudioStream(
