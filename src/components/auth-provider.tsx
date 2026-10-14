@@ -198,7 +198,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await syncUserRecord(user);
   }, [syncUserRecord, user]);
 
-  const effectivePlan: AccountPlan = account?.plan ?? 'free';
+  // Explicit preview access is limited to the development server on loopback.
+  const localProPreview = import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
+    new URLSearchParams(window.location.search).get('preview') === 'pro';
+  const effectivePlan: AccountPlan = localProPreview ? 'pro' : account?.plan ?? 'free';
 
   const value = useMemo<AuthContextValue>(
     () => ({

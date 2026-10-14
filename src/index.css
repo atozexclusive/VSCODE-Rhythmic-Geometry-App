@@ -499,3 +499,68 @@
       0 0 14px color-mix(in srgb, var(--slider-accent) 55%, transparent);
   }
 }
+
+/* Compact Riff playback; keep the tempo control easy to drag. */
+[data-guide="riff-mobile-tempo"] .touch-slider.rg-transport-tempo-track {
+  height: 2rem;
+  padding: .65rem 0;
+}
+[data-guide="riff-mobile-tempo"] .touch-slider::-webkit-slider-runnable-track { height: .3rem; }
+[data-guide="riff-mobile-tempo"] .touch-slider::-webkit-slider-thumb {
+  width: 1rem; height: 1rem; margin-top: -.35rem;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.1), 0 0 10px rgba(255,255,255,.2);
+}
+[data-guide="riff-mobile-tempo"] .touch-slider::-moz-range-track { height: .3rem; }
+[data-guide="riff-mobile-tempo"] .touch-slider::-moz-range-thumb {
+  width: 1rem; height: 1rem;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.1), 0 0 10px rgba(255,255,255,.2);
+}
+
+[data-guide="riff-mobile-focus-pattern"] button[aria-label^="What "],
+[data-guide="riff-mobile-pattern-tools"] button[aria-label^="What "] {
+  width: 18px; height: 18px; min-height: 18px;
+}
+[data-guide="riff-mobile-focus-pattern"] button[aria-label^="What "] svg,
+[data-guide="riff-mobile-pattern-tools"] button[aria-label^="What "] svg { width: 10px; height: 10px; }
+[data-guide="riff-mobile-focus-pattern"] > div:first-child > button { width: 30px; height: 30px; border-radius: 9px; }
+[data-guide="riff-mobile-pattern-tools"] button:not([aria-label^="What "]) { height: 30px; font-size: 9px; letter-spacing: .05em; border-radius: 8px; }
+
+[data-guide="riff-mobile-core-timing"] button[aria-label^="What "] { width: 18px; height: 18px; min-height: 18px; }
+[data-guide="riff-mobile-core-timing"] button[aria-label^="What "] svg { width: 10px; height: 10px; }
+[data-guide="riff-mobile-core-timing"] [data-guide="riff-mobile-riff-restart"] > div {
+  border: 0; border-top: 1px solid rgba(255,255,255,.055); border-radius: 0;
+  padding: 10px 0 0; background: transparent !important; box-shadow: none !important;
+}
+
+[data-guide="riff-mobile-secondary-cues"] > div:nth-child(2) > div:first-child {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr); align-items: center; gap: 6px;
+  padding: 0; margin: 0;
+}
+[data-guide="riff-mobile-secondary-cues"] > div:nth-child(2) > div:first-child > div { margin: 0; }
+[data-guide="riff-mobile-secondary-cues"] > div:nth-child(3) > div:first-child { width: 74px; flex-shrink: 0; }
+[data-guide="riff-mobile-secondary-cues"] button[aria-label^="What "] { width: 16px; height: 16px; min-height: 16px; }
+[data-guide="riff-mobile-secondary-cues"] button[aria-label^="What "] svg { width: 9px; height: 9px; }
+[data-guide="riff-mobile-secondary-cues"] [role="slider"] { height: 20px; }
+[data-guide="riff-mobile-secondary-cues"] [role="slider"] > span:last-child {
+  height: 11px; width: 11px; box-shadow: 0 0 0 3px rgba(196,156,176,.1), 0 0 9px rgba(196,156,176,.15) !important;
+}
+[data-guide="riff-mobile-secondary-cues"] input[type="number"] { font-size: 10px; }
+[data-guide="riff-mobile-secondary-cues"] input[type="number"] + span { font-size: 6px; padding: 0 4px; }
+[data-guide="riff-mobile-secondary-cues"] input[type="number"] { width: 28px; }
+[data-guide="riff-mobile-secondary-cues"] .w-\[5\.25rem\] { width: 60px; height: 24px; }
+
+[data-guide="riff-mobile-ending-pattern"] button[aria-label^="What "] { width: 18px; height: 18px; min-height: 18px; }
+[data-guide="riff-mobile-ending-pattern"] button[aria-label^="What "] svg { width: 10px; height: 10px; }
+[data-guide="riff-mobile-ending-lane"] .text-\[8px\] { font-size: 7px; letter-spacing: .08em; }
+
+[data-guide="riff-mobile-audio-mix"] .touch-slider.rg-transport-tempo-track {
+  height: 24px; padding: 8px 0; margin: 0;
+}
+[data-guide="riff-mobile-audio-mix"] .touch-slider::-webkit-slider-runnable-track { height: 3px; }
+[data-guide="riff-mobile-audio-mix"] .touch-slider::-webkit-slider-thumb {
+  width: 12px; height: 12px; margin-top: -4.5px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--slider-accent) 12%, transparent), 0 0 10px color-mix(in srgb, var(--slider-accent) 30%, transparent);
+}
+[data-guide="riff-mobile-audio-mix"] .touch-slider::-moz-range-track { height: 3px; }
+[data-guide="riff-mobile-audio-mix"] .touch-slider::-moz-range-thumb { width: 12px; height: 12px; }
+[data-guide="riff-mobile-audio-mix"] svg { width: 12px; height: 12px; }
