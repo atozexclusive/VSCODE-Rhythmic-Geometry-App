@@ -16,7 +16,7 @@ import {
   type OrbitCountMode,
   type OrbitTempoMode,
 } from '../lib/orbitalEngine';
-import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel, type RootNote, type ScaleName, type TonePreset } from '../lib/audioEngine';
+import type { RootNote, ScaleName, TonePreset } from '../lib/audioEngine';
 import { getRangeValueFromClientX } from '../lib/touchSlider';
 import {
   CANVAS_ATMOSPHERE_OPTIONS,
@@ -202,9 +202,6 @@ export default function TransportBar({
   geometryMode,
   standardTimingMode = DEFAULT_ORBIT_COUNT_MODE,
   showHelp,
-  tonePreset,
-  rootNote,
-  scaleName,
   canvasDisplaySettings,
   quickOrbitControls,
   onAdjustQuickOrbit,
@@ -230,9 +227,6 @@ export default function TransportBar({
   onRandomPattern,
   onRemixPattern,
   onRandomPatternPlus,
-  onSoundModeChange,
-  onRootNoteChange,
-  onScaleChange,
   onCanvasDisplayChange,
   activeGuideTarget = null,
   lockedFeatures = {},
@@ -1394,7 +1388,7 @@ export default function TransportBar({
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
                     title: 'Open overlay controls',
-                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Home marker marks beat 1 and flashes when all orbits return together. Turn them down when you want the final form to read cleaner.',
+                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Cycle Start marks beat 1 and flashes when all orbits return together. Turn them down when you want the final form to read cleaner.',
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
@@ -1422,13 +1416,13 @@ export default function TransportBar({
                           <button
                             type="button"
                             onClick={onToggleHomeMarker}
-                            aria-label="Home marker"
+                            aria-label="Cycle Start"
                             aria-pressed={showHomeMarker}
-                            className={`${standardUtilityButtonClass} col-span-2`}
+                            className={standardUtilityButtonClass}
                             style={getStandardUtilityPillStyle(showHomeMarker, '#D9F5FF', 'rgba(217,245,255,0.1)')}
                             title="Marks beat 1 and gently flashes when all orbits return together"
                           >
-                            Home marker {showHomeMarker ? 'On' : 'Off'}
+                            Cycle Start {showHomeMarker ? 'On' : 'Off'}
                           </button>
                         </div>
                       </div>
@@ -1572,68 +1566,7 @@ export default function TransportBar({
                     onToggle: () => toggleDesktopUtilitySection('audio'),
                     children: (
                       <>
-                        <OrbitSoundOptions settings={harmonySettings} onChange={onHarmonyChange} includeKey={false} />
-                        <div className={standardUtilityGroupClass}>
-                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
-                            Sound Mode
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onSoundModeChange('original')}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(tonePreset === 'original', '#FFFFFF', 'rgba(255,255,255,0.12)')}
-                              title="Use the original raw tone palette"
-                            >
-                              Original
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onSoundModeChange('scale-quantized')}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(tonePreset === 'scale-quantized', '#72F1B8', 'rgba(114,241,184,0.16)')}
-                              title="Keep orbit notes inside the selected key and note family"
-                            >
-                              In Key
-                            </button>
-                          </div>
-                        </div>
-                        {tonePreset === 'scale-quantized' ? (
-                          <div className={standardUtilityGroupClass}>
-                            <div className="grid grid-cols-[74px,1fr] gap-2">
-                              <div>
-                                <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                  Key
-                                </div>
-                                <select
-                                  value={rootNote}
-                                  onChange={(e) => onRootNoteChange(e.target.value as RootNote)}
-                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-2 py-2 text-[10px] font-mono text-white outline-none"
-                                  title="Global key center"
-                                >
-                                  {NOTE_NAMES.map((note) => (
-                                    <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                  Note Family
-                                </div>
-                                <select
-                                  value={scaleName}
-                                  onChange={(e) => onScaleChange(e.target.value as ScaleName)}
-                                  className="w-full min-w-0 rounded-xl border border-white/8 bg-white/[0.04] px-2 py-2 text-[10px] font-mono text-white outline-none"
-                                  title="Global note family"
-                                >
-                                  {Object.entries(SCALE_PRESETS).map(([name]) => (
-                                    <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
+                        <OrbitSoundOptions settings={harmonySettings} onChange={onHarmonyChange} orbits={audioOrbits} muted={muted} onToggleMute={onToggleMute} onOrbitChange={onOrbitMixChange} />
                       </>
                     ),
                   })}

@@ -61,7 +61,7 @@ export default function OrbitAudioMixer({ orbits, harmony, onHarmonyChange, mute
       }
       <div className="border-t border-white/10 px-4 py-3">
         <button type="button" aria-expanded={soundsOpen} onClick={() => setSoundsOpen(!soundsOpen)} className="text-[10px] font-mono uppercase tracking-wider text-[#7FD7FF]">Sounds {soundsOpen ? '−' : '+'}</button>
-        {soundsOpen && <div className="mt-3"><OrbitSoundOptions settings={harmony} onChange={onHarmonyChange} /></div>}
+        {soundsOpen && <div className="mt-3"><OrbitSoundOptions settings={harmony} onChange={onHarmonyChange} orbits={orbits} muted={muted} onToggleMute={onToggleMute} onOrbitChange={onChange} /></div>}
       </div>
       {onSoundSettings && <button type="button" onClick={onSoundSettings} className="mb-3 ml-6 text-[9px] font-mono uppercase tracking-wider text-white/50 hover:text-[#7FD7FF]">Sound settings</button>}
     </section>

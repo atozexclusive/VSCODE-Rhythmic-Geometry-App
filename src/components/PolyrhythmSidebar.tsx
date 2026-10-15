@@ -81,7 +81,6 @@ interface PolyrhythmSidebarProps {
   onExportScene: () => void;
   onImportScene: (file: File) => void;
   isRecordingVideo: boolean;
-  onHardRefresh: () => void;
   lockedFeatures?: {
     colorEditing?: boolean;
     export?: boolean;
@@ -276,7 +275,6 @@ export default function PolyrhythmSidebar({
   onExportScene,
   onImportScene,
   isRecordingVideo,
-  onHardRefresh,
   lockedFeatures = {},
   onLockedFeature,
 }: PolyrhythmSidebarProps) {
@@ -613,7 +611,7 @@ export default function PolyrhythmSidebar({
 
               <div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>
                 {([
-                  { key: 'standard' as const, label: 'Standard', color: '#88CCFF' },
+                  { key: 'standard' as const, label: 'Free', color: '#88CCFF' },
                   { key: 'saved' as const, label: 'Saved', color: '#72F1B8' },
                   { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
                 ]).map((tab) => (
@@ -1829,31 +1827,7 @@ export default function PolyrhythmSidebar({
           {activeTab === 'account' ? (
             <section className="space-y-3">
               <AccountPanel />
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/42">
-                      Refresh This Mode
-                    </div>
-                    <div className="mt-1 text-[11px] text-white/46">
-                      Reload the app and come back to Study instead of Orbit.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onHardRefresh}
-                    className="shrink-0 rounded-xl border px-3 py-3 text-[10px] font-mono uppercase tracking-[0.15em]"
-                    style={{
-                      background: 'rgba(255,170,0,0.1)',
-                      borderColor: 'rgba(255,170,0,0.22)',
-                      color: '#FFAA00',
-                    }}
-                  >
-                    Hard Refresh
-                  </button>
-                </div>
-              </div>
-            </section>
+              </section>
           ) : null}
         </div>
       </div>

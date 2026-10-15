@@ -887,14 +887,6 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     notice: 'One number change can make a very different drawing.',
   },
   {
-    target: 'orbit-mobile-read-aids-button',
-    title: 'Reading Aids',
-    kicker: 'Orbit Guide',
-    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Home marker marks beat 1 and gently flashes when all orbits return together.',
-    doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
-    notice: 'These are visual helpers. They do not change timing or orbit counts.',
-  },
-  {
     target: 'mobile-interference',
     title: 'Interference',
     kicker: 'Orbit Guide',
@@ -927,11 +919,6 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     doThis: 'Use Remix to explore the same rhythm with a different feel.', notice: 'The current orbit counts stay intact.',
   },
   {
-    target: 'mobile-menu', title: 'Scenes', kicker: 'Orbit Guide',
-    text: 'Open Menu, then Scenes for ready-made starting points, Saved scenes, and Pro scene packs.',
-    doThis: 'Load a scene when you want a starting example.', notice: 'Scenes are grouped into Standard, Interference, and Sweep.',
-  },
-  {
     target: 'orbit-mobile-sound-button',
     title: 'Sound',
     kicker: 'Orbit Guide',
@@ -948,6 +935,14 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     notice: 'Canvas is Pro and only changes how the orbit is displayed.',
   },
   {
+    target: 'orbit-mobile-read-aids-button',
+    title: 'Read Aids',
+    kicker: 'Orbit Guide',
+    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Cycle Start marks beat 1 and gently flashes when all orbits return together.',
+    doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
+    notice: 'These are visual helpers. They do not change timing or orbit counts.',
+  },
+  {
     target: 'mobile-present',
     title: 'Fullscreen',
     kicker: 'Orbit Guide',
@@ -959,8 +954,8 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'mobile-menu',
     title: 'Menu',
     kicker: 'Orbit Guide',
-    text: 'Menu is for scenes, export, account, project actions, and switching modes. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
-    doThis: 'Open Menu when you want to save, export, manage your account, or switch to a different rhythm view.',
+    text: 'Menu holds Scenes, Export, Account, project actions, and mode switching. Scenes give you ready-made starting points, your saved setups, and Pro scene packs.',
+    doThis: 'Open Menu, then Scenes to load an example. Browse Standard, Interference, or Sweep, or return to your saved scenes.',
     notice: 'When the guide ends, you will return to the canvas.',
   },
 ];
@@ -1104,14 +1099,6 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     success: 'One step changed.',
   },
   {
-    target: 'riff-mobile-read-aids-button',
-    title: 'Read Aids',
-    kicker: 'Riff Guide',
-    text: 'The eye icon at the bottom-right of the canvas opens Read Aids. Numbers, Grouping, Subdivisions, Fill, and Contour help you read the pattern.',
-    doThis: 'Tap the eye icon, then try Numbers or Grouping. Tap the icon again or close the popover when you are done.',
-    notice: 'Subdivisions, Fill, and Contour change what the canvas emphasizes without changing the riff.',
-  },
-  {
     target: 'riff-mobile-pattern-tools',
     title: 'Pattern Tools',
     kicker: 'Riff Guide',
@@ -1221,6 +1208,14 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     notice: 'Canvas is Pro and does not change your riff hits or timing.',
   },
   {
+    target: 'riff-mobile-read-aids-button',
+    title: 'Read Aids',
+    kicker: 'Riff Guide',
+    text: 'The eye icon at the bottom-right of the canvas opens Read Aids. Numbers, Grouping, Subdivisions, Fill, and Contour help you read the pattern.',
+    doThis: 'Tap the eye icon, then try Numbers or Grouping. Tap the icon again or close the popover when you are done.',
+    notice: 'Subdivisions, Fill, and Contour change what the canvas emphasizes without changing the riff.',
+  },
+  {
     target: 'riff-mobile-present',
     title: 'Fullscreen',
     kicker: 'Riff Guide',
@@ -1326,7 +1321,7 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-desktop-scenes',
     title: 'Scenes',
     kicker: 'Riff Guide',
-    text: 'Scenes are ready-made examples. Standard loads built-in riffs, Saved holds your work, and Random creates a new starting point.',
+    text: 'Scenes are ready-made examples. Free loads built-in riffs, Saved holds your work, and Random creates a new starting point.',
     doThis: 'Use Random when you want a fresh example quickly.',
     notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
     actionLabel: 'Try Random',
@@ -1385,6 +1380,16 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     text: 'Study helps you see and hear how rhythms fit together. Each layer is one rhythm. The dots are steps. When layers play together, the canvas shows where they line up, where they separate, and when they resolve back to the beginning.',
     doThis: 'Press Play, then follow one color at a time.',
     notice: 'Start simple. Watch first, then edit one layer at a time.',
+  },
+  {
+    target: 'study-mobile-main-canvas',
+    title: 'Read The Rings',
+    kicker: 'Study Guide',
+    text: 'The rings are interactive. Tap a ring or dot to choose a layer or edit a step. The selected color tells you which rhythm you are changing.',
+    doThis: 'Tap a dot on the canvas.',
+    notice: 'Tap once to select. Tap the same dot again to turn that hit on or off.',
+    actionLabel: 'Play / Pause',
+    actionId: 'study-toggle-play',
   },
   {
     target: 'study-mobile-playback',
@@ -1455,28 +1460,12 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     notice: 'This is why some rhythms feel short and others take longer to resolve.',
   },
   {
-    target: 'study-mobile-read-aids-button',
-    title: 'Read Aids',
-    kicker: 'Study Guide',
-    text: 'The eye icon opens Read Aids. Radius changes the size of the selected layer. Ghost Steps and Numbers help you read the structure.',
-    doThis: 'Open the eye button to adjust Radius, Ghost Steps, Numbers, or bar cues.',
-    notice: 'These controls are for readability.',
-  },
-  {
     target: 'study-mobile-pattern-tools',
     title: 'Pattern Tools',
     kicker: 'Study Guide',
     text: 'Pattern Tools are Pro tools for quickly reshaping a layer. Offset moves the pattern earlier or later. Invert flips hits and rests. Mirror reverses their order.',
     doThis: 'Upgrade to use fast pattern transforms.',
     notice: 'Clear stays free under the step editor.',
-  },
-  {
-    target: 'study-mobile-menu',
-    title: 'Scenes',
-    kicker: 'Study Guide',
-    text: 'Scenes are starting points. Load one when you want a different rhythm idea without building it from scratch.',
-    doThis: 'Open Menu, then Scenes to load a simple study.',
-    notice: 'Scenes help you learn by example.',
   },
   {
     target: 'study-mobile-random',
@@ -1518,14 +1507,12 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     notice: 'Canvas styling changes the presentation, not the rhythm.',
   },
   {
-    target: 'study-mobile-main-canvas',
-    title: 'Read The Rings',
+    target: 'study-mobile-read-aids-button',
+    title: 'Read Aids',
     kicker: 'Study Guide',
-    text: 'The rings are interactive. Tap a ring or dot to choose a layer or edit a step. The selected color tells you which rhythm you are changing.',
-    doThis: 'Tap a dot on the canvas.',
-    notice: 'Tap once to select. Tap the same dot again to turn that hit on or off.',
-    actionLabel: 'Play / Pause',
-    actionId: 'study-toggle-play',
+    text: 'The eye icon opens Read Aids. Radius changes the size of the selected layer. Ghost Steps and Numbers help you read the structure.',
+    doThis: 'Open the eye button to adjust Radius, Ghost Steps, Numbers, or bar cues.',
+    notice: 'These controls are for readability.',
   },
   {
     target: 'study-mobile-present',
@@ -1539,8 +1526,8 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-menu',
     title: 'Menu',
     kicker: 'Study Guide',
-    text: 'The menu holds Scenes, Export, Account, and mode switching. Orbit draws layered cycles, Study compares rhythms, and Riff turns a pattern into a repeating groove.',
-    doThis: 'Open the menu when you want scenes, export, account tools, or another rhythm view.',
+    text: 'Menu holds Scenes, Export, Account, and mode switching. Scenes are ready-made studies you can load to explore a rhythm without building it from scratch.',
+    doThis: 'Open Menu, then Scenes to load an example or return to a saved study. Use Export, Account, or the mode switcher for the other tools.',
     notice: 'When the guide ends, you will return to the canvas.',
   },
 ];
@@ -1691,7 +1678,7 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-desktop-scenes',
     title: 'Scenes',
     kicker: 'Study Guide',
-    text: 'Scenes are ready-made studies. Standard loads built-in examples, Saved holds your work, and Random creates a new starting point.',
+    text: 'Scenes are ready-made studies. Free loads built-in examples, Saved holds your work, and Random creates a new starting point.',
     doThis: 'Use Random when you want a fresh example quickly.',
     notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
   },
@@ -3436,6 +3423,38 @@ function CanvasDisplayControls({
         </div>
       </div>
 
+
+      <div
+        className={canvasCardClass}
+        style={{
+          background: 'rgba(127,215,255,0.032)',
+          borderColor: 'rgba(127,215,255,0.12)',
+          boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
+        }}
+      >
+        <InlineInfoLabel
+          infoId="canvas_atmosphere"
+          label="Atmosphere"
+          labelClassName={canvasSubheaderClass}
+          labelStyle={canvasSubheaderStyle}
+        />
+        <div className="grid grid-cols-3 gap-1.5">
+          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => (
+            <StudyShellButton
+              key={option.id}
+              size="compact"
+              tone="blue"
+              highlighted={settings.atmosphere === option.id}
+              onClick={() => onChange({ atmosphere: option.id as CanvasAtmosphereId })}
+              className="px-1.5 tracking-[0.11em]"
+              title={option.summary}
+            >
+              {option.label}
+            </StudyShellButton>
+          ))}
+        </div>
+      </div>
+
       {showSquareGridControl ? (
         <div
           className={canvasCardClass}
@@ -3472,37 +3491,6 @@ function CanvasDisplayControls({
         </div>
       ) : null}
 
-      <div
-        className={canvasCardClass}
-        style={{
-          background: 'rgba(127,215,255,0.032)',
-          borderColor: 'rgba(127,215,255,0.12)',
-          boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.04)',
-        }}
-      >
-        <InlineInfoLabel
-          infoId="canvas_atmosphere"
-          label="Atmosphere"
-          labelClassName={canvasSubheaderClass}
-          labelStyle={canvasSubheaderStyle}
-        />
-        <div className="grid grid-cols-3 gap-1.5">
-          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => (
-            <StudyShellButton
-              key={option.id}
-              size="compact"
-              tone="blue"
-              highlighted={settings.atmosphere === option.id}
-              onClick={() => onChange({ atmosphere: option.id as CanvasAtmosphereId })}
-              className="px-1.5 tracking-[0.11em]"
-              title={option.summary}
-            >
-              {option.label}
-            </StudyShellButton>
-          ))}
-        </div>
-      </div>
-
       {!hideGlow ? (
       <div
         className={canvasCardClass}
@@ -3536,6 +3524,7 @@ function CanvasDisplayControls({
 
       {!innerClockLast ? innerClockControl : null}
 
+      {!hideGuides || !hideGuideAutomation || showMeterNumberControl || showCellStripControl || showCountControl ? (
       <div
         className={canvasCardClass}
         style={{
@@ -3739,6 +3728,7 @@ function CanvasDisplayControls({
           </>
         ) : null}
       </div>
+      ) : null}
 
       {innerClockLast ? innerClockControl : null}
 
@@ -7926,6 +7916,7 @@ function OrbitalPolymeter() {
     x: number;
     y: number;
   } | null>(null);
+  const [orbitSoundSelectedId, setOrbitSoundSelectedId] = useState<string | null>(null);
   const [orbitCanvasQuickPanel, setOrbitCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
   const openOnlyOrbitMobileMenu = (menu: null | 'edit' | 'scenes' | 'sound' | 'canvas') => {
@@ -9363,7 +9354,7 @@ function OrbitalPolymeter() {
       setSelectedRiffSequencePhraseIndex(0);
     }
     setActiveRiffCyclePresetId(preset.id);
-    setActiveRiffCatalogSceneTier(null);
+    setActiveRiffCatalogSceneTier(preset.catalogTier ?? null);
     setActiveRiffCycleSavedSceneId(null);
     setRiffMobileSceneTab('standard');
     setSelectedRiffCycleStep(null);
@@ -10773,12 +10764,6 @@ function OrbitalPolymeter() {
     }));
   }, [effectivePlan, requireEditableRiffCycleStudy]);
 
-  const handleHardRefreshApp = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
-  }, []);
-
   const handleRandomRiffCycleStudy = useCallback(() => {
     let nextStudy = createRandomRiffCycleStudy();
     if (!canUseProFeature(effectivePlan, 'riff-extended-patterns')) {
@@ -11624,7 +11609,18 @@ function OrbitalPolymeter() {
     Math.max(220, guideMeasuredHeight),
     Math.max(220, viewportHeight - 48),
   );
-  const guideCalloutWidth = isMobile ? Math.max(320, viewportWidth - 24) : 360;
+  const guideSideSpace = guideRect ? Math.max(guideRect.left, viewportWidth - guideRect.right) : 0;
+  const guideCalloutWidth = isMobile
+    ? Math.max(0, viewportWidth - 24)
+    : guideSideSpace >= 310 ? Math.min(360, guideSideSpace - 30) : 360;
+  const guideDocked = isMobile || Boolean(guideRect && guideSideSpace < 310 && guideRect.height > viewportHeight * 0.45);
+  const dockedGuidePanelHeight = Math.min(340, Math.max(180, Math.round(viewportHeight * 0.34)));
+  const guideContentBottom = viewportHeight - dockedGuidePanelHeight - 28;
+  const guideHighlightBottom = guideRect
+    ? guideDocked ? Math.min(guideRect.bottom, guideContentBottom - 8) : guideRect.bottom
+    : 0;
+  const guideHighlightTop = guideRect ? Math.max(8, guideRect.top - 8) : 0;
+  const guideHighlightHeight = guideRect ? Math.max(0, guideHighlightBottom + 8 - guideHighlightTop) : 0;
   const mobileChevronButtonBaseStyle = {
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.14)',
@@ -11700,59 +11696,27 @@ function OrbitalPolymeter() {
       borderColor: 'rgba(255, 255, 255, 0.12)',
     } as const;
 
-    if (!guideRect) {
-      return isMobile
-        ? { ...base, left: 12, right: 12, bottom: 24 }
-        : { ...base, right: 24, bottom: 32, width: guideCalloutWidth };
-    }
-
-    if (isMobile) {
-      const safePadding = 12;
-      const maxHeight = Math.max(220, viewportHeight - safePadding * 2);
-      const preferredBelowTop = guideRect.bottom + 18;
-      const preferredAboveTop = guideRect.top - guideCalloutHeight - 18;
-      const fitsBelow = preferredBelowTop + guideCalloutHeight <= viewportHeight - safePadding;
-      const fitsAbove = preferredAboveTop >= safePadding;
-      const preferredTop = fitsBelow
-        ? preferredBelowTop
-        : fitsAbove
-          ? preferredAboveTop
-          : guideRect.top + guideRect.height / 2 - guideCalloutHeight / 2;
-      const clampedTop = Math.min(
-        Math.max(safePadding, preferredTop),
-        Math.max(safePadding, viewportHeight - guideCalloutHeight - safePadding),
-      );
-
-        return {
-          ...base,
-          left: 12,
-          right: 12,
-          top: clampedTop,
-          maxHeight,
-          overflowY: 'auto' as const,
-        };
-      }
-
-    const canFitRight = guideRect.right + guideCalloutWidth + 32 < viewportWidth;
-    const canFitLeft = guideRect.left - guideCalloutWidth - 32 > 0;
-    const maxHeight = Math.max(220, viewportHeight - 48);
-    const clampedMaxTop = Math.max(24, viewportHeight - guideCalloutHeight - 24);
-    const top = Math.min(clampedMaxTop, Math.max(24, guideRect.top - 8));
-    const targetIsLarge =
-      guideRect.width > viewportWidth * 0.58 ||
-      guideRect.height > viewportHeight * 0.58;
-
-    if (targetIsLarge) {
+    if (guideDocked) {
       return {
         ...base,
-        width: guideCalloutWidth,
-        right: 24,
-        top: Math.min(clampedMaxTop, Math.max(88, viewportHeight * 0.16)),
-        maxHeight,
+        left: isMobile ? 12 : (viewportWidth - Math.min(480, viewportWidth - 48)) / 2,
+        width: isMobile ? viewportWidth - 24 : Math.min(480, viewportWidth - 48),
+        bottom: 12,
+        maxHeight: dockedGuidePanelHeight,
         overflowY: 'auto' as const,
+        overscrollBehavior: 'contain' as const,
       };
     }
 
+    if (!guideRect) {
+      return { ...base, right: 24, bottom: 32, width: guideCalloutWidth };
+    }
+
+    const canFitRight = guideRect.right + guideCalloutWidth + 30 <= viewportWidth;
+    const canFitLeft = guideRect.left - guideCalloutWidth - 30 >= 0;
+    const maxHeight = Math.max(220, viewportHeight - 48);
+    const clampedMaxTop = Math.max(24, viewportHeight - guideCalloutHeight - 24);
+    const top = Math.min(clampedMaxTop, Math.max(24, guideRect.top - 8));
     if (canFitRight) {
       return {
         ...base,
@@ -12635,7 +12599,27 @@ function OrbitalPolymeter() {
   }, [appSurface, currentTutorialStep, handleSetRiffEditMode, isMobile, tutorialContext, tutorialOpen]);
 
   useEffect(() => {
-    if ((!helpOpen && !tutorialOpen) || !activeOverlayStep || !isMobile) {
+    if ((!helpOpen && !tutorialOpen) || !guideDocked) return;
+    const root = document.getElementById('root');
+    if (!root) return;
+    const originalStyle = root.getAttribute('style');
+    const pageScroll = window.scrollY;
+    Object.assign(root.style, {
+      position: 'fixed', top: '0', left: '0', right: '0',
+      bottom: `${dockedGuidePanelHeight + 28}px`,
+      height: 'auto', minHeight: '0', overflowY: 'auto', overflowX: 'hidden',
+    });
+    root.scrollTop = pageScroll;
+    return () => {
+      const nextScroll = root.scrollTop;
+      if (originalStyle == null) root.removeAttribute('style');
+      else root.setAttribute('style', originalStyle);
+      window.scrollTo({ top: nextScroll, behavior: 'instant' });
+    };
+  }, [helpOpen, tutorialOpen, guideDocked, dockedGuidePanelHeight]);
+
+  useEffect(() => {
+    if ((!helpOpen && !tutorialOpen) || !activeOverlayStep || !guideDocked) {
       return;
     }
 
@@ -12656,7 +12640,7 @@ function OrbitalPolymeter() {
       window.clearTimeout(timeout);
       window.clearTimeout(retryTimeout);
     };
-  }, [activeOverlayStep, helpOpen, isMobile, tutorialOpen]);
+  }, [activeOverlayStep, helpOpen, guideDocked, tutorialOpen]);
 
   useEffect(() => {
     if ((!helpOpen && !tutorialOpen) || !activeOverlayStep) {
@@ -13640,6 +13624,7 @@ function OrbitalPolymeter() {
       if (requireUnlockedLaunchOrbit(orbitId)) {
         return;
       }
+      setOrbitSoundSelectedId(orbitId);
       setRadialMenu({ orbitId, x, y });
     },
     [requireUnlockedLaunchOrbit],
@@ -13658,6 +13643,7 @@ function OrbitalPolymeter() {
     }
     const x = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
     const y = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
+    setOrbitSoundSelectedId(orbitId);
     setRadialMenu({ orbitId, x, y });
   }, [effectivePlan, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing]);
 
@@ -15616,15 +15602,15 @@ function OrbitalPolymeter() {
           className="pointer-events-none fixed inset-0 bg-black/18"
           style={{ zIndex: zIndexBase }}
         />
-        {guideRect ? (
+        {guideRect && guideHighlightHeight > 0 ? (
           <div
             className="pointer-events-none fixed rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.08)] transition-all duration-200"
             style={{
               zIndex: zIndexBase + 10,
               left: Math.max(8, guideRect.left - 8),
-              top: Math.max(8, guideRect.top - 8),
+              top: guideHighlightTop,
               width: guideRect.width + 16,
-              height: guideRect.height + 16,
+              height: guideHighlightHeight,
               borderColor: `${accentColor}6b`,
               boxShadow: `0 0 0 2px rgba(255,255,255,0.06), 0 0 28px ${accentColor}26`,
             }}
@@ -15702,7 +15688,7 @@ function OrbitalPolymeter() {
               {currentGuideStep.notice}
             </div>
           ) : null}
-          <div className="mt-4 flex items-center justify-between gap-2">
+          <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'sticky -bottom-3.5 z-10 -mx-3.5 bg-[#111116] px-3.5 py-2.5' : ''}`}>
             <button
               onClick={closeStartGuide}
               className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
@@ -15746,34 +15732,22 @@ function OrbitalPolymeter() {
   ) =>
     tutorialOpen && currentTutorialStep ? (
       <>
-        {guideRect ? (
+        {guideRect && guideHighlightHeight > 0 ? (
           <div
             className="pointer-events-none fixed rounded-[22px] border transition-all duration-200"
             style={{
               zIndex: zIndexBase + 10,
               left: Math.max(8, guideRect.left - 8),
-              top: Math.max(8, guideRect.top - 8),
+              top: guideHighlightTop,
               width: guideRect.width + 16,
-              height: guideRect.height + 16,
+              height: guideHighlightHeight,
               borderColor: `${accentColor}8f`,
               boxShadow: `0 0 0 2px rgba(255,255,255,0.08), 0 0 0 9999px rgba(3,4,8,0.12), 0 0 38px ${accentColor}40`,
             }}
           />
         ) : null}
         {(() => {
-          const tutorialPanelStyle = isMobile
-            ? guideRect && typeof window !== 'undefined' && guideRect.top > window.innerHeight * 0.45
-              ? {
-                  left: 12,
-                  right: 12,
-                  top: 'calc(0.85rem + env(safe-area-inset-top))',
-                }
-              : {
-                  left: 12,
-                  right: 12,
-                  bottom: 'calc(0.85rem + env(safe-area-inset-bottom))',
-                }
-            : guideCalloutStyle;
+          const tutorialPanelStyle = guideCalloutStyle;
 
           return (
             <div
@@ -17144,7 +17118,7 @@ function OrbitalPolymeter() {
                           </StudyShellButton>
                         </div>
                       </div>
-                      <div className="space-y-2 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-3">
+                      <div className="space-y-0 rounded-lg border border-white/8 bg-white/[0.025] px-2.5 py-1.5">
                         <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
                           <span>Reverb</span>
                           <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
@@ -17156,7 +17130,7 @@ function OrbitalPolymeter() {
                           step="0.01"
                           value={polyrhythmStudy.soundSettings.reverbAmount ?? 0}
                           onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
-                          className="touch-slider h-8 w-full"
+                          className="touch-slider rg-compact-slider block w-full"
                           style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
                           aria-label="Study reverb amount"
                         />
@@ -18552,7 +18526,6 @@ function OrbitalPolymeter() {
             onExportScene={handleExportPolyrhythmScene}
             onImportScene={handleImportPolyrhythmScene}
             isRecordingVideo={recordingVideo}
-            onHardRefresh={handleHardRefreshApp}
             lockedFeatures={{ colorEditing: colorEditingLocked, export: exportLocked, saveScenes: saveScenesLocked, soundEditing: soundEditingLocked, proScenes: proScenesLocked }}
             onLockedFeature={openProPrompt}
           />
@@ -19103,7 +19076,7 @@ function OrbitalPolymeter() {
                     )}
                     <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.09)' }}>
                       {([
-                        { key: 'standard', label: 'Standard', color: '#88CCFF' },
+                        { key: 'standard', label: 'Free', color: '#88CCFF' },
                         { key: 'saved', label: 'Saved', color: '#72F1B8' },
                         { key: 'pro', label: 'Pro', color: '#FFAA00' },
                       ] as const).map((tab) => (
@@ -19546,7 +19519,7 @@ function OrbitalPolymeter() {
                         </StudyShellButton>
                       </div>
                     </div>
-                    <div className="space-y-2 rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2.5">
+                    <div className="space-y-0 rounded-lg border border-white/8 bg-white/[0.025] px-2.5 py-1.5">
                       <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
                         <span>Reverb</span>
                         <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
@@ -19558,7 +19531,7 @@ function OrbitalPolymeter() {
                         step="0.01"
                         value={polyrhythmStudy.soundSettings.reverbAmount ?? 0}
                         onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
-                        className="touch-slider h-7 w-full"
+                        className="touch-slider rg-compact-slider block w-full"
                         style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
                         aria-label="Study reverb amount"
                       />
@@ -20504,7 +20477,6 @@ function OrbitalPolymeter() {
           onExportScene={handleExportPolyrhythmScene}
           onImportScene={handleImportPolyrhythmScene}
           isRecordingVideo={recordingVideo}
-          onHardRefresh={handleHardRefreshApp}
           lockedFeatures={{ colorEditing: colorEditingLocked, export: exportLocked, saveScenes: saveScenesLocked, soundEditing: soundEditingLocked, proScenes: proScenesLocked }}
           onLockedFeature={openProPrompt}
         />
@@ -23205,7 +23177,6 @@ function OrbitalPolymeter() {
             onExportScene={handleExportRiffCycleScene}
             onImportScene={handleImportRiffCycleScene}
             isRecordingVideo={recordingVideo}
-            onHardRefresh={handleHardRefreshApp}
             lockedFeatures={{
               colorEditing: colorEditingLocked,
               export: exportLocked,
@@ -24948,7 +24919,7 @@ function OrbitalPolymeter() {
                     )}
                     <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                       {([
-                        { key: 'standard', label: 'Standard', color: '#88CCFF' },
+                        { key: 'standard', label: 'Free', color: '#88CCFF' },
                         { key: 'saved', label: 'Saved', color: '#72F1B8' },
                         { key: 'pro', label: 'Pro', color: '#FFAA00' },
                       ] as const).map((tab) => (
@@ -26724,7 +26695,6 @@ function OrbitalPolymeter() {
           onExportScene={handleExportRiffCycleScene}
           onImportScene={handleImportRiffCycleScene}
           isRecordingVideo={recordingVideo}
-          onHardRefresh={handleHardRefreshApp}
           lockedFeatures={{
             colorEditing: colorEditingLocked,
             export: exportLocked,
@@ -26879,50 +26849,11 @@ function OrbitalPolymeter() {
  onPanelChange={(panel) => { setOrbitCanvasQuickPanel(panel); if (panel) { setOrbitAudioMixOpen(false); setRadialMenu(null); } }}
  soundLocked={soundEditingLocked} canvasLocked={canvasOptionsLocked} randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
  onLocked={openProPrompt} onRandom={handleRandomPattern} onRandomPlus={handleRandomPatternPlus} onRemix={handleRemixPattern}>
- {orbitCanvasQuickPanel === 'audio' ? <div data-guide="mobile-sound" data-quick-panel="audio"><div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <OrbitSoundOptions settings={harmonySettings} onChange={handleHarmonyChange} includeKey={false} />
-                  <button
-                    onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
-                    className="w-full px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.12)' : 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.1)'}`,
-                      color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.74)',
-                    }}
-                  >
-                    {harmonySettings.tonePreset === 'original' ? 'Original Sound' : 'In Key'}
-                  </button>
-                  {harmonySettings.tonePreset === 'scale-quantized' && (
-                    <div className="space-y-1.5">
-                      <div className="grid grid-cols-[92px,1fr] gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
-                        <div>Key</div>
-                        <div>Note Family</div>
-                      </div>
-                      <div className="grid grid-cols-[92px,1fr] gap-2">
-                      <select
-                        value={harmonySettings.rootNote}
-                        onChange={(e) => handleHarmonyChange({ rootNote: e.target.value as RootNote })}
-                        className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
-                        style={{ color: 'rgba(255,255,255,0.82)' }}
-                      >
-                        {NOTE_NAMES.map((note) => (
-                          <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={harmonySettings.scaleName}
-                        onChange={(e) => handleHarmonyChange({ scaleName: e.target.value as ScaleName })}
-                        className="px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-[13px] font-mono focus:outline-none"
-                        style={{ color: 'rgba(255,255,255,0.82)' }}
-                      >
-                        {Object.entries(SCALE_PRESETS).map(([name]) => (
-                          <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>
-                        ))}
-                      </select>
-                    </div>
-                    </div>
-                  )}
-                </div></div>
+ {orbitCanvasQuickPanel === 'audio' ? <div data-guide="mobile-sound" data-quick-panel="audio" className="space-y-2">
+                  <OrbitSoundOptions settings={harmonySettings} onChange={handleHarmonyChange}
+                    orbits={engineState.orbits} muted={muted} onToggleMute={handleToggleMute} onOrbitChange={handleUpdateOrbit} selectedOrbitId={orbitSoundSelectedId}
+                    soundModeLabel={<InlineInfoLabel infoId="study_sound_mode" label="Sound Mode" labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42" />} />
+                </div>
  : orbitCanvasQuickPanel === 'canvas' ? <div data-guide="mobile-canvas" data-quick-panel="canvas"><div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <CanvasDisplayControls
                     settings={canvasDisplayState.orbit}
@@ -26959,13 +26890,16 @@ function OrbitalPolymeter() {
                       <button
                         type="button"
                         aria-pressed={showOrbitHomeMarker}
-                        aria-label="Home marker"
+                        aria-label="Cycle Start"
                         onClick={() => setShowOrbitHomeMarker((visible) => !visible)}
-                        className="col-span-2 rounded-xl border px-3 py-2 text-left"
-                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.08)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.3)' : 'rgba(255,255,255,0.08)' }}
+                        className="col-span-2 h-8 rounded-xl border px-2 py-0.5 text-left"
+                        title="Marks beat 1 and gently flashes when all orbits return together"
+                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.08)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.3)' : 'rgba(255,255,255,0.08)', color: showOrbitHomeMarker ? '#D9F5FF' : 'rgba(255,255,255,0.62)' }}
                       >
-                        <span className="flex justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-[#D9F5FF]">Home marker <span>{showOrbitHomeMarker ? 'On' : 'Off'}</span></span>
-                        <span className="mt-1 block text-[10px] leading-relaxed text-white/50">Marks beat 1. A gentle flash when all orbits return together.</span>
+                        <span className="flex items-center justify-between font-mono text-[9px] uppercase leading-[11px] tracking-[0.12em]">
+                          Cycle Start <span>{showOrbitHomeMarker ? 'On' : 'Off'}</span>
+                        </span>
+                        <span className="block text-[8px] leading-3 text-white/50">Marks beat 1 and flashes when every orbit returns.</span>
                       </button>
                     </div></div>}
  </QuickCanvasControls></div>
@@ -27457,9 +27391,10 @@ function OrbitalPolymeter() {
             harmonySettings={harmonySettings}
             colorEditingLocked={colorEditingLocked}
             onLockedFeature={openProPrompt}
-            onSelectOrbit={(orbitId) =>
-              setRadialMenu((current) => (current ? { ...current, orbitId } : current))
-            }
+            onSelectOrbit={(orbitId) => {
+              setOrbitSoundSelectedId(orbitId);
+              setRadialMenu((current) => (current ? { ...current, orbitId } : current));
+            }}
             onChangePulseCount={handleSetQuickOrbit}
             onChangeColor={handleRadialColorChange}
             onChangeHarmony={handleHarmonyChange}
@@ -27932,9 +27867,10 @@ function OrbitalPolymeter() {
           harmonySettings={harmonySettings}
           colorEditingLocked={colorEditingLocked}
           onLockedFeature={openProPrompt}
-          onSelectOrbit={(orbitId) =>
-            setRadialMenu((current) => (current ? { ...current, orbitId } : current))
-          }
+          onSelectOrbit={(orbitId) => {
+              setOrbitSoundSelectedId(orbitId);
+              setRadialMenu((current) => (current ? { ...current, orbitId } : current));
+            }}
           onChangePulseCount={handleSetQuickOrbit}
           onChangeColor={handleRadialColorChange}
           onChangeHarmony={handleHarmonyChange}

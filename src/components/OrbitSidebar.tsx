@@ -13,6 +13,7 @@ import {
   type OrbitCountMode,
 } from '../lib/orbitalEngine';
 import InfoTip from './InfoTip';
+import OrbitModeGlyph from './OrbitModeGlyph';
 import AccountPanel from './AccountPanel';
 import {
   NOTE_NAMES,
@@ -835,7 +836,7 @@ export default function OrbitSidebar({
 
               <div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                 {[
-                  { key: 'built-in' as const, label: 'Standard', color: '#FFD166' },
+                  { key: 'built-in' as const, label: 'Free', color: '#FFD166' },
                   { key: 'saved' as const, label: 'Saved', color: '#7FD7FF' },
                   { key: 'premium' as const, label: 'Pro', color: '#FF88C2' },
                 ].map((tab) => (
@@ -874,14 +875,16 @@ export default function OrbitSidebar({
                   <button
                     key={mode.key}
                     onClick={() => setActiveSceneMode(mode.key)}
-                    className="flex-1 px-2 py-1.5 rounded-[0.8rem] text-[8px] font-mono uppercase tracking-[0.14em] transition-all duration-200"
+                    aria-pressed={activeSceneMode === mode.key}
+                    className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-[0.8rem] px-1 py-1 font-mono uppercase tracking-[0.1em] transition-all duration-200"
                     style={{
                       background: activeSceneMode === mode.key ? `${mode.color}10` : 'transparent',
                       border: `1px solid ${activeSceneMode === mode.key ? `${mode.color}26` : 'transparent'}`,
                       color: activeSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.38)',
                     }}
                   >
-                    {mode.label}
+                    <OrbitModeGlyph mode={mode.key} size={16} />
+                    <span className="text-[7px] leading-[10px]">{mode.label}</span>
                   </button>
                 ))}
               </div>

@@ -1,4 +1,15 @@
 import type { RootNote, ScaleName } from './audioEngine';
+import { RIFF_SCENE_CATALOG } from './sceneCatalog';
+import catalogScene0 from '../../public/scenes/art-of-dying.json' with { type: 'json' };
+import catalogScene1 from '../../public/scenes/straws-pulled-at-random.json' with { type: 'json' };
+import catalogScene2 from '../../public/scenes/pitch-black.json' with { type: 'json' };
+import catalogScene3 from '../../public/scenes/phantoms.json' with { type: 'json' };
+import catalogScene4 from '../../public/scenes/sol-niger-within-2.json' with { type: 'json' };
+import catalogScene5 from '../../public/scenes/perpetual-black-second.json' with { type: 'json' };
+import catalogScene6 from '../../public/scenes/atropos.json' with { type: 'json' };
+import catalogScene7 from '../../public/scenes/obzen.json' with { type: 'json' };
+import catalogScene8 from '../../public/scenes/invincible.json' with { type: 'json' };
+import catalogScene9 from '../../public/scenes/entertain-me.json' with { type: 'json' };
 
 const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
@@ -209,6 +220,7 @@ export interface RiffCyclePreset {
   description: string;
   pro?: boolean;
   collection?: 'polyrhythm-breakdowns';
+  catalogTier?: 'free' | 'pro';
   study: RiffCycleStudy;
 }
 
@@ -3419,6 +3431,36 @@ export const RIFF_POLYRHYTHM_BREAKDOWNS: RiffCyclePreset[] = [
 
 export const RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS = RIFF_POLYRHYTHM_BREAKDOWNS.filter((preset) => !preset.pro);
 
+const RIFF_CATALOG_FILES = {
+  'art-of-dying': catalogScene0,
+  'straws-pulled-at-random': catalogScene1,
+  'pitch-black': catalogScene2,
+  'phantoms': catalogScene3,
+  'sol-niger-within-2': catalogScene4,
+  'perpetual-black-second': catalogScene5,
+  'atropos': catalogScene6,
+  'obzen': catalogScene7,
+  'invincible': catalogScene8,
+  'entertain-me': catalogScene9,
+};
+
+export const RIFF_CATALOG_PRESETS: RiffCyclePreset[] = RIFF_SCENE_CATALOG.map((scene) => {
+  const file = RIFF_CATALOG_FILES[scene.id as keyof typeof RIFF_CATALOG_FILES];
+  return {
+    id: `catalog-${scene.id}`,
+    name: scene.name,
+    description: scene.description,
+    pro: scene.tier === 'pro',
+    catalogTier: scene.tier,
+    study: createRiffCycleStudy({
+      ...file.study as unknown as RiffCycleStudy,
+      name: scene.name,
+      description: scene.description,
+      playing: false,
+    }),
+  };
+});
+
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   withPhraseMask(
     'default-riff',
@@ -3824,6 +3866,7 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
     },
     { pro: true },
   ),
+  ...RIFF_CATALOG_PRESETS,
   ...RIFF_POLYRHYTHM_BREAKDOWNS,
 ];
 
