@@ -3301,6 +3301,7 @@ function createPolyrhythmBreakdown(
   second: 2 | 3 | 4 | 5 | 6 | 7 | 8,
   color: string,
   profile: PolyrhythmBreakdownSound,
+  contoured = false,
 ): RiffCyclePreset {
   const { bpm, gain, ...sound } = profile;
   const id = `polyrhythm-breakdown-${first}-${second}`;
@@ -3348,6 +3349,7 @@ function createPolyrhythmBreakdown(
       pulseLayerSteps: fullGrid, subdivisionSoundEnabled: false,
       landingEditEnabled: false, tailEditEnabled: false,
       showStepLabels: true, showPhraseGroupings: false,
+      showStructureView: contoured,
       soundSettings: {
         ...sound, register: 'low', pitchMode: 'keyed', accentPush: 'soft', octaveShift: 1,
         referenceReverbAmount: 0.04, subdivisionReverbAmount: 0,
@@ -3408,11 +3410,11 @@ export const RIFF_POLYRHYTHM_BREAKDOWNS: RiffCyclePreset[] = [
   createPolyrhythmBreakdown(5, 6, '#E3CE79', {
     bpm: 70, palette: 'architectural', rootNote: 'F', scaleName: 'dorian',
     noteOrder: 'up-down', reverbAmount: 0.1, gain: 0.105,
-  }),
+  }, true),
   createPolyrhythmBreakdown(5, 7, '#E58B9F', {
     bpm: 68, palette: 'low-pulse', rootNote: 'D', scaleName: 'minorPentatonic',
     noteOrder: 'arpeggio', reverbAmount: 0.08, gain: 0.13,
-  }),
+  }, true),
 ];
 
 export const RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS = RIFF_POLYRHYTHM_BREAKDOWNS.filter((preset) => !preset.pro);
