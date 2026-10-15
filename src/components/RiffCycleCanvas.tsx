@@ -767,7 +767,7 @@ export default function RiffCycleCanvas({
   selectedSequencePhraseIndexRef.current = selectedSequencePhraseIndex;
   onReferenceStepChangeRef.current = onReferenceStepChange;
 
-  const draw = useCallback(() => {
+  const draw = useCallback((exportSnapshot = false) => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
@@ -1133,10 +1133,11 @@ export default function RiffCycleCanvas({
         : metrics.timelineRect
           ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
           : metrics.circleCenterY + metrics.outerRadius + 72;
+      const liveStripOffsetY = !exportRecordingMode && !exportLayoutMode && !exportSnapshot ? 12 : 0;
       const stripY = Math.min(
         rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
         Math.max(metrics.topPadding + 8, bottomStripY),
-      );
+      ) + liveStripOffsetY;
 
       ctx.save();
       ctx.textAlign = 'center';
@@ -3194,7 +3195,13 @@ export default function RiffCycleCanvas({
 
       exportCtx.imageSmoothingEnabled = true;
       exportCtx.imageSmoothingQuality = 'high';
-      exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+      // Keep snapshot exports at their existing strip position.
+      draw(true);
+      try {
+        exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+      } finally {
+        draw();
+      }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const link = document.createElement('a');

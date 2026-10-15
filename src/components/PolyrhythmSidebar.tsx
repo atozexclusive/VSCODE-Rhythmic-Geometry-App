@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Lock,
-  MoreHorizontal,
   RotateCcw,
   RotateCw,
   X,
 } from 'lucide-react';
 import AccountPanel from './AccountPanel';
+import SavedSceneLibrary, { type SceneLibraryActions } from './SavedSceneLibrary';
+import type { SceneFolder } from '../lib/sceneFolders';
 import InfoTip from './InfoTip';
 import { useIsMobile } from '../hooks/use-mobile';
 import { NOTE_NAMES, SCALE_PRESETS, getFriendlyScaleLabel } from '../lib/audioEngine';
@@ -40,6 +41,8 @@ interface PolyrhythmSidebarProps {
     id: string;
     name: string;
     description: string;
+    folderId?: string | null;
+    deletedAt?: string;
     study: PolyrhythmStudy;
   }>;
   selectedLayerId: string | null;
@@ -48,7 +51,8 @@ interface PolyrhythmSidebarProps {
   onSurfaceChange: (surface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow') => void;
   onLoadPreset: (presetId: string) => void;
   onLoadSavedScene?: (sceneId: string) => void;
-  onEditSavedScene?: (sceneId: string) => void;
+  sceneFolders: SceneFolder[];
+  sceneLibraryActions: SceneLibraryActions;
   onSaveScene: () => void;
   onResetStudy: () => void;
   onTogglePlay: () => void;
@@ -246,7 +250,8 @@ export default function PolyrhythmSidebar({
   onSurfaceChange,
   onLoadPreset,
   onLoadSavedScene,
-  onEditSavedScene,
+  sceneFolders,
+  sceneLibraryActions,
   onSaveScene,
   onResetStudy,
   onTogglePlay,
@@ -266,7 +271,6 @@ export default function PolyrhythmSidebar({
   onUpdateLayer,
   onSetLayerBeatCount,
   onToggleLayerStep,
-  onExportPng,
   onExportVideo,
   onExportMidi,
   onExportScene,
@@ -288,7 +292,6 @@ export default function PolyrhythmSidebar({
   });
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
-  const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
   const [exportMidiMode, setExportMidiMode] = useState<PolyrhythmMidiExportMode>('per-layer');
@@ -412,6 +415,7 @@ export default function PolyrhythmSidebar({
     <>
       {isOpen ? <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]" onClick={onClose} /> : null}
       <div
+        data-compact-scene-menu={isMobile ? true : undefined}
         className={`fixed z-50 flex flex-col overflow-hidden ${
           isMobile
             ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
@@ -430,7 +434,6 @@ export default function PolyrhythmSidebar({
               linear-gradient(145deg, rgba(17,19,27,0.97), rgba(8,10,16,0.92))
             `,
           borderColor: isMobile ? `${selectedLayer?.color ?? '#72F1B8'}24` : `${selectedLayer?.color ?? '#72F1B8'}28`,
-          borderLeft: isMobile ? 'none' : undefined,
           boxShadow: isMobile
             ? `0 -28px 90px rgba(0,0,0,0.56), 0 0 54px ${(selectedLayer?.color ?? '#72F1B8')}14, inset 0 1px 0 rgba(255,255,255,0.1)`
             : `0 28px 90px rgba(0,0,0,0.5), 0 0 48px ${(selectedLayer?.color ?? '#72F1B8')}12, inset 0 1px 0 rgba(255,255,255,0.08)`,
@@ -443,11 +446,11 @@ export default function PolyrhythmSidebar({
       >
         {isMobile ? (
           <div className="flex justify-center pt-2">
-            <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(114,241,184,0.16)]" />
+            <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(255,209,102,0.16)]" />
           </div>
         ) : null}
         <div
-          className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-3' : 'px-5 py-4'}`}
+          className={`flex shrink-0 items-center justify-between gap-3 border-b border-white/10 ${isMobile ? 'px-3 py-2' : 'px-5 py-4'}`}
           style={{
             background: isMobile
               ? undefined
@@ -457,19 +460,19 @@ export default function PolyrhythmSidebar({
           <div>
             <div className="flex items-center gap-2">
               <span
-                className="h-2.5 w-2.5 rounded-full"
+                className={isMobile ? "h-2 w-2 shrink-0 rounded-full" : "h-2.5 w-2.5 rounded-full"}
                 style={{
-                  background: selectedLayer?.color ?? '#72F1B8',
+                  background: (selectedLayer?.color ?? '#72F1B8'),
                   boxShadow: `0 0 18px ${(selectedLayer?.color ?? '#72F1B8')}66`,
                 }}
               />
-              <div className="text-sm font-light uppercase tracking-[0.24em] text-white/78">
+              <div className={`${isMobile ? "text-[11px]" : "text-sm"} font-light uppercase tracking-[0.24em] text-white/78`}>
                 {isMobile ? 'Study Menu' : 'Study'}
               </div>
             </div>
             {isMobile ? (
-              <div className="mt-1 text-[12px] leading-relaxed text-white/42">
-                Scenes, saved studies, and account tools for the rhythm study mode.
+              <div className="mt-1 text-[10px] leading-snug text-white/42">
+                Scenes, saved studies, and account tools.
               </div>
             ) : null}
             {!isMobile ? (
@@ -481,7 +484,7 @@ export default function PolyrhythmSidebar({
           <button
             type="button"
             onClick={onClose}
-            className={`rounded-xl border text-white/60 transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
+            className={`rounded-xl border text-white/60 transition-colors hover:bg-white/10 ${isMobile ? 'flex h-8 w-8 shrink-0 items-center justify-center' : 'p-2'}`}
             style={{
               background: 'rgba(255,255,255,0.045)',
               borderColor: 'rgba(255,255,255,0.09)',
@@ -489,27 +492,27 @@ export default function PolyrhythmSidebar({
             aria-label="Collapse Study menu"
             title="Collapse menu"
           >
-            <X size={18} />
+            <X size={isMobile ? 16 : 18} />
           </button>
         </div>
 
         {isMobile ? (
-          <div className="border-b border-white/8 px-4 py-3">
-            <div data-guide="study-mobile-mode-switcher" className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
-              <div className="flex items-start justify-between gap-3">
+          <div className="shrink-0 border-b border-white/8 px-3 py-2">
+            <div data-guide="study-mobile-mode-switcher" className="rounded-[14px] border px-2.5 py-2" style={mobileModeCardStyle}>
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[12px] font-mono uppercase tracking-[0.24em]" style={mobilePrimaryTitleStyle}>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
                     Mode
                   </div>
-                  <div className="mt-1 text-[12px] leading-relaxed text-white/42">
-                    Switch instruments without leaving the app.
+                  <div className="mt-0.5 text-[9px] leading-snug text-white/42">
+                    Switch instruments without losing your place.
                   </div>
                 </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                <div className="rounded-full border border-white/10 bg-white/[0.03] shrink-0 whitespace-nowrap px-2 py-0.5 text-[7px] font-mono uppercase tracking-[0.16em] text-white/42">
                   3 Modes
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-2 flex gap-1.5">
                 {([
                   ['orbital', 'Orbit'],
                   ['polyrhythm-study', 'Study'],
@@ -521,7 +524,7 @@ export default function PolyrhythmSidebar({
                       key={surfaceId}
                       type="button"
                       onClick={() => onSurfaceChange(surfaceId)}
-                      className="flex-1 rounded-full border px-3 py-2.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                      className="h-7 flex-1 rounded-full border px-2 text-[9px] font-mono uppercase tracking-[0.16em]"
                       style={{
                         background: active ? 'rgba(114,241,184,0.15)' : 'rgba(255,255,255,0.032)',
                         borderColor: active ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.085)',
@@ -538,9 +541,9 @@ export default function PolyrhythmSidebar({
           </div>
         ) : null}
 
-        <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-3'} space-y-3`}>
+        <div data-scene-menu-content className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'space-y-2 px-2.5 py-2 pb-6' : 'space-y-3 px-4 py-3'}`}>
           {isMobile ? (
-            <div className="rounded-[1.25rem] border p-1" style={mobilePrimaryTabShellStyle}>
+            <div className="rounded-xl border p-0.5" style={mobilePrimaryTabShellStyle}>
               <div className="grid grid-cols-3 gap-1">
                 {tabMeta.map((tab) => {
                   const active = tab.id === activeTab;
@@ -549,7 +552,7 @@ export default function PolyrhythmSidebar({
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className="min-w-0 rounded-xl px-2 py-2 text-[11px] font-mono font-light transition-all duration-200"
+                      className="h-8 min-w-0 rounded-[9px] px-1.5 text-[10px] font-mono font-light transition-all duration-200"
                       style={{
                         color: active ? tab.color : 'rgba(255,255,255,0.4)',
                         border: active ? `1px solid ${tab.color}32` : '1px solid transparent',
@@ -598,12 +601,12 @@ export default function PolyrhythmSidebar({
           )}
 
           {activeTab === 'scenes' ? (
-            <section className="space-y-3">
+            <section className={isMobile ? "space-y-2" : "space-y-3"}>
               <div className="space-y-1">
                 <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
                   Scenes
                 </div>
-                <div className="text-[11px] text-white/52">
+                <div className={`${isMobile ? "text-[9px]" : "text-[11px]"} text-white/52`}>
                   Start with one rhythm, then move into shared-cycle studies.
                 </div>
               </div>
@@ -618,7 +621,7 @@ export default function PolyrhythmSidebar({
                     key={tab.key}
                     type="button"
                     onClick={() => setSceneTab(tab.key)}
-                    className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    className={`${isMobile ? "h-7 px-2 text-[9px]" : "px-3 py-2 text-[10px]"} flex-1 rounded-lg font-mono uppercase tracking-[0.14em]`}
                     style={{
                       background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
                       border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
@@ -633,7 +636,7 @@ export default function PolyrhythmSidebar({
               <button
                 type="button"
                 onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : onSaveScene())}
-                className="relative flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
+                className={`${isMobile ? "h-8 px-3 text-[9px] rounded-xl" : "px-4 py-3 text-[11px] rounded-2xl"} relative flex w-full items-center justify-center border font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]`}
                 style={{
                   background: saveScenesLocked
                     ? 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.025))'
@@ -656,7 +659,7 @@ export default function PolyrhythmSidebar({
                 const hiddenCount = Math.max(0, presets.length - visiblePresets.length);
 
                 return (
-                <div key={group} className="space-y-3">
+                <div key={group} className={isMobile ? "space-y-2" : "space-y-3"}>
                   <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -681,7 +684,7 @@ export default function PolyrhythmSidebar({
                     return (
                       <div
                         key={preset.id}
-                        className="rounded-xl border p-3"
+                        className={`rounded-xl border ${isMobile ? "p-2" : "p-3"}`}
                         style={{
                           background: active
                             ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
@@ -690,11 +693,11 @@ export default function PolyrhythmSidebar({
                           boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(114,241,184,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                         }}
                       >
-                        <div className="flex items-center gap-3">
-                          <PolyrhythmSceneThumbnail preset={preset} />
+                        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
+                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
                           <div className="min-w-0 flex-1">
                             <div
-                              className="text-xs font-mono uppercase tracking-[0.16em]"
+                              className={`${isMobile ? "text-[10px] tracking-[0.1em]" : "text-xs tracking-[0.16em]"} font-mono uppercase`}
                               style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}
                             >
                               {preset.name}
@@ -702,7 +705,7 @@ export default function PolyrhythmSidebar({
                             <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
                               {preset.study.displayStyle === 'shared' ? 'Shared' : 'Nested'} · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
                             </div>
-                            <div className="mt-2 text-[11px] leading-relaxed text-white/46">
+                            <div className={`${isMobile ? "mt-1 text-[9px] leading-snug" : "mt-2 text-[11px] leading-relaxed"} text-white/46`}>
                               {preset.description}
                             </div>
                           </div>
@@ -764,77 +767,14 @@ export default function PolyrhythmSidebar({
               }) : null}
 
               {sceneTab === 'saved' ? (
-                savedScenes.length > 0 ? (
-                  <div className="space-y-3">
-                    {savedScenes.map((scene) => {
-                      const active = scene.id === activeSavedSceneId;
-                      const presetForThumbnail: PolyrhythmStudyPreset = {
-                        id: scene.id,
-                        name: scene.name,
-                        description: scene.description,
-                        group: 'two-layer',
-                        study: scene.study,
-                      };
-                      return (
-                        <div
-                          key={scene.id}
-                          onClick={() => onLoadSavedScene?.(scene.id)}
-                          className="relative w-full rounded-xl border p-3 text-left"
-                          style={{
-                            background: active
-                              ? 'linear-gradient(180deg, rgba(114,241,184,0.08), rgba(255,255,255,0.03))'
-                              : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
-                            borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onEditSavedScene?.(scene.id);
-                            }}
-                            className="absolute right-2 top-2 z-10 rounded-lg border p-1.5"
-                            style={{
-                              background: 'rgba(0,0,0,0.36)',
-                              borderColor: 'rgba(255,255,255,0.1)',
-                              color: 'rgba(255,255,255,0.7)',
-                            }}
-                            title="Edit scene details"
-                            aria-label="Edit scene details"
-                          >
-                            <MoreHorizontal size={14} />
-                          </button>
-                          <div className="flex items-center gap-3">
-                            <PolyrhythmSceneThumbnail preset={presetForThumbnail} />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-mono uppercase tracking-[0.16em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.84)' }}>
-                                {scene.name}
-                              </div>
-                              <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
-                                {scene.study.layers.map((layer) => layer.beatCount).join(' · ')}
-                              </div>
-                              <div className="mt-2 text-[11px] leading-relaxed text-white/46">
-                                {scene.description}
-                              </div>
-                            </div>
-                            <span className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)', color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)' }}>
-                              {active ? 'Loaded' : 'Load'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] px-4 py-4 text-center">
-                    <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-white/56">No Saved Scenes Yet</div>
-                    <div className="mt-2 text-[11px] text-white/42">Saved studies will appear here.</div>
-                  </div>
-                )
+                <SavedSceneLibrary scenes={savedScenes} folders={sceneFolders} activeSceneId={activeSavedSceneId}
+                  onLoadScene={(id) => onLoadSavedScene?.(id)}
+                  renderThumbnail={(scene) => <PolyrhythmSceneThumbnail preset={{ ...scene, group: 'two-layer', study: scene.study }} className="h-16 w-16 shrink-0" />}
+                  {...sceneLibraryActions} />
               ) : null}
 
               {sceneTab === 'pro' ? (
-                <div className="space-y-3">
+                <div className={isMobile ? "space-y-2" : "space-y-3"}>
                   {proPresets.map((preset) => {
                     const active = preset.id === activePresetId;
                     return (
@@ -862,16 +802,16 @@ export default function PolyrhythmSidebar({
                             <Lock size={8} strokeWidth={2.4} /> Pro
                           </span>
                         ) : null}
-                        <div className="flex items-center gap-3">
-                          <PolyrhythmSceneThumbnail preset={preset} />
+                        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
+                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-mono uppercase tracking-[0.16em]" style={{ color: active ? '#FFAA00' : 'rgba(255,255,255,0.84)' }}>
+                            <div className={`${isMobile ? "text-[10px] tracking-[0.1em]" : "text-xs tracking-[0.16em]"} font-mono uppercase`} style={{ color: active ? '#FFAA00' : 'rgba(255,255,255,0.84)' }}>
                               {preset.name}
                             </div>
                             <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
                               {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
                             </div>
-                            <div className="mt-2 text-[11px] leading-relaxed text-white/46">
+                            <div className={`${isMobile ? "mt-1 text-[9px] leading-snug" : "mt-2 text-[11px] leading-relaxed"} text-white/46`}>
                               {preset.description}
                             </div>
                           </div>
@@ -1342,7 +1282,7 @@ export default function PolyrhythmSidebar({
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] text-[10px] font-mono uppercase tracking-[0.14em] text-white/68"
                       >
                         <RotateCcw size={14} />
-                        Earlier
+                        1 Step
                       </button>
                       <button
                         type="button"
@@ -1350,7 +1290,7 @@ export default function PolyrhythmSidebar({
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.04] text-[10px] font-mono uppercase tracking-[0.14em] text-white/68"
                       >
                         <RotateCw size={14} />
-                        Later
+                        1 Step
                       </button>
                     </div>
 
@@ -1642,160 +1582,18 @@ export default function PolyrhythmSidebar({
           ) : null}
 
           {activeTab === 'export' ? (
-            <section className="space-y-3">
+            <section data-scene-menu-export className={isMobile ? "space-y-2" : "space-y-3"}>
               <div className="space-y-1">
                 <div className="text-[12px] font-mono uppercase tracking-[0.22em]" style={mobilePrimaryTitleStyle}>
                   Export
                 </div>
-                <p className="text-[11px] leading-relaxed text-white/52">
-                  Save an image, export MIDI, or move the editable Study scene.
+                <p className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
+                  Export MIDI, record a video, or move the editable Study scene.
                 </p>
               </div>
 
               <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Image Export
-                  </div>
-                  <InfoTip text="Choose the crop shape, then choose output size. HD is smallest, 2K is sharper, 4K is best for large posts or prints." />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={exportAspect}
-                    onChange={(event) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setExportAspect(event.target.value as typeof exportAspect);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
-                    <option value="square" style={{ background: '#181820' }}>Square Post</option>
-                    <option value="portrait" style={{ background: '#181820' }}>Wallpaper</option>
-                    <option value="story" style={{ background: '#181820' }}>Story</option>
-                  </select>
-                  <select
-                    value={String(exportScale)}
-                    onChange={(event) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setExportScale(Number(event.target.value) as 1 | 2 | 4);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    <option value="1" style={{ background: '#181820' }}>HD</option>
-                    <option value="2" style={{ background: '#181820' }}>2K</option>
-                    <option value="4" style={{ background: '#181820' }}>4K</option>
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (exportLocked) {
-                      promptLockedExport();
-                      return;
-                    }
-                    onExportPng({ aspect: exportAspect, scale: exportScale });
-                    setExportNotice('PNG exported. On mobile: Share > Save Image.');
-                  }}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(0, 255, 170, 0.08)',
-                    border: '1px solid rgba(0, 255, 170, 0.2)',
-                    color: '#00FFAA',
-                    ...lockedExportStyle,
-                  }}
-                >
-                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export PNG'}
-                </button>
-              </div>
-
-              <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Motion Export
-                  </div>
-                  <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
-                </div>
-                <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                  <select
-                    value={String(videoDuration)}
-                    onChange={(event) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoDuration(Number(event.target.value) as VideoExportDuration);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
-                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
-                        {duration.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={videoAspect}
-                    onChange={(event) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoAspect(event.target.value as VideoExportAspect);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
-                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
-                        {aspect.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
-                      setExportNotice(
-                        isIOS
-                          ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'
-                          : 'Video recording started from reset.',
-                      );
-                    }}
-                    disabled={isRecordingVideo}
-                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
-                    style={{
-                      background: 'rgba(51, 136, 255, 0.08)',
-                      border: '1px solid rgba(51, 136, 255, 0.2)',
-                      color: '#88CCFF',
-                      ...lockedExportStyle,
-                    }}
-                  >
-                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Export Video'}
-                  </button>
-                </div>
-              </div>
-
-              <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
+                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
                 style={exportCardStyle}
               >
                 <div className="flex items-center gap-2">
@@ -1804,7 +1602,7 @@ export default function PolyrhythmSidebar({
                   </div>
                   <InfoTip text="MIDI exports the rhythm as note events for a DAW. It does not export the app's synth sound." />
                 </div>
-                <div className="text-[11px] leading-relaxed text-white/52">
+                <div className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
                   Send the Study rhythm to a DAW as notes.
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -1871,7 +1669,85 @@ export default function PolyrhythmSidebar({
               </div>
 
               <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
+                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
+                style={exportCardStyle}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
+                    Motion Export
+                  </div>
+                  <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
+                </div>
+                <div className={isMobile ? "grid grid-cols-2 gap-1.5" : "grid grid-cols-[1fr,1fr,auto] gap-2"}>
+                  <select
+                    aria-label="Motion duration"
+                    value={String(videoDuration)}
+                    onChange={(event) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoDuration(Number(event.target.value) as VideoExportDuration);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
+                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
+                        {duration.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Motion format"
+                    value={videoAspect}
+                    onChange={(event) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoAspect(event.target.value as VideoExportAspect);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
+                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
+                        {aspect.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
+                      setExportNotice(
+                        isIOS
+                          ? 'Video recording may not save cleanly on iPhone.'
+                          : 'Video recording started from reset.',
+                      );
+                    }}
+                    data-riff-video-export
+                    disabled={isRecordingVideo}
+                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                    style={{
+                      background: 'rgba(51, 136, 255, 0.08)',
+                      border: '1px solid rgba(51, 136, 255, 0.2)',
+                      color: '#88CCFF',
+                      ...lockedExportStyle,
+                    }}
+                  >
+                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Export Video'}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
                 style={exportCardStyle}
               >
                 <div className="flex items-center gap-2">

@@ -488,6 +488,14 @@ export function invertLayerSteps(layer: PolyrhythmLayer): PolyrhythmLayer {
   };
 }
 
+export function mirrorLayerSteps(layer: PolyrhythmLayer): PolyrhythmLayer {
+  return {
+    ...layer,
+    activeSteps: [...layer.activeSteps].reverse(),
+    accents: [...layer.accents].reverse(),
+  };
+}
+
 export function getLayerStepPoints(
   layer: PolyrhythmLayer,
   centerX: number,

@@ -512,7 +512,7 @@ export default function RiffCycleSidebar({
     <>
       {isOpen ? <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[3px]" onClick={onClose} /> : null}
       <div
-        data-riff-menu-mobile={isMobile ? true : undefined}
+        data-compact-scene-menu={isMobile ? true : undefined}
         className={`fixed z-50 flex flex-col overflow-hidden ${
           isMobile
             ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
@@ -639,7 +639,7 @@ export default function RiffCycleSidebar({
           </div>
         ) : null}
 
-        <div data-riff-menu-content className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'space-y-2 px-2.5 py-2 pb-6' : 'space-y-3 px-4 py-3'}`}>
+        <div data-scene-menu-content className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'space-y-2 px-2.5 py-2 pb-6' : 'space-y-3 px-4 py-3'}`}>
           {isMobile ? (
             <div className="rounded-xl border p-0.5" style={mobilePrimaryTabShellStyle}>
               <div className="grid grid-cols-3 gap-1">
@@ -1283,7 +1283,7 @@ export default function RiffCycleSidebar({
           ) : null}
 
           {activeTab === 'export' ? (
-          <section data-riff-menu-export className={isMobile ? "space-y-2" : "space-y-3"}>
+          <section data-scene-menu-export className={isMobile ? "space-y-2" : "space-y-3"}>
             <div className="space-y-1">
               <div className={`${isMobile ? "text-[10px]" : "text-[12px]"} font-mono uppercase tracking-[0.22em]`} style={mobilePrimaryTitleStyle}>
                 Export

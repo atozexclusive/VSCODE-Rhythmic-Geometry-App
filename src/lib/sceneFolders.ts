@@ -14,6 +14,7 @@ export interface FolderScene {
 }
 
 export const RIFF_FOLDERS_STORAGE_KEY = 'rhythmic-geometry-riff-scene-folders-v1';
+export const STUDY_FOLDERS_STORAGE_KEY = 'rhythmic-geometry-study-scene-folders-v1';
 
 export function normalizeSceneFolder(value: unknown): SceneFolder | null {
   if (!value || typeof value !== 'object') return null;
@@ -28,15 +29,18 @@ export function normalizeSceneFolder(value: unknown): SceneFolder | null {
   };
 }
 
-export function loadRiffSceneFolders(): SceneFolder[] {
+function loadSceneFolders(storageKey: string): SceneFolder[] {
   if (typeof window === 'undefined') return [];
   try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(RIFF_FOLDERS_STORAGE_KEY) ?? '[]');
+    const value: unknown = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]');
     return Array.isArray(value) ? value.map(normalizeSceneFolder).filter((folder): folder is SceneFolder => folder !== null) : [];
   } catch {
     return [];
   }
 }
+
+export const loadRiffSceneFolders = () => loadSceneFolders(RIFF_FOLDERS_STORAGE_KEY);
+export const loadStudySceneFolders = () => loadSceneFolders(STUDY_FOLDERS_STORAGE_KEY);
 
 export function getSceneFolderPath(folders: SceneFolder[], id: string | null): SceneFolder[] {
   const path: SceneFolder[] = [];
