@@ -18,6 +18,7 @@ import {
   RIFF_CYCLE_COLORS,
   RIFF_CYCLE_PRESETS,
   RIFF_POLYRHYTHM_BREAKDOWNS,
+  RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS,
   RIFF_MAX_RESET_BARS,
   RIFF_MAX_STEP_COUNT,
   getResetBarCount,
@@ -412,6 +413,7 @@ export default function RiffCycleSidebar({
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
+  const [standardCollection, setStandardCollection] = useState<'polyrhythm-breakdowns' | null>(null);
   const [proCollection, setProCollection] = useState<'polyrhythm-breakdowns' | null>(null);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
@@ -493,8 +495,14 @@ export default function RiffCycleSidebar({
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
-  const standardPresets = RIFF_CYCLE_PRESETS.filter((preset) => !preset.pro);
-  const proPresets = RIFF_CYCLE_PRESETS.filter((preset) => preset.pro && (preset.collection ?? null) === proCollection);
+  const standardPresets = RIFF_CYCLE_PRESETS.filter((preset) => !preset.pro && (preset.collection ?? null) === standardCollection);
+  const proPresets = RIFF_CYCLE_PRESETS.filter((preset) => proCollection
+    ? preset.collection === proCollection
+    : preset.pro && !preset.collection);
+  const sceneCollection = sceneTab === 'standard' ? standardCollection : proCollection;
+  const setSceneCollection = sceneTab === 'standard' ? setStandardCollection : setProCollection;
+  const breakdownPresets = sceneTab === 'standard' ? RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS : RIFF_POLYRHYTHM_BREAKDOWNS;
+  const collectionParentLabel = sceneTab === 'standard' ? 'Standard' : 'Pro';
 
   useEffect(() => {
     if (isMobile && isOpen) {
@@ -766,6 +774,29 @@ export default function RiffCycleSidebar({
               {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
             </button>
 
+            {sceneTab === 'standard' || sceneTab === 'pro' ? (
+              <div>
+                {sceneCollection ? (
+                  <div className="space-y-2">
+                    <button type="button" onClick={() => setSceneCollection(null)} className="flex items-center gap-1 text-[10px] text-white/60">
+                      <ChevronLeft size={13} /> Back to {collectionParentLabel}
+                    </button>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#FFD166]">Polyrhythm Breakdowns</div>
+                    <p className="text-[10px] leading-relaxed text-white/50">Cell Sequencer opens ready to play. A: full grid with the first accent, B: accented grid, C: full polyrhythm. Each stage plays twice.</p>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setSceneCollection('polyrhythm-breakdowns')}
+                    className="flex w-full items-center gap-3 rounded-xl border border-[#FFD166]/20 bg-[#FFD166]/[0.045] p-3 text-left"
+                    aria-label="Open Polyrhythm Breakdowns folder">
+                    <Folder size={22} className="shrink-0 text-[#FFD166]" />
+                    <span className="min-w-0 flex-1"><span className="block font-mono text-[10px] uppercase tracking-[0.1em] text-[#FFD166]">Polyrhythm Breakdowns</span>
+                      <span className="mt-1 block text-[10px] text-white/50">{breakdownPresets.length} scenes · Full grid → accents → polyrhythm</span></span>
+                    <ChevronRight size={14} className="shrink-0 text-white/50" />
+                  </button>
+                )}
+              </div>
+            ) : null}
+
             {sceneTab === 'standard' ? standardPresets.map((preset) => {
               const active = preset.id === activePresetId;
               return (
@@ -799,6 +830,7 @@ export default function RiffCycleSidebar({
                     <button
                       type="button"
                       onClick={() => onLoadPreset(preset.id)}
+                      aria-label={active ? `${preset.name} loaded` : `Load ${preset.name}`}
                       className={`${isMobile ? "h-7 px-2 text-[8px] rounded-lg" : "px-3 py-2 text-[9px] rounded-xl"} shrink-0 border font-mono uppercase tracking-[0.14em] transition-all duration-200`}
                       style={{
                         background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.06)',
@@ -826,27 +858,9 @@ export default function RiffCycleSidebar({
 
             {sceneTab === 'pro' ? (
               <div className={isMobile ? "space-y-2" : "space-y-3"}>
-                {proCollection ? (
-                  <div className="space-y-2">
-                    <button type="button" onClick={() => setProCollection(null)} className="flex items-center gap-1 text-[10px] text-white/60">
-                      <ChevronLeft size={13} /> Back to Pro
-                    </button>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#FFD166]">Polyrhythm Breakdowns</div>
-                    <p className="text-[10px] leading-relaxed text-white/50">Cell Sequencer opens ready to play. A: full grid with the first accent, B: accented grid, C: full polyrhythm. Each stage plays twice.</p>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setProCollection('polyrhythm-breakdowns')}
-                    className="flex w-full items-center gap-3 rounded-xl border border-[#FFD166]/20 bg-[#FFD166]/[0.045] p-3 text-left"
-                    aria-label="Open Polyrhythm Breakdowns folder">
-                    <Folder size={22} className="shrink-0 text-[#FFD166]" />
-                    <span className="min-w-0 flex-1"><span className="block font-mono text-[10px] uppercase tracking-[0.1em] text-[#FFD166]">Polyrhythm Breakdowns</span>
-                      <span className="mt-1 block text-[10px] text-white/50">{RIFF_POLYRHYTHM_BREAKDOWNS.length} scenes · Full grid → accents → polyrhythm</span></span>
-                    <ChevronRight size={14} className="shrink-0 text-white/50" />
-                  </button>
-                )}
                 {proPresets.map((preset) => {
                   const active = preset.id === activePresetId;
-                  const locked = Boolean(lockedFeatures.proScenes);
+                  const locked = Boolean(preset.pro && lockedFeatures.proScenes);
                   return (
                     <button
                       key={preset.id}

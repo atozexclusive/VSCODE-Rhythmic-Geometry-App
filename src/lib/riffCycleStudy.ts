@@ -3284,7 +3284,25 @@ function withPhraseMask(
   };
 }
 
-function createPolyrhythmBreakdown(first: 2 | 3 | 4 | 5, second: 2 | 3 | 4 | 5 | 6 | 7 | 8, color: string): RiffCyclePreset {
+const FREE_POLYRHYTHM_BREAKDOWN_IDS = new Set([
+  'polyrhythm-breakdown-2-3',
+  'polyrhythm-breakdown-3-4',
+  'polyrhythm-breakdown-4-3',
+]);
+
+type PolyrhythmBreakdownSound = Pick<RiffCycleSoundSettings, 'palette' | 'rootNote' | 'scaleName' | 'reverbAmount'> & {
+  bpm: number;
+  gain: number;
+  noteOrder: 'up-down' | 'arpeggio';
+};
+
+function createPolyrhythmBreakdown(
+  first: 2 | 3 | 4 | 5,
+  second: 2 | 3 | 4 | 5 | 6 | 7 | 8,
+  color: string,
+  profile: PolyrhythmBreakdownSound,
+): RiffCyclePreset {
+  const { bpm, gain, ...sound } = profile;
   const id = `polyrhythm-breakdown-${first}-${second}`;
   const name = `${first} against ${second}`;
   const stepCount = first * second;
@@ -3295,7 +3313,7 @@ function createPolyrhythmBreakdown(first: 2 | 3 | 4 | 5, second: 2 | 3 | 4 | 5 |
   const accents = fullGrid.map((_, index) => index % second === 0);
   const reference = createReferenceMeter({
     numerator: second, denominator: 4, subdivision,
-    bpm: 90, barCountForDisplay: 1, backbeatBeat: null, backbeatBeats: [], showBackbeat: false,
+    bpm, barCountForDisplay: 1, backbeatBeat: null, backbeatBeats: [], showBackbeat: false,
   });
   const timing = { ...reference, color, backbeatOverrideBeats: [] };
   const cells = [
@@ -3312,12 +3330,12 @@ function createPolyrhythmBreakdown(first: 2 | 3 | 4 | 5, second: 2 | 3 | 4 | 5 |
   ];
   const description = `${subdivisionName} in ${second}/4. Three cells take you from the full grid to the finished polyrhythm.`;
   return {
-    id, name, description, pro: true, collection: 'polyrhythm-breakdowns',
+    id, name, description, pro: !FREE_POLYRHYTHM_BREAKDOWN_IDS.has(id), collection: 'polyrhythm-breakdowns',
     study: createRiffCycleStudy({
       id, name, description, reference,
       riff: createRiffPhrase(stepCount, {
         name, color, activeSteps: accents, accents, resetMode: 'per-bar',
-        rotationOffset: 0, pitchHz: 104, gain: 0.159,
+        rotationOffset: 0, pitchHz: 104, gain,
       }),
       riffSequenceEnabled: true, riffSequenceInitialized: true,
       riffCells: cells, riffSequence: ['A', 'B', 'C'],
@@ -3325,36 +3343,79 @@ function createPolyrhythmBreakdown(first: 2 | 3 | 4 | 5, second: 2 | 3 | 4 | 5 |
       riffSequencePhrases: cells.map((cell) => ({ id: `${id}-phrase-${cell.label}`, entryCount: 1, repeatCount: 2 })),
       riffSequenceEntryBars: [2, 2, 2], riffSequenceEntryRepeats: [1, 1, 1],
       riffSequenceEntryDurationModes: ['patterns', 'patterns', 'patterns'],
-      playing: false, viewMode: 'circular', referenceGain: 0.074,
+      playing: false, viewMode: 'circular', referenceGain: 0.055,
       pulseLayerEnabled: true, pulseLayerVisible: false, pulseLayerGroupSize: stepCount,
       pulseLayerSteps: fullGrid, subdivisionSoundEnabled: false,
       landingEditEnabled: false, tailEditEnabled: false,
       showStepLabels: true, showPhraseGroupings: false,
       soundSettings: {
-        palette: 'architectural', register: 'low', rootNote: 'E', noteOrder: 'up-down',
-        pitchMode: 'keyed', scaleName: 'minorPentatonic', accentPush: 'soft', octaveShift: 1,
-        reverbAmount: 0.648, referenceReverbAmount: 0.376,
+        ...sound, register: 'low', pitchMode: 'keyed', accentPush: 'soft', octaveShift: 1,
+        referenceReverbAmount: 0.04, subdivisionReverbAmount: 0,
       },
     }),
   };
 }
 
 export const RIFF_POLYRHYTHM_BREAKDOWNS: RiffCyclePreset[] = [
-  createPolyrhythmBreakdown(2, 3, '#FFD166'),
-  createPolyrhythmBreakdown(3, 2, '#FF9A76'),
-  createPolyrhythmBreakdown(3, 4, '#72F1B8'),
-  createPolyrhythmBreakdown(3, 5, '#6FA8FF'),
-  createPolyrhythmBreakdown(3, 7, '#C4A0FF'),
-  createPolyrhythmBreakdown(3, 8, '#65D9E8'),
-  createPolyrhythmBreakdown(4, 3, '#A7DC73'),
-  createPolyrhythmBreakdown(4, 5, '#F4A7D3'),
-  createPolyrhythmBreakdown(4, 7, '#FFB454'),
-  createPolyrhythmBreakdown(5, 2, '#A6B8FF'),
-  createPolyrhythmBreakdown(5, 3, '#FF88C2'),
-  createPolyrhythmBreakdown(5, 4, '#69CDB5'),
-  createPolyrhythmBreakdown(5, 6, '#E3CE79'),
-  createPolyrhythmBreakdown(5, 7, '#E58B9F'),
+  createPolyrhythmBreakdown(2, 3, '#FFD166', {
+    bpm: 116, palette: 'architectural', rootNote: 'C', scaleName: 'majorPentatonic',
+    noteOrder: 'up-down', reverbAmount: 0.18, gain: 0.115,
+  }),
+  createPolyrhythmBreakdown(3, 2, '#FF9A76', {
+    bpm: 100, palette: 'dry-synth', rootNote: 'D', scaleName: 'minorPentatonic',
+    noteOrder: 'arpeggio', reverbAmount: 0.1, gain: 0.11,
+  }),
+  createPolyrhythmBreakdown(3, 4, '#72F1B8', {
+    bpm: 92, palette: 'low-pulse', rootNote: 'A', scaleName: 'minorPentatonic',
+    noteOrder: 'up-down', reverbAmount: 0.16, gain: 0.14,
+  }),
+  createPolyrhythmBreakdown(3, 5, '#6FA8FF', {
+    bpm: 88, palette: 'architectural', rootNote: 'E', scaleName: 'dorian',
+    noteOrder: 'up-down', reverbAmount: 0.2, gain: 0.12,
+  }),
+  createPolyrhythmBreakdown(3, 7, '#C4A0FF', {
+    bpm: 84, palette: 'deep-architectural', rootNote: 'G', scaleName: 'aeolian',
+    noteOrder: 'arpeggio', reverbAmount: 0.12, gain: 0.11,
+  }),
+  createPolyrhythmBreakdown(3, 8, '#65D9E8', {
+    bpm: 90, palette: 'dry-synth', rootNote: 'F', scaleName: 'majorPentatonic',
+    noteOrder: 'up-down', reverbAmount: 0.1, gain: 0.105,
+  }),
+  createPolyrhythmBreakdown(4, 3, '#A7DC73', {
+    bpm: 82, palette: 'muted-djent', rootNote: 'D', scaleName: 'minorPentatonic',
+    noteOrder: 'arpeggio', reverbAmount: 0.06, gain: 0.1,
+  }),
+  createPolyrhythmBreakdown(4, 5, '#F4A7D3', {
+    bpm: 78, palette: 'architectural', rootNote: 'A', scaleName: 'dorian',
+    noteOrder: 'up-down', reverbAmount: 0.12, gain: 0.11,
+  }),
+  createPolyrhythmBreakdown(4, 7, '#FFB454', {
+    bpm: 76, palette: 'low-pulse', rootNote: 'C', scaleName: 'minorPentatonic',
+    noteOrder: 'arpeggio', reverbAmount: 0.1, gain: 0.13,
+  }),
+  createPolyrhythmBreakdown(5, 2, '#A6B8FF', {
+    bpm: 80, palette: 'dry-synth', rootNote: 'G', scaleName: 'majorPentatonic',
+    noteOrder: 'arpeggio', reverbAmount: 0.06, gain: 0.1,
+  }),
+  createPolyrhythmBreakdown(5, 3, '#FF88C2', {
+    bpm: 76, palette: 'deep-architectural', rootNote: 'E', scaleName: 'minorPentatonic',
+    noteOrder: 'up-down', reverbAmount: 0.08, gain: 0.105,
+  }),
+  createPolyrhythmBreakdown(5, 4, '#69CDB5', {
+    bpm: 72, palette: 'muted-djent', rootNote: 'B', scaleName: 'aeolian',
+    noteOrder: 'arpeggio', reverbAmount: 0.04, gain: 0.09,
+  }),
+  createPolyrhythmBreakdown(5, 6, '#E3CE79', {
+    bpm: 70, palette: 'architectural', rootNote: 'F', scaleName: 'dorian',
+    noteOrder: 'up-down', reverbAmount: 0.1, gain: 0.105,
+  }),
+  createPolyrhythmBreakdown(5, 7, '#E58B9F', {
+    bpm: 68, palette: 'low-pulse', rootNote: 'D', scaleName: 'minorPentatonic',
+    noteOrder: 'arpeggio', reverbAmount: 0.08, gain: 0.13,
+  }),
 ];
+
+export const RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS = RIFF_POLYRHYTHM_BREAKDOWNS.filter((preset) => !preset.pro);
 
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   withPhraseMask(
