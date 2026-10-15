@@ -9375,6 +9375,10 @@ function OrbitalPolymeter() {
     setRiffCycleStudy(
       RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? nextStudy : { ...nextStudy, riffSequenceEnabled: false },
     );
+    if (preset.collection === 'polyrhythm-breakdowns') {
+      setSelectedRiffSequenceCellLabel('A');
+      setSelectedRiffSequencePhraseIndex(0);
+    }
     setActiveRiffCyclePresetId(preset.id);
     setActiveRiffCatalogSceneTier(null);
     setActiveRiffCycleSavedSceneId(null);
@@ -20630,6 +20634,7 @@ function OrbitalPolymeter() {
             >
               <RiffCycleCanvas
                 study={riffCanvasStudy}
+                dockCellStripAboveControls
                 viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : 'circular'}
                 laneWindowStartStep={
                   riffMobileMainLaneActive

@@ -102,6 +102,7 @@ interface RiffCycleCanvasProps {
   landingReferenceOverlayMode?: 'auto' | 'always' | 'off';
   layoutTopInset?: number;
   layoutBottomInset?: number;
+  dockCellStripAboveControls?: boolean;
   laneWindowStartStep?: number;
   laneWindowStepCount?: number;
   endingCycleGuideBarCount?: number;
@@ -657,6 +658,7 @@ export default function RiffCycleCanvas({
   landingReferenceOverlayMode = 'auto',
   layoutTopInset = 0,
   layoutBottomInset = 0,
+  dockCellStripAboveControls = false,
   laneWindowStartStep,
   laneWindowStepCount,
   endingCycleGuideBarCount,
@@ -712,6 +714,8 @@ export default function RiffCycleCanvas({
   const isMobileRef = useRef(isMobile);
   const layoutTopInsetRef = useRef(layoutTopInset);
   const layoutBottomInsetRef = useRef(layoutBottomInset);
+  const baseLayoutBottomInsetRef = useRef(layoutBottomInset);
+  const dockCellStripRef = useRef(false);
   const laneWindowStartStepRef = useRef(laneWindowStartStep);
   const laneWindowStepCountRef = useRef(laneWindowStepCount);
   const endingCycleGuideBarCountRef = useRef(endingCycleGuideBarCount);
@@ -753,7 +757,9 @@ export default function RiffCycleCanvas({
   selectedStepRef.current = selectedStep;
   isMobileRef.current = isMobile;
   layoutTopInsetRef.current = layoutTopInset;
-  layoutBottomInsetRef.current = layoutBottomInset;
+  dockCellStripRef.current = dockCellStripAboveControls && resolvedStudy.riffSequenceEnabled && displaySettings.showCellStrip !== false;
+  baseLayoutBottomInsetRef.current = layoutBottomInset;
+  layoutBottomInsetRef.current = layoutBottomInset + (dockCellStripRef.current ? resolvedStudy.viewMode === 'unwrapped' ? 100 : 44 : 0);
   laneWindowStartStepRef.current = laneWindowStartStep;
   laneWindowStepCountRef.current = laneWindowStepCount;
   endingCycleGuideBarCountRef.current = endingCycleGuideBarCount;
@@ -860,7 +866,7 @@ export default function RiffCycleCanvas({
       rect.height,
       isMobileRef.current || portraitExportMode,
       layoutTopInsetRef.current,
-      layoutBottomInsetRef.current,
+      exportRecordingMode || exportLayoutMode || exportSnapshot ? baseLayoutBottomInsetRef.current : layoutBottomInsetRef.current,
       effectiveLaneWindowStartStep,
       laneWindowStepCountRef.current,
       {
@@ -1134,10 +1140,15 @@ export default function RiffCycleCanvas({
           ? Math.max(metrics.circleCenterY + metrics.outerRadius + 58, metrics.timelineRect.y - 20)
           : metrics.circleCenterY + metrics.outerRadius + 72;
       const liveStripOffsetY = !exportRecordingMode && !exportLayoutMode && !exportSnapshot ? 12 : 0;
-      const stripY = Math.min(
+      const originalStripY = Math.min(
         rect.height - metrics.bottomPadding - chipHeight - (exportLayoutMode ? 14 : 10),
         Math.max(metrics.topPadding + 8, bottomStripY),
       ) + liveStripOffsetY;
+      // The live mobile toolbar occupies the bottom 50px. Keep the whole strip
+      // and its title in a separate band above it; exports retain their layout.
+      const stripY = dockCellStripRef.current && !exportRecordingMode && !exportLayoutMode && !exportSnapshot
+        ? Math.max(metrics.topPadding + 20, rect.height - 82)
+        : originalStripY;
 
       ctx.save();
       ctx.textAlign = 'center';

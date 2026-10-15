@@ -357,12 +357,14 @@ export default function PolyrhythmCanvas({
         const onLayerBoundary = displayStudy.layers.some(
           (layer) => index % Math.max(1, sharedCycleStepCount / layer.beatCount) === 0,
         );
-        const pointRadius = onLayerBoundary ? 2.05 : 1.35;
-        ctx.globalAlpha = (onLayerBoundary ? 0.34 : 0.18) * inactiveAlpha;
-        ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
-        ctx.beginPath();
-        ctx.arc(x, y, pointRadius, 0, TAU);
-        ctx.fill();
+        if (currentStudy.showInactiveSteps) {
+          const pointRadius = onLayerBoundary ? 2.05 : 1.35;
+          ctx.globalAlpha = (onLayerBoundary ? 0.34 : 0.18) * inactiveAlpha;
+          ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
+          ctx.beginPath();
+          ctx.arc(x, y, pointRadius, 0, TAU);
+          ctx.fill();
+        }
 
         if (currentStudy.showStepLabels) {
           const denseGrid = sharedCycleStepCount > 48;
@@ -370,6 +372,7 @@ export default function PolyrhythmCanvas({
           const labelX = metrics.centerX + Math.cos(angle) * labelRadius;
           const labelY = metrics.centerY + Math.sin(angle) * labelRadius;
           ctx.globalAlpha = onLayerBoundary ? 0.42 : 0.24;
+          ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
           ctx.font = `${(denseGrid ? 7 : 9) * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -509,10 +512,40 @@ export default function PolyrhythmCanvas({
           if (isReferenceLayer && !point.active) {
             return;
           }
+          const isSelectedStep =
+            currentSelectedStep?.layerId === layer.id &&
+            currentSelectedStep.stepIndex === point.index;
+          const labelStride = getPolyrhythmLabelStride(layer.beatCount);
+          const shouldDrawLabel =
+            point.index % labelStride === 0 || point.index === layer.beatCount - 1;
+          if (
+            currentStudy.showStepLabels &&
+            !isReferenceLayer &&
+            (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
+            shouldDrawLabel &&
+            (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
+          ) {
+            const labelRadius = layer.radius * metrics.scale + 14 * exportLabelScale;
+            ctx.save();
+            ctx.fillStyle = isSelectedStep
+              ? 'rgba(255,255,255,0.88)'
+              : point.active
+                ? 'rgba(255,255,255,0.72)'
+                : 'rgba(255,255,255,0.28)';
+            ctx.font = `${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(
+              String(point.index + 1),
+              metrics.centerX + Math.cos(point.angle) * labelRadius,
+              metrics.centerY + Math.sin(point.angle) * labelRadius,
+            );
+            ctx.restore();
+          }
+
           const showSharedGhostStepsForLayer =
             !sharedDisplay || soloLayerDisplayRef.current || isSelectedLayer;
-          const shouldShowInactiveStep =
-            currentStudy.showInactiveSteps || currentStudy.showStepLabels || isMobileRef.current;
+          const shouldShowInactiveStep = currentStudy.showInactiveSteps;
           if (
             !point.active &&
             (!shouldShowInactiveStep || !showSharedGhostStepsForLayer)
@@ -521,9 +554,6 @@ export default function PolyrhythmCanvas({
           }
 
           const accented = point.accented;
-          const isSelectedStep =
-            currentSelectedStep?.layerId === layer.id &&
-            currentSelectedStep.stepIndex === point.index;
           const isHoveredStep =
             !isSelectedStep &&
             currentHoveredStep?.layerId === layer.id &&
@@ -708,33 +738,7 @@ export default function PolyrhythmCanvas({
           }
           ctx.restore();
 
-          const labelStride = getPolyrhythmLabelStride(layer.beatCount);
-          const shouldDrawLabel =
-            point.index % labelStride === 0 || point.index === layer.beatCount - 1;
-          if (
-            currentStudy.showStepLabels &&
-            !isReferenceLayer &&
-            (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
-            shouldDrawLabel &&
-            (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
-          ) {
-            const labelRadius = layer.radius * metrics.scale + 14 * exportLabelScale;
-            ctx.save();
-            ctx.fillStyle = isSelectedStep
-              ? 'rgba(255,255,255,0.88)'
-              : point.active
-                ? 'rgba(255,255,255,0.72)'
-                : 'rgba(255,255,255,0.28)';
-            ctx.font = `${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(
-              String(point.index + 1),
-              metrics.centerX + Math.cos(point.angle) * labelRadius,
-              metrics.centerY + Math.sin(point.angle) * labelRadius,
-            );
-            ctx.restore();
-          }
+
         });
 
         if (currentStudy.playing && !isReferenceLayer) {

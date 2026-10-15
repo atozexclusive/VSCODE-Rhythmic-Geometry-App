@@ -208,6 +208,7 @@ export interface RiffCyclePreset {
   name: string;
   description: string;
   pro?: boolean;
+  collection?: 'polyrhythm-breakdowns';
   study: RiffCycleStudy;
 }
 
@@ -3283,6 +3284,78 @@ function withPhraseMask(
   };
 }
 
+function createPolyrhythmBreakdown(first: 2 | 3 | 4 | 5, second: 2 | 3 | 4 | 5 | 6 | 7 | 8, color: string): RiffCyclePreset {
+  const id = `polyrhythm-breakdown-${first}-${second}`;
+  const name = `${first} against ${second}`;
+  const stepCount = first * second;
+  const fullGrid = Array.from({ length: stepCount }, () => true);
+  const gridGroups = Array.from({ length: Math.ceil(stepCount / 32) }, (_, index) => Math.min(32, stepCount - index * 32));
+  const subdivision = ({ 2: 8, 3: 12, 4: 16, 5: 20 } as const)[first];
+  const subdivisionName = ({ 2: 'Eighths', 3: 'Triplets', 4: 'Sixteenths', 5: 'Quintuplets' } as const)[first];
+  const accents = fullGrid.map((_, index) => index % second === 0);
+  const reference = createReferenceMeter({
+    numerator: second, denominator: 4, subdivision,
+    bpm: 90, barCountForDisplay: 1, backbeatBeat: null, backbeatBeats: [], showBackbeat: false,
+  });
+  const timing = { ...reference, color, backbeatOverrideBeats: [] };
+  const cells = [
+    createRiffSequenceCell('A', gridGroups, {
+      ...timing, id: `${id}-a`, name: '1. Full grid', activeSteps: fullGrid,
+      accents: fullGrid.map((_, index) => index === 0),
+    }),
+    createRiffSequenceCell('B', gridGroups, {
+      ...timing, id: `${id}-b`, name: '2. Accent pattern', activeSteps: fullGrid, accents,
+    }),
+    createRiffSequenceCell('C', Array.from({ length: first }, () => second), {
+      ...timing, id: `${id}-c`, name: '3. Full polyrhythm', activeSteps: accents, accents,
+    }),
+  ];
+  const description = `${subdivisionName} in ${second}/4. Three cells take you from the full grid to the finished polyrhythm.`;
+  return {
+    id, name, description, pro: true, collection: 'polyrhythm-breakdowns',
+    study: createRiffCycleStudy({
+      id, name, description, reference,
+      riff: createRiffPhrase(stepCount, {
+        name, color, activeSteps: accents, accents, resetMode: 'per-bar',
+        rotationOffset: 0, pitchHz: 104, gain: 0.159,
+      }),
+      riffSequenceEnabled: true, riffSequenceInitialized: true,
+      riffCells: cells, riffSequence: ['A', 'B', 'C'],
+      riffSequenceBars: 6, riffSequenceBarsMode: 'global', riffSequenceChainEnabled: false,
+      riffSequencePhrases: cells.map((cell) => ({ id: `${id}-phrase-${cell.label}`, entryCount: 1, repeatCount: 2 })),
+      riffSequenceEntryBars: [2, 2, 2], riffSequenceEntryRepeats: [1, 1, 1],
+      riffSequenceEntryDurationModes: ['patterns', 'patterns', 'patterns'],
+      playing: false, viewMode: 'circular', referenceGain: 0.074,
+      pulseLayerEnabled: true, pulseLayerVisible: false, pulseLayerGroupSize: stepCount,
+      pulseLayerSteps: fullGrid, subdivisionSoundEnabled: false,
+      landingEditEnabled: false, tailEditEnabled: false,
+      showStepLabels: true, showPhraseGroupings: false,
+      soundSettings: {
+        palette: 'architectural', register: 'low', rootNote: 'E', noteOrder: 'up-down',
+        pitchMode: 'keyed', scaleName: 'minorPentatonic', accentPush: 'soft', octaveShift: 1,
+        reverbAmount: 0.648, referenceReverbAmount: 0.376,
+      },
+    }),
+  };
+}
+
+export const RIFF_POLYRHYTHM_BREAKDOWNS: RiffCyclePreset[] = [
+  createPolyrhythmBreakdown(2, 3, '#FFD166'),
+  createPolyrhythmBreakdown(3, 2, '#FF9A76'),
+  createPolyrhythmBreakdown(3, 4, '#72F1B8'),
+  createPolyrhythmBreakdown(3, 5, '#6FA8FF'),
+  createPolyrhythmBreakdown(3, 7, '#C4A0FF'),
+  createPolyrhythmBreakdown(3, 8, '#65D9E8'),
+  createPolyrhythmBreakdown(4, 3, '#A7DC73'),
+  createPolyrhythmBreakdown(4, 5, '#F4A7D3'),
+  createPolyrhythmBreakdown(4, 7, '#FFB454'),
+  createPolyrhythmBreakdown(5, 2, '#A6B8FF'),
+  createPolyrhythmBreakdown(5, 3, '#FF88C2'),
+  createPolyrhythmBreakdown(5, 4, '#69CDB5'),
+  createPolyrhythmBreakdown(5, 6, '#E3CE79'),
+  createPolyrhythmBreakdown(5, 7, '#E58B9F'),
+];
+
 export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
   withPhraseMask(
     'default-riff',
@@ -3688,6 +3761,7 @@ export const RIFF_CYCLE_PRESETS: RiffCyclePreset[] = [
     },
     { pro: true },
   ),
+  ...RIFF_POLYRHYTHM_BREAKDOWNS,
 ];
 
 export const DEFAULT_RIFF_CYCLE_PRESET_ID = 'default-riff';
