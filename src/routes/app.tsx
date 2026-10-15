@@ -20879,8 +20879,8 @@ function OrbitalPolymeter() {
       const riffMobileShortViewport = layoutViewportHeight < 720;
       const riffMobileCanvasStyle = {
         width: '100%',
-        flex: '1 0 auto',
-        height: 'auto',
+        flex: '0 0 auto',
+        height: riffMobileShortViewport ? 'clamp(350px, 54svh, 430px)' : 'min(68svh, 580px)',
         minHeight: riffMobileShortViewport ? '350px' : '430px',
       } as const;
       const riffMobileEditSummary =
@@ -21044,12 +21044,12 @@ function OrbitalPolymeter() {
               </div>
               <div className="absolute right-3 bottom-2 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-0.5 backdrop-blur-md" role="toolbar" aria-label="Canvas quick controls">
                 {([
-                  { id: 'audio' as const, label: 'Sound', icon: AudioLines },
-                  { id: 'canvas' as const, label: 'Canvas', icon: SlidersHorizontal },
-                  { id: 'read' as const, label: 'Read Aids', icon: ScanEye },
-                ]).map(({ id, label, icon: Icon }) => (
-                  <button key={id} type="button" data-guide={id === 'audio' ? 'riff-mobile-sound-button' : id === 'canvas' ? 'riff-mobile-canvas-button' : 'riff-mobile-read-aids-button'} aria-label={label} title={label} aria-expanded={riffCanvasQuickPanel === id} aria-controls="riff-quick-settings"
-                    className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+                  { id: 'audio' as const, label: 'Sound', icon: AudioLines, locked: soundEditingLocked },
+                  { id: 'canvas' as const, label: 'Canvas', icon: SlidersHorizontal, locked: canvasOptionsLocked },
+                  { id: 'read' as const, label: 'Read Aids', icon: ScanEye, locked: false },
+                ]).map(({ id, label, icon: Icon, locked }) => (
+                  <button key={id} type="button" data-guide={id === 'audio' ? 'riff-mobile-sound-button' : id === 'canvas' ? 'riff-mobile-canvas-button' : 'riff-mobile-read-aids-button'} aria-label={locked ? label + ' (Pro)' : label} title={locked ? label + ' (Pro)' : label} aria-expanded={riffCanvasQuickPanel === id} aria-controls="riff-quick-settings"
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full transition-colors"
                     style={{ color: riffCanvasQuickPanel === id ? '#7FD7FF' : 'rgba(255,255,255,.46)', background: riffCanvasQuickPanel === id ? 'rgba(127,215,255,.1)' : 'transparent' }}
                     onClick={() => {
                       if (id === 'audio' && soundEditingLocked) { openProPrompt('sound-editing'); return; }
@@ -21057,6 +21057,7 @@ function OrbitalPolymeter() {
                       setRiffCanvasQuickPanel((current) => current === id ? null : id);
                     }}>
                     <Icon size={14} strokeWidth={1.5} />
+                    {locked ? <Lock size={7} aria-hidden="true" className="absolute right-1.5 bottom-1.5 text-white/30" /> : null}
                   </button>
                 ))}
               </div>
