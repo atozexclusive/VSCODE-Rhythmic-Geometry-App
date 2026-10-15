@@ -160,6 +160,7 @@ export interface RiffCycleStudy {
   riff: RiffPhrase;
   overlay: RiffOverlayLayer;
   riffSequenceEnabled: boolean;
+  riffSequenceInitialized?: boolean;
   riffCells: RiffSequenceCell[];
   riffSequence: RiffSequenceCellLabel[];
   riffSequenceBars: number;
@@ -1151,6 +1152,7 @@ export function createRiffCycleStudy(
     riff,
     overlay,
     riffSequenceEnabled: overrides.riffSequenceEnabled ?? false,
+    riffSequenceInitialized: hasInitializedRiffSequence(overrides),
     riffCells,
     riffSequence,
     riffSequenceBars,
@@ -1247,6 +1249,7 @@ export function cloneRiffCycleStudy(study: RiffCycleStudy): RiffCycleStudy {
       ),
     },
     riffSequenceEnabled: Boolean(study.riffSequenceEnabled),
+    riffSequenceInitialized: hasInitializedRiffSequence(study),
     riffCells: riffCells.map((cell) => ({
       ...cell,
       groups: [...cell.groups],
@@ -2173,16 +2176,26 @@ export function addRiffDetachedNote(study: RiffCycleStudy, stepIndex: number): R
   };
 }
 
+function hasInitializedRiffSequence(study: Partial<RiffCycleStudy>): boolean {
+  // Older saved scenes have no flag. Preserve their cells rather than guessing
+  // whether a disabled sequencer has already been edited.
+  return Boolean(study.riffSequenceEnabled || study.riffSequenceInitialized ||
+    (study.riffSequenceInitialized !== false && study.riffCells?.length));
+}
+
 export function setRiffSequenceEnabled(
   study: RiffCycleStudy,
   enabled: boolean,
 ): RiffCycleStudy {
-  const riffCells = normalizeRiffSequenceCells(study.riffCells, study.riff);
-  const sequence = normalizeRiffSequenceOrder(study.riffSequence, riffCells);
-  const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
+  const initialized = hasInitializedRiffSequence(study);
+  const source = enabled && !initialized ? syncFirstRiffSequenceCellFromRiff(study) : study;
+  const riffCells = normalizeRiffSequenceCells(source.riffCells, source.riff);
+  const sequence = normalizeRiffSequenceOrder(source.riffSequence, riffCells);
+  const sequenceBars = normalizeBars(source.riffSequenceBars ?? getResetBarCount(source.riff) ?? source.reference.barCountForDisplay);
   return {
-    ...study,
+    ...source,
     riffSequenceEnabled: enabled,
+    riffSequenceInitialized: initialized || enabled,
     riffCells,
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
@@ -2219,6 +2232,7 @@ export function syncFirstRiffSequenceCellFromRiff(study: RiffCycleStudy): RiffCy
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
   return {
     ...study,
+    riffSequenceInitialized: true,
     riffCells: nextCells,
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),
@@ -2244,6 +2258,7 @@ function updateRiffSequenceCell(
   const sequenceBars = normalizeBars(study.riffSequenceBars ?? getResetBarCount(study.riff) ?? study.reference.barCountForDisplay);
   return {
     ...study,
+    riffSequenceInitialized: true,
     riffCells: nextCells,
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, sequenceBars),

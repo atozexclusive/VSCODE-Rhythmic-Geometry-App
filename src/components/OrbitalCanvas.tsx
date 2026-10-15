@@ -30,6 +30,7 @@ import {
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
+import { crossedOrbitHome, getOrbitHomeCycleBeats } from '../lib/orbitReadingAids';
 import {
   addAudioToCanvasStream,
   CANVAS_EXPORT_PREROLL_SECONDS,
@@ -133,6 +134,7 @@ interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
   showPlanets?: boolean;
+  showHomeMarker?: boolean;
   showHudStats?: boolean;
   onToggleHudStats?: () => void;
   harmonySettings: HarmonySettings;
@@ -150,6 +152,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineState,
     traceMode,
     showPlanets = true,
+    showHomeMarker = false,
     showHudStats = true,
     harmonySettings,
     geometryMode,
@@ -169,6 +172,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
     const showPlanetsRef = useRef(showPlanets);
+    const showHomeMarkerRef = useRef(showHomeMarker);
+    const homeFlashStartedRef = useRef<number | null>(null);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const standardTimingModeRef = useRef<OrbitCountMode>(standardTimingMode);
@@ -199,6 +204,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
     showPlanetsRef.current = showPlanets;
+    showHomeMarkerRef.current = showHomeMarker;
     hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
@@ -1604,6 +1610,20 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             : state.orbits;
         const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
 
+        const homeMarkerEnabled = showHomeMarkerRef.current && !isExportRendering;
+        if (!homeMarkerEnabled || !state.playing || state.elapsedBeats <= previousElapsedBeats) {
+          homeFlashStartedRef.current = null;
+        } else if (crossedOrbitHome(previousElapsedBeats, state.elapsedBeats, getOrbitHomeCycleBeats(
+          visibleOrbits.map((orbit) => orbit.pulseCount),
+          isSweepMode ? 'sweep' : activeCountMode,
+          activeCyclePulseCount,
+        ))) {
+          homeFlashStartedRef.current = now;
+        }
+        const homeFlash = homeFlashStartedRef.current === null
+          ? 0 : Math.max(0, 1 - (now - homeFlashStartedRef.current) / 700);
+        let outerHomeRadius = 0;
+
         // ---- Orbit rings ----
         for (const orbit of visibleOrbits) {
           const isSweepInnerOrbit = isSweepMode && currentInnerOrbit?.id === orbit.id;
@@ -1628,6 +1648,20 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.lineWidth = isExportRendering ? 1.6 : 1;
           ctx.stroke();
           ctx.restore();
+
+          if (homeMarkerEnabled) {
+            outerHomeRadius = Math.max(outerHomeRadius, r);
+            ctx.save();
+            ctx.strokeStyle = '#D9F5FF';
+            ctx.globalAlpha = 0.42 + homeFlash * 0.35;
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(renderCx - 4, renderCy - r - 9);
+            ctx.lineTo(renderCx, renderCy - r - 5);
+            ctx.lineTo(renderCx + 4, renderCy - r - 9);
+            ctx.stroke();
+            ctx.restore();
+          }
 
           if (isHoveredOrbit) {
             ctx.save();
@@ -1804,6 +1838,27 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.arc(currentInterferencePoint.x, currentInterferencePoint.y, 3, 0, TAU);
           ctx.fillStyle = derivedPairColor;
           ctx.fill();
+          ctx.restore();
+        }
+
+        if (homeMarkerEnabled && outerHomeRadius > 0) {
+          const homeY = renderCy - outerHomeRadius;
+          ctx.save();
+          ctx.font = '9px monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = `rgba(217,245,255,${0.6 + homeFlash * 0.3})`;
+          ctx.fillText('1 · HOME', renderCx + 12, homeY - 7);
+          if (homeFlash > 0) {
+            ctx.strokeStyle = '#D9F5FF';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = homeFlash * 0.45;
+            ctx.shadowColor = '#B9E8FF';
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(renderCx, homeY, 13, 0, TAU);
+            ctx.stroke();
+          }
           ctx.restore();
         }
 

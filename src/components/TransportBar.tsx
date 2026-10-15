@@ -49,6 +49,7 @@ interface TransportBarProps {
   tempoMode: OrbitTempoMode;
   traceMode: boolean;
   showPlanets: boolean;
+  showHomeMarker?: boolean;
   muted: boolean;
   allClockwise: boolean;
   presentationMode: boolean;
@@ -80,6 +81,7 @@ interface TransportBarProps {
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
   onTogglePlanets: () => void;
+  onToggleHomeMarker?: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onToggleTutorial: () => void;
@@ -193,6 +195,7 @@ export default function TransportBar({
   tempoMode,
   traceMode,
   showPlanets,
+  showHomeMarker = false,
   muted,
   allClockwise,
   presentationMode,
@@ -218,6 +221,7 @@ export default function TransportBar({
   onSpeedChange,
   onToggleTrace,
   onTogglePlanets,
+  onToggleHomeMarker,
   onToggleMute,
   onToggleHelp,
   onToggleTutorial,
@@ -1390,7 +1394,7 @@ export default function TransportBar({
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
                     title: 'Open overlay controls',
-                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Turn them down when you want the final form to read cleaner.',
+                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Home marker marks beat 1 and flashes when all orbits return together. Turn them down when you want the final form to read cleaner.',
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
@@ -1414,6 +1418,17 @@ export default function TransportBar({
                             title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
                           >
                             {showPlanets ? 'Markers On' : 'Markers Off'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onToggleHomeMarker}
+                            aria-label="Home marker"
+                            aria-pressed={showHomeMarker}
+                            className={`${standardUtilityButtonClass} col-span-2`}
+                            style={getStandardUtilityPillStyle(showHomeMarker, '#D9F5FF', 'rgba(217,245,255,0.1)')}
+                            title="Marks beat 1 and gently flashes when all orbits return together"
+                          >
+                            Home marker {showHomeMarker ? 'On' : 'Off'}
                           </button>
                         </div>
                       </div>

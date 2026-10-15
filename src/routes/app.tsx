@@ -196,7 +196,6 @@ import {
   setRiffSequenceEntryDurationMode,
   setRiffSequenceEntryRepeats,
   setRiffSequencePhraseRepeats,
-  syncFirstRiffSequenceCellFromRiff,
   updateRiffSequenceCellBackbeatOverride,
   updateRiffSequenceCellColor,
   updateRiffSequenceCellName,
@@ -890,7 +889,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'orbit-mobile-read-aids-button',
     title: 'Reading Aids',
     kicker: 'Orbit Guide',
-    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit.',
+    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Home marker marks beat 1 and gently flashes when all orbits return together.',
     doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
     notice: 'These are visual helpers. They do not change timing or orbit counts.',
   },
@@ -7915,6 +7914,7 @@ function OrbitalPolymeter() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [showPlanets, setShowPlanets] = useState(true);
+  const [showOrbitHomeMarker, setShowOrbitHomeMarker] = useState(false);
   const [topStatusVisible, setTopStatusVisible] = useState(true);
   const [canvasHudVisible, setCanvasHudVisible] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
@@ -9940,10 +9940,7 @@ function OrbitalPolymeter() {
       showProPrompt('riff-cell-sequencer');
       return;
     }
-    setRiffCycleStudy((current) => {
-      const seeded = enabled ? syncFirstRiffSequenceCellFromRiff(current) : current;
-      return setRiffSequenceEnabled(seeded, enabled);
-    });
+    setRiffCycleStudy((current) => setRiffSequenceEnabled(current, enabled));
     if (enabled) {
       setSelectedRiffSequenceCellLabel('A');
       setSelectedRiffCycleStep(null);
@@ -26764,6 +26761,7 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHomeMarker={showOrbitHomeMarker}
           showHudStats={isMobile ? canvasHudVisible : false}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -26790,6 +26788,7 @@ function OrbitalPolymeter() {
             tempoMode={orbitTempoMode}
             traceMode={traceMode}
             showPlanets={showPlanets}
+            showHomeMarker={showOrbitHomeMarker}
             muted={muted}
             allClockwise={allClockwise}
             presentationMode={presentationMode}
@@ -26815,6 +26814,7 @@ function OrbitalPolymeter() {
             onSpeedChange={handleSpeedChange}
             onToggleTrace={handleToggleTrace}
             onTogglePlanets={handleTogglePlanets}
+            onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
             onToggleMute={handleToggleMute}
             onToggleHelp={handleToggleHelpGuide}
             onToggleTutorial={handleToggleHelpGuide}
@@ -26874,6 +26874,7 @@ function OrbitalPolymeter() {
               engineState={engineState}
               traceMode={traceMode}
               showPlanets={showPlanets}
+              showHomeMarker={showOrbitHomeMarker}
               showHudStats={canvasHudVisible}
               onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
               harmonySettings={harmonySettings}
@@ -26966,6 +26967,17 @@ function OrbitalPolymeter() {
                         }}
                       >
                         {showPlanets ? 'Markers On' : 'Markers Off'}
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={showOrbitHomeMarker}
+                        aria-label="Home marker"
+                        onClick={() => setShowOrbitHomeMarker((visible) => !visible)}
+                        className="col-span-2 rounded-xl border px-3 py-2 text-left"
+                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.08)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.3)' : 'rgba(255,255,255,0.08)' }}
+                      >
+                        <span className="flex justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-[#D9F5FF]">Home marker <span>{showOrbitHomeMarker ? 'On' : 'Off'}</span></span>
+                        <span className="mt-1 block text-[10px] leading-relaxed text-white/50">Marks beat 1. A gentle flash when all orbits return together.</span>
                       </button>
                     </div></div>}
  </QuickCanvasControls></div>
@@ -27480,6 +27492,7 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHomeMarker={showOrbitHomeMarker}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27507,6 +27520,7 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHomeMarker={showOrbitHomeMarker}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27807,6 +27821,7 @@ function OrbitalPolymeter() {
           tempoMode={orbitTempoMode}
           traceMode={traceMode}
           showPlanets={showPlanets}
+          showHomeMarker={showOrbitHomeMarker}
           muted={muted}
           allClockwise={allClockwise}
           presentationMode={presentationMode}
@@ -27832,6 +27847,7 @@ function OrbitalPolymeter() {
           onSpeedChange={handleSpeedChange}
           onToggleTrace={handleToggleTrace}
           onTogglePlanets={handleTogglePlanets}
+          onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
           onToggleMute={handleToggleMute}
           onToggleHelp={handleToggleHelpGuide}
           onToggleTutorial={handleToggleHelpGuide}
