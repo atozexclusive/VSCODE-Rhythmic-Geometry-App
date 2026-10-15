@@ -362,41 +362,29 @@ function triggerPaletteRiff(
     return;
   }
 
+  // Keep the stored palette ID so existing scenes use the replacement sound.
   if (palette === 'muted-djent') {
+    const accentGain = accented ? (accentPush === 'strong' ? 1.3 : 1.18) : 1;
     withVoice({
-      type: accented ? 'sawtooth' : 'triangle',
-      frequency: frequency * 0.86,
-      gain: clamp(gain + (accented ? 0.075 : 0.025), 0.024, 0.28),
-      attack: 0.0018,
-      release: accented ? 0.13 : 0.08,
-      filterFrequency: accented ? 980 : 440,
-      filterQ: accented ? 1.05 : 0.72,
-      sweepTo: frequency * (accented ? 0.48 : 0.58),
+      type: 'triangle',
+      frequency,
+      gain: clamp(gain * 0.95 * accentGain, 0.018, 0.22),
+      attack: 0.004,
+      release: accented ? 0.14 : 0.105,
+      filterFrequency: accented ? 1600 : 1100,
+      filterQ: 0.55,
       atTime,
     }, target);
     withVoice({
-      type: 'square',
-      frequency: clamp(frequency * (accented ? 4.15 : 2.8), 220, 3600),
-      gain: clamp(gain * (accented ? 0.52 : 0.18), 0.01, 0.085),
-      attack: 0.001,
-      release: accented ? 0.045 : 0.028,
-      filterFrequency: accented ? 2450 : 1350,
-      filterType: 'highpass',
-      filterQ: accented ? 1.25 : 0.9,
+      type: 'sine',
+      frequency: frequency * 2,
+      gain: clamp(gain * (accented ? 0.22 : 0.12), 0.002, 0.04),
+      attack: 0.003,
+      release: accented ? 0.075 : 0.055,
+      filterFrequency: 2200,
+      filterQ: 0.5,
       atTime,
     }, target);
-    if (accented) {
-      withVoice({
-        type: 'triangle',
-        frequency: clamp(frequency * 0.43, 55, 190),
-        gain: clamp(gain * (accentPush === 'strong' ? 0.48 : 0.36), 0.015, 0.07),
-        attack: 0.002,
-        release: 0.075,
-        filterFrequency: 360,
-        filterQ: 0.68,
-        atTime,
-      }, target);
-    }
     return;
   }
 
@@ -415,15 +403,25 @@ function triggerPaletteRiff(
   }
 
   if (palette === 'metal-tick') {
+    const accentGain = accented ? (accentPush === 'strong' ? 1.3 : 1.18) : 1;
     withVoice({
-      type: accented ? 'square' : 'triangle',
-      frequency: frequency * 1.12,
-      gain: clamp(gain + (accented ? 0.025 : 0.01), 0.018, 0.18),
-      attack: 0.0015,
-      release: accented ? 0.08 : 0.055,
-      filterFrequency: accented ? 2400 : 1800,
-      filterType: 'highpass',
-      filterQ: 0.82,
+      type: 'sine',
+      frequency,
+      gain: clamp(gain * 1.1 * accentGain, 0.018, 0.22),
+      attack: 0.003,
+      release: accented ? 0.21 : 0.16,
+      filterFrequency: 2800,
+      filterQ: 0.5,
+      atTime,
+    }, target);
+    withVoice({
+      type: 'sine',
+      frequency: frequency * 4,
+      gain: clamp(gain * (accented ? 0.24 : 0.16), 0.002, 0.04),
+      attack: 0.002,
+      release: accented ? 0.07 : 0.05,
+      filterFrequency: 3200,
+      filterQ: 0.5,
       atTime,
     }, target);
     return;
@@ -441,16 +439,15 @@ function triggerPaletteRiff(
 }
 
 function triggerReferencePalette(sound: RiffCycleSoundSettings, gain = 0.055, atTime?: number, target?: VoiceTarget): void {
-  if (sound.palette === 'metal-tick') {
+  if (sound.palette === 'metal-tick' || sound.palette === 'muted-djent') {
     withVoice({
-      type: 'square',
-      frequency: 1760,
+      type: 'sine',
+      frequency: sound.palette === 'metal-tick' ? 1040 : 880,
       gain: clamp(gain * 0.91, 0, 0.2),
       attack: 0.0015,
       release: 0.035,
-      filterFrequency: 2600,
-      filterType: 'highpass',
-      filterQ: 0.8,
+      filterFrequency: 2200,
+      filterQ: 0.5,
       atTime,
     }, target);
     return;
@@ -475,14 +472,13 @@ function triggerReferencePalette(sound: RiffCycleSoundSettings, gain = 0.055, at
 function triggerBackbeatPalette(sound: RiffCycleSoundSettings, gain = 0.11, atTime?: number, target?: VoiceTarget): void {
   if (sound.palette === 'muted-djent') {
     withVoice({
-      type: 'square',
-      frequency: 980,
+      type: 'triangle',
+      frequency: 660,
       gain: clamp(gain * 0.86, 0, 0.24),
       attack: 0.0015,
       release: 0.09,
-      filterFrequency: 1500,
-      filterType: 'highpass',
-      filterQ: 0.8,
+      filterFrequency: 1400,
+      filterQ: 0.5,
       atTime,
     }, target);
     return;
@@ -490,14 +486,13 @@ function triggerBackbeatPalette(sound: RiffCycleSoundSettings, gain = 0.11, atTi
 
   if (sound.palette === 'metal-tick') {
     withVoice({
-      type: 'triangle',
-      frequency: 960,
+      type: 'sine',
+      frequency: 780,
       gain: clamp(gain * 0.91, 0, 0.24),
       attack: 0.0015,
       release: 0.075,
-      filterFrequency: 1850,
-      filterType: 'highpass',
-      filterQ: 0.7,
+      filterFrequency: 1800,
+      filterQ: 0.5,
       atTime,
     }, target);
     return;
@@ -733,8 +728,8 @@ export function triggerBackbeatAccent(sound?: RiffCycleSoundSettings, gain = 0.1
 }
 
 export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: number, atTime?: number, target?: VoiceTarget): void {
-  const metal = sound?.palette === 'metal-tick';
-  const baseGain = gain ?? (metal ? 0.018 : 0.014);
+  const softPercussion = sound?.palette === 'metal-tick' || sound?.palette === 'muted-djent';
+  const baseGain = gain ?? 0.014;
   if (baseGain <= 0) {
     return;
   }
@@ -743,13 +738,13 @@ export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: n
     ? { ...target, context, outputToSpeakers: target?.outputToSpeakers ?? true, reverbAmount: sound.subdivisionReverbAmount ?? 0 }
     : target;
   withVoice({
-    type: metal ? 'square' : 'triangle',
-    frequency: metal ? 2480 : 2140,
+    type: softPercussion ? 'sine' : 'triangle',
+    frequency: softPercussion ? 1560 : 2140,
     gain: clamp(baseGain, 0, 0.12),
     attack: 0.0015,
-    release: metal ? 0.024 : 0.032,
-    filterFrequency: metal ? 3600 : 3000,
-    filterType: 'highpass',
+    release: softPercussion ? 0.028 : 0.032,
+    filterFrequency: softPercussion ? 2400 : 3000,
+    filterType: softPercussion ? 'lowpass' : 'highpass',
     filterQ: 0.74,
     atTime,
   }, voiceTarget);
@@ -757,14 +752,15 @@ export function triggerSubdivisionPulse(sound?: RiffCycleSoundSettings, gain?: n
 
 export function triggerBarMarkerCue(sound?: RiffCycleSoundSettings, atTime?: number, target?: VoiceTarget): void {
   const softLowPalette = sound?.palette === 'low-pulse' || sound?.palette === 'deep-architectural';
+  const softPercussion = sound?.palette === 'metal-tick' || sound?.palette === 'muted-djent';
   withVoice({
-    type: sound?.palette === 'metal-tick' ? 'triangle' : 'sine',
-    frequency: softLowPalette ? 460 : sound?.palette === 'metal-tick' ? 1120 : 760,
+    type: 'sine',
+    frequency: softLowPalette ? 460 : softPercussion ? 660 : 760,
     gain: softLowPalette ? 0.018 : 0.014,
     attack: 0.004,
     release: softLowPalette ? 0.11 : 0.082,
     filterFrequency: softLowPalette ? 820 : 1320,
-    filterType: sound?.palette === 'metal-tick' ? 'highpass' : 'bandpass',
+    filterType: softPercussion ? 'lowpass' : 'bandpass',
     filterQ: 0.72,
     atTime,
   }, target);
@@ -808,10 +804,10 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings, atTime?: number,
 
   const now = atTime ?? context.currentTime;
 
-  if (sound?.palette === 'muted-djent' || sound?.palette === 'low-pulse') {
+  if (sound?.palette === 'muted-djent' || sound?.palette === 'metal-tick' || sound?.palette === 'low-pulse') {
     withVoice({
-      type: 'triangle',
-      frequency: sound.palette === 'low-pulse' ? 180 : 260,
+      type: sound.palette === 'metal-tick' ? 'sine' : 'triangle',
+      frequency: sound.palette === 'low-pulse' ? 180 : sound.palette === 'metal-tick' ? 520 : 260,
       gain: 0.04,
       attack: 0.002,
       release: 0.09,
@@ -835,11 +831,11 @@ export function triggerResetCue(sound?: RiffCycleSoundSettings, atTime?: number,
   const gainNode = context.createGain();
   const filter = context.createBiquadFilter();
 
-  oscillator.type = sound?.palette === 'metal-tick' ? 'triangle' : 'square';
-  oscillator.frequency.setValueAtTime(sound?.palette === 'metal-tick' ? 1520 : 1240, now);
-  oscillator.frequency.exponentialRampToValueAtTime(sound?.palette === 'metal-tick' ? 1020 : 760, now + 0.06);
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(1240, now);
+  oscillator.frequency.exponentialRampToValueAtTime(760, now + 0.06);
   filter.type = 'highpass';
-  filter.frequency.setValueAtTime(sound?.palette === 'metal-tick' ? 980 : 680, now);
+  filter.frequency.setValueAtTime(680, now);
 
   gainNode.gain.setValueAtTime(0.0001, now);
   gainNode.gain.exponentialRampToValueAtTime(0.03, now + 0.004);

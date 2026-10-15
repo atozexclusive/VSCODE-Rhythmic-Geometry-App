@@ -196,9 +196,9 @@ const RIFF_SOUND_PALETTES: Array<{
 }> = [
   { id: 'architectural', label: 'Architectural' },
   { id: 'deep-architectural', label: 'Deep Arch' },
-  { id: 'muted-djent', label: 'Muted Djent' },
+  { id: 'muted-djent', label: 'Warm Pluck' },
   { id: 'dry-synth', label: 'Dry Synth' },
-  { id: 'metal-tick', label: 'Metal Tick' },
+  { id: 'metal-tick', label: 'Soft Mallet' },
   { id: 'low-pulse', label: 'Low Pulse' },
 ];
 

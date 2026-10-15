@@ -6,7 +6,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Dice5, AudioLines, SlidersHorizontal, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Dice5, AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -37,6 +37,7 @@ import {
   DEFAULT_HARMONY_SETTINGS,
   NOTE_NAMES,
   SCALE_PRESETS,
+  getFriendlyScaleLabel,
   type HarmonySettings,
   type RootNote,
   type ScaleName,
@@ -677,7 +678,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   canvas_atmosphere: {
     title: 'Atmosphere',
-    body: 'Adds extra canvas texture such as stars, dust, haze, or grid fields. Use it to push the visual mood further without changing the pattern.',
+    body: 'Adds subtle background details such as stars, dust, haze, or distant planets without changing the pattern.',
   },
   canvas_glow: {
     title: 'Glow',
@@ -942,7 +943,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'orbit-mobile-canvas-button',
     title: 'Canvas',
     kicker: 'Orbit Guide',
-    text: 'The sliders button opens Canvas to adjust the background, atmosphere, and visual style.',
+    text: 'The palette button opens Canvas to adjust the background, atmosphere, and visual style.',
     doThis: 'Skip Canvas while learning the counts.',
     notice: 'Canvas is Pro and only changes how the orbit is displayed.',
   },
@@ -1215,8 +1216,8 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-canvas-button',
     title: 'Canvas',
     kicker: 'Riff Guide',
-    text: 'The sliders icon between Sound and Read Aids opens Canvas. Choose a background and atmosphere, adjust count labels and the cell strip, or use Inner Clock at the end of the menu.',
-    doThis: 'Tap the sliders icon to change the presentation, then close the popover to see the full canvas.',
+    text: 'The palette icon between Sound and Read Aids opens Canvas. Choose a background and atmosphere, adjust count labels and the cell strip, or use Inner Clock at the end of the menu.',
+    doThis: 'Tap the palette icon to change the presentation, then close the popover to see the full canvas.',
     notice: 'Canvas is Pro and does not change your riff hits or timing.',
   },
   {
@@ -1512,7 +1513,7 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-canvas-button',
     title: 'Canvas',
     kicker: 'Study Guide',
-    text: 'The sliders icon opens Canvas. Pro lets you adjust the background, atmosphere, and count labels in a compact translucent menu.',
+    text: 'The palette icon opens Canvas. Pro lets you adjust the background, atmosphere, and count labels in a compact translucent menu.',
     doThis: 'Upgrade to style the canvas.',
     notice: 'Canvas styling changes the presentation, not the rhythm.',
   },
@@ -2364,17 +2365,6 @@ function clampPolyrhythmStudyToFreeRandomLimits(study: PolyrhythmStudy): Polyrhy
   };
 }
 
-const FRIENDLY_SCALE_LABELS: Record<ScaleName, string> = {
-  majorPentatonic: 'Open Major',
-  minorPentatonic: 'Blues Minor',
-  dorian: 'Minor Color',
-  aeolian: 'Dark Minor',
-  lydian: 'Bright Major',
-  wholeTone: 'Dreamy Whole Tone',
-  diminished: 'Tense Symmetry',
-  chromatic: 'All Notes',
-};
-
 const MODE_BEGINNER_COPY: Record<
   AppSurface,
   {
@@ -2505,13 +2495,6 @@ function getTutorialLabel(surface: AppSurface, context: GuideContext): string {
     return 'Riff Editor Missions';
   }
   return `${MODE_BEGINNER_COPY[surface].label} Missions`;
-}
-
-function getFriendlyScaleLabel(scaleName: ScaleName, options?: { includeTheory?: boolean }) {
-  const beginner = FRIENDLY_SCALE_LABELS[scaleName] ?? SCALE_PRESETS[scaleName].label;
-  return options?.includeTheory === false
-    ? beginner
-    : `${beginner} (${SCALE_PRESETS[scaleName].label})`;
 }
 
 function getInKeySummary(rootNote: RootNote, scaleName: ScaleName) {
@@ -3739,7 +3722,7 @@ function CanvasDisplayControls({
                       Cell Strip
                     </div>
                     <div className="mt-0.5 text-[8px] leading-snug text-white/32">
-                      Canvas and export overlay
+                      Show the current cell and sequence below the pattern.
                     </div>
                   </div>
                   <StudyShellButton
@@ -20885,9 +20868,9 @@ function OrbitalPolymeter() {
                               >
                                 <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
                                 <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
-                                <option value="muted-djent" style={{ background: '#181820' }}>Muted Djent</option>
+                                <option value="muted-djent" style={{ background: '#181820' }}>Warm Pluck</option>
                                 <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
-                                <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
+                                <option value="metal-tick" style={{ background: '#181820' }}>Soft Mallet</option>
                                 <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
                               </select>
                             </div>
@@ -24543,9 +24526,9 @@ function OrbitalPolymeter() {
                         >
                           <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
                           <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
-                          <option value="muted-djent" style={{ background: '#181820' }}>Muted Djent</option>
+                          <option value="muted-djent" style={{ background: '#181820' }}>Warm Pluck</option>
                           <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
-                          <option value="metal-tick" style={{ background: '#181820' }}>Metal Tick</option>
+                          <option value="metal-tick" style={{ background: '#181820' }}>Soft Mallet</option>
                           <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
                         </select>
                       </div>

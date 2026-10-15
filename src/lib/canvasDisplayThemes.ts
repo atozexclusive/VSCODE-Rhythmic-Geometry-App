@@ -15,7 +15,8 @@ export type CanvasAtmosphereId =
   | 'dust'
   | 'nebula-haze'
   | 'orbital-grid'
-  | 'deep-field';
+  | 'deep-field'
+  | 'distant-planets';
 
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
 export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
@@ -249,8 +250,9 @@ export const CANVAS_ATMOSPHERE_OPTIONS: Array<{
   { id: 'none', label: 'Void', summary: 'clean black depth' },
   { id: 'stars', label: 'Stars', summary: 'sharp night points' },
   { id: 'deep-field', label: 'Deep Field', summary: 'distant arcs and glints' },
-  { id: 'dust', label: 'Fine Dust', summary: 'quiet suspended grain' },
-  { id: 'nebula-haze', label: 'Nebula Veil', summary: 'soft layered color fog' },
+  { id: 'dust', label: 'Fine Dust', summary: 'warm suspended grain and softly blurred motes' },
+  { id: 'nebula-haze', label: 'Nebula Veil', summary: 'distant gas clouds and dark dust wisps' },
+  { id: 'distant-planets', label: 'Distant Planets', summary: 'quiet planets, stars, and a soft Milky Way' },
 ];
 
 export const CANVAS_GLOW_OPTIONS: Array<{
@@ -294,13 +296,13 @@ function getParticles(
     y: random() * height,
     radius:
       atmosphere === 'dust'
-        ? 0.34 + random() * 1.35
+        ? 0.5 + random() * 1.3
         : atmosphere === 'deep-field'
           ? 0.25 + random() * 1.35
           : 0.42 + random() * 0.95,
     alpha:
       atmosphere === 'dust'
-        ? 0.05 + random() * 0.18
+        ? 0.18 + random() * 0.26
         : atmosphere === 'deep-field'
           ? 0.12 + random() * 0.42
           : 0.18 + random() * 0.58,
@@ -321,6 +323,7 @@ function clampDisplayTheme(value: unknown): CanvasDisplayThemeId {
 }
 
 function clampAtmosphere(value: unknown): CanvasAtmosphereId {
+  if (value === 'light-ribbons') return 'distant-planets';
   return CANVAS_ATMOSPHERE_OPTIONS.some((option) => option.id === value)
     ? (value as CanvasAtmosphereId)
     : DEFAULT_CANVAS_DISPLAY_SETTINGS.atmosphere;
@@ -499,64 +502,223 @@ export function drawCanvasDisplayBackground(
   ctx.fillStyle = sideGradient;
   ctx.fillRect(0, 0, width, height);
 
-  if (atmosphere === 'nebula-haze' || atmosphere === 'deep-field') {
+  if (atmosphere === 'deep-field') {
     const hazeA = ctx.createRadialGradient(width * 0.22, height * 0.78, 0, width * 0.22, height * 0.78, radius * 0.46);
     hazeA.addColorStop(0, theme.gradient[1]);
     hazeA.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha =
-      atmosphere === 'nebula-haze'
-        ? presentationMode ? 0.74 : 0.48
-        : presentationMode ? 0.44 : 0.24;
+    ctx.globalAlpha = presentationMode ? 0.44 : 0.24;
     ctx.fillStyle = hazeA;
     ctx.fillRect(0, 0, width, height);
 
     const hazeB = ctx.createRadialGradient(width * 0.76, height * 0.7, 0, width * 0.76, height * 0.7, radius * 0.38);
     hazeB.addColorStop(0, theme.gradient[0]);
     hazeB.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha =
-      atmosphere === 'nebula-haze'
-        ? presentationMode ? 0.58 : 0.36
-        : presentationMode ? 0.32 : 0.16;
+    ctx.globalAlpha = presentationMode ? 0.32 : 0.16;
     ctx.fillStyle = hazeB;
     ctx.fillRect(0, 0, width, height);
   }
 
   if (atmosphere === 'nebula-haze') {
+    const unit = Math.min(width, height);
+    const random = createSeededRandom(seed + 8041);
+    const cloudColors = ['#716a8a', '#586e8c', '#846c80'];
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const veilA = ctx.createLinearGradient(width * 0.08, height * 0.18, width * 0.94, height * 0.84);
-    veilA.addColorStop(0, 'rgba(255,255,255,0)');
-    veilA.addColorStop(0.35, theme.gradient[1]);
-    veilA.addColorStop(0.62, theme.gradient[0]);
-    veilA.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.globalAlpha = presentationMode ? 0.2 : 0.12;
-    ctx.fillStyle = veilA;
-    ctx.beginPath();
-    ctx.ellipse(width * 0.48, height * 0.56, radius * 0.44, radius * 0.19, -0.42, 0, Math.PI * 2);
-    ctx.fill();
+    // Uneven overlapping gas clouds, concentrated off-center. Every edge fades
+    // to transparent, avoiding the solid ellipses of the old veil.
+    for (let index = 0; index < 32; index += 1) {
+      const rightCluster = index % 2 === 0;
+      const x = width * ((rightCluster ? 0.78 : 0.16) + (random() - 0.5) * 0.36);
+      const y = height * ((rightCluster ? 0.27 : 0.74) + (random() - 0.5) * 0.3);
+      const cloudRadius = unit * (0.07 + random() * 0.16);
+      const cloud = ctx.createRadialGradient(x, y, 0, x, y, cloudRadius);
+      cloud.addColorStop(0, cloudColors[index % cloudColors.length]);
+      cloud.addColorStop(0.35, cloudColors[(index + 1) % cloudColors.length]);
+      cloud.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = (presentationMode ? 0.065 : 0.05) * (0.5 + random() * 0.5);
+      ctx.fillStyle = cloud;
+      ctx.fillRect(x - cloudRadius, y - cloudRadius, cloudRadius * 2, cloudRadius * 2);
+    }
 
-    const veilB = ctx.createLinearGradient(width * 0.2, height * 0.86, width * 0.86, height * 0.2);
-    veilB.addColorStop(0, 'rgba(255,255,255,0)');
-    veilB.addColorStop(0.45, theme.gradient[2]);
-    veilB.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.globalAlpha = presentationMode ? 0.16 : 0.095;
-    ctx.fillStyle = veilB;
+    // Soft dark pockets break up the gas into irregular wisps and dust lanes.
+    ctx.globalCompositeOperation = 'source-over';
+    for (let index = 0; index < 14; index += 1) {
+      const rightCluster = index % 2 === 0;
+      const x = width * ((rightCluster ? 0.78 : 0.16) + (random() - 0.5) * 0.28);
+      const y = height * ((rightCluster ? 0.27 : 0.74) + (random() - 0.5) * 0.24);
+      const dustRadius = unit * (0.025 + random() * 0.075);
+      const dust = ctx.createRadialGradient(x, y, 0, x, y, dustRadius);
+      dust.addColorStop(0, 'rgba(5,7,14,0.28)');
+      dust.addColorStop(1, 'rgba(5,7,14,0)');
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = dust;
+      ctx.fillRect(x - dustRadius, y - dustRadius, dustRadius * 2, dustRadius * 2);
+    }
+
+    const embeddedStars = getParticles(width, height, atmosphere, seed + 29, 36);
+    ctx.globalCompositeOperation = 'screen';
+    embeddedStars.forEach((star) => {
+      ctx.globalAlpha = star.alpha * (presentationMode ? 0.32 : 0.24);
+      ctx.fillStyle = '#c6ccdc';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  if (atmosphere === 'distant-planets') {
+    const unit = Math.min(width, height);
+    const skyStars = getParticles(width, height, atmosphere, seed, 90);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    skyStars.forEach((star) => {
+      ctx.globalAlpha = star.alpha * (presentationMode ? 0.58 : 0.42);
+      ctx.fillStyle = star.hue > 0.75 ? '#aabed7' : '#dce2eb';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // A feathered, irregular band with tiny clustered stars, not a hard stripe.
+    const span = Math.hypot(width, height);
+    ctx.translate(width * 0.5, height * 0.46);
+    ctx.rotate(-0.62);
+    const galaxy = ctx.createLinearGradient(0, -unit * 0.19, 0, unit * 0.19);
+    galaxy.addColorStop(0, 'rgba(143,154,192,0)');
+    galaxy.addColorStop(0.28, 'rgba(143,154,192,0.025)');
+    galaxy.addColorStop(0.47, 'rgba(196,192,211,0.085)');
+    galaxy.addColorStop(0.6, 'rgba(149,173,194,0.045)');
+    galaxy.addColorStop(1, 'rgba(143,154,192,0)');
+    ctx.globalAlpha = presentationMode ? 0.9 : 0.7;
+    ctx.fillStyle = galaxy;
+    ctx.fillRect(-span * 0.5, -unit * 0.19, span, unit * 0.38);
+
+    const galaxyStars = getParticles(width, height, atmosphere, seed + 181, 180);
+    galaxyStars.forEach((star) => {
+      const x = (star.x / width - 0.5) * span;
+      const spread = star.y / height - 0.5;
+      const y = Math.sign(spread) * spread * spread * unit * 0.45
+        + Math.sin(x / unit * 7) * unit * 0.018;
+      ctx.globalAlpha = star.alpha * (presentationMode ? 0.32 : 0.24);
+      ctx.fillStyle = star.hue > 0.5 ? '#b3bfd7' : '#d5c9bf';
+      ctx.beginPath();
+      ctx.arc(x, y, star.radius * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = presentationMode ? 0.19 : 0.15;
+
+    // Small, shaded worlds sit off-center so the rhythmic drawing stays clear.
+    const saturnX = width * 0.15;
+    const saturnY = height * 0.24;
+    const saturnRadius = unit * 0.047;
+    const drawRing = (start: number, end: number) => {
+      ctx.beginPath();
+      ctx.ellipse(saturnX, saturnY, saturnRadius * 1.95, saturnRadius * 0.53, -0.35, start, end);
+      ctx.stroke();
+    };
+    ctx.strokeStyle = 'rgba(173,157,124,0.58)';
+    ctx.lineWidth = Math.max(1, saturnRadius * 0.18);
+    drawRing(0, Math.PI * 2);
+
+    const saturnShade = ctx.createRadialGradient(
+      saturnX - saturnRadius * 0.4, saturnY - saturnRadius * 0.4, 0,
+      saturnX, saturnY, saturnRadius,
+    );
+    saturnShade.addColorStop(0, '#b9ac8b');
+    saturnShade.addColorStop(0.55, '#726750');
+    saturnShade.addColorStop(1, '#11151c');
+    ctx.fillStyle = saturnShade;
     ctx.beginPath();
-    ctx.ellipse(width * 0.58, height * 0.42, radius * 0.36, radius * 0.15, 0.28, 0, Math.PI * 2);
+    ctx.arc(saturnX, saturnY, saturnRadius, 0, Math.PI * 2);
     ctx.fill();
+    drawRing(0, Math.PI);
+
+    const earthX = width * 0.87;
+    const earthY = height * 0.74;
+    const earthRadius = unit * 0.038;
+    const earthShade = ctx.createRadialGradient(
+      earthX - earthRadius * 0.35, earthY - earthRadius * 0.4, 0,
+      earthX, earthY, earthRadius,
+    );
+    earthShade.addColorStop(0, '#7194a3');
+    earthShade.addColorStop(0.5, '#345c73');
+    earthShade.addColorStop(1, '#0d151f');
+    ctx.fillStyle = earthShade;
+    ctx.beginPath();
+    ctx.arc(earthX, earthY, earthRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    ctx.translate(earthX, earthY);
+    ctx.scale(earthRadius, earthRadius);
+    ctx.fillStyle = 'rgba(126,149,120,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(-0.72, -0.52);
+    ctx.bezierCurveTo(-0.34, -0.84, 0.16, -0.62, 0.04, -0.29);
+    ctx.bezierCurveTo(-0.3, -0.12, 0.02, 0.08, -0.22, 0.24);
+    ctx.bezierCurveTo(-0.34, 0.5, -0.27, 0.66, -0.47, 0.74);
+    ctx.bezierCurveTo(-0.72, 0.4, -0.52, 0.03, -0.76, -0.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0.38, -0.42);
+    ctx.bezierCurveTo(0.74, -0.58, 1.06, -0.13, 0.88, 0.1);
+    ctx.bezierCurveTo(0.59, 0.08, 0.76, 0.55, 0.47, 0.48);
+    ctx.bezierCurveTo(0.28, 0.18, 0.52, 0.06, 0.3, -0.14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(208,218,222,0.28)';
+    ctx.lineWidth = 0.09;
+    ctx.beginPath();
+    ctx.moveTo(-0.9, -0.36);
+    ctx.bezierCurveTo(-0.2, -0.61, 0.1, -0.09, 0.78, -0.26);
+    ctx.moveTo(-0.54, 0.46);
+    ctx.bezierCurveTo(-0.12, 0.2, 0.41, 0.54, 0.94, 0.3);
+    ctx.stroke();
+    ctx.restore();
     ctx.restore();
   }
 
   if (atmosphere === 'dust') {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const dustGlow = ctx.createRadialGradient(width * 0.5, height * 0.46, 0, width * 0.5, height * 0.46, radius * 0.52);
-    dustGlow.addColorStop(0, 'rgba(255,235,190,0.08)');
-    dustGlow.addColorStop(0.46, 'rgba(170,205,255,0.035)');
-    dustGlow.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.globalAlpha = presentationMode ? 0.64 : 0.42;
+    const dustGlow = ctx.createRadialGradient(width * 0.3, height * 0.28, 0, width * 0.3, height * 0.28, radius * 0.62);
+    dustGlow.addColorStop(0, 'rgba(218,189,139,0.1)');
+    dustGlow.addColorStop(0.48, 'rgba(173,151,117,0.045)');
+    dustGlow.addColorStop(1, 'rgba(173,151,117,0)');
+    ctx.globalAlpha = presentationMode ? 0.85 : 0.7;
     ctx.fillStyle = dustGlow;
     ctx.fillRect(0, 0, width, height);
+
+    const grains = getParticles(width, height, atmosphere, seed, 440);
+    grains.forEach((grain, index) => {
+      // Patchy density gives the grain depth instead of an even star field.
+      const density = 0.35 + 0.65 * Math.pow(
+        Math.sin(grain.x / width * 8 + grain.y / height * 5), 2,
+      );
+      ctx.globalAlpha = grain.alpha * density * (presentationMode ? 1 : 0.85);
+      ctx.fillStyle = grain.hue > 0.55 ? '#c9b58f' : '#9f9686';
+      ctx.beginPath();
+      ctx.ellipse(grain.x, grain.y, grain.radius * 0.65, grain.radius * 0.28,
+        grain.hue * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Occasional out-of-focus motes have no bright core or sparkle.
+      if (index % 19 === 0) {
+        const moteRadius = 3 + grain.radius * 4;
+        const mote = ctx.createRadialGradient(grain.x, grain.y, 0, grain.x, grain.y, moteRadius);
+        mote.addColorStop(0, 'rgba(206,182,139,0.2)');
+        mote.addColorStop(0.4, 'rgba(206,182,139,0.13)');
+        mote.addColorStop(1, 'rgba(206,182,139,0)');
+        ctx.globalAlpha = density * (presentationMode ? 0.6 : 0.45);
+        ctx.fillStyle = mote;
+        ctx.fillRect(grain.x - moteRadius, grain.y - moteRadius, moteRadius * 2, moteRadius * 2);
+      }
+    });
     ctx.restore();
   }
 
@@ -606,31 +768,15 @@ export function drawCanvasDisplayBackground(
     ctx.restore();
   }
 
-  if (atmosphere === 'stars' || atmosphere === 'dust' || atmosphere === 'deep-field') {
-    const count =
-      atmosphere === 'dust'
-        ? 96
-        : atmosphere === 'deep-field'
-          ? 70
-          : 56;
+  if (atmosphere === 'stars' || atmosphere === 'deep-field') {
+    const count = atmosphere === 'deep-field' ? 70 : 56;
     const particles = getParticles(width, height, atmosphere, seed, presentationMode ? count + 18 : count);
     particles.forEach((particle) => {
       const alpha = particle.alpha * (presentationMode ? 1.08 : 0.74);
       ctx.globalAlpha = alpha;
-      ctx.fillStyle =
-        atmosphere === 'dust'
-          ? particle.hue > 0.58
-            ? 'rgba(255,235,190,0.32)'
-            : 'rgba(210,230,255,0.22)'
-          : particle.hue > 0.78
-            ? theme.swatch[2]
-            : 'rgba(255,255,255,0.72)';
+      ctx.fillStyle = particle.hue > 0.78 ? theme.swatch[2] : 'rgba(255,255,255,0.72)';
       ctx.beginPath();
-      if (atmosphere === 'dust') {
-        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-      } else {
-        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-      }
+      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       ctx.fill();
       if (atmosphere === 'stars' && particle.hue > 0.9) {
         ctx.globalAlpha = alpha * 0.46;

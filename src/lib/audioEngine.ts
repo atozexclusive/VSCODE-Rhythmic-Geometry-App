@@ -39,14 +39,14 @@ export const SCALE_PRESETS = {
 } as const;
 
 export const FRIENDLY_SCALE_LABELS = {
-  majorPentatonic: 'Open Major',
-  minorPentatonic: 'Blues Minor',
-  dorian: 'Minor Color',
-  aeolian: 'Dark Minor',
-  lydian: 'Bright Major',
-  wholeTone: 'Dreamy Whole Tone',
-  diminished: 'Tense Symmetry',
-  chromatic: 'All Notes',
+  majorPentatonic: 'Bright',
+  minorPentatonic: 'Soulful',
+  dorian: 'Warm Glow',
+  aeolian: 'Melancholy',
+  lydian: 'Airy',
+  wholeTone: 'Dreamlike',
+  diminished: 'Tense',
+  chromatic: 'Restless',
 } as const;
 
 export type RootNote = typeof NOTE_NAMES[number];
