@@ -393,11 +393,11 @@ export default function TransportBar({
   const standardCountShortLabel = standardUsesCycleCount ? 'turns/cycle' : 'beats/turn';
   const standardOrbitSummary =
     standardUsesCycleCount
-      ? 'Set how many turns each layer makes before the shared cycle restarts.'
-      : 'Set how many beats each layer takes to make one turn.';
+      ? 'Set how many turns each orbit makes before the shared cycle restarts.'
+      : 'Set how many beats each orbit takes to make one turn.';
   const standardOrbitInfo =
     standardUsesCycleCount
-      ? 'Each number is rotations in one shared cycle. In 3 against 7, one layer turns 3 times while the other turns 7 times before they return home together.'
+      ? 'Each number is rotations in one shared cycle. In 3 against 7, one orbit turns 3 times while the other turns 7 times before they return home together.'
       : 'Each number is beats per turn. Lower numbers orbit faster; higher numbers orbit slower and create longer alignments.';
   const handleTouchSliderPointerDown = useCallback(
     (
@@ -949,11 +949,11 @@ export default function TransportBar({
                     Orbit Mode
                   </div>
                   <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    Choose how Orbit draws the same layers.
+                    Choose how Orbit draws the same orbits.
                   </div>
                 </div>
                 <div className="absolute right-0 top-0">
-                  <InfoTip text="Choose how Orbit turns the same layers into a shape: Standard connects all layers, Interference shows how layers push and pull, and Sweep draws a cleaner outline." />
+                  <InfoTip text="Choose how Orbit turns the same orbits into a shape: Standard connects all orbits, Interference shows how orbits push and pull, and Sweep draws a cleaner outline." />
                 </div>
               </div>
               <div
@@ -1079,7 +1079,7 @@ export default function TransportBar({
                       text={
                         geometryMode === 'standard-trace'
                           ? standardOrbitInfo
-                          : 'Each number is beats per turn for the active layers driving the current derived shape.'
+                          : 'Each number is beats per turn for the active orbits driving the current derived shape.'
                       }
                     />
                   </div>

@@ -155,7 +155,6 @@ export default function OrbitSidebar({
   onDeleteScene,
   onExportScene,
   onImportScene,
-  onExportPng,
   onExportVideo,
   onExportMidi,
   isRecordingVideo,
@@ -169,8 +168,6 @@ export default function OrbitSidebar({
   const [activeSceneMode, setActiveSceneMode] = useState<GeometryMode>('standard-trace');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
-  const [exportAspect, setExportAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
-  const [exportScale, setExportScale] = useState<1 | 2 | 4>(2);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
   const [midiBars, setMidiBars] = useState<4 | 8 | 16>(8);
@@ -324,8 +321,8 @@ export default function OrbitSidebar({
     background: 'rgba(255,255,255,0.016)',
     borderColor: 'rgba(255,255,255,0.055)',
   } as const;
-  const mobileSectionTitleClass = 'text-[12px] font-mono uppercase tracking-[0.22em]';
-  const mobileSubTitleClass = 'text-[10px] font-mono uppercase tracking-[0.18em]';
+  const mobileSectionTitleClass = 'text-[10px] font-mono uppercase tracking-[0.22em]';
+  const mobileSubTitleClass = 'text-[9px] font-mono uppercase tracking-[0.18em]';
   const getCompactDescription = (description: string) => {
     const firstSentence = description.split('. ')[0]?.trim();
     return firstSentence ? `${firstSentence.replace(/\.$/, '')}.` : description;
@@ -383,6 +380,7 @@ export default function OrbitSidebar({
 
       {/* Sidebar */}
       <div
+        data-compact-scene-menu={isMobile ? true : undefined}
         className={`fixed z-50 flex flex-col overflow-hidden ${
           isMobile
             ? 'left-3 right-3 top-3 bottom-3 rounded-[1.5rem] border'
@@ -411,23 +409,29 @@ export default function OrbitSidebar({
             <div className="h-1.5 w-12 rounded-full border border-white/10 bg-white/16 shadow-[0_0_18px_rgba(127,215,255,0.16)]" />
           </div>
         ) : null}
-        {/* Header */}
-        <div className={`flex items-center justify-between border-b border-white/10 ${isMobile ? 'px-4 py-3' : 'p-6'}`}>
+        <div
+          className={`flex shrink-0 items-center justify-between gap-3 border-b border-white/10 ${isMobile ? 'px-3 py-2' : 'px-5 py-4'}`}
+          style={{
+            background: isMobile
+              ? undefined
+              : `linear-gradient(90deg, ${ratioAccentColor}10, rgba(255,255,255,0.025), transparent)`,
+          }}
+        >
           <div>
             <div className="flex items-center gap-2">
               <span
-                className="h-2.5 w-2.5 rounded-full"
+                className={isMobile ? "h-2 w-2 shrink-0 rounded-full" : "h-2.5 w-2.5 rounded-full"}
                 style={{
                   background: ratioAccentColor,
                   boxShadow: `0 0 18px ${ratioAccentColor}66`,
                 }}
               />
-              <h2 className="text-sm font-light tracking-[0.24em] uppercase" style={{ color: 'rgba(244,250,255,0.88)', textShadow: '0 0 12px rgba(127,215,255,0.14)' }}>
+              <div className={`${isMobile ? "text-[11px]" : "text-sm"} font-light uppercase tracking-[0.24em] text-white/78`}>
                 {isMobile ? 'Orbit Menu' : 'Orbit Controls'}
-              </h2>
+              </div>
             </div>
             {isMobile ? (
-              <div className="mt-1 text-[12px] leading-relaxed text-white/42">
+              <div className="mt-1 text-[10px] leading-snug text-white/42">
                 Scenes, export, and account tools for Orbit.
               </div>
             ) : null}
@@ -438,32 +442,37 @@ export default function OrbitSidebar({
             ) : null}
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className={`rounded-lg transition-colors hover:bg-white/10 ${isMobile ? 'p-3' : 'p-2'}`}
-            style={{ color: 'rgba(255, 255, 255, 0.5)' }}
-            title="Close controls"
+            className={`rounded-xl border text-white/60 transition-colors hover:bg-white/10 ${isMobile ? 'flex h-8 w-8 shrink-0 items-center justify-center' : 'p-2'}`}
+            style={{
+              background: 'rgba(255,255,255,0.045)',
+              borderColor: 'rgba(255,255,255,0.09)',
+            }}
+            aria-label="Collapse Orbit menu"
+            title="Collapse menu"
           >
-            <X size={18} />
+            <X size={isMobile ? 16 : 18} />
           </button>
         </div>
 
         {isMobile ? (
-          <div className="border-b border-white/8 px-4 py-3">
-            <div data-guide="mobile-mode-switcher" className="rounded-[1.45rem] border px-3.5 py-3.5" style={mobileModeCardStyle}>
-              <div className="flex items-start justify-between gap-3">
+          <div className="shrink-0 border-b border-white/8 px-3 py-2">
+            <div data-guide="mobile-mode-switcher" className="rounded-[14px] border px-2.5 py-2" style={mobileModeCardStyle}>
+              <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[12px] font-mono uppercase tracking-[0.24em]" style={mobilePrimaryTitleStyle}>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
                     Mode
                   </div>
-                  <div className="mt-1 text-[12px] leading-relaxed text-white/42">
-                    Switch between Orbit, Study, and Riff.
+                  <div className="mt-0.5 text-[9px] leading-snug text-white/42">
+                    Switch instruments without losing your place.
                   </div>
                 </div>
-                <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-white/42">
+                <div className="rounded-full border border-white/10 bg-white/[0.03] shrink-0 whitespace-nowrap px-2 py-0.5 text-[7px] font-mono uppercase tracking-[0.16em] text-white/42">
                   3 Modes
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-2 flex gap-1.5">
                 {([
                   ['orbital', 'Orbit'],
                   ['polyrhythm-study', 'Study'],
@@ -475,7 +484,7 @@ export default function OrbitSidebar({
                       key={surfaceId}
                       type="button"
                       onClick={() => onSurfaceChange(surfaceId)}
-                      className="flex-1 rounded-full border px-3 py-2.5 text-[10px] font-mono uppercase tracking-[0.16em]"
+                      className="h-7 flex-1 rounded-full border px-2 text-[9px] font-mono uppercase tracking-[0.16em]"
                       style={{
                         background: active ? 'rgba(114,241,184,0.15)' : 'rgba(255,255,255,0.032)',
                         borderColor: active ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.085)',
@@ -493,7 +502,7 @@ export default function OrbitSidebar({
         ) : null}
 
         {/* Tabs */}
-        <div className={`${isMobile ? 'px-3 pt-3 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
+        <div className={`${isMobile ? 'px-2.5 pt-2 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
           <div
             className={`${isMobile ? 'grid grid-cols-3 gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.25rem] border`}
             style={isMobile ? mobilePrimaryTabShellStyle : {
@@ -505,7 +514,7 @@ export default function OrbitSidebar({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-xl border text-center font-mono font-light transition-all duration-200 ${isMobile ? 'min-w-0 px-2 py-2 text-[11px]' : 'shrink-0 px-3 py-2.5 text-xs'}`}
+              className={`rounded-xl border text-center font-mono font-light transition-all duration-200 ${isMobile ? 'h-8 min-w-0 px-1.5 py-1 text-[10px]' : 'shrink-0 px-3 py-2.5 text-xs'}`}
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
@@ -520,7 +529,7 @@ export default function OrbitSidebar({
         </div>
 
         {/* Content */}
-        <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3 pb-28' : 'px-4 py-4'}`}>
+        <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-2.5 py-2 pb-6' : 'px-4 py-4'}`}>
           {activeTab === 'account' && (
             <div className="space-y-3">
               <AccountPanel />
@@ -814,12 +823,12 @@ export default function OrbitSidebar({
 
           {/* SCENES TAB */}
           {activeTab === 'scenes' && (
-            <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
+            <div data-orbit-scene-menu className={isMobile ? 'space-y-3' : 'space-y-4'}>
               <div className="space-y-1">
                 <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
                   Scenes
                 </div>
-                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
+                <p className={isMobile ? 'text-[10px] leading-snug' : 'text-[11px] leading-relaxed'} style={sectionCopyStyle}>
                   Load a starting point, save your own, or preview Pro scenes.
                 </p>
               </div>
@@ -899,7 +908,7 @@ export default function OrbitSidebar({
                           />
                         ) : null}
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-xs font-mono uppercase tracking-[0.16em]" style={isMobile ? mobileSubTitleStyle : { color: 'rgba(255,255,255,0.86)' }}>
+                          <div className={`${isMobile ? 'text-[10px]' : 'text-xs'} truncate font-mono uppercase tracking-[0.16em]`} style={isMobile ? mobileSubTitleStyle : { color: 'rgba(255,255,255,0.86)' }}>
                             {scene.name}
                           </div>
                           <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.48)' }}>
@@ -1016,7 +1025,7 @@ export default function OrbitSidebar({
                             />
                           ) : null}
                           <div className="min-w-0">
-                            <div className="truncate text-xs font-mono uppercase tracking-[0.14em]" style={mobileSubTitleStyle}>
+                            <div className={isMobile ? 'truncate text-[10px] font-mono uppercase tracking-[0.12em]' : 'truncate text-xs font-mono uppercase tracking-[0.14em]'} style={mobileSubTitleStyle}>
                               {scene.name}
                             </div>
                             <div className="text-[10px] mt-1" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
@@ -1119,7 +1128,7 @@ export default function OrbitSidebar({
                           />
                         ) : null}
                         <div className="min-w-0">
-                          <div className="truncate text-xs font-mono uppercase tracking-[0.14em]" style={mobileSubTitleStyle}>
+                          <div className={isMobile ? 'truncate text-[10px] font-mono uppercase tracking-[0.12em]' : 'truncate text-xs font-mono uppercase tracking-[0.14em]'} style={mobileSubTitleStyle}>
                             {scene.name}
                           </div>
                           <div className="text-[10px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
@@ -1160,158 +1169,18 @@ export default function OrbitSidebar({
 
           {/* EXPORT TAB */}
           {activeTab === 'export' && (
-            <div className="space-y-3">
+            <div data-scene-menu-export className="space-y-3">
               <div className="space-y-1">
                 <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
                   Export
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Save an image, record motion, export MIDI, or move the editable scene.
+                  Export MIDI, record motion, or move the editable scene.
                 </p>
               </div>
 
               <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
-                    Image Export
-                  </div>
-                  <InfoTip text="Choose the crop shape, then choose output size. HD is smallest, 2K is sharper, 4K is best for large posts or prints." />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={exportAspect}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setExportAspect(e.target.value as typeof exportAspect);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    <option value="landscape" style={{ background: '#181820' }}>Landscape</option>
-                    <option value="square" style={{ background: '#181820' }}>Square Post</option>
-                    <option value="portrait" style={{ background: '#181820' }}>Wallpaper</option>
-                    <option value="story" style={{ background: '#181820' }}>Story</option>
-                  </select>
-                  <select
-                    value={String(exportScale)}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setExportScale(Number(e.target.value) as 1 | 2 | 4);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    <option value="1" style={{ background: '#181820' }}>HD</option>
-                    <option value="2" style={{ background: '#181820' }}>2K</option>
-                    <option value="4" style={{ background: '#181820' }}>4K</option>
-                  </select>
-                </div>
-                <button
-                  onClick={() => {
-                    if (exportLocked) {
-                      promptLockedExport();
-                      return;
-                    }
-                    onExportPng({ aspect: exportAspect, scale: exportScale });
-                    setExportNotice('PNG exported. On mobile: Share > Save Image.');
-                  }}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(0, 255, 170, 0.08)',
-                    border: '1px solid rgba(0, 255, 170, 0.2)',
-                    color: '#00FFAA',
-                    ...lockedExportStyle,
-                  }}
-                >
-                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export PNG'}
-                </button>
-              </div>
-
-              <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
-                    Motion Export
-                  </div>
-                  <InfoTip text="Exports the canvas motion as a short MP4 from the start of the cycle. If the browser records WebM first, the app converts it before download." />
-                </div>
-                <div className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                  <select
-                    value={String(videoDuration)}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoDuration(Number(e.target.value) as VideoExportDuration);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
-                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
-                        {duration.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={videoAspect}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoAspect(e.target.value as VideoExportAspect);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
-                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
-                        {aspect.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
-                      setExportNotice(
-                        isIOS
-                          ? 'Video recording may not save cleanly on iPhone. PNG is more reliable there.'
-                          : 'Video recording started from reset.',
-                      );
-                    }}
-                    disabled={isRecordingVideo}
-                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
-                    style={{
-                      background: 'rgba(51, 136, 255, 0.08)',
-                    border: '1px solid rgba(51, 136, 255, 0.2)',
-                    color: '#88CCFF',
-                    ...lockedExportStyle,
-                  }}
-                >
-                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Export Video'}
-                  </button>
-                </div>
-              </div>
-
-              <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
+                className={`border ${isMobile ? 'rounded-[14px] p-2.5 space-y-2' : 'rounded-[1.25rem] p-3.5 space-y-3'}`}
                 style={exportCardStyle}
               >
                 <div className="flex items-center gap-2">
@@ -1369,7 +1238,83 @@ export default function OrbitSidebar({
               </div>
 
               <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
+                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
+                style={exportCardStyle}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
+                    Motion Export
+                  </div>
+                  <InfoTip text="Exports the canvas motion as a short MP4 from the start of the cycle. If the browser records WebM first, the app converts it before download." />
+                </div>
+                <div className={isMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-[1fr,1fr,auto] gap-2'}>
+                  <select
+                    aria-label="Motion duration" value={String(videoDuration)}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoDuration(Number(e.target.value) as VideoExportDuration);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
+                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
+                        {duration.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Motion format" value={videoAspect}
+                    onChange={(e) => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      setVideoAspect(e.target.value as VideoExportAspect);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
+                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
+                  >
+                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
+                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
+                        {aspect.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (exportLocked) {
+                        promptLockedExport();
+                        return;
+                      }
+                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
+                      setExportNotice(
+                        isIOS
+                          ? 'Video recording support depends on your iPhone browser.'
+                          : 'Video recording started from reset.',
+                      );
+                    }}
+                    data-riff-video-export disabled={isRecordingVideo}
+                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                    style={{
+                      background: 'rgba(51, 136, 255, 0.08)',
+                    border: '1px solid rgba(51, 136, 255, 0.2)',
+                    color: '#88CCFF',
+                    ...lockedExportStyle,
+                  }}
+                >
+                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Export Video'}
+                  </button>
+                </div>
+              </div>
+
+
+
+              <div
+                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
                 style={exportCardStyle}
               >
                 <div className="flex items-center gap-2">
@@ -1426,7 +1371,7 @@ export default function OrbitSidebar({
               )}
 
               <div
-                className="rounded-[1.25rem] border p-3.5 space-y-3"
+                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   borderColor: 'rgba(255,255,255,0.08)',
@@ -1661,7 +1606,7 @@ export default function OrbitSidebar({
                   Orbit Mode
                 </div>
                 <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Choose how Orbit draws the core layer relationships.
+                  Choose how Orbit draws the core orbit relationships.
                 </p>
               </div>
 
@@ -1703,8 +1648,8 @@ export default function OrbitSidebar({
                   </div>
                   <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.48)' }}>
                     {usesCycleCount
-                      ? 'Example: 3 and 7 means one layer rotates 3 times while the other rotates 7 times before the cycle restarts.'
-                      : 'Example: 7 means that layer takes 7 beats to make one full turn.'}
+                      ? 'Example: 3 and 7 means one orbit rotates 3 times while the other rotates 7 times before the cycle restarts.'
+                      : 'Example: 7 means that orbit takes 7 beats to make one full turn.'}
                   </p>
                 </div>
               )}

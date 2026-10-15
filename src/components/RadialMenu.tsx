@@ -214,7 +214,7 @@ export default function RadialMenu({
             className="mb-1.5 text-[8px] font-mono uppercase tracking-[0.16em]"
             style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.58)' }}
           >
-            Quick Swap Layer
+            Quick Swap Orbit
           </div>
           <div className={`flex ${isMobile ? 'gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]' : 'grid grid-cols-2 gap-2'}`}>
             {orbitOptions.map((orbit) => {

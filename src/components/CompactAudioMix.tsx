@@ -13,6 +13,7 @@ interface AudioChannel {
 }
 interface Props {
   prefix: string;
+  audioLabel?: string;
   color: string;
   enabled: boolean;
   onToggle: () => void;
@@ -23,7 +24,7 @@ interface Props {
   onReverbLocked?: () => void;
 }
 
-export default function CompactAudioMix({ prefix, color, enabled, onToggle, onClose, channels, reverb, onReverbChange, onReverbLocked }: Props) {
+export default function CompactAudioMix({ prefix, audioLabel = 'Study', color, enabled, onToggle, onClose, channels, reverb, onReverbChange, onReverbLocked }: Props) {
   const [reverbMode, setReverbMode] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [availableHeight, setAvailableHeight] = useState(300);
@@ -53,7 +54,7 @@ export default function CompactAudioMix({ prefix, color, enabled, onToggle, onCl
     onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}>
     <div className="flex items-center justify-between gap-2 border-b border-white/8 px-3 py-2">
       <div className="flex items-center gap-2 text-[9px] font-medium tracking-wide text-[#7FD7FF]"><Volume2 size={12} />Audio Mix</div>
-      <div className="flex items-center gap-1"><button type="button" aria-pressed={reverbMode} onClick={() => { if (onReverbLocked) { onReverbLocked(); return; } setReverbMode((current) => !current); }} className="flex h-6 items-center rounded-lg border border-white/10 bg-white/5 px-2 font-mono text-[8px] uppercase tracking-wide" style={{ color: reverbMode ? '#C8A8FF' : 'rgba(255,255,255,.58)' }}>Reverb</button><button type="button" aria-label={enabled ? 'Mute study audio' : 'Enable study audio'} onClick={onToggle} className="flex h-6 items-center gap-1 rounded-lg border border-sky-200/20 bg-sky-200/10 px-2 font-mono text-[8px] uppercase text-sky-200">{enabled ? <Volume2 size={12} /> : <VolumeX size={12} />}{enabled ? 'On' : 'Off'}</button></div>
+      <div className="flex items-center gap-1"><button type="button" aria-pressed={reverbMode} onClick={() => { if (onReverbLocked) { onReverbLocked(); return; } setReverbMode((current) => !current); }} className="flex h-6 items-center rounded-lg border border-white/10 bg-white/5 px-2 font-mono text-[8px] uppercase tracking-wide" style={{ color: reverbMode ? '#C8A8FF' : 'rgba(255,255,255,.58)' }}>Reverb</button><button type="button" aria-label={`${enabled ? 'Mute' : 'Enable'} ${audioLabel} audio`} onClick={onToggle} className="flex h-6 items-center gap-1 rounded-lg border border-sky-200/20 bg-sky-200/10 px-2 font-mono text-[8px] uppercase text-sky-200">{enabled ? <Volume2 size={12} /> : <VolumeX size={12} />}{enabled ? 'On' : 'Off'}</button></div>
     </div>
     <div className="px-3 py-1">{controls.map((channel, index) => <div key={channel.id} className={`relative py-1.5 pl-2 ${index ? 'border-t border-white/[.07]' : ''}`}>
       <div className="absolute bottom-2 left-0 top-2 w-0.5 rounded-full" style={{ background: channel.enabled ? channel.color : 'rgba(255,255,255,.16)', boxShadow: channel.enabled ? `0 0 14px ${channel.color}55` : 'none' }} />

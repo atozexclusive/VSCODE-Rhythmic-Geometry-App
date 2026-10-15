@@ -35,15 +35,15 @@ export default function OrbitAudioMixer({ orbits, harmony, onHarmonyChange, mute
         <button type="button" onClick={onClose} aria-label="Close Orbit audio mixer" className="p-1 text-white/50 hover:text-white"><X size={14} /></button>
       </div>
       {reverb ? <div className="space-y-3 p-4">
-        <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-purple-300"><span>All layers · Reverb</span><span>{Math.round(reverbAmount * 100)}%</span></div>
+        <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-purple-300"><span>All orbits · Reverb</span><span>{Math.round(reverbAmount * 100)}%</span></div>
         <input type="range" min={0} max={1} step={0.01} value={reverbAmount}
-          aria-label="Orbit reverb for all layers" onChange={(event) => onReverbChange(Number(event.target.value))}
+          aria-label="Orbit reverb for all orbits" onChange={(event) => onReverbChange(Number(event.target.value))}
           className="touch-slider rg-transport-tempo-track w-full" style={{ ['--slider-accent' as string]: '#C8A8FF' }} />
       </div> : <div className="divide-y divide-white/10 px-3">
         {orbits.map((orbit, index) => {
           const level = orbit.volume ?? 1;
           const enabled = orbit.soundEnabled !== false;
-          const label = `Layer ${index + 1}`;
+          const label = `Orbit ${index + 1}`;
           return <div key={orbit.id} className="relative py-4 pl-3">
             <span className="absolute bottom-3 left-0 top-3 w-1 rounded-full" style={{ background: enabled ? orbit.color : '#ffffff20', boxShadow: enabled ? `0 0 12px ${orbit.color}44` : 'none' }} />
             <div className="mb-3 flex items-center gap-2">
@@ -52,9 +52,9 @@ export default function OrbitAudioMixer({ orbits, harmony, onHarmonyChange, mute
                 <div className="flex justify-between font-mono text-[9px] uppercase tracking-wider"><span style={{ color: enabled ? orbit.color : '#ffffff66' }}>{label} · {orbit.pulseCount}</span><span className="text-white/45">{Math.round(level * 100)}%</span></div>
                 <div className="mt-1 flex gap-1">{Array.from({ length: 8 }, (_, i) => <span key={i} className="h-1 flex-1 rounded-full" style={{ background: i < Math.round(level * 8) ? orbit.color : '#ffffff17', opacity: enabled ? 0.65 : 0.25 }} />)}</div>
               </div>
-              <button type="button" aria-label={`${enabled ? 'Mute' : 'Enable'} Orbit ${label}`} aria-pressed={!enabled} onClick={() => onChange(orbit.id, { soundEnabled: !enabled })} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15" style={{ color: enabled ? orbit.color : '#ffffff55' }}>{enabled ? <Volume2 size={13} /> : <VolumeX size={13} />}</button>
+              <button type="button" aria-label={`${enabled ? 'Mute' : 'Enable'} ${label}`} aria-pressed={!enabled} onClick={() => onChange(orbit.id, { soundEnabled: !enabled })} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/15" style={{ color: enabled ? orbit.color : '#ffffff55' }}>{enabled ? <Volume2 size={13} /> : <VolumeX size={13} />}</button>
             </div>
-            <input type="range" min={0} max={1} step={0.01} value={level} aria-label={`Orbit ${label} volume`} onChange={(event) => onChange(orbit.id, { volume: Number(event.target.value) })} className="touch-slider rg-transport-tempo-track w-full" style={{ ['--slider-accent' as string]: orbit.color }} />
+            <input type="range" min={0} max={1} step={0.01} value={level} aria-label={`${label} volume`} onChange={(event) => onChange(orbit.id, { volume: Number(event.target.value) })} className="touch-slider rg-transport-tempo-track w-full" style={{ ['--slider-accent' as string]: orbit.color }} />
           </div>;
         })}
       </div>

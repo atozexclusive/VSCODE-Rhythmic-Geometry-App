@@ -39,7 +39,7 @@ export default function OrbitSoundOptions({ settings, onChange, includeKey = tru
       <label className={labelClass}>Key<select aria-label="Orbit key" className={selectClass} value={settings.rootNote} onChange={(event) => onChange({ rootNote: event.target.value as RootNote, tonePreset: 'scale-quantized' })}>{NOTE_NAMES.map((note) => <option key={note}>{note}</option>)}</select></label>
       <label className={labelClass}>Scale<select aria-label="Orbit scale" className={selectClass} value={settings.scaleName} onChange={(event) => onChange({ scaleName: event.target.value as ScaleName, tonePreset: 'scale-quantized' })}>{Object.keys(SCALE_PRESETS).map((name) => <option key={name} value={name}>{getFriendlyScaleLabel(name as ScaleName)}</option>)}</select></label>
     </div>}
-    <p className="text-[9px] leading-relaxed text-white/40">{settings.noteMotion && settings.noteMotion !== 'fixed' ? 'Each layer advances one note per hit. Restart returns the pattern to its first note.' : 'Each layer keeps its own pitch. Choose a note motion to move through the scale.'}</p>
+    <p className="text-[9px] leading-relaxed text-white/40">{settings.noteMotion && settings.noteMotion !== 'fixed' ? 'Each orbit advances one note per hit. Restart returns the pattern to its first note.' : 'Each orbit keeps its own pitch. Choose a note motion to move through the scale.'}</p>
     <button type="button" onClick={() => onChange({ soundPalette: 'standard', noteMotion: 'fixed', pitchSpacing: 'standard', octaveShift: 0, arpeggioOctaves: 1, tonePreset: 'original' })} className="rounded-lg border border-white/15 px-2 py-1.5 text-[9px] text-white/65 hover:bg-white/5">Reset to standard sound</button>
   </div>;
 }

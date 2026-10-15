@@ -633,18 +633,18 @@
 [data-compact-audio-mix] svg { width: 12px; height: 12px; }
 
 
-/* Study uses the same compact controls as Riff. */
-[data-guide="study-mobile-tempo"] .touch-slider.rg-transport-tempo-track {
+/* Study and Orbit use the same compact transport controls as Riff. */
+:is([data-guide="study-mobile-tempo"], [data-guide="mobile-speed"]) .touch-slider.rg-transport-tempo-track {
   height: 2rem;
   padding: .65rem 0;
 }
-[data-guide="study-mobile-tempo"] .touch-slider::-webkit-slider-runnable-track { height: .3rem; }
-[data-guide="study-mobile-tempo"] .touch-slider::-webkit-slider-thumb {
+:is([data-guide="study-mobile-tempo"], [data-guide="mobile-speed"]) .touch-slider::-webkit-slider-runnable-track { height: .3rem; }
+:is([data-guide="study-mobile-tempo"], [data-guide="mobile-speed"]) .touch-slider::-webkit-slider-thumb {
   width: 1rem; height: 1rem; margin-top: -.35rem;
   box-shadow: 0 0 0 4px rgba(255,255,255,.1), 0 0 10px rgba(255,255,255,.2);
 }
-[data-guide="study-mobile-tempo"] .touch-slider::-moz-range-track { height: .3rem; }
-[data-guide="study-mobile-tempo"] .touch-slider::-moz-range-thumb {
+:is([data-guide="study-mobile-tempo"], [data-guide="mobile-speed"]) .touch-slider::-moz-range-track { height: .3rem; }
+:is([data-guide="study-mobile-tempo"], [data-guide="mobile-speed"]) .touch-slider::-moz-range-thumb {
   width: 1rem; height: 1rem;
   box-shadow: 0 0 0 4px rgba(255,255,255,.1), 0 0 10px rgba(255,255,255,.2);
 }
@@ -665,3 +665,21 @@
 [data-guide="study-mobile-pattern-tools"] [data-study-action] { height: 30px; }
 [data-canvas-quick-settings] [data-guide="study-mobile-visual-settings"] { margin-top: 0; }
 [data-canvas-quick-settings] [data-guide="study-mobile-visual-settings"] > div { margin-top: 8px; }
+
+/* Orbit shares the compact Riff/Study editor scale while retaining layer colors. */
+[data-guide="mobile-customize"] > div:first-child { border-radius: 19px 19px 0 0; }
+[data-guide="mobile-customize"] button { font-size: 9px; }
+[data-guide="mobile-customize"] > div:first-child > button:first-child > div { font-size: 11px; }
+[data-guide="mobile-customize"] button[aria-label="Show description"] { height: 18px; width: 18px; min-height: 18px; padding: 0; }
+[data-guide="mobile-customize"] button[aria-label="Show description"] svg { height: 10px; width: 10px; }
+[data-guide="mobile-customize"] [data-orbit-layer] .touch-slider { height: 28px; padding: 10px 0; }
+[data-guide="mobile-customize"] [data-orbit-layer] .touch-slider::-webkit-slider-runnable-track { height: 3px; }
+[data-guide="mobile-customize"] [data-orbit-layer] .touch-slider::-webkit-slider-thumb { width: 14px; height: 14px; margin-top: -5.5px; }
+[data-guide="mobile-customize"] [data-orbit-layer] .touch-slider::-moz-range-track { height: 3px; }
+[data-guide="mobile-customize"] [data-orbit-layer] .touch-slider::-moz-range-thumb { width: 14px; height: 14px; }
+
+[data-compact-scene-menu] [data-orbit-scene-menu] button { min-height: 32px; font-size: 9px; }
+[data-compact-scene-menu] [data-orbit-scene-menu] input { font-size: 10px; }
+[data-compact-scene-menu] [data-orbit-scene-menu] > div { margin-top: 8px; }
+
+[data-guide="mobile-customize"] [data-orbit-layer] + [data-orbit-layer] { margin-top: 6px; }

@@ -10,8 +10,8 @@ import { Dice5, AudioLines, SlidersHorizontal, ScanEye, PaintBucket, Hash, Chevr
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
-import OrbitAudioMixer from '../components/OrbitAudioMixer';
 import OrbitSoundOptions from '../components/OrbitSoundOptions';
+import OrbitModeGlyph, { ORBIT_DRAWING_MODES } from '../components/OrbitModeGlyph';
 import FlowCanvas from '../components/FlowCanvas';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar, { PolyrhythmSceneThumbnail } from '../components/PolyrhythmSidebar';
@@ -823,7 +823,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'mobile-colors',
     title: 'Welcome To Orbits',
     kicker: 'Orbit Guide',
-    text: 'Orbits turns layered counts into motion. Each colored layer travels around the same center at its own rate, and the moving points draw a living shape. It is a visual way to feel rhythm, ratios, and timing before thinking in notation.',
+    text: 'Orbit turns colored counts into motion. Each colored orbit travels around the same center at its own rate, and the moving points draw a living shape. It is a visual way to feel rhythm, ratios, and timing before thinking in notation.',
     doThis: 'Press Play and watch how the colored points move together.',
     notice: 'Start by reading the motion. Editing makes more sense after one loop.',
     actionLabel: 'Play / Pause',
@@ -833,34 +833,39 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'mobile-colors',
     title: 'Read The Orbits',
     kicker: 'Orbit Guide',
-    text: 'Each colored dot is one orbit layer. The layer number is its count. The connected motion draws the form on the canvas.',
+    text: 'Each colored dot is one orbit. The orbit number is its count. The connected motion draws the form on the canvas.',
     doThis: 'Watch which colors move together and which ones drift apart.',
-    notice: 'Tap an orbit dot or use Edit when you want to change a layer.',
+    notice: 'Tap an orbit dot or use Edit when you want to change a orbit.',
   },
   {
     target: 'mobile-playback',
     title: 'Playback',
     kicker: 'Orbit Guide',
-    text: 'These buttons control time and sound. Play starts or stops motion. Reset jumps back to the beginning. Sound mutes audio without changing the shape.',
+    text: 'These buttons control time and sound. Play starts or stops motion. Restart jumps back to the beginning. Audio opens a small orbit mixer.',
     doThis: 'Press Play or Pause to feel the motion.',
     actionLabel: 'Play / Pause',
     actionId: 'orbit-toggle-play',
-    notice: 'Reset restarts the motion. It does not erase your setup.',
+    notice: 'Restart restarts the motion. It does not erase your setup.',
+  },
+  {
+    target: 'mobile-audio', title: 'Audio Mix', kicker: 'Orbit Guide',
+    text: 'Audio opens a compact mixer above Playback. Balance orbit volumes or mute individual orbits. On and Off control the full mix.',
+    doThis: 'Open Audio to see the orbit controls.', notice: 'The transport stays visible while you adjust the mix.',
   },
   {
     target: 'mobile-speed',
     title: 'Tempo',
     kicker: 'Orbit Guide',
-    text: 'Tempo is the speed of the motion. Slower makes each layer easier to follow. Faster makes the same shape feel more dense.',
-    doThis: 'Slow tempo down before changing layer counts.',
+    text: 'Tempo is the speed of the motion. Slower makes each orbit easier to follow. Faster makes the same shape feel more dense.',
+    doThis: 'Slow tempo down before changing orbit counts.',
     notice: 'If the drawing feels confusing, slow it down first.',
   },
   {
     target: 'mobile-customize',
     title: 'Edit',
     kicker: 'Orbit Guide',
-    text: 'Edit is where Orbit is built. Orbit Mode changes how the drawing is made. Layers changes the colored counts. Read Aids help you understand what you are seeing.',
-    doThis: 'Open Edit, then change one layer count by one step.',
+    text: 'Edit is where Orbit is built. Orbit Mode changes how the drawing is made. The Orbits section changes the colored counts. Read Aids live in the eye button on the canvas.',
+    doThis: 'Open Edit, then change one orbit count by one step.',
     actionLabel: 'Open Edit',
     actionId: 'orbit-open-customize',
     notice: 'Change one thing at a time. Orbit is easier to learn when you can hear and see each change.',
@@ -869,65 +874,76 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'mobile-orbit-mode',
     title: 'Orbit Mode',
     kicker: 'Orbit Guide',
-    text: 'Orbit Mode decides what kind of relationship the canvas draws. Standard follows each layer. Interference connects active orbit positions. Sweep draws a moving arc between layers.',
-    doThis: 'Start with Standard. Try Interference or Sweep after the layer counts make sense.',
-    notice: 'Mode changes the drawing method. It does not erase your layers.',
+    text: 'The circle and dot selects Standard. The crossing paths select Interference. The radial flower selects Sweep. Open Edit for the symbol names and a short explanation of each mode.',
+    doThis: 'Start with Standard. Try Interference or Sweep after the orbit counts make sense.',
+    notice: 'Mode changes the drawing method. It does not erase your orbits.',
   },
   {
     target: 'mobile-layers',
-    title: 'Layers',
+    title: 'Orbits',
     kicker: 'Orbit Guide',
-    text: 'Layers are the colored orbit counts. Smaller numbers complete their movement sooner. Larger numbers take longer, so the relationship stretches out.',
-    doThis: 'Change one layer number and watch the shape redraw.',
+    text: 'Each orbit has a colored count. Smaller numbers complete their movement sooner. Larger numbers take longer, so the relationship stretches out.',
+    doThis: 'Change one orbit number and watch the shape redraw.',
     notice: 'One number change can make a very different drawing.',
   },
   {
-    target: 'mobile-reading-aids',
+    target: 'orbit-mobile-read-aids-button',
     title: 'Reading Aids',
     kicker: 'Orbit Guide',
-    text: 'Reading Aids make the motion easier to understand. Trace leaves the path visible. Markers show the moving dots so you can track each layer.',
-    doThis: 'Turn Trace on when you want to see the full path the layers are drawing.',
-    notice: 'These are visual helpers. They do not change timing or layer counts.',
+    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit.',
+    doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
+    notice: 'These are visual helpers. They do not change timing or orbit counts.',
   },
   {
     target: 'mobile-interference',
     title: 'Interference',
     kicker: 'Orbit Guide',
-    text: 'Interference connects the orbit positions directly. Instead of watching each layer alone, you see the relationship between layers as a shared moving field.',
-    doThis: 'Use Interference when you want the connections between layers to be the main visual.',
-    notice: 'Interference is still built from the same layer counts.',
+    text: 'Interference connects the orbit positions directly. Instead of watching each orbit alone, you see the relationship between orbits as a shared moving field.',
+    doThis: 'Use Interference when you want the connections between orbits to be the main visual.',
+    notice: 'Interference is still built from the same orbit counts.',
   },
   {
     target: 'mobile-sweep',
     title: 'Sweep',
     kicker: 'Orbit Guide',
-    text: 'Sweep draws motion between inner and outer layers. It feels more like a scanning arm or rotating beam than a connected polygon.',
+    text: 'Sweep draws motion between inner and outer orbits. It feels more like a scanning arm or rotating beam than a connected polygon.',
     doThis: 'Try Sweep when Standard feels readable and you want a more animated form.',
-    notice: 'Sweep is best after you understand the layer counts.',
+    notice: 'Sweep is best after you understand the orbit counts.',
   },
   {
-    target: 'mobile-scenes',
-    title: 'Scenes',
-    kicker: 'Orbit Guide',
-    text: 'Scenes are ready-made starting points. Random creates a new free setup. Saved holds your work. Pro previews locked scene packs.',
-    doThis: 'Use Random when you want a fresh orbit.',
-    actionLabel: 'Try Random',
-    actionId: 'orbit-try-random',
-    notice: 'Scenes are the fastest way to learn different orbit relationships.',
+    target: 'orbit-mobile-random', title: 'Random', kicker: 'Orbit Guide',
+    text: 'The ordinary die on the left creates a new free Orbit setup.',
+    doThis: 'Use Random for a new starting point.', notice: 'The die, Random+, and Remix sit together on the canvas.',
+    actionLabel: 'Try Random', actionId: 'orbit-try-random',
   },
   {
-    target: 'mobile-sound',
+    target: 'orbit-mobile-random-plus', title: 'Random+', kicker: 'Orbit Guide',
+    text: 'The die with a plus explores a wider range of counts and combinations. Random+ is Pro.',
+    doThis: 'Use Random+ for more adventurous patterns.', notice: 'It sits beside the ordinary die.',
+  },
+  {
+    target: 'orbit-mobile-remix', title: 'Remix', kicker: 'Orbit Guide',
+    text: 'The shuffle button refreshes color, direction, sound, and speed while keeping the current ratios. Remix is Pro.',
+    doThis: 'Use Remix to explore the same rhythm with a different feel.', notice: 'The current orbit counts stay intact.',
+  },
+  {
+    target: 'mobile-menu', title: 'Scenes', kicker: 'Orbit Guide',
+    text: 'Open Menu, then Scenes for ready-made starting points, Saved scenes, and Pro scene packs.',
+    doThis: 'Load a scene when you want a starting example.', notice: 'Scenes are grouped into Standard, Interference, and Sweep.',
+  },
+  {
+    target: 'orbit-mobile-sound-button',
     title: 'Sound',
     kicker: 'Orbit Guide',
-    text: 'Sound changes the orbit voice and pitch behavior. It helps you hear the layers, but the visual motion is the main free learning path.',
+    text: 'The waveform button opens Sound to change the orbit voice and pitch behavior. It helps you hear the orbits, but the visual motion is the main free learning path.',
     doThis: 'Learn the movement first. Upgrade when you want deeper sound control.',
-    notice: 'Sound is Pro. It does not change layer counts or drawing mode.',
+    notice: 'Sound is Pro. It does not change orbit counts or drawing mode.',
   },
   {
-    target: 'mobile-canvas',
+    target: 'orbit-mobile-canvas-button',
     title: 'Canvas',
     kicker: 'Orbit Guide',
-    text: 'Canvas changes presentation: background, glow, atmosphere, and visual style.',
+    text: 'The sliders button opens Canvas to adjust the background, atmosphere, and visual style.',
     doThis: 'Skip Canvas while learning the counts.',
     notice: 'Canvas is Pro and only changes how the orbit is displayed.',
   },
@@ -964,7 +980,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     target: 'desktop-colors',
     title: 'Read The Orbits',
     kicker: 'Orbit Guide',
-    text: 'Each colored dot is one orbit layer. Each layer moves on its own count. The connected motion draws the shape on the canvas.',
+    text: 'Each colored dot is one orbit. Each orbit moves on its own count. The connected motion draws the shape on the canvas.',
     doThis: 'Watch one full loop and notice which colors move together.',
     notice: 'Click or long-press an orbit later when you want to change its color or sound role.',
   },
@@ -972,7 +988,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     target: 'desktop-speed',
     title: 'Tempo',
     kicker: 'Orbit Guide',
-    text: 'Tempo is the speed of the motion. Slower makes the layers easier to follow. Faster makes the same shape feel more dense.',
+    text: 'Tempo is the speed of the motion. Slower makes the orbits easier to follow. Faster makes the same shape feel more dense.',
     doThis: 'Move tempo left before editing if the drawing feels hard to read.',
     notice: 'Tempo changes speed, not the orbit counts.',
   },
@@ -980,15 +996,15 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     target: 'desktop-geometry',
     title: 'Orbit Mode',
     kicker: 'Orbit Guide',
-    text: 'Orbit Mode is the main editing panel on desktop. Change how the drawing behaves here, then adjust the colored layer counts in the same panel.',
-    doThis: 'Try one orbit mode, then change one layer count.',
-    notice: 'Orbit Mode changes how the pattern is drawn. Layer counts change the pattern itself.',
+    text: 'Orbit Mode is the main editing panel on desktop. Change how the drawing behaves here, then adjust the colored orbit counts in the same panel.',
+    doThis: 'Try one orbit mode, then change one orbit count.',
+    notice: 'Orbit Mode changes how the pattern is drawn. Orbit counts change the pattern itself.',
   },
   {
     target: 'desktop-orbits',
     title: 'Orbits',
     kicker: 'Orbit Guide',
-    text: 'Each row is one colored orbit layer. A 3-beat orbit completes 7 rotations in the same shared cycle where a 7-beat orbit completes 3 rotations.',
+    text: 'Each row is one colored orbit. A 3-beat orbit completes 7 rotations in the same shared cycle where a 7-beat orbit completes 3 rotations.',
     doThis: 'Change one orbit number by one step, then watch how the shape changes.',
     notice: 'Smaller counts move faster. Larger counts move slower. Start with one orbit at a time.',
   },
@@ -998,7 +1014,7 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     kicker: 'Orbit Guide',
     text: 'Tools holds optional adjustments once the orbit is readable. The quick buttons switch between Clockwise and Alternate motion. Open the panel for Playback, Motion, Overlays, Canvas, and Sound.',
     doThis: 'Use Motion when the counts are good but the movement needs a different feel.',
-    notice: 'Overlays, Canvas, and Sound change presentation. They do not rewrite the layer counts.',
+    notice: 'Overlays, Canvas, and Sound change presentation. They do not rewrite the orbit counts.',
   },
   {
     target: 'desktop-audio',
@@ -2371,8 +2387,8 @@ const MODE_BEGINNER_COPY: Record<
 > = {
   orbital: {
     label: 'Orbit',
-    summary: 'Draw shapes from colored layers that each move on their own count.',
-    firstSteps: 'Start with Random or Scenes, press Play, then change one layer count.',
+    summary: 'Draw shapes from colored orbits that each move on their own count.',
+    firstSteps: 'Start with Random or Scenes, press Play, then change one orbit count.',
     helper: 'Change one count or one view setting at a time so the motion stays readable.',
   },
   'polyrhythm-study': {
@@ -7867,6 +7883,7 @@ function isKeyboardShortcutTextTarget(target: EventTarget | null): boolean {
 
 function OrbitalPolymeter() {
   usePreventBrowserZoom();
+  const navigate = Route.useNavigate();
   const { user, enabled: authEnabled, loading: authLoading, effectivePlan, refreshAccount } = useAuth();
   const isMobile = useIsMobile();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -7881,7 +7898,7 @@ function OrbitalPolymeter() {
     const state = createEngineState();
     state.orbits = DEFAULT_ORBITS.map((def) => createOrbit(def));
     state.speedMultiplier = DEFAULT_SCENE_SPEED;
-    state.playing = true;
+    state.playing = false;
     return state;
   });
 
@@ -7926,19 +7943,14 @@ function OrbitalPolymeter() {
     x: number;
     y: number;
   } | null>(null);
-  const [mobileScenesOpen, setMobileScenesOpen] = useState(false);
+  const [orbitCanvasQuickPanel, setOrbitCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [mobileCustomizeOpen, setMobileCustomizeOpen] = useState(false);
-  const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
-  const [mobileSoundOpen, setMobileSoundOpen] = useState(false);
   const openOnlyOrbitMobileMenu = (menu: null | 'edit' | 'scenes' | 'sound' | 'canvas') => {
     setMobileCustomizeOpen(menu === 'edit');
-    setMobileScenesOpen(menu === 'scenes');
-    setMobileSoundOpen(menu === 'sound');
-    setMobileCanvasOpen(menu === 'canvas');
+    setOrbitCanvasQuickPanel(menu === 'sound' ? 'audio' : menu === 'canvas' ? 'canvas' : null);
+    if (menu === 'scenes') setSidebarOpen(true);
   };
   const [activeMobileSliderId, setActiveMobileSliderId] = useState<string | null>(null);
-  const [mobileSceneTab, setMobileSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
-  const [mobileOrbitSceneMode, setMobileOrbitSceneMode] = useState<GeometryMode>('standard-trace');
   const [flowExperience, setFlowExperience] = useState<FlowExperience>(() =>
     createDefaultFlowExperience(),
   );
@@ -7955,9 +7967,10 @@ function OrbitalPolymeter() {
     startY: number;
     onValueChange: (value: number) => void;
   } | null>(null);
-  const [polyrhythmStudy, setPolyrhythmStudy] = useState<PolyrhythmStudy>(() =>
-    createDefaultPolyrhythmStudy(),
-  );
+  const [polyrhythmStudy, setPolyrhythmStudy] = useState<PolyrhythmStudy>(() => ({
+    ...createDefaultPolyrhythmStudy(),
+    playing: false,
+  }));
   const [activePolyrhythmPresetId, setActivePolyrhythmPresetId] = useState<string | null>(
     DEFAULT_POLYRHYTHM_PRESET_ID,
   );
@@ -8106,6 +8119,7 @@ function OrbitalPolymeter() {
     window.addEventListener('pointerdown', recoverIfVisible, { capture: true });
     window.addEventListener('touchstart', recoverIfVisible, { capture: true });
     window.addEventListener('click', recoverIfVisible, { capture: true });
+    window.addEventListener('keydown', recoverIfVisible, { capture: true });
 
     return () => {
       document.removeEventListener('visibilitychange', recoverIfVisible);
@@ -8114,6 +8128,7 @@ function OrbitalPolymeter() {
       window.removeEventListener('pointerdown', recoverIfVisible, { capture: true });
       window.removeEventListener('touchstart', recoverIfVisible, { capture: true });
       window.removeEventListener('click', recoverIfVisible, { capture: true });
+      window.removeEventListener('keydown', recoverIfVisible, { capture: true });
     };
   }, [recoverAudioAfterPageReturn]);
 
@@ -8136,7 +8151,7 @@ function OrbitalPolymeter() {
   const riffCellSequencerLocked = !canUseProFeature(effectivePlan, 'riff-cell-sequencer');
   const riffSubdivisionsLocked = !canUseProFeature(effectivePlan, 'riff-subdivisions');
   const riffVoicesLocked = !canUseProFeature(effectivePlan, 'riff-voices');
-  const guideCtaLabel = !hasProAccess || !beginnerGuideSeen[appSurface] ? 'Start Here' : 'Guide';
+  const guideCtaLabel = 'Guide';
   const [proPrompt, setProPrompt] = useState<ProPromptState | null>(null);
   function showProPrompt(feature: import('../lib/entitlements').ProFeature) {
     const featureCopy: Record<import('../lib/entitlements').ProFeature, ProPromptState> = {
@@ -8515,10 +8530,9 @@ function OrbitalPolymeter() {
       setPolyrhythmDesktopPatternEditorOpen(false);
       setRiffMobileEditorOpen(false);
       setRiffDesktopPatternEditorOpen(false);
-      setMobileScenesOpen(false);
+      setOrbitCanvasQuickPanel(null);
+      setOrbitAudioMixOpen(false);
       setMobileCustomizeOpen(false);
-      setMobileSoundOpen(false);
-      setMobileCanvasOpen(false);
       setRadialMenu(null);
       setProPrompt(null);
       stopAllAudio();
@@ -8568,8 +8582,13 @@ function OrbitalPolymeter() {
       }
 
       setAppSurface(nextSurface);
+      void navigate({
+        search: (previous) => ({ ...previous, mode: nextSurface }),
+        replace: true,
+        resetScroll: false,
+      });
     },
-    [appSurface, engineState, rerender],
+    [appSurface, engineState, navigate, rerender],
   );
 
   const handleLoadPolyrhythmPreset = useCallback((presetId: string) => {
@@ -11036,13 +11055,6 @@ function OrbitalPolymeter() {
     );
   const activeOverlayContext = tutorialOpen ? tutorialContext : helpContext;
   const activeOverlayStep = tutorialOpen ? currentTutorialStep : currentGuideStep;
-  const mobileCanvasFrameStyle = isMobile
-    ? ({
-        width: '100%',
-        height: 'clamp(420px, 66svh, 600px)',
-        minHeight: '420px',
-      } as const)
-    : undefined;
   const handleExportRiffCyclePng = useCallback(
     (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => {
       if (!canUseProFeature(effectivePlan, 'export')) {
@@ -11617,6 +11629,13 @@ function OrbitalPolymeter() {
       : 800;
   const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? layoutViewportWidth : 1280;
   const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? layoutViewportHeight : 800;
+  const mobileCanvasFrameStyle = isMobile
+    ? ({
+        width: '100%',
+        height: layoutViewportHeight < 720 ? 'clamp(350px, 54svh, 430px)' : 'min(68svh, 580px)',
+        minHeight: layoutViewportHeight < 720 ? '350px' : '430px',
+      } as const)
+    : undefined;
   const guideCalloutHeight = Math.min(
     Math.max(220, guideMeasuredHeight),
     Math.max(220, viewportHeight - 48),
@@ -12118,12 +12137,16 @@ function OrbitalPolymeter() {
   }, [appSurface, isMobile, presentationMode]);
 
   useEffect(() => {
-    if (!helpOpen || !isMobile || !currentGuideStep) {
+    if (!helpOpen || !isMobile || appSurface !== 'orbital' || !currentGuideStep) {
       return;
     }
 
+    setSidebarOpen(false);
+    setOrbitCanvasQuickPanel(null);
+    setOrbitAudioMixOpen(currentGuideStep.target === 'mobile-audio');
+    if (currentGuideStep.target.startsWith('orbit-mobile-')) setMobileCustomizeOpen(false);
     if (currentGuideStep.target === 'mobile-scenes') {
-      openOnlyOrbitMobileMenu('scenes');
+      setSidebarOpen(true);
     }
     if (currentGuideStep.target === 'mobile-mode-switcher') {
       setSidebarOpen(true);
@@ -12133,7 +12156,6 @@ function OrbitalPolymeter() {
       currentGuideStep.target === 'mobile-orbit-mode' ||
       currentGuideStep.target === 'mobile-layers' ||
       currentGuideStep.target === 'mobile-direction' ||
-      currentGuideStep.target === 'mobile-reading-aids' ||
       currentGuideStep.target === 'mobile-interference' ||
       currentGuideStep.target === 'mobile-sweep'
     ) {
@@ -12145,13 +12167,13 @@ function OrbitalPolymeter() {
     if (currentGuideStep.target === 'mobile-sweep') {
       handleGeometryModeChange('sweep');
     }
-    if (currentGuideStep.target === 'mobile-sound') {
-      openOnlyOrbitMobileMenu('sound');
+    if (currentGuideStep.target === 'orbit-mobile-sound-button') {
+      setMobileCustomizeOpen(false);
     }
-    if (currentGuideStep.target === 'mobile-canvas') {
-      openOnlyOrbitMobileMenu('canvas');
+    if (currentGuideStep.target === 'orbit-mobile-canvas-button') {
+      setMobileCustomizeOpen(false);
     }
-  }, [currentGuideStep, helpOpen, isMobile]);
+  }, [appSurface, currentGuideStep, helpOpen, isMobile]);
 
   useEffect(() => {
     if (!helpOpen || appSurface !== 'riff-cycle-study' || !currentGuideStep) {
@@ -12946,6 +12968,10 @@ function OrbitalPolymeter() {
     }
     if (isMobile) {
       setSidebarOpen(false);
+      if (appSurface === 'orbital') {
+        setOrbitCanvasQuickPanel(null);
+        setOrbitAudioMixOpen(false);
+      }
       if (appSurface === 'polyrhythm-study') {
         setStudyCanvasQuickPanel(null);
         setStudyAudioPanelOpen(false);
@@ -13125,7 +13151,8 @@ function OrbitalPolymeter() {
       setInterferenceSettings,
       handleClearTraces,
     );
-    launchLoadedState(engineState, () => setSidebarOpen(false), rerender);
+    setSidebarOpen(false);
+    rerender();
   }, [
     captureMode,
     engineState,
@@ -13227,10 +13254,9 @@ function OrbitalPolymeter() {
     setShowPlanets(true);
     setTopStatusVisible(true);
     setCanvasHudVisible(true);
-    setMobileScenesOpen(false);
+    setOrbitCanvasQuickPanel(null);
+    setOrbitAudioMixOpen(false);
     setMobileCustomizeOpen(false);
-    setMobileSoundOpen(false);
-    setMobileCanvasOpen(false);
     setHelpStepIndex(0);
     setRadialMenu(null);
     applySceneSnapshot(
@@ -14737,9 +14763,9 @@ function OrbitalPolymeter() {
     geometryMode === 'standard-trace'
       ? ENABLE_STANDARD_TURNS_PER_CYCLE && standardTimingMode === 'turns-per-cycle'
         ? 'Numbers are turns inside one shared cycle. 3 and 7 return home together.'
-        : 'Colored layers move on their own counts and draw one connected shape.'
+        : 'Colored orbits move on their own counts and draw one connected shape.'
       : geometryMode === 'interference-trace'
-        ? 'Watch two or more layers push and pull into one combined path.'
+        ? 'Watch two or more orbits push and pull into one combined path.'
         : 'Sample the motion into a cleaner sweeping shape.';
   const orbitTempoAnchorLabel =
     ENABLE_STANDARD_TURNS_PER_CYCLE &&
@@ -14783,28 +14809,6 @@ function OrbitalPolymeter() {
       : geometryMode === 'interference-trace'
         ? 'Interference'
         : 'Sweep';
-  const mobileOrbitSceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
-    { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
-    { key: 'interference-trace', label: 'Interference', color: '#88CCFF' },
-    { key: 'sweep', label: 'Sweep', color: '#FFAA00' },
-  ];
-  const filteredMobileOrbitBuiltInScenes = BUILT_IN_SCENES.filter(
-    (scene) => scene.snapshot.geometryMode === mobileOrbitSceneMode,
-  );
-  const filteredMobileOrbitPremiumScenes = PREMIUM_SCENES.filter(
-    (scene) => scene.snapshot.geometryMode === mobileOrbitSceneMode,
-  );
-  const filteredMobileOrbitSavedScenes = savedScenes.filter(
-    (scene) => scene.snapshot.geometryMode === mobileOrbitSceneMode,
-  );
-  const getOrbitSceneRatio = (snapshot: SceneSnapshot) =>
-    snapshot.orbits.map((orbit) => orbit.pulseCount).join(':');
-  const mobileOrbitSceneModeLabel =
-    mobileOrbitSceneMode === 'standard-trace'
-      ? 'standard'
-      : mobileOrbitSceneMode === 'interference-trace'
-        ? 'interference'
-        : 'sweep';
   const proPromptOverlay = proPrompt ? (
     <>
       <button
@@ -26882,1077 +26886,11 @@ function OrbitalPolymeter() {
               className="absolute inset-0 w-full h-full"
             />
             {mobileCanvasTapHint}
-          </div>
-
-          <div className="px-4 flex flex-col gap-3">
-            {mobileBeginnerIntroCard}
-
-            <div
-              data-guide="mobile-playback"
-              className="relative z-10 rounded-[28px] border px-4 py-4 space-y-3"
-              style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className={mobileRiffMenuSectionTitleClass} style={mobileRiffAmberTitleStyle}>
-                    Playback
-                  </div>
-                  <InfoTip text="Start or pause the motion, reset to the beginning, and control whether the orbit voices are audible." />
-                </div>
-                <div className="flex items-center gap-2">
-                  <StudyShellButton
-                    size="compact"
-                    tone="green"
-                    highlighted={helpOpen && helpContext === 'surface'}
-                    icon={<CircleHelp size={14} />}
-                    onClick={handleToggleHelpGuide}
-                    className="h-10 px-3"
-                    aria-label="Open orbit guide"
-                  >
-                    {guideCtaLabel}
-                  </StudyShellButton>
-                  <button
-                    data-guide="mobile-present"
-                    onClick={handleTogglePresentation}
-                    type="button"
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    aria-label="Fullscreen mode"
-                  >
-                    <Maximize2 size={17} />
-                  </button>
-                  <button
-                    data-guide="mobile-menu"
-                    onClick={() => setSidebarOpen(true)}
-                    type="button"
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                    aria-label="Open menu"
-                  >
-                    <Menu size={17} />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={handleTogglePlay}
-                  className="px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
-                  style={{
-                    background: engineState.playing ? 'rgba(255,51,102,0.18)' : 'rgba(0,255,170,0.18)',
-                    border: `1px solid ${engineState.playing ? 'rgba(255,51,102,0.35)' : 'rgba(0,255,170,0.35)'}`,
-                    color: engineState.playing ? '#FF3366' : '#00FFAA',
-                  }}
-                >
-                  {engineState.playing ? <Pause size={20} /> : <Play size={20} />}
-                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">{engineState.playing ? 'Pause' : 'Play'}</span>
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
-                  style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.26)', color: '#FFAA00' }}
-                >
-                  <RotateCcw size={17} />
-                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">Reset</span>
-                </button>
-                <button
-                  data-guide="mobile-audio"
-                  aria-expanded={orbitAudioMixOpen}
-                  onClick={() => setOrbitAudioMixOpen((open) => !open)}
-                  className="relative overflow-hidden px-4 py-3 rounded-2xl flex items-center justify-center gap-2"
-                  style={{
-                    background: muted ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.76)',
-                  }}
-                >
-                  {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                  <span className="text-[11px] font-mono uppercase tracking-[0.14em]">Audio</span>
-                </button>
-              </div>
-              {orbitAudioMixOpen && <OrbitAudioMixer inline harmony={harmonySettings} onHarmonyChange={handleHarmonyChange} reverbAmount={harmonySettings.reverbAmount ?? 0}
-                onReverbChange={(reverbAmount) => handleHarmonyChange({ reverbAmount })} orbits={engineState.orbits} muted={muted}
-                onToggleMute={handleToggleMute} onChange={handleUpdateOrbit}
-                onClose={() => setOrbitAudioMixOpen(false)}
-                onSoundSettings={() => { setOrbitAudioMixOpen(false); openOnlyOrbitMobileMenu('sound'); }} />}
-              <div data-guide="mobile-speed" className="space-y-1">
-                <div className="rg-transport-tempo-row flex items-center gap-3">
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
-                      Tempo
-                    </div>
-                    <InfoTip text="Tempo controls how fast the selected orbit reference moves. The number at the right shows the current BPM anchor." />
-                  </div>
-                  <input
-                    type="range"
-                    min={String(ORBIT_TEMPO_MIN_BPM)}
-                    max={String(orbitTempoMaxBpm)}
-                    step="1"
-                    value={orbitTempoSliderValue}
-                    onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                    onPointerDown={(event) =>
-                      handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
-                    }
-                    onPointerMove={(event) =>
-                      handleMobileSliderPointerMove(event, 'speed', (value) => handleSpeedChange(value))
-                    }
-                    onPointerUp={() => clearActiveMobileSlider('speed')}
-                    onPointerCancel={() => clearActiveMobileSlider('speed')}
-                    onBlur={() => clearActiveMobileSlider('speed')}
-                    data-dragging={activeMobileSliderId === 'speed'}
-                    className="touch-slider rg-transport-tempo-track"
-                    style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
-                  />
-                  <div className="w-12 shrink-0 text-right">
-                    <EditableTempoValue
-                      value={orbitTempoDisplayBpm}
-                      min={ORBIT_TEMPO_MIN_BPM}
-                      max={orbitTempoMaxBpm}
-                      onCommit={handleSpeedChange}
-                      className="text-[14px]"
-                      ariaLabel="Type exact orbit tempo"
-                    />
-                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      {orbitTempoAnchorLabel}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              data-guide="mobile-customize"
-              className="rounded-[28px] border"
-              style={{
-                order: 2,
-                background: mobileCustomizeOpen
-                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
-                  : 'rgba(17,17,22,0.9)',
-                borderColor: mobileCustomizeOpen ? 'rgba(0,255,170,0.18)' : 'rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between gap-3 px-4 py-3"
-                style={{
-                  background: mobileCustomizeOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
-                  boxShadow: mobileCustomizeOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
-                }}
-                onClick={() => openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit');
-                  }
-                }}
-              >
-                <div className="text-left">
-                  <div
-                    className={mobileRiffMenuSectionTitleClass}
-                    style={{ color: 'rgba(255,255,255,0.5)', textShadow: 'none' }}
-                  >
-                    Edit
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1">
-                    {[
-                      { key: 'standard-trace' as const, label: 'Std', color: '#00FFAA' },
-                      { key: 'interference-trace' as const, label: 'Intrf', color: '#88CCFF' },
-                      { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
-                    ].map((mode) => (
-                      <button
-                        key={mode.key}
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleGeometryModeChange(mode.key);
-                        }}
-                        className="h-8 min-w-[2.75rem] rounded-lg px-2 text-[10px] font-mono uppercase tracking-[0.1em]"
-                        style={{
-                          background: geometryMode === mode.key ? `${mode.color}20` : 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
-                          color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.7)',
-                        }}
-                        aria-label={`Switch to ${mode.key === 'standard-trace' ? 'Standard' : mode.key === 'interference-trace' ? 'Interference' : 'Sweep'} mode`}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit');
-                    }}
-                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
-                    style={{
-                      ...mobileChevronButtonBaseStyle,
-                      background: mobileCustomizeOpen ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
-                      border: mobileCustomizeOpen ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
-                      color: mobileCustomizeOpen ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
-                    }}
-                    aria-label={mobileCustomizeOpen ? 'Collapse edit' : 'Expand edit'}
-                    title={mobileCustomizeOpen ? 'Collapse section' : 'Expand section'}
-                  >
-                      {mobileCustomizeOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {mobileCustomizeOpen && (
-                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <div data-guide="mobile-orbit-mode" className="space-y-3 rounded-2xl border p-3" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
-                    <div className="flex items-center gap-2">
-                      <div className={mobileRiffMenuSectionTitleClass} style={mobileRiffAmberTitleStyle}>
-                        Orbit Mode
-                      </div>
-                      <InfoTip text="Choose how the canvas draws relationships: Standard follows each orbit, Interference connects orbit positions, and Sweep draws a moving inner-to-outer arc." />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { key: 'standard-trace' as const, label: 'Standard', color: '#00FFAA' },
-                        { key: 'interference-trace' as const, label: 'Interference', color: '#88CCFF' },
-                        { key: 'sweep' as const, label: 'Sweep', color: '#FFAA00' },
-                      ].map((mode) => (
-                        <button
-                          key={mode.key}
-                          data-guide={
-                            mode.key === 'interference-trace'
-                              ? 'mobile-interference'
-                              : mode.key === 'sweep'
-                                ? 'mobile-sweep'
-                                : undefined
-                          }
-                          onClick={() => handleGeometryModeChange(mode.key)}
-                          className="px-3 py-3 rounded-xl text-[11px] font-mono uppercase tracking-[0.14em]"
-                          style={{
-                            background: geometryMode === mode.key ? `${mode.color}1a` : 'rgba(255,255,255,0.04)',
-                            border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
-                            color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.74)',
-                          }}
-                        >
-                          {mode.label}
-                        </button>
-                      ))}
-                    </div>
-                    {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && (
-                      <div className="rounded-xl border px-3 py-3 space-y-2" style={{ background: 'rgba(0,255,170,0.035)', borderColor: 'rgba(0,255,170,0.12)' }}>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
-                              Number Meaning
-                            </div>
-                            <InfoTip text="This decides what the layer numbers mean in Standard mode: beats per full orbit, or rotations inside one shared cycle." />
-                          </div>
-                          <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                            Standard only
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {([
-                            ['beats-per-turn', 'Beats / Turn'],
-                            ['turns-per-cycle', 'Turns / Cycle'],
-                          ] as const).map(([mode, label]) => {
-                            const selected = standardTimingMode === mode;
-                            return (
-                              <button
-                                key={mode}
-                                type="button"
-                                onClick={() => handleStandardTimingModeChange(mode)}
-                                className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                                style={{
-                                  background: selected ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.045)',
-                                  border: `1px solid ${selected ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
-                                  color: selected ? '#00FFAA' : 'rgba(255,255,255,0.68)',
-                                }}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                          {standardTimingMode === 'turns-per-cycle'
-                            ? 'Example: 3 and 7 means 3 turns against 7 turns before the loop restarts.'
-                            : 'Example: 7 means that layer takes 7 beats to make one turn.'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className={mobileRiffMenuSectionTitleClass} style={mobileRiffAmberTitleStyle}>
-                        Layers
-                      </div>
-                      <InfoTip text="Each layer is one orbit voice. Change its number, direction, and color to change the rhythm and drawing." />
-                    </div>
-                    {(geometryMode === 'standard-trace' || canAddSweepOrbit || canAddInterferenceOrbit) && (
-                      <button
-                        onClick={handleAddOrbit}
-                        className="h-10 w-10 rounded-xl flex items-center justify-center"
-                        style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
-                        title={
-                          geometryMode === 'sweep'
-                            ? 'Add orbit'
-                            : geometryMode === 'interference-trace'
-                              ? 'Add orbit'
-                              : 'Add layer'
-                        }
-                      >
-                        <Plus size={16} />
-                      </button>
-                    )}
-                  </div>
-
-                  {mobileQuickOrbits.map((orbit) => {
-                    const layerLabel = orbit.label.replace('Orbit', 'Layer');
-
-                    return (
-                      <div
-                        key={orbit.id}
-                        className="rounded-2xl border p-2.5 space-y-2"
-                        style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
-                      >
-                        <div data-guide="mobile-layers" className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenOrbitEditor(orbit.id)}
-                              className="text-[11px] font-mono uppercase tracking-[0.14em] transition-opacity active:scale-[0.98]"
-                              style={{ color: orbit.color }}
-                              title={`Edit ${layerLabel} color`}
-                            >
-                              {layerLabel}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenOrbitEditor(orbit.id)}
-                              className="relative h-7 w-7 overflow-hidden rounded-lg flex items-center justify-center shrink-0 active:scale-[0.97]"
-                              style={{
-                                color: colorEditingLocked ? 'rgba(255,255,255,0.46)' : orbit.color,
-                                background: colorEditingLocked ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.05)',
-                                border: colorEditingLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.09)',
-                                filter: colorEditingLocked ? 'grayscale(0.6)' : undefined,
-                              }}
-                              title={colorEditingLocked ? 'Upgrade to edit orbit colors' : `Open ${layerLabel} color picker`}
-                              aria-label={colorEditingLocked ? 'Upgrade to edit orbit colors' : `Open ${layerLabel} color picker`}
-                            >
-                              <Palette size={14} />
-                              {colorEditingLocked ? (
-                                <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
-                                  <Lock size={8} strokeWidth={2.4} />
-                                </span>
-                              ) : null}
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col items-end gap-0.5">
-                              <input
-                                type="number"
-                                min="1"
-                                max="1000"
-                                value={orbit.pulseCount}
-                                onFocus={(e) => e.currentTarget.select()}
-                                onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                                className="w-16 rounded-xl border px-2 py-1.5 text-center text-[13px] font-mono focus:outline-none"
-                                style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
-                              />
-                              <span className="text-[7px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                                {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && standardTimingMode === 'turns-per-cycle' ? 'Turns/Cycle' : 'Beats/Turn'}
-                              </span>
-                            </div>
-                            <button
-                              data-guide="mobile-direction"
-                              onClick={() => handleToggleOrbitDirection(orbit.id)}
-                              className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                              title={orbit.direction === 1 ? `Set ${layerLabel} counterclockwise` : `Set ${layerLabel} clockwise`}
-                            >
-                              {orbit.direction === 1 ? (
-                                <RotateCcw size={16} />
-                              ) : (
-                                <RotateCcw size={16} style={{ transform: 'scaleX(-1)' }} />
-                              )}
-                            </button>
-                            {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
-                              <button
-                                onClick={() => handleDeleteOrbit(orbit.id)}
-                                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                                style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                                title={`Remove ${layerLabel}`}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                            {orbit.canDelete && geometryMode !== 'standard-trace' && (
-                              <button
-                                onClick={() => handleDeleteOrbit(orbit.id)}
-                                className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                                style={{ color: 'rgba(255,120,150,0.92)', background: 'rgba(255,70,110,0.08)', border: '1px solid rgba(255,70,110,0.16)' }}
-                                title={`Delete ${layerLabel}`}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
-                            className="h-10 w-10 rounded-xl flex items-center justify-center"
-                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                            title={`Lower ${layerLabel}`}
-                          >
-                            <Minus size={16} />
-                          </button>
-                          <input
-                            type="range"
-                            min="1"
-                            max={String(mobileQuickOrbitSliderMax)}
-                            step="1"
-                            value={Math.min(orbit.pulseCount, mobileQuickOrbitSliderMax)}
-                            onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                            onPointerDown={(event) =>
-                              handleMobileSliderPointerDown(event, `orbit-${orbit.id}`, (value) =>
-                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
-                              )
-                            }
-                            onPointerMove={(event) =>
-                              handleMobileSliderPointerMove(event, `orbit-${orbit.id}`, (value) =>
-                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
-                              )
-                            }
-                            onPointerUp={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
-                            onPointerCancel={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
-                            onBlur={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
-                            data-dragging={activeMobileSliderId === `orbit-${orbit.id}`}
-                            className="touch-slider flex-1"
-                            style={{ ['--slider-accent' as string]: orbit.color }}
-                          />
-                          <button
-                            onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
-                            className="h-10 w-10 rounded-xl flex items-center justify-center"
-                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                            title={`Raise ${layerLabel}`}
-                          >
-                            <Plus size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div data-guide="mobile-reading-aids" className="rounded-2xl border p-3 space-y-2" style={{ background: 'rgba(255,255,255,0.025)', borderColor: 'rgba(255,255,255,0.07)' }}>
-                    <div className="flex items-center gap-2">
-                      <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
-                        Read Aids
-                      </div>
-                      <InfoTip text="Trace leaves the drawn path visible. Markers show the moving orbit dots." />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        data-guide="mobile-trail"
-                        onClick={handleToggleTrace}
-                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                        style={{
-                          background: traceMode ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.035)',
-                          border: `1px solid ${traceMode ? 'rgba(136,204,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
-                          color: traceMode ? '#88CCFF' : 'rgba(255,255,255,0.62)',
-                        }}
-                      >
-                        {traceMode ? 'Trace On' : 'Trace Off'}
-                      </button>
-                      <button
-                        data-guide="mobile-markers"
-                        onClick={handleTogglePlanets}
-                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                        style={{
-                          background: showPlanets ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.035)',
-                          border: `1px solid ${showPlanets ? 'rgba(182,160,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
-                          color: showPlanets ? '#B6A0FF' : 'rgba(255,255,255,0.62)',
-                        }}
-                      >
-                        {showPlanets ? 'Markers On' : 'Markers Off'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div
-              data-guide="mobile-scenes"
-              className="rounded-[28px] border"
-              style={{
-                order: 3,
-                background: mobileScenesOpen
-                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
-                  : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
-                borderColor: mobileScenesOpen ? 'rgba(51,136,255,0.18)' : 'rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{
-                  background: mobileScenesOpen ? 'linear-gradient(180deg, rgba(51,136,255,0.09), rgba(255,255,255,0))' : 'transparent',
-                  boxShadow: mobileScenesOpen ? 'inset 0 1px 0 rgba(51,136,255,0.08)' : 'none',
-                }}
-                onClick={() => openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes');
-                  }
-                }}
-              >
-                <div className="text-left">
-                  <div
-                    className="text-[11px] font-mono uppercase tracking-[0.22em]"
-                    style={{ color: mobileScenesOpen ? '#88CCFF' : 'rgba(255,255,255,0.5)' }}
-                  >
-                    Scenes
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleRandomPattern();
-                    }}
-                    type="button"
-                    className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.12)', border: '1px solid rgba(51,136,255,0.22)' }}
-                  >
-                    Random
-                  </button>
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleRemixPattern();
-                    }}
-                    type="button"
-                    className="relative overflow-hidden px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={remixLocked
-                      ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
-                      : { color: '#00FFAA', background: 'rgba(0,255,170,0.12)', border: '1px solid rgba(0,255,170,0.22)' }}
-                    title="Refresh color, direction, sound, and speed while keeping the current ratios"
-                  >
-                    Remix
-                    {remixLocked ? (
-                      <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
-                        <Lock size={8} strokeWidth={2.4} />
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleRandomPatternPlus();
-                    }}
-                    type="button"
-                    className="relative overflow-hidden px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                    style={randomPlusLocked
-                      ? { color: 'rgba(255,255,255,0.44)', background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.1)', filter: 'grayscale(0.55)' }
-                      : { color: '#FFAA00', background: 'rgba(255,170,0,0.12)', border: '1px solid rgba(255,170,0,0.22)' }}
-                    title="Extended random pattern with curated values up to 100"
-                  >
-                    Random+
-                    {randomPlusLocked ? (
-                      <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
-                        <Lock size={8} strokeWidth={2.4} />
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openOnlyOrbitMobileMenu(mobileScenesOpen ? null : 'scenes');
-                    }}
-                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
-                    style={{
-                      ...mobileChevronButtonBaseStyle,
-                      background: mobileScenesOpen ? 'rgba(51,136,255,0.12)' : mobileChevronButtonBaseStyle.background,
-                      border: mobileScenesOpen ? '1px solid rgba(51,136,255,0.22)' : mobileChevronButtonBaseStyle.border,
-                      color: mobileScenesOpen ? '#88CCFF' : mobileChevronButtonBaseStyle.color,
-                    }}
-                    aria-label={mobileScenesOpen ? 'Collapse scenes' : 'Expand scenes'}
-                    title={mobileScenesOpen ? 'Collapse section' : 'Expand section'}
-                  >
-                    {mobileScenesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {mobileScenesOpen && (
-                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
-                    {[
-                      { key: 'built-in' as const, label: 'Scenes', color: '#88CCFF' },
-                      { key: 'saved' as const, label: 'Saved', color: '#00FFAA' },
-                      { key: 'premium' as const, label: 'Pro', color: '#FFAA00' },
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setMobileSceneTab(tab.key)}
-                        className="flex-1 rounded-xl px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                        style={{
-                          background: mobileSceneTab === tab.key ? `${tab.color}14` : 'transparent',
-                          border: `1px solid ${mobileSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                          color: mobileSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
-                        }}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 rounded-[1.15rem] border p-0.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}>
-                    {mobileOrbitSceneModeTabs.map((mode) => (
-                      <button
-                        key={mode.key}
-                        type="button"
-                        onClick={() => setMobileOrbitSceneMode(mode.key)}
-                        className="flex-1 rounded-[0.9rem] px-2 py-1.5 text-[8.5px] font-mono uppercase tracking-[0.11em]"
-                        style={{
-                          background: mobileOrbitSceneMode === mode.key ? `${mode.color}10` : 'transparent',
-                          border: `1px solid ${mobileOrbitSceneMode === mode.key ? `${mode.color}30` : 'transparent'}`,
-                          color: mobileOrbitSceneMode === mode.key ? mode.color : 'rgba(255,255,255,0.42)',
-                        }}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSaveScene}
-                      className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                      style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.1)', border: '1px solid rgba(0,255,170,0.22)' }}
-                    >
-                      Save Scene
-                    </button>
-                    {isSignedIn && localSavedScenes.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={handleImportLocalScenes}
-                        className="px-3 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                        style={
-                          saveScenesLocked
-                            ? {
-                                color: 'rgba(255,255,255,0.5)',
-                                background: 'rgba(255,255,255,0.035)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                filter: 'grayscale(0.45)',
-                              }
-                            : { color: '#88CCFF', background: 'rgba(51,136,255,0.1)', border: '1px solid rgba(51,136,255,0.22)' }
-                        }
-                      >
-                        {saveScenesLocked ? (
-                          <span className="inline-flex items-center justify-center gap-2">
-                            <Lock size={12} /> Pro Import
-                          </span>
-                        ) : (
-                          'Import Local Scenes'
-                        )}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {mobileSceneTab === 'built-in' ? (
-                    filteredMobileOrbitBuiltInScenes.length === 0 ? (
-                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.44)' }}>
-                        No {mobileOrbitSceneModeLabel} scenes yet.
-                      </div>
-                    ) : (
-                      <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
-                        <div className="flex gap-3 px-1 snap-x snap-mandatory">
-                          {filteredMobileOrbitBuiltInScenes.map((scene) => (
-                          <button
-                            key={scene.id}
-                            onClick={() => handleLoadBuiltInScene(scene.id)}
-                            className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
-                            style={{
-                              background: 'rgba(255,255,255,0.04)',
-                              borderColor: 'rgba(255,255,255,0.09)',
-                            }}
-                          >
-                            <div className="aspect-square w-full overflow-hidden bg-[#0f1016]">
-                              <img
-                                src={scene.thumbnailDataUrl}
-                                alt={scene.name}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="space-y-1 px-4 py-4">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                                  {scene.name}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditScene(scene.id)}
-                                  className="shrink-0 rounded-lg border p-1.5"
-                                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
-                                  aria-label="Edit scene title"
-                                  title="Edit scene title"
-                                >
-                                  <MoreHorizontal size={13} />
-                                </button>
-                              </div>
-                              <div className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                {getOrbitSceneRatio(scene.snapshot)}
-                              </div>
-                              <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                {scene.description}
-                              </div>
-                            </div>
-                          </button>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ) : null}
-
-                  {mobileSceneTab === 'saved' ? (
-                    cloudPersistenceLoading ? (
-                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.44)' }}>
-                        Loading saved scenes…
-                      </div>
-                    ) : filteredMobileOrbitSavedScenes.length === 0 ? (
-                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.44)' }}>
-                        {isSignedIn
-                          ? `No saved ${mobileOrbitSceneModeLabel} scenes yet.`
-                          : `No local ${mobileOrbitSceneModeLabel} scenes yet. Save one on this device or sign in for account scenes.`}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {filteredMobileOrbitSavedScenes.map((scene) => (
-                          <div
-                            key={scene.id}
-                            className="rounded-2xl border overflow-hidden"
-                            style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.09)' }}
-                          >
-                            {scene.thumbnailDataUrl ? (
-                              <div className="aspect-[4/3] w-full overflow-hidden bg-[#0f1016]">
-                                <img src={scene.thumbnailDataUrl} alt={scene.name} className="h-full w-full object-cover" />
-                              </div>
-                            ) : null}
-                            <div className="space-y-2 px-4 py-4">
-                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                                {scene.name}
-                              </div>
-                              <div className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                {getOrbitSceneRatio(scene.snapshot)}
-                              </div>
-                              <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                {new Date(scene.updatedAt).toLocaleString()}
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleLoadScene(scene.id)}
-                                  className="px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                                  style={{ color: '#88CCFF', background: 'rgba(51,136,255,0.1)', border: '1px solid rgba(51,136,255,0.22)' }}
-                                >
-                                  Load
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteScene(scene.id)}
-                                  className="px-3 py-2.5 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
-                                  style={{ color: 'rgba(255,120,150,0.92)', background: 'rgba(255,70,110,0.08)', border: '1px solid rgba(255,70,110,0.16)' }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ) : null}
-
-                  {mobileSceneTab === 'premium' ? (
-                    filteredMobileOrbitPremiumScenes.length === 0 ? (
-                      <div className="rounded-2xl border px-4 py-4 text-[11px] leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,170,0,0.12)', color: 'rgba(255,255,255,0.44)' }}>
-                        No Pro {mobileOrbitSceneModeLabel} scenes yet.
-                      </div>
-                    ) : (
-                      <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none]">
-                        <div className="flex gap-3 px-1 snap-x snap-mandatory">
-                          {filteredMobileOrbitPremiumScenes.map((scene) => (
-                          <button
-                            key={scene.id}
-                            onClick={() => {
-                              if (proScenesLocked) {
-                                openProPrompt('pro-scenes');
-                                return;
-                              }
-                              handleLoadBuiltInScene(scene.id);
-                            }}
-                            className="min-w-[220px] max-w-[220px] snap-start overflow-hidden rounded-2xl border text-left"
-                            style={{
-                              background: 'rgba(255,255,255,0.04)',
-                              borderColor: 'rgba(255,170,0,0.12)',
-                              filter: proScenesLocked ? 'grayscale(0.45)' : undefined,
-                            }}
-                          >
-                            <div className="relative aspect-square w-full overflow-hidden bg-[#0f1016]">
-                              <img
-                                src={scene.thumbnailDataUrl}
-                                alt={scene.name}
-                                className="h-full w-full object-cover"
-                              />
-                              <div
-                                className="absolute right-3 top-3 rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
-                                style={{ background: 'rgba(255,170,0,0.14)', border: '1px solid rgba(255,170,0,0.24)', color: '#FFAA00' }}
-                              >
-                                <span className="inline-flex items-center gap-1">
-                                  {proScenesLocked ? <Lock size={9} strokeWidth={2.4} /> : null}
-                                  Pro
-                                </span>
-                              </div>
-                            </div>
-                            <div className="space-y-1 px-4 py-4">
-                              <div className="text-[12px] font-mono uppercase tracking-[0.16em]" style={{ color: 'rgba(255,255,255,0.86)' }}>
-                                {scene.name}
-                              </div>
-                              <div className="text-[9px] font-mono uppercase tracking-[0.12em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                {getOrbitSceneRatio(scene.snapshot)}
-                              </div>
-                              <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                {scene.description}
-                              </div>
-                            </div>
-                          </button>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            <div
-              data-guide="mobile-canvas"
-              className="rounded-[28px] border"
-              style={{
-                order: 5,
-                background: mobileCanvasOpen
-                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
-                  : 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.86))',
-                borderColor: mobileCanvasOpen ? 'rgba(255,170,0,0.18)' : 'rgba(255,255,255,0.08)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between gap-3 px-4 py-3"
-                style={{
-                  background: mobileCanvasOpen ? 'linear-gradient(180deg, rgba(255,170,0,0.08), rgba(255,255,255,0))' : 'transparent',
-                  boxShadow: mobileCanvasOpen ? 'inset 0 1px 0 rgba(255,170,0,0.08)' : 'none',
-                }}
-                onClick={() => {
-                  if (canvasOptionsLocked) {
-                    openProPrompt('canvas-options');
-                    return;
-                  }
-                  openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (canvasOptionsLocked) {
-                      openProPrompt('canvas-options');
-                      return;
-                    }
-                    openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
-                  }
-                }}
-              >
-                <div
-                  className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.22em]"
-                  style={{ color: canvasOptionsLocked ? 'rgba(255,255,255,0.42)' : mobileCanvasOpen ? '#FFAA00' : 'rgba(255,255,255,0.5)' }}
-                >
-                  Canvas
-                  {canvasOptionsLocked ? <Lock size={11} strokeWidth={2.4} /> : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (canvasOptionsLocked) {
-                      openProPrompt('canvas-options');
-                      return;
-                    }
-                    openOnlyOrbitMobileMenu(mobileCanvasOpen ? null : 'canvas');
-                  }}
-                  className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
-                  style={{
-                    ...mobileChevronButtonBaseStyle,
-                    background: mobileCanvasOpen ? 'rgba(255,170,0,0.1)' : mobileChevronButtonBaseStyle.background,
-                    border: mobileCanvasOpen ? '1px solid rgba(255,170,0,0.2)' : mobileChevronButtonBaseStyle.border,
-                    color: mobileCanvasOpen ? '#FFAA00' : mobileChevronButtonBaseStyle.color,
-                  }}
-                  aria-label={canvasOptionsLocked ? 'Upgrade for canvas controls' : mobileCanvasOpen ? 'Collapse canvas' : 'Expand canvas'}
-                  title={canvasOptionsLocked ? 'Upgrade for canvas controls' : mobileCanvasOpen ? 'Collapse section' : 'Expand section'}
-                >
-                  {canvasOptionsLocked ? <Lock size={16} /> : mobileCanvasOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </button>
-              </div>
-
-              {mobileCanvasOpen && !canvasOptionsLocked ? (
-                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                  <CanvasDisplayControls
-                    settings={canvasDisplayState.orbit}
-                    onChange={handleUpdateOrbitDisplay}
-                    compact
-                    showSquareGridControl
-                  />
-                </div>
-              ) : null}
-            </div>
-
-            <div
-              data-guide="mobile-sound"
-              className="rounded-[28px] border"
-              style={{
-                order: 4,
-                background: soundEditingLocked
-                  ? 'linear-gradient(180deg, rgba(17,17,22,0.86), rgba(17,17,22,0.78))'
-                  : 'rgba(17,17,22,0.9)',
-                borderColor: soundEditingLocked
-                  ? 'rgba(255,255,255,0.08)'
-                  : mobileSoundOpen ? 'rgba(0,255,170,0.18)' : 'rgba(255,255,255,0.08)',
-                filter: soundEditingLocked ? 'grayscale(0.4)' : undefined,
-              }}
-            >
-              <div
-                className="flex items-center justify-between gap-3 px-4 py-3"
-                style={{
-                  background: mobileSoundOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
-                  boxShadow: mobileSoundOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
-                }}
-                onClick={() => {
-                  if (soundEditingLocked) {
-                    openProPrompt('sound-editing');
-                    return;
-                  }
-                  openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    if (soundEditingLocked) {
-                      openProPrompt('sound-editing');
-                    } else {
-                      openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
-                    }
-                  }
-                }}
-              >
-                <div className="text-left">
-                  <div
-                    className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.22em]"
-                    style={{ color: soundEditingLocked ? 'rgba(255,255,255,0.42)' : mobileSoundOpen ? '#00FFAA' : 'rgba(255,255,255,0.5)' }}
-                  >
-                    Sound
-                    {soundEditingLocked ? <Lock size={11} strokeWidth={2.4} /> : null}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (soundEditingLocked) {
-                          openProPrompt('sound-editing');
-                          return;
-                        }
-                        handleHarmonyChange({ tonePreset: 'original' });
-                      }}
-                      className="relative px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
-                      style={soundEditingLocked
-                        ? { background: 'rgba(255,255,255,0.035)', color: 'rgba(255,255,255,0.42)', boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset', filter: 'grayscale(0.55)' }
-                        : {
-                            background: harmonySettings.tonePreset === 'original' ? 'rgba(255,255,255,0.12)' : 'transparent',
-                            color: harmonySettings.tonePreset === 'original' ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.56)',
-                          }}
-                    >
-                      Original
-                      {soundEditingLocked ? (
-                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
-                          <Lock size={8} strokeWidth={2.4} />
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (soundEditingLocked) {
-                          openProPrompt('sound-editing');
-                          return;
-                        }
-                        handleHarmonyChange({ tonePreset: 'scale-quantized' });
-                      }}
-                      className="relative px-2.5 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-[0.12em]"
-                      style={soundEditingLocked
-                        ? { background: 'rgba(255,255,255,0.035)', color: 'rgba(255,255,255,0.42)', boxShadow: '0 0 0 1px rgba(255,255,255,0.08) inset', filter: 'grayscale(0.55)' }
-                        : {
-                            background: harmonySettings.tonePreset === 'scale-quantized' ? 'rgba(0,255,170,0.16)' : 'transparent',
-                            color: harmonySettings.tonePreset === 'scale-quantized' ? '#00FFAA' : 'rgba(255,255,255,0.56)',
-                          }}
-                    >
-                      In Key
-                      {soundEditingLocked ? (
-                        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
-                          <Lock size={8} strokeWidth={2.4} />
-                        </span>
-                      ) : null}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (soundEditingLocked) {
-                        openProPrompt('sound-editing');
-                        return;
-                      }
-                      openOnlyOrbitMobileMenu(mobileSoundOpen ? null : 'sound');
-                    }}
-                    className="h-10 min-w-10 rounded-xl flex items-center justify-center px-2.5 shrink-0 active:scale-[0.97]"
-                    style={{
-                      ...mobileChevronButtonBaseStyle,
-                      background: mobileSoundOpen ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
-                      border: mobileSoundOpen ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
-                      color: mobileSoundOpen ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
-                    }}
-                    aria-label={soundEditingLocked ? 'Upgrade for sound controls' : mobileSoundOpen ? 'Collapse sound' : 'Expand sound'}
-                    title={soundEditingLocked ? 'Upgrade for sound controls' : mobileSoundOpen ? 'Collapse section' : 'Expand section'}
-                  >
-                    {soundEditingLocked ? <Lock size={16} /> : mobileSoundOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {mobileSoundOpen && !soundEditingLocked && (
-                <div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <QuickCanvasControls prefix="orbit-mobile" panel={orbitCanvasQuickPanel}
+ onPanelChange={(panel) => { setOrbitCanvasQuickPanel(panel); if (panel) { setOrbitAudioMixOpen(false); setRadialMenu(null); } }}
+ soundLocked={soundEditingLocked} canvasLocked={canvasOptionsLocked} randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
+ onLocked={openProPrompt} onRandom={handleRandomPattern} onRandomPlus={handleRandomPatternPlus} onRemix={handleRemixPattern}>
+ {orbitCanvasQuickPanel === 'audio' ? <div data-guide="mobile-sound" data-quick-panel="audio"><div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                   <OrbitSoundOptions settings={harmonySettings} onChange={handleHarmonyChange} includeKey={false} />
                   <button
                     onClick={() => handleHarmonyChange({ tonePreset: harmonySettings.tonePreset === 'original' ? 'scale-quantized' : 'original' })}
@@ -27995,9 +26933,460 @@ function OrbitalPolymeter() {
                     </div>
                     </div>
                   )}
+                </div></div>
+ : orbitCanvasQuickPanel === 'canvas' ? <div data-guide="mobile-canvas" data-quick-panel="canvas"><div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <CanvasDisplayControls
+                    settings={canvasDisplayState.orbit}
+                    onChange={handleUpdateOrbitDisplay}
+                    compact hideGlow hideGuides hideGuideAutomation innerClockLast
+                    showSquareGridControl
+                  />
+                </div></div>
+ : <div data-guide="mobile-reading-aids" data-quick-panel="read"><div className="grid grid-cols-2 gap-2">
+                      <button
+                        data-guide="mobile-trail"
+                        onClick={handleToggleTrace}
+                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                        style={{
+                          background: traceMode ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.035)',
+                          border: `1px solid ${traceMode ? 'rgba(136,204,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
+                          color: traceMode ? '#88CCFF' : 'rgba(255,255,255,0.62)',
+                        }}
+                      >
+                        {traceMode ? 'Trace On' : 'Trace Off'}
+                      </button>
+                      <button
+                        data-guide="mobile-markers"
+                        onClick={handleTogglePlanets}
+                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
+                        style={{
+                          background: showPlanets ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.035)',
+                          border: `1px solid ${showPlanets ? 'rgba(182,160,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
+                          color: showPlanets ? '#B6A0FF' : 'rgba(255,255,255,0.62)',
+                        }}
+                      >
+                        {showPlanets ? 'Markers On' : 'Markers Off'}
+                      </button>
+                    </div></div>}
+ </QuickCanvasControls></div>
+
+          <div className="px-4 flex flex-col gap-3">
+            {mobileBeginnerIntroCard}
+
+            <div data-guide="mobile-playback" className={`relative ${orbitAudioMixOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`} style={{ background:'rgba(17,17,22,0.9)',borderColor:'rgba(255,255,255,0.08)' }}><div className="flex items-center justify-between gap-3">
+                  <div className="text-[9px] font-mono uppercase tracking-[0.15em]" style={mobileRiffAmberTitleStyle}>
+                    Playback
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <StudyShellButton
+                      size="compact"
+                      tone="amber"
+                      highlighted={helpOpen && helpContext === 'surface'}
+                      icon={<CircleHelp size={12} />}
+                      onClick={handleToggleHelpGuide}
+                      className="!h-7 !rounded-lg px-2 !text-[8px]"
+                      style={
+                        helpOpen && helpContext === 'surface'
+                          ? {
+                              background: `${'#72F1B8'}16`,
+                              borderColor: `${'#72F1B8'}32`,
+                              color: '#72F1B8',
+                            }
+                          : undefined
+                      }
+                      aria-label="Open orbit guide"
+                    >
+                      {guideCtaLabel}
+                    </StudyShellButton>
+                    <button
+                      data-guide="mobile-present"
+                      onClick={handleTogglePresentation}
+                      type="button"
+                      className="h-7 w-7 rounded-lg flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Fullscreen mode"
+                    >
+                      <Maximize2 size={13} />
+                    </button>
+                    <button
+                      data-guide="mobile-menu"
+                      onClick={() => setSidebarOpen(true)}
+                      type="button"
+                      className="h-7 w-7 rounded-lg flex items-center justify-center"
+                      style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                      aria-label="Open menu"
+                    >
+                      <Menu size={13} />
+                    </button>
+                  </div>
+                </div><div className="grid grid-cols-3 gap-1.5"><StudyShellButton
+                    tone={engineState.playing ? 'red' : 'green'}
+                    highlighted
+                    icon={engineState.playing ? <Pause size={12} /> : <Play size={12} />}
+                    onClick={handleTogglePlay}
+                    className="w-full !h-8 !rounded-lg !text-[8px]"
+                  >
+                    {engineState.playing ? 'Pause' : 'Play'}
+                  </StudyShellButton>
+<StudyShellButton
+                    tone="amber"
+                    highlighted
+                    icon={<RotateCcw size={12} />}
+                    onClick={handleReset}
+                    className="w-full !h-8 !rounded-lg !text-[8px]"
+                  >
+                    Restart
+                  </StudyShellButton>
+                  <div className="static">{orbitAudioMixOpen ? <CompactAudioMix prefix="orbit-mobile" audioLabel="Orbit" color={engineState.orbits[0]?.color ?? '#72F1B8'}
+ enabled={!muted} onToggle={handleToggleMute} onClose={() => setOrbitAudioMixOpen(false)}
+ reverb={harmonySettings.reverbAmount ?? 0} onReverbChange={(reverbAmount) => handleHarmonyChange({ reverbAmount })}
+ onReverbLocked={soundEditingLocked ? () => openProPrompt('sound-editing') : undefined}
+ channels={engineState.orbits.map((orbit,index) => ({id:orbit.id,label:`Orbit ${index+1}`,color:orbit.color,enabled:orbit.soundEnabled !== false,value:orbit.volume ?? 1,max:1,
+ onToggle:() => handleUpdateOrbit(orbit.id,{soundEnabled:orbit.soundEnabled === false}), onChange:(volume) => handleUpdateOrbit(orbit.id,{volume})}))} /> : null}
+ <StudyShellButton tone="blue" highlighted={orbitAudioMixOpen} icon={<Volume2 size={12} />} onClick={() => {setOrbitAudioMixOpen((open)=>!open);setOrbitCanvasQuickPanel(null);}}
+ data-guide="mobile-audio" aria-expanded={orbitAudioMixOpen} className="w-full !h-8 !rounded-lg !text-[8px]">Audio</StudyShellButton></div></div><div data-guide="mobile-speed" className="space-y-1">
+                <div className="rg-transport-tempo-row flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={mobileRiffWhiteTitleStyle}>
+                      Tempo
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={String(ORBIT_TEMPO_MIN_BPM)}
+                    max={String(orbitTempoMaxBpm)}
+                    step="1"
+                    value={orbitTempoSliderValue}
+                    onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                    onPointerDown={(event) =>
+                      handleMobileSliderPointerDown(event, 'speed', (value) => handleSpeedChange(value))
+                    }
+                    onPointerMove={(event) =>
+                      handleMobileSliderPointerMove(event, 'speed', (value) => handleSpeedChange(value))
+                    }
+                    onPointerUp={() => clearActiveMobileSlider('speed')}
+                    onPointerCancel={() => clearActiveMobileSlider('speed')}
+                    onBlur={() => clearActiveMobileSlider('speed')}
+                    data-dragging={activeMobileSliderId === 'speed'}
+                    className="touch-slider rg-transport-tempo-track"
+                    style={{ ['--slider-accent' as string]: '#ffffff' }}
+                    aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${orbitTempoMaxBpm} BPM`}
+                  />
+                  <div className="w-12 shrink-0 text-right" title={orbitTempoAnchorLabel}>
+                    <EditableTempoValue
+                      value={orbitTempoDisplayBpm}
+                      min={ORBIT_TEMPO_MIN_BPM}
+                      max={orbitTempoMaxBpm}
+                      onCommit={handleSpeedChange}
+                      className="text-[13px]"
+                      ariaLabel="Type exact orbit tempo"
+                    />
+                    <div className="mt-0.5 text-[7px] font-mono uppercase tracking-[0.14em] text-white/34">
+                      BPM
+                    </div>
+                  </div>
+                </div>
+              </div></div>
+
+            <div
+              data-guide="mobile-customize"
+              className="rounded-[20px] border"
+              style={{
+                order: 2,
+                background: mobileCustomizeOpen
+                  ? 'linear-gradient(180deg, rgba(17,17,22,0.96), rgba(17,17,22,0.9))'
+                  : 'rgba(17,17,22,0.9)',
+                borderColor: mobileCustomizeOpen ? 'rgba(0,255,170,0.18)' : 'rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                className="flex items-center justify-between gap-3 px-3 py-2"
+                style={{
+                  background: mobileCustomizeOpen ? 'linear-gradient(180deg, rgba(0,255,170,0.08), rgba(255,255,255,0))' : 'transparent',
+                  boxShadow: mobileCustomizeOpen ? 'inset 0 1px 0 rgba(0,255,170,0.08)' : 'none',
+                }}
+              >
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit')}>
+                  <div
+                    className={mobileRiffMenuSectionTitleClass}
+                    style={{ color: 'rgba(255,255,255,0.5)', textShadow: 'none' }}
+                  >
+                    Edit
+                  </div>
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <div data-guide="mobile-orbit-mode" role="group" aria-label="Orbit drawing mode" className="flex items-center gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {ORBIT_DRAWING_MODES.map((mode) => (
+                      <button data-guide={mode.key === 'interference-trace' ? 'mobile-interference' : mode.key === 'sweep' ? 'mobile-sweep' : undefined}
+                        key={mode.key}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleGeometryModeChange(mode.key);
+                        }}
+                        className="flex h-7 min-w-[2.5rem] items-center justify-center rounded-lg px-2"
+                        style={{
+                          background: geometryMode === mode.key ? `${mode.color}20` : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${geometryMode === mode.key ? `${mode.color}55` : 'rgba(255,255,255,0.08)'}`,
+                          color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,0.7)',
+                        }}
+                        aria-label={`Switch to ${mode.label} mode`}
+                        aria-pressed={geometryMode === mode.key}
+                        aria-describedby={mobileCustomizeOpen ? `orbit-mode-guide-${mode.key}` : undefined}
+                        title={`${mode.label} · ${mode.description}`}
+                      >
+                        <OrbitModeGlyph mode={mode.key} />
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openOnlyOrbitMobileMenu(mobileCustomizeOpen ? null : 'edit');
+                    }}
+                    className="h-7 min-w-7 rounded-lg flex items-center justify-center px-1.5 shrink-0 active:scale-[0.97]"
+                    style={{
+                      ...mobileChevronButtonBaseStyle,
+                      background: mobileCustomizeOpen ? 'rgba(0,255,170,0.1)' : mobileChevronButtonBaseStyle.background,
+                      border: mobileCustomizeOpen ? '1px solid rgba(0,255,170,0.2)' : mobileChevronButtonBaseStyle.border,
+                      color: mobileCustomizeOpen ? '#00FFAA' : mobileChevronButtonBaseStyle.color,
+                    }}
+                    aria-label={mobileCustomizeOpen ? 'Collapse edit' : 'Expand edit'}
+                    title={mobileCustomizeOpen ? 'Collapse section' : 'Expand section'}
+                  >
+                      {mobileCustomizeOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {mobileCustomizeOpen && (
+                <div className="space-y-2 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-2">
+                    <div className="mb-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/35">Drawing modes</div>
+                    <ul aria-label="Orbit mode guide" className="space-y-0.5">
+                      {ORBIT_DRAWING_MODES.map((mode) => (
+                        <li key={mode.key} className="flex items-center gap-2 rounded-md px-1.5 py-1" style={{ background: geometryMode === mode.key ? `${mode.color}0c` : undefined }}>
+                          <span className="shrink-0" style={{ color: mode.color }}><OrbitModeGlyph mode={mode.key} size={14} /></span>
+                          <span className="w-[72px] shrink-0 text-[9px] font-medium" style={{ color: geometryMode === mode.key ? mode.color : 'rgba(255,255,255,.65)' }}>{mode.label}</span>
+                          <span id={`orbit-mode-guide-${mode.key}`} className="text-[9px] leading-snug text-white/45">{mode.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && (
+                      <div className="rounded-xl border px-2 py-2 space-y-2" style={{ background: 'rgba(0,255,170,0.035)', borderColor: 'rgba(0,255,170,0.12)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>
+                              Number Meaning
+                            </div>
+                            <InfoTip text="This decides what the orbit numbers mean in Standard mode: beats per full orbit, or rotations inside one shared cycle." />
+                          </div>
+                          <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                            Standard only
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {([
+                            ['beats-per-turn', 'Beats / Turn'],
+                            ['turns-per-cycle', 'Turns / Cycle'],
+                          ] as const).map(([mode, label]) => {
+                            const selected = standardTimingMode === mode;
+                            return (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => handleStandardTimingModeChange(mode)}
+                                className="px-2 py-2 rounded-xl text-[10px] font-mono uppercase tracking-[0.14em]"
+                                style={{
+                                  background: selected ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.045)',
+                                  border: `1px solid ${selected ? 'rgba(0,255,170,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                                  color: selected ? '#00FFAA' : 'rgba(255,255,255,0.68)',
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                          {standardTimingMode === 'turns-per-cycle'
+                            ? 'Example: 3 and 7 means 3 turns against 7 turns before the loop restarts.'
+                            : 'Example: 7 means that orbit takes 7 beats to make one turn.'}
+                        </p>
+                      </div>
+                    )}
+
+                  <div data-guide="mobile-layers" className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={mobileRiffMenuSectionTitleClass} style={mobileRiffAmberTitleStyle}>
+                        Orbits
+                      </div>
+                      <InfoTip text="Each orbit is one voice. Change its number, direction, and color to change the rhythm and drawing." />
+                      <span id="orbit-layer-count-unit" className="text-[7px] font-mono uppercase tracking-[0.1em] text-white/35">{ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' && standardTimingMode === 'turns-per-cycle' ? 'Turns/Cycle' : 'Beats/Turn'}</span>
+                    </div>
+                    {(geometryMode === 'standard-trace' || canAddSweepOrbit || canAddInterferenceOrbit) && (
+                      <button
+                        onClick={handleAddOrbit}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center"
+                        style={{ color: '#00FFAA', background: 'rgba(0,255,170,0.08)', border: '1px solid rgba(0,255,170,0.22)' }}
+                        title="Add orbit"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  {mobileQuickOrbits.map((orbit) => {
+                    const orbitLabel = orbit.label;
+
+                    return (
+                      <div
+                        key={orbit.id} data-orbit-layer
+                        className="rounded-[14px] border px-2 py-1.5 space-y-1"
+                        style={{ background: `radial-gradient(circle at 14% 0%, ${orbit.color}22, transparent 42%), linear-gradient(180deg, ${orbit.color}0f, rgba(255,255,255,.026))`, borderColor: `${orbit.color}34`, boxShadow: `inset 0 1px 0 rgba(255,255,255,.06), 0 0 30px ${orbit.color}10` }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOrbitEditor(orbit.id)}
+                              className="text-[9px] font-mono uppercase tracking-[0.14em] transition-opacity active:scale-[0.98]"
+                              style={{ color: orbit.color }}
+                              title={`Edit ${orbitLabel} color`}
+                            >
+                              {orbitLabel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOrbitEditor(orbit.id)}
+                              className="relative h-6 w-6 overflow-hidden rounded-lg flex items-center justify-center shrink-0 active:scale-[0.97]"
+                              style={{
+                                color: colorEditingLocked ? 'rgba(255,255,255,0.46)' : orbit.color,
+                                background: colorEditingLocked ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.05)',
+                                border: colorEditingLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.09)',
+                                filter: colorEditingLocked ? 'grayscale(0.6)' : undefined,
+                              }}
+                              title={colorEditingLocked ? 'Upgrade to edit orbit colors' : `Open ${orbitLabel} color picker`}
+                              aria-label={colorEditingLocked ? 'Upgrade to edit orbit colors' : `Open ${orbitLabel} color picker`}
+                            >
+                              <Palette size={12} />
+                              {colorEditingLocked ? (
+                                <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
+                                  <Lock size={6} strokeWidth={2.4} />
+                                </span>
+                              ) : null}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="shrink-0">
+                              <input
+                                type="number"
+                                aria-label={`Exact ${orbitLabel} count`}
+                                aria-describedby="orbit-layer-count-unit"
+                                min="1"
+                                max="1000"
+                                value={orbit.pulseCount}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                                className="h-7 w-12 rounded-lg border px-1 py-0 text-center text-[12px] font-mono focus:outline-none"
+                                style={{ color: 'rgba(255,255,255,0.84)', background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' }}
+                              />
+
+                            </div>
+                            <button
+                              data-guide="mobile-direction"
+                              onClick={() => handleToggleOrbitDirection(orbit.id)}
+                              className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.72)' }}
+                              title={orbit.direction === 1 ? `Set ${orbitLabel} counterclockwise` : `Set ${orbitLabel} clockwise`}
+                            >
+                              {orbit.direction === 1 ? (
+                                <RotateCcw size={12} />
+                              ) : (
+                                <RotateCcw size={12} style={{ transform: 'scaleX(-1)' }} />
+                              )}
+                            </button>
+                            {geometryMode === 'standard-trace' && engineState.orbits.length > 1 && (
+                              <button
+                                onClick={() => handleDeleteOrbit(orbit.id)}
+                                className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                                title={`Remove ${orbitLabel}`}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                            {orbit.canDelete && geometryMode !== 'standard-trace' && (
+                              <button
+                                onClick={() => handleDeleteOrbit(orbit.id)}
+                                className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ color: 'rgba(255,120,150,0.92)', background: 'rgba(255,70,110,0.08)', border: '1px solid rgba(255,70,110,0.16)' }}
+                                title={`Delete ${orbitLabel}`}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAdjustQuickOrbit(orbit.id, -1)}
+                            className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center"
+                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                            title={`Lower ${orbitLabel}`}
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <input
+                            type="range"
+                            aria-label={`Set ${orbitLabel} count`}
+                            min="1"
+                            max={String(mobileQuickOrbitSliderMax)}
+                            step="1"
+                            value={Math.min(orbit.pulseCount, mobileQuickOrbitSliderMax)}
+                            onChange={(e) => handleSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
+                            onPointerDown={(event) =>
+                              handleMobileSliderPointerDown(event, `orbit-${orbit.id}`, (value) =>
+                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
+                              )
+                            }
+                            onPointerMove={(event) =>
+                              handleMobileSliderPointerMove(event, `orbit-${orbit.id}`, (value) =>
+                                handleSetQuickOrbit(orbit.id, Math.round(value) || 1),
+                              )
+                            }
+                            onPointerUp={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
+                            onPointerCancel={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
+                            onBlur={() => clearActiveMobileSlider(`orbit-${orbit.id}`)}
+                            data-dragging={activeMobileSliderId === `orbit-${orbit.id}`}
+                            className="touch-slider flex-1"
+                            style={{ ['--slider-accent' as string]: orbit.color }}
+                          />
+                          <button
+                            onClick={() => handleAdjustQuickOrbit(orbit.id, 1)}
+                            className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center"
+                            style={{ color: 'rgba(255,255,255,0.76)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                            title={`Raise ${orbitLabel}`}
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+
                 </div>
               )}
             </div>
+
+
+
+
+
+
 
           </div>
         </div>
@@ -28062,7 +27451,7 @@ function OrbitalPolymeter() {
             orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
             orbitOptions={engineState.orbits.map((orbit, index) => ({
               id: orbit.id,
-              label: `Layer ${index + 1}`,
+              label: `Orbit ${index + 1}`,
               color: orbit.color,
             }))}
             harmonySettings={harmonySettings}
@@ -28260,7 +27649,7 @@ function OrbitalPolymeter() {
                   <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
                     {standardTimingMode === 'turns-per-cycle'
                       ? 'Example: 3 and 7 means 3 turns against 7 turns before the loop restarts.'
-                      : 'Example: 7 means that layer takes 7 beats to make one turn.'}
+                      : 'Example: 7 means that orbit takes 7 beats to make one turn.'}
                   </p>
                 </div>
               )}
@@ -28533,7 +27922,7 @@ function OrbitalPolymeter() {
           orbitRegister={engineState.orbits.find((o) => o.id === radialMenu.orbitId)?.harmonyRegister}
           orbitOptions={engineState.orbits.map((orbit, index) => ({
             id: orbit.id,
-            label: `Layer ${index + 1}`,
+            label: `Orbit ${index + 1}`,
             color: orbit.color,
           }))}
           harmonySettings={harmonySettings}
