@@ -16,6 +16,7 @@ import FlowCanvas from '../components/FlowCanvas';
 import PolyrhythmCanvas from '../components/PolyrhythmCanvas';
 import PolyrhythmSidebar, { PolyrhythmSceneThumbnail } from '../components/PolyrhythmSidebar';
 import RiffCycleCanvas from '../components/RiffCycleCanvas';
+import { canMoveSceneFolder, getSceneFolderParent, loadRiffSceneFolders, mergeSceneLibraryEntries, normalizeSceneFolder, removeSceneFolder, RIFF_FOLDERS_STORAGE_KEY, type SceneFolder } from '../lib/sceneFolders';
 import { RiffVoiceAccentControl } from '../components/RiffVoiceAccentControl';
 import RiffCycleSidebar, { RiffSceneThumbnail } from '../components/RiffCycleSidebar';
 import InfoTip from '../components/InfoTip';
@@ -2231,6 +2232,8 @@ interface SavedPolyrhythmScene {
 }
 
 interface SavedRiffCycleScene {
+  folderId?: string | null;
+  deletedAt?: string;
   id: string;
   name: string;
   description: string;
@@ -2246,7 +2249,8 @@ function getSavedRiffCellNames(study: RiffCycleStudy): string {
 
 type StoredStudySceneSnapshot =
   | { kind: 'polyrhythm-study'; scene: SavedPolyrhythmScene }
-  | { kind: 'riff-cycle-study'; scene: SavedRiffCycleScene };
+  | { kind: 'riff-cycle-study'; scene: SavedRiffCycleScene }
+  | { kind: 'scene-folder'; mode: 'riff-cycle-study'; folder: SceneFolder };
 
 interface ExportRecord {
   id: string;
@@ -7528,6 +7532,12 @@ function mapStoredRiffCycleSceneRecord(record: StoredSceneRecord): SavedRiffCycl
   };
 }
 
+function mapStoredRiffFolderRecord(record: StoredSceneRecord): SceneFolder | null {
+  const payload = record.snapshot as Partial<StoredStudySceneSnapshot> | null;
+  if (payload?.kind !== 'scene-folder' || payload.mode !== 'riff-cycle-study') return null;
+  return normalizeSceneFolder({ ...payload.folder, id: record.id, name: record.name, updatedAt: record.updated_at });
+}
+
 function mergeSavedStudyScenes<T extends { id: string; updatedAt: string }>(
   localScenes: T[],
   accountScenes: T[],
@@ -7921,6 +7931,7 @@ function OrbitalPolymeter() {
   const [activeRiffCyclePresetId, setActiveRiffCyclePresetId] = useState<string | null>(
     DEFAULT_RIFF_CYCLE_PRESET_ID,
   );
+  const [savedRiffFolders, setSavedRiffFolders] = useState<SceneFolder[]>(loadRiffSceneFolders);
   const [activeRiffCycleSavedSceneId, setActiveRiffCycleSavedSceneId] = useState<string | null>(null);
   const [activeRiffCatalogSceneTier, setActiveRiffCatalogSceneTier] = useState<CatalogSceneTier | null>(null);
   const [selectedPolyrhythmLayerId, setSelectedPolyrhythmLayerId] = useState<string | null>(
@@ -11140,6 +11151,16 @@ function OrbitalPolymeter() {
     [isSignedIn, user?.id],
   );
 
+  const persistRiffFolderToAccount = useCallback(async (folder: SceneFolder) => {
+    if (!isSignedIn || !user?.id) return;
+    await upsertSavedSceneRecord(user.id, {
+      id: folder.id,
+      name: folder.name,
+      snapshot: { kind: 'scene-folder', mode: 'riff-cycle-study', folder } satisfies StoredStudySceneSnapshot,
+      updated_at: folder.updatedAt,
+    });
+  }, [isSignedIn, user?.id]);
+
   const handleImportPolyrhythmScene = useCallback(
     async (file: File) => {
       if (!canUseProFeature(effectivePlan, 'save-scenes')) {
@@ -11343,6 +11364,7 @@ function OrbitalPolymeter() {
     const savedScene: SavedRiffCycleScene = {
       id: existingScene?.id ?? globalThis.crypto?.randomUUID?.() ?? `riff-scene-${Date.now()}`,
       name: sceneName,
+      folderId: existingScene?.folderId ?? null,
       description: riffCycleStudy.description || activePreset?.description || 'Saved Riff Cycle study.',
       updatedAt: now,
       study: {
@@ -11442,58 +11464,69 @@ function OrbitalPolymeter() {
     [effectivePlan, riffCycleStudy.playing, riffCycleStudy.viewMode, savedRiffCycleScenes],
   );
 
-  const handleEditSavedRiffCycleScene = useCallback(
-    (sceneId: string) => {
-      const scene = savedRiffCycleScenes.find((entry) => entry.id === sceneId);
-      if (!scene) {
-        return;
-      }
+  const commitRiffLibraryChanges = useCallback((scenes: SavedRiffCycleScene[], folders: SceneFolder[]) => {
+    setSavedRiffCycleScenes((current) => mergeSceneLibraryEntries(scenes, current));
+    setSavedRiffFolders((current) => mergeSceneLibraryEntries(folders, current));
+    void Promise.all([
+      ...scenes.map(persistRiffCycleSceneToAccount),
+      ...folders.map(persistRiffFolderToAccount),
+    ]).catch((error) => {
+      console.error(error);
+      toast.error('Library saved on this browser, but account sync failed.');
+    });
+  }, [persistRiffCycleSceneToAccount, persistRiffFolderToAccount]);
 
-      const nextName = window.prompt('Scene title', scene.name);
-      if (nextName == null) {
-        return;
-      }
-      const trimmedName = nextName.trim();
-      if (!trimmedName) {
-        toast.error('Scene title cannot be empty.');
-        return;
-      }
-
-      const nextDescription = window.prompt('Scene description', scene.description);
-      if (nextDescription == null) {
-        return;
-      }
-
-      const updatedAt = new Date().toISOString();
-      const description = nextDescription.trim();
-      const updatedScene: SavedRiffCycleScene = {
-        ...scene,
-        name: trimmedName,
-        description,
-        updatedAt,
-        study: {
-          ...cloneRiffCycleStudy(scene.study),
-          name: trimmedName,
-          description,
-          playing: false,
-        },
-      };
-      setSavedRiffCycleScenes((current) => upsertSavedStudyScene(current, updatedScene));
-      void persistRiffCycleSceneToAccount(updatedScene).catch((error) => {
-        console.error(error);
-        toast.error('Scene updated on this browser, but account sync failed.');
-      });
-      if (activeRiffCycleSavedSceneId === sceneId) {
-        setRiffCycleStudy((current) => ({
-          ...current,
-          name: trimmedName,
-          description,
-        }));
-      }
-      toast.success('Scene details updated.');
+  const riffSceneLibraryActions = {
+    onRenameScene: (id: string, name: string) => {
+      const scene = savedRiffCycleScenes.find((entry) => entry.id === id && !entry.deletedAt);
+      if (!scene) return;
+      const updated = { ...scene, name, updatedAt: new Date().toISOString(), study: { ...scene.study, name } };
+      commitRiffLibraryChanges([updated], []);
+      if (activeRiffCycleSavedSceneId === id) setRiffCycleStudy((current) => ({ ...current, name }));
+      toast.success('Scene renamed.');
     },
-    [activeRiffCycleSavedSceneId, persistRiffCycleSceneToAccount, savedRiffCycleScenes],
-  );
+    onMoveScene: (id: string, folderId: string | null) => {
+      const scene = savedRiffCycleScenes.find((entry) => entry.id === id && !entry.deletedAt);
+      if (!scene) return;
+      commitRiffLibraryChanges([{ ...scene, folderId: getSceneFolderParent(savedRiffFolders, folderId), updatedAt: new Date().toISOString() }], []);
+      toast.success('Scene moved.');
+    },
+    onDeleteScene: (id: string) => {
+      const scene = savedRiffCycleScenes.find((entry) => entry.id === id && !entry.deletedAt);
+      if (!scene) return;
+      const now = new Date().toISOString();
+      commitRiffLibraryChanges([{ ...scene, deletedAt: now, updatedAt: now }], []);
+      if (activeRiffCycleSavedSceneId === id) setActiveRiffCycleSavedSceneId(null);
+      toast.success('Scene deleted.', { action: { label: 'Undo', onClick: () => commitRiffLibraryChanges([{ ...scene, updatedAt: new Date().toISOString() }], []) } });
+    },
+    onCreateFolder: (name: string, parentId: string | null) => {
+      const parent = getSceneFolderParent(savedRiffFolders, parentId);
+      if (savedRiffFolders.some((folder) => !folder.deletedAt && folder.parentId === parent && folder.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('A folder with this name already exists here.');
+      commitRiffLibraryChanges([], [{ id: crypto.randomUUID(), name, parentId: parent, updatedAt: new Date().toISOString() }]);
+      toast.success('Folder created.');
+    },
+    onRenameFolder: (id: string, name: string) => {
+      const folder = savedRiffFolders.find((entry) => entry.id === id && !entry.deletedAt);
+      if (!folder) return;
+      if (savedRiffFolders.some((entry) => !entry.deletedAt && entry.id !== id && entry.parentId === folder.parentId && entry.name.toLocaleLowerCase() === name.toLocaleLowerCase())) throw new Error('A folder with this name already exists here.');
+      commitRiffLibraryChanges([], [{ ...folder, name, updatedAt: new Date().toISOString() }]);
+      toast.success('Folder renamed.');
+    },
+    onMoveFolder: (id: string, parentId: string | null) => {
+      const folder = savedRiffFolders.find((entry) => entry.id === id && !entry.deletedAt);
+      if (!folder) return;
+      if (!canMoveSceneFolder(savedRiffFolders, id, parentId)) throw new Error('Choose a folder outside this folder and its subfolders.');
+      if (savedRiffFolders.some((entry) => !entry.deletedAt && entry.id !== id && entry.parentId === parentId && entry.name.toLocaleLowerCase() === folder.name.toLocaleLowerCase())) throw new Error('A folder with this name already exists there.');
+      commitRiffLibraryChanges([], [{ ...folder, parentId, updatedAt: new Date().toISOString() }]);
+      toast.success('Folder moved.');
+    },
+    onDeleteFolder: (id: string) => {
+      const changes = removeSceneFolder(savedRiffFolders, savedRiffCycleScenes, id, new Date().toISOString());
+      if (!changes.folders.length) return;
+      commitRiffLibraryChanges(changes.scenes, changes.folders);
+      toast.success('Folder deleted. Its contents moved up one level.');
+    },
+  };
 
   const layoutViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const layoutViewportHeight =
@@ -11823,6 +11856,10 @@ function OrbitalPolymeter() {
     persistSavedRiffCycleScenes(savedRiffCycleScenes);
   }, [savedRiffCycleScenes]);
 
+  useEffect(() => {
+    window.localStorage.setItem(RIFF_FOLDERS_STORAGE_KEY, JSON.stringify(savedRiffFolders));
+  }, [savedRiffFolders]);
+
   const refreshAccountPersistence = useCallback(async () => {
     if (!user?.id) {
       setSavedScenes(localSavedScenes);
@@ -11841,6 +11878,8 @@ function OrbitalPolymeter() {
     const accountRiffCycleScenes = sceneRecords
       .map(mapStoredRiffCycleSceneRecord)
       .filter((scene): scene is SavedRiffCycleScene => Boolean(scene));
+    const accountRiffFolders = sceneRecords.map(mapStoredRiffFolderRecord).filter((folder): folder is SceneFolder => folder !== null);
+    const localRiffFolders = loadRiffSceneFolders();
     const localPolyrhythmScenes = loadSavedPolyrhythmScenes();
     const localRiffCycleScenes = loadSavedRiffCycleScenes();
 
@@ -11860,6 +11899,10 @@ function OrbitalPolymeter() {
     await Promise.all([
       ...polyrhythmScenesToUpload.map(persistPolyrhythmSceneToAccount),
       ...riffScenesToUpload.map(persistRiffCycleSceneToAccount),
+      ...localRiffFolders.filter((folder) => {
+        const accountFolder = accountRiffFolders.find((entry) => entry.id === folder.id);
+        return !accountFolder || folder.updatedAt > accountFolder.updatedAt;
+      }).map(persistRiffFolderToAccount),
     ]);
 
     setSavedScenes(
@@ -11870,9 +11913,10 @@ function OrbitalPolymeter() {
     setSavedPolyrhythmScenes(
       mergeSavedStudyScenes(localPolyrhythmScenes, accountPolyrhythmScenes),
     );
-    setSavedRiffCycleScenes(mergeSavedStudyScenes(localRiffCycleScenes, accountRiffCycleScenes));
+    setSavedRiffCycleScenes((current) => mergeSceneLibraryEntries(current, accountRiffCycleScenes));
+    setSavedRiffFolders((current) => mergeSceneLibraryEntries(current, accountRiffFolders));
     setExportRecords(exportRows.map(mapStoredExportRecord));
-  }, [localSavedScenes, persistPolyrhythmSceneToAccount, persistRiffCycleSceneToAccount, user?.id]);
+  }, [localSavedScenes, persistPolyrhythmSceneToAccount, persistRiffCycleSceneToAccount, persistRiffFolderToAccount, user?.id]);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -23596,13 +23640,14 @@ function OrbitalPolymeter() {
           currentSurface={appSurface}
           activePresetId={activeRiffCyclePresetId}
           activeSavedSceneId={activeRiffCycleSavedSceneId}
-          savedScenes={savedRiffCycleScenes}
+          savedScenes={savedRiffCycleScenes.filter((scene) => !scene.deletedAt)}
           selectedStep={selectedRiffCycleStep}
           onClose={() => setSidebarOpen(false)}
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
           onLoadSavedScene={handleLoadSavedRiffCycleScene}
-            onEditSavedScene={handleEditSavedRiffCycleScene}
+          sceneFolders={savedRiffFolders}
+          sceneLibraryActions={riffSceneLibraryActions}
             onSaveScene={handleSaveRiffCycleScene}
             onResetStudy={handleResetRiffCycleStudy}
             onToggleSound={handleToggleRiffCycleSound}
@@ -25457,9 +25502,9 @@ function OrbitalPolymeter() {
                       </div>
                     ) : null}
                     {riffMobileSceneTab === 'saved' ? (
-                      savedRiffCycleScenes.length > 0 ? (
+                      savedRiffCycleScenes.some((scene) => !scene.deletedAt) ? (
                         <div className="space-y-1.5">
-                          {savedRiffCycleScenes.slice(0, 5).map((scene) => {
+                          {savedRiffCycleScenes.filter((scene) => !scene.deletedAt).slice(0, 5).map((scene) => {
                             const active = scene.id === activeRiffCycleSavedSceneId;
                             const presetForThumbnail: RiffCyclePreset = {
                               id: scene.id,
@@ -27114,13 +27159,14 @@ function OrbitalPolymeter() {
           currentSurface={appSurface}
           activePresetId={activeRiffCyclePresetId}
           activeSavedSceneId={activeRiffCycleSavedSceneId}
-          savedScenes={savedRiffCycleScenes}
+          savedScenes={savedRiffCycleScenes.filter((scene) => !scene.deletedAt)}
           selectedStep={selectedRiffCycleStep}
           onClose={() => setSidebarOpen(false)}
           onSurfaceChange={handleAppSurfaceChange}
           onLoadPreset={handleLoadRiffCyclePreset}
           onLoadSavedScene={handleLoadSavedRiffCycleScene}
-          onEditSavedScene={handleEditSavedRiffCycleScene}
+          sceneFolders={savedRiffFolders}
+          sceneLibraryActions={riffSceneLibraryActions}
           onSaveScene={handleSaveRiffCycleScene}
           onResetStudy={handleResetRiffCycleStudy}
           onToggleSound={handleToggleRiffCycleSound}

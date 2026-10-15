@@ -564,3 +564,23 @@
 [data-guide="riff-mobile-audio-mix"] .touch-slider::-moz-range-track { height: 3px; }
 [data-guide="riff-mobile-audio-mix"] .touch-slider::-moz-range-thumb { width: 12px; height: 12px; }
 [data-guide="riff-mobile-audio-mix"] svg { width: 12px; height: 12px; }
+
+/* Compact mobile Riff exports without shrinking account inputs or desktop controls. */
+[data-riff-menu-mobile] [data-riff-menu-export] select,
+[data-riff-menu-mobile] [data-riff-menu-export] button:not([aria-label="Show description"]) {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+[data-riff-menu-mobile] [data-riff-menu-export] [data-riff-video-export] { grid-column: 1 / -1; }
+[data-riff-menu-mobile] [data-riff-menu-export] button[aria-label="Show description"] {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+}
+[data-riff-menu-mobile] [data-riff-menu-export] button[aria-label="Show description"] svg {
+  width: 9px;
+  height: 9px;
+}
