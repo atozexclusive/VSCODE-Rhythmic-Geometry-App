@@ -65,6 +65,7 @@ export interface PolyrhythmStudy {
   soundEnabled: boolean;
   showInactiveSteps: boolean;
   showStepLabels: boolean;
+  showInnerNumbers?: boolean;
   barMarkerSoundEnabled?: boolean;
   barMarkerVisualEnabled?: boolean;
   soundSettings: PolyrhythmSoundSettings;
@@ -516,6 +517,25 @@ export function getLayerStepPoints(
       y: centerY + Math.sin(angle) * layer.radius * scale,
     };
   });
+}
+
+export function getSharedGridStepState(
+  layers: readonly PolyrhythmLayer[],
+  gridIndex: number,
+  sharedStepCount: number,
+  selectedLayerId?: string | null,
+): { editable: boolean; active: boolean; color?: string } {
+  const matches = layers.flatMap((layer) => {
+    const position = (gridIndex / Math.max(1, sharedStepCount) - normalizeRotationOffset(layer.rotationOffset) / 360) * layer.beatCount;
+    const nearest = Math.round(position);
+    if (Math.abs(position - nearest) > 0.000001) return [];
+    const stepIndex = ((nearest % layer.beatCount) + layer.beatCount) % layer.beatCount;
+    return [{ layer, active: Boolean(layer.activeSteps[stepIndex]) }];
+  });
+  const active = matches.filter((match) => match.active);
+  const emphasized = active.find((match) => match.layer.id === selectedLayerId)
+    ?? active[0] ?? matches.find((match) => match.layer.id === selectedLayerId) ?? matches[0];
+  return { editable: matches.length > 0, active: active.length > 0, color: emphasized?.layer.color };
 }
 
 export function getPlaybackStepIndex(

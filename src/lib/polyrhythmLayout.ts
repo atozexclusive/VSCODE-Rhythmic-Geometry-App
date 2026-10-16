@@ -109,10 +109,6 @@ export function findPolyrhythmHit(
     );
 
     for (const point of points) {
-      if (!point.active && !study.showInactiveSteps && !study.showStepLabels && !metrics.isMobile) {
-        continue;
-      }
-
       const distance = Math.hypot(x - point.x, y - point.y);
       if (distance <= pointHitRadius) {
         return {

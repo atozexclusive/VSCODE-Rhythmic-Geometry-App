@@ -8845,6 +8845,13 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleTogglePolyrhythmInnerNumbers = useCallback(() => {
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      showInnerNumbers: !current.showInnerNumbers,
+    }));
+  }, []);
+
   const handleTogglePolyrhythmBarMarkerSound = useCallback(() => {
     setPolyrhythmStudy((current) => ({
       ...current,
@@ -9176,6 +9183,14 @@ function OrbitalPolymeter() {
     setPolyrhythmLayerMenuAnchor('canvas');
   }, [handleSelectPolyrhythmLayer]);
 
+  const handleCanvasPolyrhythmLayerMenu = useCallback((layerId: string) => {
+    if (polyrhythmLayerMenuAnchor === 'canvas') {
+      setPolyrhythmLayerMenuAnchor(null);
+      return;
+    }
+    handleOpenPolyrhythmLayerMenu(layerId);
+  }, [polyrhythmLayerMenuAnchor, handleOpenPolyrhythmLayerMenu]);
+
   const handleSelectPolyrhythmStep = useCallback(
     (selection: PolyrhythmStepSelection | null) => {
       setSelectedPolyrhythmStep(selection);
@@ -9274,6 +9289,7 @@ function OrbitalPolymeter() {
       playing: polyrhythmStudy.playing,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
+      showInnerNumbers: polyrhythmStudy.showInnerNumbers,
       barMarkerSoundEnabled: polyrhythmStudy.barMarkerSoundEnabled,
       barMarkerVisualEnabled: polyrhythmStudy.barMarkerVisualEnabled,
     };
@@ -9296,6 +9312,7 @@ function OrbitalPolymeter() {
         playing: current.playing,
         showInactiveSteps: current.showInactiveSteps,
         showStepLabels: current.showStepLabels,
+        showInnerNumbers: current.showInnerNumbers,
         barMarkerSoundEnabled: current.barMarkerSoundEnabled,
         barMarkerVisualEnabled: current.barMarkerVisualEnabled,
       };
@@ -9321,6 +9338,7 @@ function OrbitalPolymeter() {
       playing: polyrhythmStudy.playing,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
+      showInnerNumbers: polyrhythmStudy.showInnerNumbers,
       barMarkerSoundEnabled: polyrhythmStudy.barMarkerSoundEnabled,
       barMarkerVisualEnabled: polyrhythmStudy.barMarkerVisualEnabled,
     };
@@ -16640,185 +16658,29 @@ function OrbitalPolymeter() {
       minHeight: layoutViewportHeight < 720 ? '350px' : '430px',
     } as const;
     const renderPolyrhythmLayerQuickMenu = () =>
-      polyrhythmLayerMenuAnchor === 'canvas' && selectedPolyrhythmLayer ? (
-        <div
-          className="rounded-2xl border p-3 shadow-[0_18px_44px_rgba(0,0,0,0.34)]"
-          style={{
-            background: `linear-gradient(180deg, ${selectedPolyrhythmLayer.color}10, rgba(18,20,28,0.96))`,
-            borderColor: `${selectedPolyrhythmLayer.color}32`,
-            boxShadow: `0 18px 44px rgba(0,0,0,0.34), 0 0 34px ${selectedPolyrhythmLayer.color}12, inset 0 1px 0 rgba(255,255,255,0.05)`,
-          }}
-        >
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div
-              className="text-[10px] font-mono font-semibold uppercase tracking-[0.2em]"
-              style={{ color: selectedPolyrhythmLayer.color, textShadow: `${selectedPolyrhythmLayer.color}33 0 0 12px` }}
-            >
-              {selectedPolyrhythmLayerLabel}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPolyrhythmLayerMenuAnchor(null)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/54 transition active:scale-[0.96]"
-              aria-label="Close layer menu"
-              title="Close layer menu"
-            >
-              <ChevronUp size={13} />
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
-                Quick Swap Layer
-              </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-                {polyrhythmStudy.layers.map((layer, index) => {
-                  const active = layer.id === selectedPolyrhythmLayer.id;
-                  return (
-                    <button
-                      key={layer.id}
-                      type="button"
-                      onClick={() => {
-                        handleSelectPolyrhythmLayer(layer.id);
-                        setSelectedPolyrhythmStep(null);
-                        setPolyrhythmLayerMenuAnchor('canvas');
-                      }}
-                      className="flex h-8 min-w-9 shrink-0 items-center justify-center rounded-lg border px-2 text-[9px] font-mono uppercase tracking-[0.12em] transition active:scale-[0.97]"
-                      style={{
-                        background: active ? `${layer.color}18` : 'rgba(255,255,255,0.04)',
-                        borderColor: active ? `${layer.color}4a` : 'rgba(255,255,255,0.08)',
-                        color: active ? layer.color : 'rgba(255,255,255,0.62)',
-                        boxShadow: active ? `0 0 0 1px ${layer.color}22 inset` : 'none',
-                      }}
-                      aria-label={`Select Layer ${index + 1}`}
-                      title={`Layer ${index + 1}`}
-                    >
-                      {index + 1}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
-                <Palette size={11} />
-                Color
-              </div>
-              <div className="grid grid-cols-6 gap-1.5">
-                {POLYRHYTHM_LAYER_COLORS.slice(0, 12).map((color) => {
-                  const active = selectedPolyrhythmLayer.color === color;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => {
-                        if (colorEditingLocked) {
-                          openProPrompt('color-editing');
-                          return;
-                        }
-                        handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { color });
-                      }}
-                      className="relative h-8 overflow-hidden rounded-lg border transition active:scale-[0.97]"
-                      style={{
-                        background: colorEditingLocked ? 'rgba(255,255,255,0.035)' : `${color}18`,
-                        borderColor: colorEditingLocked ? 'rgba(255,255,255,0.1)' : active ? `${color}aa` : `${color}44`,
-                        boxShadow: colorEditingLocked ? 'none' : active ? `0 0 0 1px ${color}aa inset, 0 0 16px ${color}26` : 'none',
-                        filter: colorEditingLocked ? 'grayscale(0.6)' : undefined,
-                      }}
-                      aria-label={`Set ${selectedPolyrhythmLayerLabel} color ${color}`}
-                      title={color}
-                    >
-                      {colorEditingLocked ? (
-                        <span className="pointer-events-none absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/40 text-white/68">
-                          <Lock size={8} strokeWidth={2.4} />
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-2 rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-              <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
-                Sound
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <StudyShellButton
-                  size="compact"
-                  tone="blue"
-                  highlighted={selectedPolyrhythmLayer.soundEnabled}
-                  onClick={() =>
-                    handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, {
-                      soundEnabled: !selectedPolyrhythmLayer.soundEnabled,
-                    })
-                  }
-                >
-                  {selectedPolyrhythmLayer.soundEnabled ? 'Layer On' : 'Layer Off'}
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="amber"
-                  highlighted={polyrhythmSoundFocus === 'layer'}
-                  onClick={() => handleSetPolyrhythmSoundFocus('layer')}
-                >
-                  Solo
-                </StudyShellButton>
-                <StudyShellButton
-                  size="compact"
-                  tone="amber"
-                  highlighted={polyrhythmSoundFocus === 'stack'}
-                  onClick={() => handleSetPolyrhythmSoundFocus('stack')}
-                >
-                  Stack
-                </StudyShellButton>
-              </div>
-              <div className="space-y-1.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">
-                  Key & Note Family
-                </div>
-                <div className="grid grid-cols-1 gap-1.5">
-                  <select
-                    value={polyrhythmStudy.soundSettings.rootNote}
-                    onChange={(event) =>
-                      handleUpdatePolyrhythmSoundSettings({
-                        pitchMode: 'keyed',
-                        rootNote: event.target.value as PolyrhythmSoundSettings['rootNote'],
-                      })
-                    }
-                    className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-mono text-white/82 outline-none"
-                    style={{ color: 'rgba(255,255,255,0.82)' }}
-                  >
-                    {NOTE_NAMES.map((note) => (
-                      <option key={note} value={note} style={{ background: '#181820' }}>
-                        {note}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={polyrhythmStudy.soundSettings.scaleName}
-                    onChange={(event) =>
-                      handleUpdatePolyrhythmSoundSettings({
-                        pitchMode: 'keyed',
-                        scaleName: event.target.value as PolyrhythmSoundSettings['scaleName'],
-                      })
-                    }
-                    className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-mono text-white/82 outline-none"
-                    style={{ color: 'rgba(255,255,255,0.82)' }}
-                  >
-                    {Object.entries(SCALE_PRESETS).map(([scaleName]) => (
-                      <option key={scaleName} value={scaleName} style={{ background: '#181820' }}>
-                        {getFriendlyScaleLabel(scaleName as PolyrhythmSoundSettings['scaleName'])}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      polyrhythmLayerMenuAnchor === 'canvas' && selectedPolyrhythmLayer ? createPortal(
+        <RadialMenu
+          x={layoutViewportWidth / 2}
+          y={isMobile ? 80 : layoutViewportHeight / 2}
+          entityLabel="Layer"
+          orbitId={selectedPolyrhythmLayer.id}
+          orbitColor={selectedPolyrhythmLayer.color}
+          orbitPulseCount={selectedPolyrhythmLayer.beatCount}
+          orbitPulseMax={64}
+          radius={selectedPolyrhythmLayer.radius}
+          orbitOptions={polyrhythmStudy.layers.map((layer, index) => ({
+            id: layer.id, label: `Layer ${index + 1}`, color: layer.color,
+          }))}
+          colorEditingLocked={colorEditingLocked}
+          onLockedFeature={openProPrompt}
+          onSelectOrbit={handleOpenPolyrhythmLayerMenu}
+          onChangePulseCount={handleSetPolyrhythmLayerBeatCount}
+          onChangeRadius={(layerId, radius) => handleUpdatePolyrhythmLayer(layerId, { radius })}
+          onChangeColor={handleSetPolyrhythmLayerColor}
+          onDelete={handleRemovePolyrhythmLayer}
+          onClose={() => setPolyrhythmLayerMenuAnchor(null)}
+        />,
+        document.body,
       ) : null;
 
     const renderPolyrhythmChainPanel = (compact = false) => {
@@ -17020,7 +16882,7 @@ function OrbitalPolymeter() {
                 presentationMode={presentationMode}
                 audioEnabled={recordingVideo || !muted}
                 onSelectLayer={handleSelectPolyrhythmLayer}
-                onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
+                onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                onSelectStep={handleSelectPolyrhythmStep}
 	                onToggleStep={handleTogglePolyrhythmLayerStep}
                 onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
@@ -17233,6 +17095,16 @@ function OrbitalPolymeter() {
                                     icon={<Hash size={13} />}
                                   >
                                     Numbers
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.showInnerNumbers)}
+                                    onClick={handleTogglePolyrhythmInnerNumbers}
+                                    className="col-span-2"
+                                    title="Show the selected layer’s count inside its shape"
+                                  >
+                                    Inner Numbers
                                   </StudyShellButton>
                                   <StudyShellButton
                                     size="compact"
@@ -18154,7 +18026,7 @@ function OrbitalPolymeter() {
                     presentationMode
                     audioEnabled={recordingVideo || !muted}
                     onSelectLayer={handleSelectPolyrhythmLayer}
-                    onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
+                    onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                    onSelectStep={handleSelectPolyrhythmStep}
 	                    onToggleStep={handleTogglePolyrhythmLayerStep}
 	                    onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
@@ -18510,6 +18382,7 @@ function OrbitalPolymeter() {
             onSetSoundFocus={handleSetPolyrhythmSoundFocus}
             onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
             onToggleStepLabels={handleTogglePolyrhythmStepLabels}
+            onToggleInnerNumbers={handleTogglePolyrhythmInnerNumbers}
             onAddLayer={handleAddPolyrhythmLayer}
             onSelectLayer={handleSelectPolyrhythmLayer}
             onSelectStep={handleSelectPolyrhythmStep}
@@ -18556,7 +18429,7 @@ function OrbitalPolymeter() {
             presentationMode={presentationMode}
             audioEnabled={recordingVideo || !muted}
             onSelectLayer={handleSelectPolyrhythmLayer}
-            onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
+            onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	            onSelectStep={handleSelectPolyrhythmStep}
 	            onToggleStep={handleTogglePolyrhythmLayerStep}
 	            onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
@@ -19625,6 +19498,16 @@ function OrbitalPolymeter() {
                       >
                         Step Numbers
                       </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.showInnerNumbers)}
+                                    onClick={handleTogglePolyrhythmInnerNumbers}
+                                    className="col-span-2"
+                                    title="Show the selected layer’s count inside its shape"
+                                  >
+                                    Inner Numbers
+                                  </StudyShellButton>
                       <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled)} onClick={handleTogglePolyrhythmBarMarkerSound}>
                         Bar Sound
                       </StudyShellButton>
@@ -19881,7 +19764,7 @@ function OrbitalPolymeter() {
                   displaySettings={canvasDisplayState.polyrhythm}
                   audioEnabled={recordingVideo || !muted}
                   onSelectLayer={handleSelectPolyrhythmLayer}
-                  onOpenLayerMenu={handleOpenPolyrhythmLayerMenu}
+                  onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                  onSelectStep={handleSelectPolyrhythmStep}
 	                  onToggleStep={handleTogglePolyrhythmLayerStep}
 	                  onToggleStepAccent={handleTogglePolyrhythmLayerAccent}
@@ -20461,6 +20344,7 @@ function OrbitalPolymeter() {
           onSetSoundFocus={handleSetPolyrhythmSoundFocus}
           onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
           onToggleStepLabels={handleTogglePolyrhythmStepLabels}
+            onToggleInnerNumbers={handleTogglePolyrhythmInnerNumbers}
           onAddLayer={handleAddPolyrhythmLayer}
           onSelectLayer={handleSelectPolyrhythmLayer}
           onSelectStep={handleSelectPolyrhythmStep}

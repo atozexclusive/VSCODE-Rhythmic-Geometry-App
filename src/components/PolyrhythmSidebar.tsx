@@ -62,6 +62,7 @@ interface PolyrhythmSidebarProps {
   onSetSoundFocus: (focus: 'layer' | 'stack' | 'mute') => void;
   onToggleInactiveSteps: () => void;
   onToggleStepLabels: () => void;
+  onToggleInnerNumbers: () => void;
   onAddLayer: () => void;
   onSelectLayer: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmStepSelection | null) => void;
@@ -260,6 +261,7 @@ export default function PolyrhythmSidebar({
   onSetSoundFocus,
   onToggleInactiveSteps,
   onToggleStepLabels,
+  onToggleInnerNumbers,
   onAddLayer,
   onSelectLayer,
   onSelectStep,
@@ -1573,6 +1575,20 @@ export default function PolyrhythmSidebar({
                     }}
                   >
                     Labels
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleInnerNumbers}
+                    aria-pressed={Boolean(study.showInnerNumbers)}
+                    title="Show the selected layer’s count inside its shape"
+                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
+                    style={{
+                      background: study.showInnerNumbers ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: study.showInnerNumbers ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
+                      color: study.showInnerNumbers ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
+                    }}
+                  >
+                    Inner Numbers
                   </button>
                 </div>
               </div>

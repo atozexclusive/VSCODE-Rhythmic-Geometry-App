@@ -24,6 +24,7 @@ import {
   getLayerStepPoints,
   getPlaybackStepIndex,
   getSharedCycleStepCount,
+  getSharedGridStepState,
   type PolyrhythmLayer,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
@@ -154,6 +155,8 @@ export default function PolyrhythmCanvas({
   const hitPulsesRef = useRef<PolyrhythmHitPulse[]>([]);
   const barMarkerFlashStartedAtRef = useRef<number | null>(null);
   const animationTimestampRef = useRef(0);
+  const pointerLayerHitRef = useRef<string | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const pointerStepHitRef = useRef<{
     layerId: string;
     stepIndex: number;
@@ -354,13 +357,12 @@ export default function PolyrhythmCanvas({
         const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
         const x = metrics.centerX + Math.cos(angle) * gridRadius;
         const y = metrics.centerY + Math.sin(angle) * gridRadius;
-        const onLayerBoundary = displayStudy.layers.some(
-          (layer) => index % Math.max(1, sharedCycleStepCount / layer.beatCount) === 0,
-        );
+        const gridStep = getSharedGridStepState(displayStudy.layers, index, sharedCycleStepCount, currentSelectedLayerId);
+        const onLayerBoundary = gridStep.editable;
         if (currentStudy.showInactiveSteps) {
-          const pointRadius = onLayerBoundary ? 2.05 : 1.35;
-          ctx.globalAlpha = (onLayerBoundary ? 0.34 : 0.18) * inactiveAlpha;
-          ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
+          const pointRadius = (gridStep.active ? 2.8 : onLayerBoundary ? 2.3 : 1) * exportLabelScale;
+          ctx.globalAlpha = (gridStep.active ? 0.95 : onLayerBoundary ? 0.65 : 0.14) * inactiveAlpha;
+          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.55)';
           ctx.beginPath();
           ctx.arc(x, y, pointRadius, 0, TAU);
           ctx.fill();
@@ -371,9 +373,10 @@ export default function PolyrhythmCanvas({
           const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;
           const labelX = metrics.centerX + Math.cos(angle) * labelRadius;
           const labelY = metrics.centerY + Math.sin(angle) * labelRadius;
-          ctx.globalAlpha = onLayerBoundary ? 0.42 : 0.24;
-          ctx.fillStyle = onLayerBoundary ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)';
-          ctx.font = `${(denseGrid ? 7 : 9) * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
+          ctx.globalAlpha = gridStep.active ? 1 : onLayerBoundary ? 0.68 : 0.2;
+          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.65)';
+          const labelSize = denseGrid ? (onLayerBoundary ? 8 : 7) : (gridStep.active ? 11 : onLayerBoundary ? 10 : 8);
+          ctx.font = `${onLayerBoundary ? 600 : 400} ${labelSize * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(
@@ -518,21 +521,20 @@ export default function PolyrhythmCanvas({
           const labelStride = getPolyrhythmLabelStride(layer.beatCount);
           const shouldDrawLabel =
             point.index % labelStride === 0 || point.index === layer.beatCount - 1;
+          const drawInnerNumbers = Boolean(currentStudy.showInnerNumbers) && isSelectedLayer && !isReferenceLayer;
           if (
-            currentStudy.showStepLabels &&
-            !isReferenceLayer &&
-            (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
-            shouldDrawLabel &&
-            (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
+            !isReferenceLayer && shouldDrawLabel &&
+            (drawInnerNumbers || (
+              currentStudy.showStepLabels &&
+              (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
+              (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
+            ))
           ) {
-            const labelRadius = layer.radius * metrics.scale + 14 * exportLabelScale;
+            const labelRadius = Math.max(0, layer.radius * metrics.scale + (drawInnerNumbers ? -22 : 14) * exportLabelScale);
             ctx.save();
-            ctx.fillStyle = isSelectedStep
-              ? 'rgba(255,255,255,0.88)'
-              : point.active
-                ? 'rgba(255,255,255,0.72)'
-                : 'rgba(255,255,255,0.28)';
-            ctx.font = `${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
+            ctx.globalAlpha = point.active || isSelectedStep ? 1 : 0.5;
+            ctx.fillStyle = drawInnerNumbers ? layer.color : 'rgba(255,255,255,0.88)';
+            ctx.font = `${drawInnerNumbers ? 600 : 400} ${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(
@@ -543,15 +545,8 @@ export default function PolyrhythmCanvas({
             ctx.restore();
           }
 
-          const showSharedGhostStepsForLayer =
-            !sharedDisplay || soloLayerDisplayRef.current || isSelectedLayer;
-          const shouldShowInactiveStep = currentStudy.showInactiveSteps;
-          if (
-            !point.active &&
-            (!shouldShowInactiveStep || !showSharedGhostStepsForLayer)
-          ) {
-            return;
-          }
+          // Actual layer positions stay visible when silent. Ghost Steps only
+          // controls the extra shared-grid guides, not these editable nodes.
 
           const accented = point.accented;
           const isHoveredStep =
@@ -661,8 +656,13 @@ export default function PolyrhythmCanvas({
               : (isSelectedStep ? 16 : isHoveredStep ? 16 : isHoveredLayer ? 12 : sharedDisplay ? 10 : 8) * glowMultiplier * pointScale + hitGlowBoost;
             ctx.shadowColor = isReferenceLayer ? 'transparent' : layer.color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + hitRadiusBoost, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius + hitRadiusBoost + (sharedDisplay && !isReferenceLayer ? 0.8 * pointScale : 0), 0, TAU);
             ctx.fill();
+            if (sharedDisplay && !isReferenceLayer) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+              ctx.lineWidth = 0.8 * pointScale;
+              ctx.stroke();
+            }
             if (accented && !isReferenceLayer) {
               ctx.strokeStyle = 'rgba(255,209,102,0.92)';
               ctx.lineWidth = (isSelectedStep ? 2 : 1.45) * pointScale;
@@ -678,62 +678,15 @@ export default function PolyrhythmCanvas({
               ctx.fill();
             }
           } else {
-            const ghostFillAlpha = (
-              isSelectedLayer
-                ? denseLayer
-                  ? 0.62
-                  : 0.7
-                : isHoveredStep
-                  ? 0.68
-                  : isHoveredLayer
-                    ? 0.52
-                  : denseLayer
-                    ? 0.42
-                    : 0.48
-            ) * inactiveAlpha;
-            const ghostStrokeAlpha = (
-              isSelectedLayer
-                ? denseLayer
-                  ? 0.92
-                  : 0.96
-                : isHoveredStep
-                  ? 0.94
-                  : isHoveredLayer
-                    ? 0.78
-                  : denseLayer
-                    ? 0.68
-                    : 0.76
-            ) * inactiveAlpha;
-            if (isSelectedLayer && !isReferenceLayer) {
-              ctx.save();
-              ctx.globalAlpha = 0.16 * inactiveAlpha;
-              ctx.strokeStyle = layer.color;
-              ctx.lineWidth = 2.2 * pointScale;
-              ctx.shadowBlur = 10 * glowMultiplier * pointScale;
-              ctx.shadowColor = layer.color;
-              ctx.beginPath();
-              ctx.arc(point.x, point.y, pointRadius + 1.8 * pointScale, 0, TAU);
-              ctx.stroke();
-              ctx.restore();
-            }
-            ctx.shadowBlur = isSelectedLayer ? 5 * glowMultiplier * pointScale : 0;
-            ctx.shadowColor = isSelectedLayer ? layer.color : 'transparent';
-            ctx.fillStyle = isSelectedStep
-              ? 'rgba(255,255,255,0.92)'
-              : 'rgba(255,255,255,0.78)';
-            ctx.globalAlpha = ghostFillAlpha;
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 0.15, 0, TAU);
-            ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.shadowColor = 'transparent';
-            ctx.globalAlpha = ghostStrokeAlpha;
-            ctx.strokeStyle = isSelectedStep
-              ? 'rgba(255,255,255,0.92)'
-              : 'rgba(255,255,255,0.94)';
-            ctx.lineWidth = (denseLayer ? 1.35 : 1.5) * pointScale;
+            ctx.globalAlpha = 0.95;
+            ctx.fillStyle = '#101923';
             ctx.beginPath();
-            ctx.arc(point.x, point.y, pointRadius + 0.15, 0, TAU);
+            ctx.arc(point.x, point.y, pointRadius, 0, TAU);
+            ctx.fill();
+            ctx.globalAlpha = isSelectedStep || isHoveredStep ? 1 : isSelectedLayer ? 0.92 : 0.76;
+            ctx.strokeStyle = layer.color;
+            ctx.lineWidth = (isSelectedLayer ? 1.9 : 1.5) * pointScale;
             ctx.stroke();
           }
           ctx.restore();
@@ -1071,6 +1024,8 @@ export default function PolyrhythmCanvas({
         return;
       }
 
+      pointerStartRef.current = { x: event.clientX, y: event.clientY };
+      pointerLayerHitRef.current = null;
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
@@ -1111,9 +1066,7 @@ export default function PolyrhythmCanvas({
         clearLongPress();
         pointerStepHitRef.current = null;
         onSelectStep(null);
-        if (!isMobileRef.current) {
-          onOpenLayerMenu?.(hit.layerId);
-        }
+        pointerLayerHitRef.current = hit.layerId;
         return;
       }
 
@@ -1157,10 +1110,14 @@ export default function PolyrhythmCanvas({
         }, 390);
       }
     },
-    [clearLongPress, onClearSelection, onOpenLayerMenu, onSelectLayer, onSelectStep, onToggleStepAccent],
+    [clearLongPress, onClearSelection, onSelectLayer, onSelectStep, onToggleStepAccent],
   );
 
   const handlePointerUp = useCallback(() => {
+    const pendingLayer = pointerLayerHitRef.current;
+    pointerLayerHitRef.current = null;
+    pointerStartRef.current = null;
+    if (pendingLayer) onOpenLayerMenu?.(pendingLayer);
     const pendingHit = pointerStepHitRef.current;
     clearLongPress();
     pointerStepHitRef.current = null;
@@ -1178,15 +1135,24 @@ export default function PolyrhythmCanvas({
     if (pendingHit.sameStep) {
       onToggleStep(pendingHit.layerId, pendingHit.stepIndex);
     }
-  }, [clearLongPress, onToggleStep]);
+  }, [clearLongPress, onOpenLayerMenu, onToggleStep]);
 
   const handlePointerCancel = useCallback(() => {
+    pointerLayerHitRef.current = null;
+    pointerStartRef.current = null;
     clearLongPress();
     pointerStepHitRef.current = null;
     longPressFiredRef.current = false;
   }, [clearLongPress]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    const start = pointerStartRef.current;
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) {
+      clearLongPress();
+      pointerLayerHitRef.current = null;
+      pointerStepHitRef.current = null;
+      pointerStartRef.current = null;
+    }
     const canvas = canvasRef.current;
     if (!canvas || isMobileRef.current) {
       return;
@@ -1219,9 +1185,11 @@ export default function PolyrhythmCanvas({
           }
         : null;
     canvas.style.cursor = hit ? 'pointer' : 'default';
-  }, []);
+  }, [clearLongPress]);
 
   const handlePointerLeave = useCallback(() => {
+    pointerLayerHitRef.current = null;
+    pointerStartRef.current = null;
     clearLongPress();
     pointerStepHitRef.current = null;
     longPressFiredRef.current = false;

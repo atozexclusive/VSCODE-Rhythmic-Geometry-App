@@ -365,6 +365,23 @@
     0 0 8px color-mix(in srgb, var(--slider-accent) 44%, transparent);
 }
 
+[data-orbit-quick-editor] .touch-slider.orbit-count-slider {
+  height: 1.5rem;
+  padding: 0.6rem 0;
+  margin: -0.3rem 0;
+}
+
+[data-orbit-quick-editor] .orbit-count-slider::-webkit-slider-thumb {
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-top: calc((0.2rem - 0.625rem) / 2);
+}
+
+[data-orbit-quick-editor] .orbit-count-slider::-moz-range-thumb {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
 .rg-transport-tempo-row {
   justify-content: flex-start;
 }

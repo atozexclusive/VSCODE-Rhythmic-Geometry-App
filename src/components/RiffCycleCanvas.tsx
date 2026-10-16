@@ -870,6 +870,7 @@ export default function RiffCycleCanvas({
       effectiveLaneWindowStartStep,
       laneWindowStepCountRef.current,
       {
+        exportLayout: exportRecordingMode || exportLayoutMode || exportSnapshot,
         sidePadding: exportSidePadding,
         radiusScale: landscapeExportMode ? 0.82 : undefined,
       },

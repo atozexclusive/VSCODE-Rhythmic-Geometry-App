@@ -108,7 +108,7 @@ export function getRiffCycleCanvasMetrics(
   bottomInset = 0,
   laneWindowStartStep?: number,
   laneWindowStepCount?: number,
-  options: { sidePadding?: number; radiusScale?: number } = {},
+  options: { sidePadding?: number; radiusScale?: number; exportLayout?: boolean } = {},
 ): RiffCycleCanvasMetrics {
   const showingTimeline = study.viewMode === 'unwrapped';
   const sidePadding = options.sidePadding ?? (isMobile ? (showingTimeline ? 18 : 12) : 44);
@@ -123,6 +123,7 @@ export function getRiffCycleCanvasMetrics(
   const referenceSideCount = Math.max(2, study.reference.numerator);
   const dupleReferenceFrame = referenceSideCount === 2;
   const triangleReferenceFrame = referenceSideCount === 3;
+  const liveThreeFour = triangleReferenceFrame && study.reference.denominator === 4 && !options.exportLayout;
   const visibleStepCount = showingTimeline
     ? Math.max(1, Math.min(totalDisplaySteps, Math.floor(laneWindowStepCount ?? totalDisplaySteps)))
     : totalDisplaySteps;
@@ -156,7 +157,7 @@ export function getRiffCycleCanvasMetrics(
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
     if (triangleReferenceFrame) {
-      outerRadius *= isMobile ? 1.025 : 1.03;
+      outerRadius *= liveThreeFour ? 1.15 : isMobile ? 1.025 : 1.03;
     }
     circleCenterY = triangleReferenceFrame
       ? topPadding + Math.max(0, availableTopHeight - outerRadius * 1.5) / 2 + outerRadius
@@ -186,7 +187,7 @@ export function getRiffCycleCanvasMetrics(
       outerRadius = Math.max(isMobile ? 88 : 78, outerRadius - (isMobile ? 22 : 26));
     }
     if (triangleReferenceFrame) {
-      outerRadius *= isMobile ? 1.025 : 1.03;
+      outerRadius *= liveThreeFour ? 1.15 : isMobile ? 1.025 : 1.03;
     }
     circleCenterY = triangleReferenceFrame
       ? topPadding + Math.max(0, safeHeight - outerRadius * 1.5) / 2 + outerRadius
@@ -195,15 +196,24 @@ export function getRiffCycleCanvasMetrics(
 
   outerRadius *= options.radiusScale ?? 1;
 
-  const defaultInnerRadius = outerRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
+  const innerFrameRadius = outerRadius;
+  if (liveThreeFour) {
+    // Keep the larger 3/4 frame together with its inner circle, slightly below center.
+    circleCenterY -= outerRadius / 4;
+    circleCenterY += isMobile ? 18 : 24;
+    outerRadius *= 1.04;
+  }
+
+  const defaultInnerRadius = innerFrameRadius * (isMobile ? (showingTimeline ? 0.52 : 0.56) : 0.57);
   const referenceInradius = dupleReferenceFrame
-    ? outerRadius
-    : outerRadius * Math.cos(Math.PI / referenceSideCount);
-  const containmentPadding = triangleReferenceFrame ? (isMobile ? 26 : 34) : isMobile ? 4 : 6;
+    ? innerFrameRadius
+    : innerFrameRadius * Math.cos(Math.PI / referenceSideCount);
+  const containmentPadding = liveThreeFour ? (isMobile ? 14 : 18)
+    : triangleReferenceFrame ? (isMobile ? 26 : 34) : isMobile ? 4 : 6;
   const innerRadius = Math.min(
     defaultInnerRadius,
     Math.max(32, referenceInradius - containmentPadding),
-  );
+  ) * (liveThreeFour ? 0.94 : 1);
 
   const baseMetrics = {
     circleCenterX,
