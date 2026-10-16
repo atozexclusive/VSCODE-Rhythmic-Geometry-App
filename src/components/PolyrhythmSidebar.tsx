@@ -1,3 +1,4 @@
+import LayerStepsIcon from './LayerStepsIcon';
 import { useEffect, useRef, useState } from 'react';
 import {
   Lock,
@@ -259,7 +260,6 @@ export default function PolyrhythmSidebar({
   onToggleStudySound,
   onUpdateSoundSettings,
   onSetSoundFocus,
-  onToggleInactiveSteps,
   onToggleStepLabels,
   onToggleInnerNumbers,
   onAddLayer,
@@ -1554,18 +1554,6 @@ export default function PolyrhythmSidebar({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={onToggleInactiveSteps}
-                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: study.showInactiveSteps ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
-                      borderColor: study.showInactiveSteps ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: study.showInactiveSteps ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
-                    }}
-                  >
-                    Faint
-                  </button>
-                  <button
-                    type="button"
                     onClick={onToggleStepLabels}
                     className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
                     style={{
@@ -1574,7 +1562,7 @@ export default function PolyrhythmSidebar({
                       color: study.showStepLabels ? '#FFAA00' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Labels
+                    Shared Grid
                   </button>
                   <button
                     type="button"
@@ -1588,7 +1576,7 @@ export default function PolyrhythmSidebar({
                       color: study.showInnerNumbers ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Inner Numbers
+                    <span className="inline-flex items-center justify-center gap-2"><LayerStepsIcon />Layer Steps</span>
                   </button>
                 </div>
               </div>

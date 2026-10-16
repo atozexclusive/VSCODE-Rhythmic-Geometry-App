@@ -10,7 +10,6 @@ import {
   DEFAULT_CANVAS_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
   getCanvasGlowMultiplier,
-  getCanvasInactiveAlpha,
   getCanvasLineAlpha,
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
@@ -230,7 +229,6 @@ export default function PolyrhythmCanvas({
     const exportLabelScale = portraitExportMode ? 1.55 : exportLayoutMode ? 1.12 : 1;
     const currentDisplaySettings = displaySettingsRef.current;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
-    const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
@@ -349,25 +347,14 @@ export default function PolyrhythmCanvas({
       sharedDisplay &&
       displayStudy.layers.length > 1 &&
       sharedCycleStepCount <= 192 &&
-      (currentStudy.showInactiveSteps || currentStudy.showStepLabels)
+      currentStudy.showStepLabels
     ) {
       const gridRadius = sharedCycleRadius + (renderAsMobile ? 13 : 18) * exportLabelScale;
       ctx.save();
       for (let index = 0; index < sharedCycleStepCount; index += 1) {
         const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
-        const x = metrics.centerX + Math.cos(angle) * gridRadius;
-        const y = metrics.centerY + Math.sin(angle) * gridRadius;
         const gridStep = getSharedGridStepState(displayStudy.layers, index, sharedCycleStepCount, currentSelectedLayerId);
         const onLayerBoundary = gridStep.editable;
-        if (currentStudy.showInactiveSteps) {
-          const pointRadius = (gridStep.active ? 2.8 : onLayerBoundary ? 2.3 : 1) * exportLabelScale;
-          ctx.globalAlpha = (gridStep.active ? 0.95 : onLayerBoundary ? 0.65 : 0.14) * inactiveAlpha;
-          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.55)';
-          ctx.beginPath();
-          ctx.arc(x, y, pointRadius, 0, TAU);
-          ctx.fill();
-        }
-
         if (currentStudy.showStepLabels) {
           const denseGrid = sharedCycleStepCount > 48;
           const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;

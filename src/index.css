@@ -382,6 +382,17 @@
   height: 0.625rem;
 }
 
+[data-orbit-quick-editor] .layer-steps-slider::-webkit-slider-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: calc((0.2rem - 0.75rem) / 2);
+}
+
+[data-orbit-quick-editor] .layer-steps-slider::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
 .rg-transport-tempo-row {
   justify-content: flex-start;
 }

@@ -97,3 +97,18 @@ export function normalizeInterferenceSettings(
     showConnectors: normalized.showConnectors,
   };
 }
+
+// Pair modes expose only their selected source orbits, in source order.
+export function getGeometryModeOrbits<T extends { id: string }>(
+  orbits: T[],
+  mode: GeometryMode,
+  settings?: Partial<InterferenceSettings> | null,
+): T[] {
+  if (mode === 'standard-trace') return [...orbits];
+  const normalized = normalizeInterferenceSettings(orbits, settings);
+  return [normalized.sourceOrbitAId, normalized.sourceOrbitBId, normalized.sourceOrbitCId, normalized.sourceOrbitDId]
+    .flatMap((id) => {
+      const orbit = orbits.find((entry) => entry.id === id);
+      return orbit ? [orbit] : [];
+    });
+}

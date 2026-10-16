@@ -221,10 +221,10 @@ function createRandomPolyrhythmSoundSettings(
   const plusScales: ScaleName[] = [...baseScales, 'wholeTone', 'diminished'];
   const palettePool =
     intensity === 'plus'
-      ? (['study-pulse', 'wood', 'soft-synth', 'bright-marker'] as const)
+      ? (['study-pulse', 'wood', 'soft-synth', 'bright-marker', 'chime', 'warm-synth', 'crystal-bell'] as const)
       : intensity === 'remix'
         ? (['study-pulse', 'wood', 'soft-synth'] as const)
-        : (['study-pulse', 'wood'] as const);
+        : (['study-pulse', 'wood', 'soft-synth', 'chime', 'warm-synth'] as const);
   const palette =
     current && intensity === 'remix' && Math.random() < 0.6
       ? current.palette
@@ -707,7 +707,7 @@ function createSingleLayerStudy(options: {
     bpm: options.bpm,
     soundEnabled: true,
     showInactiveSteps: true,
-    showStepLabels: options.showStepLabels ?? true,
+    showStepLabels: options.showStepLabels ?? false,
     barMarkerSoundEnabled: false,
     barMarkerVisualEnabled: false,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
@@ -751,7 +751,7 @@ function createSharedCycleStudy(options: {
     bpm: options.bpm,
     soundEnabled: true,
     showInactiveSteps: true,
-    showStepLabels: options.showStepLabels ?? true,
+    showStepLabels: options.showStepLabels ?? false,
     barMarkerSoundEnabled: false,
     barMarkerVisualEnabled: false,
     soundSettings: createPolyrhythmSoundSettings(options.soundSettings),
@@ -874,85 +874,136 @@ const EXPLORATORY_RANDOM_FAMILIES: PolyrhythmRandomFamily[] = [
   },
 ];
 
+type StudyRandomApproach = 'full' | 'grid' | 'structured' | 'adventurous' | 'chaos';
+
+function chooseStudyRandomApproach(plus: boolean): StudyRandomApproach {
+  const roll = Math.random();
+  if (roll < (plus ? 0.25 : 0.35)) return 'full';
+  if (roll < (plus ? 0.45 : 0.6)) return 'grid';
+  if (roll < (plus ? 0.7 : 0.87)) return 'structured';
+  if (roll < (plus ? 0.93 : 0.98)) return 'adventurous';
+  return 'chaos';
+}
+
+function getStudyRandomLimits(plus: boolean, approach: StudyRandomApproach) {
+  return {
+    maxCount: approach === 'chaos' ? (plus ? 20 : 12) : plus ? 14 : 10,
+    maxCycle: approach === 'grid' ? (plus ? 36 : 24) : approach === 'chaos' ? (plus ? 168 : 96) : plus ? 120 : 72,
+    maxLayers: approach === 'chaos' ? (plus ? 5 : 3) : plus ? 4 : 3,
+  };
+}
+
+function createProceduralRandomFamily(intensity: 'random' | 'plus', approach: StudyRandomApproach): PolyrhythmRandomFamily {
+  const plus = intensity === 'plus';
+  const limits = getStudyRandomLimits(plus, approach);
+  const layerCount = approach === 'grid' ? 2
+    : approach === 'chaos' ? (plus ? randomChoice([3, 4, 4, 5]) : 3)
+    : plus ? randomChoice([2, 2, 3, 3, 3, 4]) : randomChoice([2, 2, 2, 3]);
+  const grids = Array.from({ length: limits.maxCycle - 5 }, (_, index) => index + 6)
+    .map((cycleSteps) => ({
+      counts: Array.from({ length: limits.maxCount - 1 }, (_, index) => index + 2)
+        .filter((count) => cycleSteps % count === 0),
+    }))
+    .filter((grid) => grid.counts.length >= layerCount);
+  const activeCounts = shuffle(randomChoice(grids).counts).slice(0, layerCount).sort((a, b) => a - b);
+  return {
+    label: activeCounts.join(':'),
+    cycleSteps: getSharedCycleStepCount(activeCounts.map((beatCount) => ({ beatCount }))),
+    activeCounts,
+    bpmRange: approach === 'grid' ? [58, 88] : approach === 'chaos' ? [64, 96] : plus ? [64, 108] : [66, 106],
+  };
+}
+
 function buildRandomFamilyStudy(
   family: PolyrhythmRandomFamily,
   intensity: 'random' | 'plus',
+  approach: StudyRandomApproach,
 ): PolyrhythmStudy {
+  const plus = intensity === 'plus';
   const layerCount = family.activeCounts.length;
-  const colorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
-  const colors = getStudyColors(layerCount, colorOffset);
-  const soundSettings = createRandomPolyrhythmSoundSettings(intensity);
-  const displayStyle =
-    intensity === 'plus'
-      ? (family.displayStyle ?? (layerCount >= 4 || Math.random() < 0.5 ? 'nested' : 'shared'))
-      : (family.displayStyle ?? 'shared');
-  const rotationOffsets =
-    intensity === 'plus'
-      ? family.activeCounts.map((_, index) =>
-          index === 0 ? 0 : randomChoice((family.rotationChoices ?? [0, 0, 1, 2, 3]) as readonly number[]),
-        )
-      : family.activeCounts.map(() => 0);
+  const colors = shuffle([...POLYRHYTHM_LAYER_COLORS]).slice(0, layerCount);
+  const displayStyle = plus && approach !== 'grid' && Math.random() < (approach === 'chaos' ? 0.45 : 0.2) ? 'nested' : 'shared';
+  const descriptions: Record<StudyRandomApproach, string> = {
+    full: 'A complete polyrhythm with every layer playing its full count.',
+    grid: 'A complete polyrhythm with a quiet layer marking its shared cycle.',
+    structured: 'An anchored study with balanced, evenly spaced patterns.',
+    adventurous: 'A fresh variation with a little syncopation and a gentle phase shift.',
+    chaos: 'An occasional adventurous stack with irregular patterns and shifting accents.',
+  };
   const nextStudy = createSharedCycleStudy({
     id: generateStudyId(),
-    name: intensity === 'plus' ? `Random+ ${family.label}` : `Random ${family.label}`,
-    description:
-      intensity === 'plus'
-        ? displayStyle === 'nested'
-          ? `${family.label} with a denser nested stack and light offset drift.`
-          : `${family.label} with a wider shared cycle and a more adventurous pulse map.`
-        : `${family.label} on one shared cycle with a clear beginner-friendly pulse map.`,
+    name: `${plus ? 'Random+' : 'Random'} ${family.label}`,
+    description: descriptions[approach],
     cycleSteps: family.cycleSteps,
     activeCounts: family.activeCounts,
     bpm: randomInt(family.bpmRange[0], family.bpmRange[1]),
     displayStyle,
     colors,
-    rotationStepOffsets: rotationOffsets,
-    soundSettings,
-    showStepLabels: true,
+    soundSettings: createRandomPolyrhythmSoundSettings(intensity),
+    showStepLabels: false,
   });
-
-  if (intensity === 'plus') {
-    const layerOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
-    nextStudy.layers = nextStudy.layers.map((layer, index) => {
-      const activeCount = countActiveSteps(layer);
-      const shouldHumanizeMask =
-        index > 0 &&
-        layer.beatCount >= 12 &&
-        activeCount >= 3 &&
-        Math.random() < (layerCount >= 4 ? 0.6 : 0.42);
-      return {
-        ...layer,
-        color: POLYRHYTHM_LAYER_COLORS[(layerOffset + index) % POLYRHYTHM_LAYER_COLORS.length],
-        activeSteps: shouldHumanizeMask
-          ? createExpressivePulseMask(
-              layer.beatCount,
-              activeCount,
-              layerCount >= 4 ? 2 : 1,
-            )
-          : layer.activeSteps,
-      };
-    });
-  }
-
+  const sharedCount = getSharedCycleStepCount(nextStudy.layers);
+  const fullPattern = approach === 'full' || approach === 'grid';
+  nextStudy.layers = nextStudy.layers.map((layer, index) => {
+    const varyPattern = !fullPattern && layer.beatCount > 2
+      && Math.random() < (approach === 'chaos' ? 0.9 : approach === 'adventurous' ? 0.7 : 0.5);
+    const activeCount = varyPattern
+      ? randomInt(Math.max(2, Math.ceil(layer.beatCount * (approach === 'chaos' ? 0.45 : 0.65))), layer.beatCount - 1)
+      : layer.beatCount;
+    const activeSteps = varyPattern
+      ? approach === 'chaos' || (approach === 'adventurous' && Math.random() < 0.5)
+        ? createExpressivePulseMask(layer.beatCount, activeCount, approach === 'chaos' ? 2 : 1)
+        : createEvenPulseMask(layer.beatCount, activeCount)
+      : layer.activeSteps;
+    activeSteps[0] = true;
+    const canShift = approach === 'chaos' ? index > 0 : approach === 'adventurous' && index === layerCount - 1;
+    const phaseSteps = canShift && Math.random() < (plus ? 0.45 : 0.2)
+      ? randomInt(1, approach === 'chaos' ? 2 : 1) : 0;
+    const gridReference = approach === 'grid' && layer.beatCount === sharedCount;
+    return {
+      ...layer,
+      activeSteps,
+      accents: activeSteps.map((active, step) => active && (fullPattern ? step === 0 : Math.random() < (approach === 'chaos' ? 0.2 : 0.12))),
+      rotationOffset: normalizeRotationOffset(phaseSteps / sharedCount * 360),
+      gain: gridReference ? layer.gain * 0.35 : layer.gain,
+    };
+  });
   return nextStudy;
 }
 
+const recentRandomStudyFamilies: Record<'random' | 'plus', string[]> = { random: [], plus: [] };
+
 export function createRandomPolyrhythmStudy(intensity: 'random' | 'plus' = 'random'): PolyrhythmStudy {
-  if (intensity === 'plus') {
-    const denseFamilies = EXPLORATORY_RANDOM_FAMILIES.filter((family) => family.activeCounts.length >= 3);
-    const family =
-      Math.random() < 0.78
-        ? randomChoice(denseFamilies)
-        : randomChoice(EXPLORATORY_RANDOM_FAMILIES);
-    return buildRandomFamilyStudy(family, 'plus');
-  }
-
-  const family =
-    Math.random() < 0.82
-      ? randomChoice(STANDARD_RANDOM_FAMILIES)
-      : randomChoice(CORE_TRIPLE_FAMILIES);
-
-  return buildRandomFamilyStudy(family, 'random');
+  const plus = intensity === 'plus';
+  const approach = chooseStudyRandomApproach(plus);
+  const limits = getStudyRandomLimits(plus, approach);
+  const familiarFamilies = [...STANDARD_RANDOM_FAMILIES, ...CORE_TRIPLE_FAMILIES, ...(plus ? EXPLORATORY_RANDOM_FAMILIES : [])]
+    .filter((family) => family.activeCounts.length <= (approach === 'grid' ? 2 : limits.maxLayers)
+      && family.activeCounts.every((count) => count <= limits.maxCount)
+      && getSharedCycleStepCount(family.activeCounts.map((beatCount) => ({ beatCount }))) <= limits.maxCycle);
+  const recent = recentRandomStudyFamilies[intensity];
+  let family: PolyrhythmRandomFamily;
+  let signature: string;
+  let attempts = 0;
+  do {
+    const picked = Math.random() < 0.55
+      ? createProceduralRandomFamily(intensity, approach)
+      : randomChoice(familiarFamilies);
+    family = { ...picked, activeCounts: [...picked.activeCounts] };
+    family.cycleSteps = getSharedCycleStepCount(family.activeCounts.map((beatCount) => ({ beatCount })));
+    family.bpmRange = [family.bpmRange[0], Math.min(family.bpmRange[1], approach === 'chaos' ? 96 : plus ? 110 : 108)];
+    if (approach === 'grid') {
+      if (!family.activeCounts.includes(family.cycleSteps)) family.activeCounts.push(family.cycleSteps);
+      family.bpmRange = [58, 88];
+    }
+    family.activeCounts.sort((a, b) => a - b);
+    family.label = family.activeCounts.join(':');
+    signature = family.label;
+    attempts += 1;
+  } while (recent.includes(signature) && attempts < 12);
+  recent.push(signature);
+  if (recent.length > 6) recent.shift();
+  return buildRandomFamilyStudy(family, intensity, approach);
 }
 
 export function remixPolyrhythmStudy(study: PolyrhythmStudy): PolyrhythmStudy {
@@ -1145,7 +1196,7 @@ const THREE_FIVE_STUDY: PolyrhythmStudy = {
   bpm: 90,
   soundEnabled: true,
   showInactiveSteps: false,
-  showStepLabels: true,
+  showStepLabels: false,
   soundSettings: createPolyrhythmSoundSettings({
     palette: 'study-pulse',
     pitchMode: 'free',
@@ -1233,7 +1284,7 @@ const TRIPLE_GRID_STUDY = createSharedCycleStudy({
     pitchMode: 'free',
     register: 'tight',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
@@ -1252,7 +1303,7 @@ const THREE_FIVE_SIX_STUDY = createSharedCycleStudy({
     scaleName: 'majorPentatonic',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const FOUR_FIVE_TEN_STUDY = createSharedCycleStudy({
@@ -1271,7 +1322,7 @@ const FOUR_FIVE_TEN_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
@@ -1288,7 +1339,7 @@ const NESTED_THREE_FIVE_STUDY: PolyrhythmStudy = createSharedCycleStudy({
     pitchMode: 'free',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const COUNTER_MESH_STUDY = createSharedCycleStudy({
@@ -1307,7 +1358,7 @@ const COUNTER_MESH_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const ROTATING_WEAVE_STUDY: PolyrhythmStudy = {
@@ -1344,7 +1395,7 @@ const ROTATING_WEAVE_STUDY: PolyrhythmStudy = {
   bpm: 90,
   soundEnabled: true,
   showInactiveSteps: true,
-  showStepLabels: true,
+  showStepLabels: false,
   soundSettings: createPolyrhythmSoundSettings({
     palette: 'soft-synth',
     pitchMode: 'keyed',
@@ -1370,7 +1421,7 @@ const PRIME_MESH_STUDY = createSharedCycleStudy({
     scaleName: 'lydian',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const EVEN_STACK_STUDY = createSharedCycleStudy({
@@ -1389,7 +1440,7 @@ const EVEN_STACK_STUDY = createSharedCycleStudy({
     scaleName: 'majorPentatonic',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const SEVEN_NINE_TWELVE_STUDY = createSharedCycleStudy({
@@ -1408,7 +1459,7 @@ const SEVEN_NINE_TWELVE_STUDY = createSharedCycleStudy({
     scaleName: 'dorian',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 const PRIME_TETRA_STUDY = createSharedCycleStudy({
@@ -1427,7 +1478,7 @@ const PRIME_TETRA_STUDY = createSharedCycleStudy({
     scaleName: 'aeolian',
     register: 'wide',
   },
-  showStepLabels: true,
+  showStepLabels: false,
 });
 
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
