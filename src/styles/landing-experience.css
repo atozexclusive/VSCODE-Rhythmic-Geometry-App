@@ -587,3 +587,29 @@
 }
 
 .rg-mode-heading-line { white-space: nowrap; }
+
+/* Home Screen installation stays optional and follows the landing page palette. */
+.rg-install-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 23px; padding: 10px 14px; min-height: 44px; color: #b3c8c8; background: #090f1466; border: 1px solid #b3dbd926; border-radius: 8px; font-size: 12px !important; transition: color .18s, border-color .18s; }
+.rg-install-trigger:hover { color: #72f1b8; border-color: #72f1b866; }
+.rg-install-dialog { text-align: left; width: min(460px, calc(100vw - 28px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; overflow-y: auto; overscroll-behavior: contain; color: #f1f4f5; background: radial-gradient(ellipse at 20% 0%, #17413d99, transparent 48%), #0e141c; border: 1px solid #72f1b838; border-radius: 24px; box-shadow: 0 30px 110px #0009, inset 0 1px 0 #ffffff0d; font-family: Helvetica, Arial, sans-serif; }
+.rg-install-dialog::backdrop { background: #03080bc9; backdrop-filter: blur(8px); }
+.rg-install-dialog .rg-install-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #ffffff14; border-radius: 12px; background: #ffffff07; color: #b3bdc6; }
+.rg-install-close:hover { background: #ffffff10; color: white; }
+.rg-install-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 4px 0 24px; }
+.rg-install-preview img { width: 80px; height: 80px; border-radius: 19px; box-shadow: 0 0 32px #00ffaa1c; }
+.rg-install-preview span { color: #b3bdc6; font-size: 11px; }
+.rg-install-dialog .rg-install-eyebrow { margin-bottom: 9px; text-align: center; font: 9px/1.6 'Courier New', monospace; letter-spacing: .14em; text-transform: uppercase; color: #72f1b8; }
+.rg-install-dialog h2 { text-align: center; font-size: 34px; line-height: 1.08; letter-spacing: -.035em; font-weight: 300; }
+.rg-install-dialog > p#rg-install-description { margin: 12px auto 22px; max-width: 290px; text-align: center; font-size: 13px; line-height: 1.6; color: #b3bdc6; }
+.rg-install-primary { width: 100%; margin-bottom: 16px; background: #72f1b81c; border-color: #72f1b84d; color: #72f1b8; gap: 10px; }
+.rg-install-primary:disabled { opacity: .6; cursor: wait; }
+.rg-install-steps { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.rg-install-steps li { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid #7fd7ff1f; border-radius: 13px; background: linear-gradient(130deg, #7fd7ff09, #ffffff03); }
+.rg-install-step-number { display: grid; place-items: center; flex: none; width: 26px; height: 26px; border: 1px solid #7fd7ff40; border-radius: 50%; background: #7fd7ff0b; color: #7fd7ff; font: 12px monospace; }
+.rg-install-steps li > div { flex: 1; min-width: 0; }
+.rg-install-steps h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; line-height: 26px; }
+.rg-install-steps h3 svg { color: #7fd7ff; flex: none; }
+.rg-install-steps p { margin-top: 4px; font-size: 12px; line-height: 1.6; color: #a4b3c0; }
+.rg-install-dialog .rg-install-note { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 18px; font-size: 10px; line-height: 1.6; color: #83929f; text-align: center; }
+.rg-install-dialog .rg-install-note svg { flex: none; }
+@media (max-width: 380px), (max-height: 650px) { .rg-install-dialog { padding: 22px 18px; } .rg-install-preview { margin-bottom: 16px; } .rg-install-preview img { width: 64px; height: 64px; border-radius: 15px; } .rg-install-dialog h2 { font-size: 29px; } .rg-install-steps li { padding: 11px; } }

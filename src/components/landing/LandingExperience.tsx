@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, CircleDot, GalleryVerticalEnd, Layers3, Menu, Minus, Plus, SquarePlay, UserRound, X } from 'lucide-react';
 import { SITE_MODE_CARDS, getModeLaunchHref, type SiteModeId } from '../../lib/siteModes';
 import '../../styles/landing-experience.css';
+import AddToHomeScreen from './AddToHomeScreen';
 
 function deliveryImage(image: string) {
   return image.startsWith('/scene-captures/website_')
@@ -294,6 +295,7 @@ export function LandingExperience({ isPro, isSignedIn, onAccountOpen }: LandingE
                 <p>{activeMode.eyebrow}</p>
                 <a className="rg-button rg-primary-button" href={getModeLaunchHref(activeModeId)}>{activeMode.launchLabel}<ArrowUpRight size={17} /></a>
               </div>
+              <AddToHomeScreen />
             </div>
           </section>
 
