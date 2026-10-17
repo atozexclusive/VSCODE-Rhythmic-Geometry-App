@@ -1,3 +1,4 @@
+import { getCanvasExportViewport } from '../lib/canvasExportViewport';
 import {
   useCallback,
   useEffect,
@@ -65,7 +66,6 @@ import {
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
   CANVAS_EXPORT_PREROLL_SECONDS,
-  SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
   type VideoExportDuration,
@@ -780,15 +780,18 @@ export default function RiffCycleCanvas({
     }
 
     const exportVideoSize = exportVideoSizeRef.current;
-    const rect = exportVideoSize ?? canvas.getBoundingClientRect();
+    const liveRect = canvas.getBoundingClientRect();
+    const exportViewport = exportVideoSize ? getCanvasExportViewport(liveRect, exportVideoSize) : null;
+    const rect = exportViewport ?? liveRect;
     if (rect.width <= 0 || rect.height <= 0) {
       return;
     }
 
     const rawDpr = window.devicePixelRatio || 1;
-    const dpr = exportVideoSize ? 1 : Math.min(rawDpr, isMobileRef.current ? 1.75 : 2);
-    const nextWidth = Math.round(rect.width * dpr);
-    const nextHeight = Math.round(rect.height * dpr);
+    const liveDpr = Math.min(rawDpr, isMobileRef.current ? 1.75 : 2);
+    const dpr = exportViewport?.scale ?? liveDpr;
+    const nextWidth = exportVideoSize?.width ?? Math.round(rect.width * dpr);
+    const nextHeight = exportVideoSize?.height ?? Math.round(rect.height * dpr);
 
     if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
       canvas.width = nextWidth;
@@ -812,25 +815,17 @@ export default function RiffCycleCanvas({
       exportVideoSize && exportVideoSize.width > exportVideoSize.height,
     );
     const exportRecordingMode = exportRecordingActiveRef.current;
-    const pointScale = portraitExportMode
-      ? SHORTS_EXPORT_POINT_SCALE * 1.16
-      : exportLayoutMode
-        ? 1.12
-        : 1;
-    const shellScale = portraitExportMode ? 1.45 : exportLayoutMode ? 1.12 : 1;
-    const exportLabelScale = portraitExportMode ? 1.55 : exportLayoutMode ? 1.12 : 1;
-    const exportSidePadding = portraitExportMode
-      ? 96
-      : exportLayoutMode
-        ? 140
-        : undefined;
+    // Export resolution changes backing pixels, not the visual weight of the artwork.
+    const pointScale = 1;
+    const shellScale = 1;
+    const exportLabelScale = 1;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const circularPhraseBoundsActive = Boolean(currentStudy.showPhraseGroupings);
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
-    );
+    ) * (exportViewport ? dpr / liveDpr : 1);
 
     ctx.clearRect(0, 0, rect.width, rect.height);
     drawCanvasDisplayBackground(ctx, rect.width, rect.height, currentDisplaySettings, {
@@ -871,7 +866,6 @@ export default function RiffCycleCanvas({
       laneWindowStepCountRef.current,
       {
         exportLayout: exportRecordingMode || exportLayoutMode || exportSnapshot,
-        sidePadding: exportSidePadding,
         radiusScale: landscapeExportMode ? 0.82 : undefined,
       },
     );

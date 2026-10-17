@@ -8396,7 +8396,7 @@ function OrbitalPolymeter() {
     (riffMobileLaneBarsPerPage === 'pattern' ||
       riffMobileLaneBarsPerPage === 'free' ||
       (riffCycleStudy.playing && presentationMode));
-  const riffMobilePresentBottomInset = riffMobileLaneHidden ? 56 : 168;
+  const riffMobilePresentBottomInset = 64;
   const riffDesktopStepsPerBar = getReferenceStepsPerBar(riffCycleStudy.reference);
   const riffPatternBarMarkerCopy = getRiffPatternBarMarkerCopy(riffCycleStudy);
   const riffEndingPreviewStudy = riffCycleStudy.landingEditEnabled
@@ -25869,78 +25869,27 @@ function OrbitalPolymeter() {
           </div>
         ) : null}
 
-        {isMobile && presentationMode ? (
-          <div className="fixed z-20 left-5 right-5 bottom-5">
-            <StudyShellPanel className="space-y-2.5">
-              <div className="grid grid-cols-5 gap-1.5">
-                <MobilePresentActionButton
-                  label={riffCycleStudy.playing ? 'Pause' : 'Play'}
-                  icon={riffCycleStudy.playing ? <Pause size={15} /> : <Play size={15} />}
-                  accent={riffCycleStudy.playing ? '#FF3366' : '#00FFAA'}
-                  onClick={handleToggleRiffCyclePlayback}
-                  aria-label={riffCycleStudy.playing ? 'Pause riff cycle' : 'Play riff cycle'}
-                  title={riffCycleStudy.playing ? 'Pause' : 'Play'}
-                />
-                <MobilePresentActionButton
-                  label="Restart"
-                  icon={<RotateCcw size={15} />}
-                  accent="#FFAA00"
-                  onClick={handleResetRiffCycleStudy}
-                  aria-label="Restart riff cycle"
-                  title="Restart"
-                />
-                <MobilePresentActionButton
-                  label="Random"
-                  icon={<Shuffle size={15} />}
-                  accent="#88CCFF"
-                  onClick={handleRandomRiffCycleStudy}
-                  aria-label="Random riff cycle study"
-                  title="Random"
-                />
-                <MobilePresentActionButton
-                  label="Remix"
-                  icon={<Zap size={15} />}
-                  accent="#B6A0FF"
-                  onClick={handleRemixRiffCycleStudy}
-                  aria-label="Remix riff cycle study"
-                  title="Remix"
-                  locked={remixLocked}
-                />
-                <MobilePresentActionButton
-                  label="Random+"
-                  icon={<Shuffle size={15} />}
-                  accent="#FFAA00"
-                  onClick={handleRandomPlusRiffCycleStudy}
-                  aria-label="Random plus riff cycle study"
-                  title="Random+"
-                  locked={randomPlusLocked}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-1">
-                <MobilePresentActionButton
-                  compact
-                  label={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
-                  icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                  accent="#88CCFF"
-                  active={riffCycleStudy.soundEnabled}
-                  onClick={handleToggleRiffCycleSound}
-                  data-guide="riff-mobile-mute"
-                  aria-label={riffCycleStudy.soundEnabled ? 'Mute riff cycle sound' : 'Enable riff cycle sound'}
-                  title={riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute'}
-                />
-                <MobilePresentActionButton
-                  compact
-                  label="Exit"
-                  icon={<Minimize2 size={15} />}
-                  accent="#72F1B8"
-                  onClick={handleTogglePresentation}
-                  data-guide="riff-mobile-present"
-                  aria-label="Exit fullscreen mode"
-                  title="Exit Fullscreen"
-                />
-              </div>
-            </StudyShellPanel>
+        {presentationMode ? (
+          <div className="fixed inset-x-3 z-20 flex justify-center" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+            <div role="toolbar" aria-label="Fullscreen controls" className="flex max-w-full items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-1 backdrop-blur-md">
+              {[
+                { id: 'play', label: riffCycleStudy.playing ? 'Pause' : 'Play', icon: riffCycleStudy.playing ? <Pause size={14} strokeWidth={1.5} /> : <Play size={14} strokeWidth={1.5} />, action: handleToggleRiffCyclePlayback, pressed: riffCycleStudy.playing },
+                { id: 'restart', label: 'Restart', icon: <RotateCcw size={14} strokeWidth={1.5} />, action: handleResetRiffCycleStudy },
+                { id: 'random', label: 'Random', icon: <Dice5 size={14} strokeWidth={1.5} />, action: handleRandomRiffCycleStudy, separator: true },
+                { id: 'random-plus', label: 'Random+', icon: <span className="relative flex h-4 w-4 items-center justify-center"><Dice5 size={14} strokeWidth={1.5} /><Plus size={9} strokeWidth={2} className="absolute -right-1 -top-0.5 rounded-full bg-[#17171e]" /></span>, action: handleRandomPlusRiffCycleStudy, locked: randomPlusLocked },
+                { id: 'remix', label: 'Remix', icon: <Shuffle size={14} strokeWidth={1.5} />, action: handleRemixRiffCycleStudy, locked: remixLocked },
+                { id: 'mute', label: riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute', icon: riffCycleStudy.soundEnabled ? <Volume2 size={14} strokeWidth={1.5} /> : <VolumeX size={14} strokeWidth={1.5} />, action: handleToggleRiffCycleSound, pressed: !riffCycleStudy.soundEnabled, separator: true, guide: 'riff-mobile-mute' },
+                { id: 'exit', label: 'Exit Fullscreen', icon: <Minimize2 size={14} strokeWidth={1.5} />, action: handleTogglePresentation, guide: 'riff-mobile-present' },
+              ].map(({ id, label, icon, action, locked, pressed, separator, guide }) => (
+                <div key={id} className={`flex items-center ${separator ? 'before:mx-1 before:h-3.5 before:w-px before:bg-white/[0.08]' : ''}`}>
+                  <button type="button" onClick={action} data-guide={guide} aria-label={locked ? `${label} (Pro)` : label} title={locked ? `${label} (Pro)` : label} aria-pressed={pressed}
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white/75 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-sky-200/60 active:bg-white/10">
+                    <span aria-hidden="true">{icon}</span>
+                    {locked ? <Lock size={7} aria-hidden="true" className="absolute bottom-1.5 right-1.5 text-white/30" /> : null}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
