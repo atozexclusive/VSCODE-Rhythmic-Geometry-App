@@ -1731,8 +1731,7 @@ export default function RiffCycleCanvas({
       const groupRadius = metrics.innerRadius;
       const labelRingRadius =
         groupRadius +
-        (visibleRiff.stepCount > 24 ? 19 : 16) * pointScale +
-        (exportLayoutMode ? 3 * pointScale : 0);
+        (visibleRiff.stepCount > 24 ? 19 : 16) * pointScale;
       const labelCandidates: Array<{
         x: number;
         y: number;
@@ -2060,9 +2059,8 @@ export default function RiffCycleCanvas({
           metrics.innerRadius +
           (carveViewActive
             ? (circularPhraseBoundsActive ? 23 : 20) +
-              (1 - densityLabelScale) * 14 +
-              (exportLayoutMode ? 8 : 0)
-            : 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0));
+              (1 - densityLabelScale) * 14
+            : 18 + (1 - densityLabelScale) * 10);
         ctx.save();
         ctx.fillStyle = isSelected
           ? 'rgba(255,255,255,0.92)'
