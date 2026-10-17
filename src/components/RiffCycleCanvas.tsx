@@ -491,7 +491,7 @@ function drawRiffCarves(
   const placedLabels: Array<{ x: number; y: number; radius: number }> = [];
   ctx.save();
   const labelRadius = options.radius * 0.66;
-  ctx.font = `${Math.max(8, 9.75 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
+  ctx.font = `${Math.max(7.2, 8.8 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   labelCandidates
@@ -515,7 +515,7 @@ function drawRiffCarves(
       ctx.lineWidth = 4 * options.pointScale;
       ctx.strokeStyle = 'rgba(2,4,7,0.9)';
       ctx.strokeText(candidate.label, labelX, labelY);
-      ctx.fillStyle = `${options.color}E6`;
+      ctx.fillStyle = `${options.color}D3`;
       ctx.shadowBlur = 7 * options.glowMultiplier * options.pointScale;
       ctx.shadowColor = `${options.color}88`;
       ctx.fillText(candidate.label, labelX, labelY);
@@ -1435,8 +1435,8 @@ export default function RiffCycleCanvas({
 
         if (labelAlpha > 0) {
           ctx.save();
-          ctx.globalAlpha = labelAlpha;
-          ctx.font = `${Math.max(7.2, 11 * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
+          ctx.globalAlpha = labelAlpha * 0.92;
+          ctx.font = `${Math.max(6.5, 9.9 * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const labelY = vertex.y - (17 + Math.max(0, 1 - labelScale) * 7) * shellScale * exportLabelScale;
@@ -1794,7 +1794,7 @@ export default function RiffCycleCanvas({
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${Math.max(8, 10 * pointScale)}px "SF Mono", "Fira Code", monospace`;
+      ctx.font = `${Math.max(7.2, 9 * pointScale)}px "SF Mono", "Fira Code", monospace`;
       labelCandidates
         .sort((a, b) => b.span - a.span)
         .forEach((candidate) => {
@@ -1817,7 +1817,7 @@ export default function RiffCycleCanvas({
           ctx.shadowColor = 'rgba(0,0,0,0.82)';
           ctx.strokeText(candidate.label, candidate.x, candidate.y);
           ctx.fillStyle = activeRiffColor;
-          ctx.globalAlpha = 0.9;
+          ctx.globalAlpha = 0.83;
           ctx.shadowBlur = 6 * glowMultiplier * pointScale;
           ctx.shadowColor = `${activeRiffColor}AA`;
           ctx.fillText(candidate.label, candidate.x, candidate.y);
@@ -2039,19 +2039,6 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
-      if (isPhraseRestart) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(255,255,255,0.88)';
-        drawTriangleMarker(
-          ctx,
-          point.x,
-          point.y - (isSelected ? 14 : 12),
-          isSelected ? 4.2 : 3.5,
-        );
-        ctx.fill();
-        ctx.restore();
-      }
-
       if (currentStudy.showStepLabels && (!circularPhraseBoundsActive || carveViewActive)) {
         const stepLabel = currentStudy.showCountLabels
           ? formatSubdivisionCountLabel(point.index, getReferenceStepsPerBeat(renderStudy.reference))
@@ -2084,7 +2071,8 @@ export default function RiffCycleCanvas({
               ? 'rgba(255,255,255,0.62)'
               : 'rgba(255,255,255,0.38)'
             : 'rgba(255,255,255,0.56)';
-        ctx.font = `${Math.max(7.5, 10 * labelScale)}px "SF Mono", "Fira Code", monospace`;
+        ctx.globalAlpha = 0.92;
+        ctx.font = `${Math.max(6.8, 9 * labelScale)}px "SF Mono", "Fira Code", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
