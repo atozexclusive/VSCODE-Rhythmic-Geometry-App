@@ -1,3 +1,4 @@
+import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
 import FullscreenControls from '../components/FullscreenControls';
 import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
 import LayerStepsIcon from '../components/LayerStepsIcon';
@@ -2305,7 +2306,7 @@ type ActiveSceneSource =
 
 type AppSurface = 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
 type RiffEditMode = 'phrase' | 'landing';
-type GuideContext = 'surface' | 'study-editor' | 'riff-editor';
+type GuideContext = 'surface' | 'study-editor' | 'riff-editor' | 'cell-sequencer';
 type BeginnerGuideSeenState = Partial<Record<AppSurface, boolean>>;
 
 function getGuideNextContextForStep(step: StartGuideStep | null): GuideContext | null {
@@ -2469,6 +2470,7 @@ function loadCanvasDisplayState(): StudyModeCanvasDisplayState {
 }
 
 function getGuideLabel(surface: AppSurface, context: GuideContext): string {
+  if (context === 'cell-sequencer') return 'Cell Sequencer Guide';
   if (context === 'study-editor') {
     return 'Study Editor Guide';
   }
@@ -4364,6 +4366,7 @@ function RiffCellSequenceEditor({
   onLockedColorClick,
   sequenceLocked = false,
   onLockedSequenceClick,
+  onOpenGuide,
   compact = false,
   contentCollapsed = false,
   onToggleContent,
@@ -4395,6 +4398,7 @@ function RiffCellSequenceEditor({
   onLockedColorClick?: () => void;
   sequenceLocked?: boolean;
   onLockedSequenceClick?: () => void;
+  onOpenGuide: () => void;
   compact?: boolean;
   contentCollapsed?: boolean;
   onToggleContent?: () => void;
@@ -4488,15 +4492,16 @@ function RiffCellSequenceEditor({
 
   return (
     <div
-      className={`rounded-xl border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${study.riffSequenceEnabled ? 'space-y-1.5' : 'space-y-0'}`}
+      data-cell-sequencer
+      className={`cell-sequencer rounded-xl border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${study.riffSequenceEnabled ? 'space-y-1.5' : 'space-y-0'}`}
       style={{
         background: study.riffSequenceEnabled
-          ? `linear-gradient(180deg, ${selectedCellColor}10, rgba(255,255,255,0.025))`
+          ? 'linear-gradient(160deg, rgba(24,27,35,0.98), rgba(13,15,21,0.98))'
           : 'rgba(255,255,255,0.03)',
         borderColor: study.riffSequenceEnabled ? `${selectedCellColor}30` : 'rgba(255,255,255,0.09)',
       }}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div data-guide="riff-cell-overview" className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <InlineInfoLabel
             infoId="riff_cell_sequencer"
@@ -4516,11 +4521,12 @@ function RiffCellSequenceEditor({
           </span>
           {study.riffSequenceEnabled ? (
             <div className="mt-0.5 text-[9px] leading-snug text-white/40">
-              Build pattern cells, arrange them, then set the section length.
+              Cells → phrases → sequence.
             </div>
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
+          {study.riffSequenceEnabled && !sequenceLocked ? <button type="button" className="cell-guide-trigger" onClick={() => { if (contentCollapsed) onToggleContent?.(); onOpenGuide(); }}><CircleHelp size={13} />Guide</button> : null}
           {study.riffSequenceEnabled && !sequenceLocked && onToggleContent ? (
             <StudyShellButton
               size="compact"
@@ -4546,6 +4552,7 @@ function RiffCellSequenceEditor({
         </div>
       </div>
 
+
       {study.riffSequenceEnabled && !sequenceLocked && contentCollapsed ? (
         <button
           type="button"
@@ -4563,7 +4570,7 @@ function RiffCellSequenceEditor({
 
       {study.riffSequenceEnabled && !sequenceLocked && !contentCollapsed ? (
         <>
-          <div className="space-y-1">
+          <div data-guide="riff-cell-library" className="cell-library space-y-1">
             <div className="flex items-center justify-between gap-3">
               <InlineInfoLabel
                 infoId="riff_cell_library"
@@ -4611,6 +4618,7 @@ function RiffCellSequenceEditor({
                 </div>
               ) : null}
             </div>
+
             {cellMenuLabel && selectedCell?.label === cellMenuLabel ? (
               <div className="rounded-lg border border-white/10 bg-black/20 p-1.5">
                 {renamingCellLabel === cellMenuLabel ? (
@@ -4674,10 +4682,13 @@ function RiffCellSequenceEditor({
                   const accentCount = cell.activeSteps.filter((active, stepIndex) => active && cell.accents[stepIndex]).length;
                   const displayName = cell.name ?? cell.label;
                   return (
-                    <div key={cell.label} className="relative">
+                    <div key={cell.label} className="cell-library-item relative">
                       <button
                         type="button"
                         onClick={() => onSelectCell(cell.label)}
+                        aria-pressed={selected}
+                        aria-label={`Edit Cell ${displayName}`}
+                        title={`${cell.stepCount} steps · ${hitCount} hits · ${accentCount} accents`}
                         className={`${compact ? 'min-h-10 min-w-[4.1rem] px-1.5' : 'min-h-11 min-w-[4.5rem] px-2'} rounded-lg border text-[9px] font-mono uppercase tracking-[0.12em] transition-transform active:scale-[0.97]`}
                         style={{
                           background: selected ? `${cellColor}18` : 'rgba(255,255,255,0.04)',
@@ -4689,7 +4700,7 @@ function RiffCellSequenceEditor({
                         <span className="flex items-center justify-between gap-3 pr-4 leading-none">
                           <span className="max-w-[5.5rem] truncate">{displayName}</span>
                           <span className="text-[7px] tracking-[0.08em] opacity-60">
-                            {cell.name ? cell.label : cell.stepCount}
+                            {cell.stepCount} steps
                           </span>
                         </span>
                         <span className="mt-1 flex justify-center gap-0.5" aria-hidden="true">
@@ -4709,7 +4720,7 @@ function RiffCellSequenceEditor({
                           })}
                         </span>
                         <span className="mt-1 block text-[6.5px] tracking-[0.08em] opacity-58">
-                          {cell.name ? `${cell.stepCount} steps · ` : ''}{hitCount} hit{hitCount === 1 ? '' : 's'}{accentCount > 0 ? ` / ${accentCount} acc` : ''}
+                          {hitCount} hit{hitCount === 1 ? '' : 's'}{accentCount > 0 ? ` / ${accentCount} accent` : ''}
                         </span>
                       </button>
                       <button
@@ -4746,7 +4757,7 @@ function RiffCellSequenceEditor({
             </div>
           </div>
 
-          <div className="space-y-1.5 rounded-lg border border-white/10 bg-black/[0.12] px-2 py-2">
+          <div className="cell-arrangement space-y-1.5 rounded-lg border border-white/10 bg-black/[0.12] px-2 py-2">
             <div className="flex items-center justify-between gap-3">
               <InlineInfoLabel
                 infoId="riff_sequence_order"
@@ -4758,15 +4769,16 @@ function RiffCellSequenceEditor({
               </div>
             </div>
 
-            <div className="space-y-2">
+
+            <div data-guide="riff-cell-order" className="space-y-2">
               {phraseRanges.map(({ phrase, phraseIndex, indices }) => {
                 const firstLabel = sequence[indices[0]] ?? selectedCell?.label ?? 'A';
                 const phraseColor = getCellVisualColor(firstLabel);
-                const phraseText = indices.map((index) => sequence[index]).join(' ') || 'Empty';
                 const phraseSelected = phraseIndex === selectedPhraseIndex;
                 return (
                   <div
                     key={phrase.id}
+                    data-cell-phrase
                     className="relative rounded-lg border px-1.5 py-1.5"
                     style={{
                       background: phraseSelected ? `${phraseColor}14` : `${phraseColor}08`,
@@ -4796,9 +4808,7 @@ function RiffCellSequenceEditor({
                         >
                           Phrase {phraseIndex + 1}
                         </div>
-                        <div className="truncate text-[7px] font-mono uppercase tracking-[0.1em] text-white/30">
-                          {phraseText}
-                        </div>
+
                       </button>
                       <div className="pointer-events-auto flex items-center gap-1">
                         <label
@@ -4806,7 +4816,7 @@ function RiffCellSequenceEditor({
                           style={{ borderColor: `${phraseColor}24` }}
                         >
                           <span className="px-1.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/34">
-                            x
+                            ×
                           </span>
                           <input
                             type="number"
@@ -4842,7 +4852,7 @@ function RiffCellSequenceEditor({
                       </div>
                     </div>
 
-                    <div className="relative z-10 flex min-h-8 flex-wrap items-stretch gap-1 pointer-events-none">
+                    <div className="cell-phrase-slots relative z-10 flex min-h-8 flex-wrap items-stretch gap-1 pointer-events-none">
                       {indices.map((index, localIndex) => {
                         const label = sequence[index];
                         const exists = cells.some((cell) => cell.label === label);
@@ -4940,14 +4950,14 @@ function RiffCellSequenceEditor({
                               ) : null}
                             </div>
                             {localIndex < indices.length - 1 ? (
-                              <span className="self-center text-[10px] text-white/24">-&gt;</span>
+                              <span className="self-center text-[10px] text-white/24">→</span>
                             ) : null}
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="relative z-10 mt-1.5 grid gap-1 pointer-events-none" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(4, cells.length))}, minmax(0, 1fr))` }}>
+                    <div className="cell-append relative z-10 mt-1.5 flex flex-wrap gap-1 pointer-events-none">
                       {cells.map((cell) => (
                         <button
                           key={`append-phrase-${phrase.id}-${cell.label}`}
@@ -4960,7 +4970,7 @@ function RiffCellSequenceEditor({
                             color: cell.color,
                           }}
                         >
-                          +{cell.name ?? cell.label}
+                          + {cell.name ?? cell.label}
                         </button>
                       ))}
                     </div>
@@ -4968,6 +4978,10 @@ function RiffCellSequenceEditor({
                 );
               })}
 
+
+            </div>
+
+            <div className="cell-order-actions grid grid-cols-3 gap-1">
               <button
                 type="button"
                 onClick={() => onAddPhrase(selectedCell?.label ?? cells[0]?.label ?? 'A')}
@@ -4980,9 +4994,6 @@ function RiffCellSequenceEditor({
               >
                 + Phrase
               </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1">
               <StudyShellButton
                 size="compact"
                 tone="neutral"
@@ -5004,7 +5015,7 @@ function RiffCellSequenceEditor({
               </StudyShellButton>
             </div>
 
-            <div className="space-y-1">
+            <div data-guide="riff-cell-timing" className="cell-timing space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <InlineInfoLabel
                   infoId="riff_section_bars"
@@ -5016,6 +5027,7 @@ function RiffCellSequenceEditor({
                     {(['global', 'per-cell'] as const).map((mode) => (
                       <button
                         key={mode}
+                        aria-pressed={sequenceBarsMode === mode}
                         type="button"
                         onClick={() => onSetSequenceBarsMode(mode)}
                         className="px-1.5 py-0.5 text-[6.5px] font-mono uppercase tracking-[0.1em] transition"
@@ -5045,14 +5057,16 @@ function RiffCellSequenceEditor({
                 </div>
               </div>
 
+
               {sequenceBarsMode === 'global' ? (
-                <div className="flex overflow-hidden rounded-lg border border-white/10 bg-white/[0.045]">
+                <div className="cell-bars-input flex overflow-hidden rounded-lg border border-white/10 bg-white/[0.045]">
                   <input
                     type="number"
                     inputMode="numeric"
                     min={1}
                     max={RIFF_MAX_RESET_BARS}
                     value={sequenceResetBars}
+                    aria-label="Section length in bars"
                     onFocus={(event) => event.currentTarget.select()}
                     onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
                     className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-center text-[12px] font-light text-white outline-none"
@@ -5075,7 +5089,7 @@ function RiffCellSequenceEditor({
 
             {resetStepCount != null ? (
               <div
-                className="rounded-lg border px-2 py-1.5 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
+                className="cell-resolve rounded-lg border px-2 py-1.5 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
                 style={{
                   borderColor: 'rgba(127,215,255,0.18)',
                   background: 'rgba(127,215,255,0.07)',
@@ -10934,9 +10948,12 @@ function OrbitalPolymeter() {
     previousReferenceStep: -1,
     wasPlaying: false,
   });
-  const guideSteps =
+  const cellSequencerGuideSteps = useMemo<StartGuideStep[]>(() => CELL_SEQUENCER_GUIDE.map((step) => ({ ...step, target: !isMobile && step.target === 'riff-cell-steps' ? riffDesktopPatternEditorOpen ? 'riff-editor-steps' : 'riff-cell-steps-quick' : !isMobile && step.target === 'riff-cell-roll' ? riffDesktopPatternEditorOpen ? 'riff-editor-roll' : 'riff-cell-roll-quick' : step.target })), [isMobile, riffDesktopPatternEditorOpen]);
+  const guideSteps: StartGuideStep[] =
     isMobile && !MOBILE_GUIDES_AVAILABLE
       ? []
+      : helpContext === 'cell-sequencer'
+        ? cellSequencerGuideSteps
       : helpContext === 'study-editor'
         ? STUDY_EDITOR_GUIDE
         : helpContext === 'riff-editor'
@@ -12009,6 +12026,7 @@ function OrbitalPolymeter() {
   }, [presentationMode]);
 
   useEffect(() => {
+    if (helpOpen && helpContext === 'cell-sequencer' && !riffCycleStudy.riffSequenceEnabled) setHelpOpen(false);
     const studyEditorOpen = isMobile ? polyrhythmMobileEditorOpen : polyrhythmDesktopPatternEditorOpen;
     const riffEditorOpen = isMobile ? riffMobileEditorOpen : riffDesktopPatternEditorOpen;
 
@@ -12034,6 +12052,7 @@ function OrbitalPolymeter() {
   }, [
     helpContext,
     helpOpen,
+    riffCycleStudy.riffSequenceEnabled,
     isMobile,
     polyrhythmDesktopPatternEditorOpen,
     polyrhythmMobileEditorOpen,
@@ -15603,7 +15622,9 @@ function OrbitalPolymeter() {
         ? riffCycleStudy.riff.color
         : currentModeAccent;
   const guideNextMoveText =
-    activeOverlayContext === 'study-editor'
+    activeOverlayContext === 'cell-sequencer'
+      ? 'Next move: try an A → B phrase and listen to the return.'
+      : activeOverlayContext === 'study-editor'
       ? 'Next move: write one hit, then compare the layer against the full stack.'
       : activeOverlayContext === 'riff-editor'
         ? 'Next move: change one step, then compare 1 Bar and Pattern view.'
@@ -21781,6 +21802,7 @@ function OrbitalPolymeter() {
                           {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
                           <div className="mt-3">
                             <RiffCellSequenceEditor
+                    onOpenGuide={() => openStartGuide('cell-sequencer')}
                               study={riffCycleStudy}
                               selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
                               selectedPhraseIndex={selectedRiffSequencePhraseIndex}
@@ -21812,7 +21834,7 @@ function OrbitalPolymeter() {
                             />
                           </div>
                           ) : null}
-                          <div className="mt-3 space-y-1.5">
+                          <div data-guide="riff-cell-steps" className="mt-3 space-y-1.5">
                             <div className="flex items-center justify-between gap-3">
                               <InlineInfoLabel
                                 infoId="riff_steps"
@@ -21873,7 +21895,7 @@ function OrbitalPolymeter() {
                               </StudyShellButton>
                             </div>
                           </div>
-                          <div className="mt-3">
+                          <div data-guide="riff-cell-roll" className="mt-3">
                             <RiffRollEditor
                               compact
                               activeSteps={riffRollActiveSteps}
@@ -22930,7 +22952,7 @@ function OrbitalPolymeter() {
 
           {appSurfaceToggle}
 
-          {helpContext === 'surface' ? renderGuideOverlay(guideAccent, 30) : null}
+          {helpContext === 'surface' || helpContext === 'cell-sequencer' ? renderGuideOverlay(guideAccent, helpContext === 'cell-sequencer' ? 90 : 30) : null}
           {tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
 
         <RiffCycleSidebar
@@ -23554,6 +23576,7 @@ function OrbitalPolymeter() {
                 <div className="space-y-2 pt-1">
                   {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
                   <RiffCellSequenceEditor
+                    onOpenGuide={() => openStartGuide('cell-sequencer')}
                     study={riffCycleStudy}
                     selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
                     selectedPhraseIndex={selectedRiffSequencePhraseIndex}
@@ -23584,7 +23607,7 @@ function OrbitalPolymeter() {
                     compact
                   />
                   ) : null}
-                  <div
+                  <div data-guide="riff-cell-steps-quick"
                     className="rounded-xl border px-2.5 py-1.5"
                     style={{
                       background: `linear-gradient(180deg, ${riffEditableColor}12, ${riffEditableColor}07)`,
@@ -23669,7 +23692,7 @@ function OrbitalPolymeter() {
                           <Plus size={13} />
                         </button>
                       </div>
-                      <div
+                      <div data-guide="riff-cell-roll-quick"
                         className="rounded-lg border px-1.5 py-1.5"
                         style={{
                           background: 'rgba(0,0,0,0.12)',
@@ -25256,10 +25279,11 @@ function OrbitalPolymeter() {
 
             {riffDesktopEditTab === 'phrase' && RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
               <div
-                className="absolute bottom-5 left-5 z-20"
+                className="absolute top-28 left-5 z-30"
                 style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
               >
                 <RiffCellSequenceEditor
+                    onOpenGuide={() => openStartGuide('cell-sequencer')}
                   study={riffCycleStudy}
                   selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
                   selectedPhraseIndex={selectedRiffSequencePhraseIndex}
@@ -26384,7 +26408,7 @@ function OrbitalPolymeter() {
           </div>
         )}
 
-        {helpContext === 'surface' && !presentationMode ? renderGuideOverlay(guideAccent, 30) : null}
+        {(helpContext === 'surface' || helpContext === 'cell-sequencer') && !presentationMode ? renderGuideOverlay(guideAccent, helpContext === 'cell-sequencer' ? 90 : 30) : null}
         {tutorialContext === 'surface' && !presentationMode ? renderTutorialOverlay(guideAccent, 30) : null}
 
         <RiffCycleSidebar
