@@ -714,11 +714,15 @@
 
 /* Keep mobile guide copy and navigation together without a nested scroll pane. */
 @media (max-width: 767px) {
-  .rg-guide-card { padding: 12px; }
-  .rg-guide-card .mt-2 { margin-top: 6px; }
-  .rg-guide-card .mt-3 { margin-top: 8px; }
-  .rg-guide-card .mt-4 { margin-top: 10px; }
-  .rg-guide-card .leading-relaxed { line-height: 1.45; }
-  .rg-guide-card .py-3 { padding-top: 9px; padding-bottom: 9px; }
+  .rg-guide-card { padding: 10px 12px; }
+  .rg-guide-card .mt-2 { margin-top: 5px; }
+  .rg-guide-card .mt-3 { margin-top: 7px; }
+  .rg-guide-card .mt-4 { margin-top: 8px; }
+  .rg-guide-card .leading-relaxed { line-height: 1.4; }
+  .rg-guide-card .text-\[12px\] { font-size: 11px; }
+  .rg-guide-card .text-\[11px\] { font-size: 10px; }
+  .rg-guide-card .text-\[15px\], .rg-guide-card .text-\[16px\] { font-size: 14px; }
+  .rg-guide-card .text-\[13px\] { font-size: 12px; }
+  .rg-guide-card .py-3 { padding-top: 7px; padding-bottom: 7px; }
   .rg-guide-navigation button { min-height: 36px; }
 }
