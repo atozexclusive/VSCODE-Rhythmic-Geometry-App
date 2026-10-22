@@ -1,4 +1,3 @@
-import { getCanvasExportViewport } from '../lib/canvasExportViewport';
 import {
   useCallback,
   useEffect,
@@ -66,6 +65,7 @@ import {
   prepareCanvasRecordingDownload,
   recordMediaRecorderForDuration,
   CANVAS_EXPORT_PREROLL_SECONDS,
+  SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
   type VideoExportDuration,
@@ -491,7 +491,7 @@ function drawRiffCarves(
   const placedLabels: Array<{ x: number; y: number; radius: number }> = [];
   ctx.save();
   const labelRadius = options.radius * 0.66;
-  ctx.font = `${Math.max(7.2, 8.8 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
+  ctx.font = `${Math.max(8, 9.75 * options.pointScale)}px "SF Mono", "Fira Code", monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   labelCandidates
@@ -515,7 +515,7 @@ function drawRiffCarves(
       ctx.lineWidth = 4 * options.pointScale;
       ctx.strokeStyle = 'rgba(2,4,7,0.9)';
       ctx.strokeText(candidate.label, labelX, labelY);
-      ctx.fillStyle = `${options.color}D3`;
+      ctx.fillStyle = `${options.color}E6`;
       ctx.shadowBlur = 7 * options.glowMultiplier * options.pointScale;
       ctx.shadowColor = `${options.color}88`;
       ctx.fillText(candidate.label, labelX, labelY);
@@ -780,18 +780,15 @@ export default function RiffCycleCanvas({
     }
 
     const exportVideoSize = exportVideoSizeRef.current;
-    const liveRect = canvas.getBoundingClientRect();
-    const exportViewport = exportVideoSize ? getCanvasExportViewport(liveRect, exportVideoSize) : null;
-    const rect = exportViewport ?? liveRect;
+    const rect = exportVideoSize ?? canvas.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
       return;
     }
 
     const rawDpr = window.devicePixelRatio || 1;
-    const liveDpr = Math.min(rawDpr, isMobileRef.current ? 1.75 : 2);
-    const dpr = exportViewport?.scale ?? liveDpr;
-    const nextWidth = exportVideoSize?.width ?? Math.round(rect.width * dpr);
-    const nextHeight = exportVideoSize?.height ?? Math.round(rect.height * dpr);
+    const dpr = exportVideoSize ? 1 : Math.min(rawDpr, isMobileRef.current ? 1.75 : 2);
+    const nextWidth = Math.round(rect.width * dpr);
+    const nextHeight = Math.round(rect.height * dpr);
 
     if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
       canvas.width = nextWidth;
@@ -815,17 +812,27 @@ export default function RiffCycleCanvas({
       exportVideoSize && exportVideoSize.width > exportVideoSize.height,
     );
     const exportRecordingMode = exportRecordingActiveRef.current;
-    // Export resolution changes backing pixels, not the visual weight of the artwork.
-    const pointScale = 1;
-    const shellScale = 1;
-    const exportLabelScale = 1;
+    // Keep Creator’s quieter live labels; exports use the production appearance.
+    const subtleLiveLabels = !exportLayoutMode && !exportSnapshot;
+    const pointScale = portraitExportMode
+      ? SHORTS_EXPORT_POINT_SCALE * 1.16
+      : exportLayoutMode
+        ? 1.12
+        : 1;
+    const shellScale = portraitExportMode ? 1.45 : exportLayoutMode ? 1.12 : 1;
+    const exportLabelScale = portraitExportMode ? 1.55 : exportLayoutMode ? 1.12 : 1;
+    const exportSidePadding = portraitExportMode
+      ? 96
+      : exportLayoutMode
+        ? 140
+        : undefined;
     const lineAlpha = getCanvasLineAlpha(currentDisplaySettings);
     const inactiveAlpha = getCanvasInactiveAlpha(currentDisplaySettings);
     const circularPhraseBoundsActive = Boolean(currentStudy.showPhraseGroupings);
     const glowMultiplier = getCanvasGlowMultiplier(
       currentDisplaySettings,
       presentationModeRef.current,
-    ) * (exportViewport ? dpr / liveDpr : 1);
+    );
 
     ctx.clearRect(0, 0, rect.width, rect.height);
     drawCanvasDisplayBackground(ctx, rect.width, rect.height, currentDisplaySettings, {
@@ -866,6 +873,7 @@ export default function RiffCycleCanvas({
       laneWindowStepCountRef.current,
       {
         exportLayout: exportRecordingMode || exportLayoutMode || exportSnapshot,
+        sidePadding: exportSidePadding,
         radiusScale: landscapeExportMode ? 0.82 : undefined,
       },
     );
@@ -1435,8 +1443,8 @@ export default function RiffCycleCanvas({
 
         if (labelAlpha > 0) {
           ctx.save();
-          ctx.globalAlpha = labelAlpha * 0.92;
-          ctx.font = `${Math.max(6.5, 9.9 * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
+          ctx.globalAlpha = labelAlpha * (subtleLiveLabels ? 0.92 : 1);
+          ctx.font = `${Math.max(subtleLiveLabels ? 6.5 : 7.2, (subtleLiveLabels ? 9.9 : 11) * labelScale * shellScale * exportLabelScale)}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const labelY = vertex.y - (17 + Math.max(0, 1 - labelScale) * 7) * shellScale * exportLabelScale;
@@ -1731,7 +1739,8 @@ export default function RiffCycleCanvas({
       const groupRadius = metrics.innerRadius;
       const labelRingRadius =
         groupRadius +
-        (visibleRiff.stepCount > 24 ? 19 : 16) * pointScale;
+        (visibleRiff.stepCount > 24 ? 19 : 16) * pointScale +
+        (exportLayoutMode ? 3 * pointScale : 0);
       const labelCandidates: Array<{
         x: number;
         y: number;
@@ -1793,7 +1802,7 @@ export default function RiffCycleCanvas({
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `${Math.max(7.2, 9 * pointScale)}px "SF Mono", "Fira Code", monospace`;
+      ctx.font = `${Math.max(subtleLiveLabels ? 7.2 : 8, (subtleLiveLabels ? 9 : 10) * pointScale)}px "SF Mono", "Fira Code", monospace`;
       labelCandidates
         .sort((a, b) => b.span - a.span)
         .forEach((candidate) => {
@@ -1816,7 +1825,7 @@ export default function RiffCycleCanvas({
           ctx.shadowColor = 'rgba(0,0,0,0.82)';
           ctx.strokeText(candidate.label, candidate.x, candidate.y);
           ctx.fillStyle = activeRiffColor;
-          ctx.globalAlpha = 0.83;
+          ctx.globalAlpha = subtleLiveLabels ? 0.83 : 0.9;
           ctx.shadowBlur = 6 * glowMultiplier * pointScale;
           ctx.shadowColor = `${activeRiffColor}AA`;
           ctx.fillText(candidate.label, candidate.x, candidate.y);
@@ -2038,6 +2047,19 @@ export default function RiffCycleCanvas({
         ctx.restore();
       }
 
+      if (isPhraseRestart && !subtleLiveLabels) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.88)';
+        drawTriangleMarker(
+          ctx,
+          point.x,
+          point.y - (isSelected ? 14 : 12),
+          isSelected ? 4.2 : 3.5,
+        );
+        ctx.fill();
+        ctx.restore();
+      }
+
       if (currentStudy.showStepLabels && (!circularPhraseBoundsActive || carveViewActive)) {
         const stepLabel = currentStudy.showCountLabels
           ? formatSubdivisionCountLabel(point.index, getReferenceStepsPerBeat(renderStudy.reference))
@@ -2059,8 +2081,9 @@ export default function RiffCycleCanvas({
           metrics.innerRadius +
           (carveViewActive
             ? (circularPhraseBoundsActive ? 23 : 20) +
-              (1 - densityLabelScale) * 14
-            : 18 + (1 - densityLabelScale) * 10);
+              (1 - densityLabelScale) * 14 +
+              (exportLayoutMode ? 8 : 0)
+            : 18 + (1 - densityLabelScale) * 10 + (exportLayoutMode ? 8 : 0));
         ctx.save();
         ctx.fillStyle = isSelected
           ? 'rgba(255,255,255,0.92)'
@@ -2069,8 +2092,8 @@ export default function RiffCycleCanvas({
               ? 'rgba(255,255,255,0.62)'
               : 'rgba(255,255,255,0.38)'
             : 'rgba(255,255,255,0.56)';
-        ctx.globalAlpha = 0.92;
-        ctx.font = `${Math.max(6.8, 9 * labelScale)}px "SF Mono", "Fira Code", monospace`;
+        ctx.globalAlpha = subtleLiveLabels ? 0.92 : 1;
+        ctx.font = `${Math.max(subtleLiveLabels ? 6.8 : 7.5, (subtleLiveLabels ? 9 : 10) * labelScale)}px "SF Mono", "Fira Code", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
