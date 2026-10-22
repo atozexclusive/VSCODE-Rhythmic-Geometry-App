@@ -1,3 +1,4 @@
+import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
 import LayerStepsIcon from '../components/LayerStepsIcon';
 // ============================================================
 // Rhythmic Geometry — Main Application Route
@@ -8073,6 +8074,11 @@ function OrbitalPolymeter() {
   const [tutorialEvent, setTutorialEvent] = useState<{ id: TutorialEventId; tick: number } | null>(null);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
+  const [guideViewport, setGuideViewport] = useState(() =>
+    typeof window === 'undefined'
+      ? getGuideViewport(1280, 800)
+      : getGuideViewport(window.innerWidth, window.innerHeight, window.visualViewport),
+  );
 
   const recoverAudioAfterPageReturn = useCallback(() => {
     resumeAudio();
@@ -11617,8 +11623,8 @@ function OrbitalPolymeter() {
         ? document.documentElement?.clientHeight || window.innerHeight
         : window.innerHeight
       : 800;
-  const viewportWidth = typeof window !== 'undefined' ? window.visualViewport?.width ?? layoutViewportWidth : 1280;
-  const viewportHeight = typeof window !== 'undefined' ? window.visualViewport?.height ?? layoutViewportHeight : 800;
+  const viewportWidth = helpOpen || tutorialOpen ? guideViewport.width : typeof window !== 'undefined' ? window.visualViewport?.width ?? layoutViewportWidth : 1280;
+  const viewportHeight = helpOpen || tutorialOpen ? guideViewport.height : typeof window !== 'undefined' ? window.visualViewport?.height ?? layoutViewportHeight : 800;
   const mobileCanvasFrameStyle = isMobile
     ? ({
         width: '100%',
@@ -11635,8 +11641,9 @@ function OrbitalPolymeter() {
     ? Math.max(0, viewportWidth - 24)
     : guideSideSpace >= 310 ? Math.min(360, guideSideSpace - 30) : 360;
   const guideDocked = isMobile || Boolean(guideRect && guideSideSpace < 310 && guideRect.height > viewportHeight * 0.45);
-  const dockedGuidePanelHeight = Math.min(340, Math.max(180, Math.round(viewportHeight * 0.34)));
-  const guideContentBottom = viewportHeight - dockedGuidePanelHeight - 28;
+  const guideDockLayout = getGuideDockLayout(guideViewport, isMobile);
+  const dockedGuidePanelHeight = guideDockLayout.height;
+  const guideContentBottom = guideDockLayout.top - 16;
   const guideHighlightBottom = guideRect
     ? guideDocked ? Math.min(guideRect.bottom, guideContentBottom - 8) : guideRect.bottom
     : 0;
@@ -11720,9 +11727,10 @@ function OrbitalPolymeter() {
     if (guideDocked) {
       return {
         ...base,
-        left: isMobile ? 12 : (viewportWidth - Math.min(480, viewportWidth - 48)) / 2,
-        width: isMobile ? viewportWidth - 24 : Math.min(480, viewportWidth - 48),
-        bottom: 12,
+        left: guideDockLayout.left,
+        width: guideDockLayout.width,
+        top: guideDockLayout.top,
+        bottom: 'auto',
         maxHeight: dockedGuidePanelHeight,
         overflowY: 'auto' as const,
         overscrollBehavior: 'contain' as const,
@@ -12625,10 +12633,12 @@ function OrbitalPolymeter() {
     if (!root) return;
     const originalStyle = root.getAttribute('style');
     const pageScroll = window.scrollY;
+    const visibleViewport = getGuideViewport(window.innerWidth, window.innerHeight, window.visualViewport);
+    const dock = getGuideDockLayout(visibleViewport, isMobile);
     Object.assign(root.style, {
-      position: 'fixed', top: '0', left: '0', right: '0',
-      bottom: `${dockedGuidePanelHeight + 28}px`,
-      height: 'auto', minHeight: '0', overflowY: 'auto', overflowX: 'hidden',
+      position: 'fixed', top: `${visibleViewport.top}px`, left: '0', right: '0',
+      bottom: 'auto',
+      height: `${Math.max(1, dock.top - visibleViewport.top - 16)}px`, minHeight: '0', overflowY: 'auto', overflowX: 'hidden',
     });
     root.scrollTop = pageScroll;
     return () => {
@@ -12637,7 +12647,15 @@ function OrbitalPolymeter() {
       else root.setAttribute('style', originalStyle);
       window.scrollTo({ top: nextScroll, behavior: 'instant' });
     };
-  }, [helpOpen, tutorialOpen, guideDocked, dockedGuidePanelHeight]);
+  }, [helpOpen, tutorialOpen, guideDocked, isMobile]);
+
+  useEffect(() => {
+    if ((!helpOpen && !tutorialOpen) || !guideDocked) return;
+    const root = document.getElementById('root');
+    if (!root) return;
+    root.style.top = `${guideViewport.top}px`;
+    root.style.height = `${Math.max(1, guideDockLayout.top - guideViewport.top - 16)}px`;
+  }, [helpOpen, tutorialOpen, guideDocked, guideDockLayout.top, guideViewport.top]);
 
   useEffect(() => {
     if ((!helpOpen && !tutorialOpen) || !activeOverlayStep || !guideDocked) {
@@ -12676,6 +12694,11 @@ function OrbitalPolymeter() {
     let retryTimeout: number | null = null;
 
     const updateGuideRect = () => {
+      const nextViewport = getGuideViewport(window.innerWidth, window.innerHeight, window.visualViewport);
+      setGuideViewport((previous) =>
+        previous.width === nextViewport.width && previous.height === nextViewport.height &&
+        previous.left === nextViewport.left && previous.top === nextViewport.top ? previous : nextViewport,
+      );
       const element = document.querySelector<HTMLElement>(`[data-guide="${activeOverlayStep.target}"]`);
       setGuideRect(element?.getBoundingClientRect() ?? null);
     };
@@ -15637,7 +15660,7 @@ function OrbitalPolymeter() {
     accentColor: string,
     zIndexBase = 30,
   ) =>
-    helpOpen && currentGuideStep ? (
+    helpOpen && currentGuideStep ? createPortal(
       <>
         <div
           className="pointer-events-none fixed inset-0 bg-black/18"
@@ -15765,13 +15788,14 @@ function OrbitalPolymeter() {
             </div>
           ) : null}
         </div>
-      </>
+      </>,
+      document.body,
     ) : null;
   const renderTutorialOverlay = (
     accentColor: string,
     zIndexBase = 30,
   ) =>
-    tutorialOpen && currentTutorialStep ? (
+    tutorialOpen && currentTutorialStep ? createPortal(
       <>
         {guideRect && guideHighlightHeight > 0 ? (
           <div
@@ -15793,6 +15817,7 @@ function OrbitalPolymeter() {
           return (
             <div
               ref={guideCalloutRef}
+              data-tutorial-callout="true"
               className={`fixed rounded-[24px] border px-4 py-4 pointer-events-auto ${isMobile ? '' : 'w-[360px]'}`}
               style={{
                 ...tutorialPanelStyle,
@@ -15873,7 +15898,7 @@ function OrbitalPolymeter() {
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-2">
+              <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'sticky -bottom-4 z-10 -mx-4 bg-[#111116] px-4 py-2.5' : ''}`}>
                 <button
                   onClick={closeTutorial}
                   className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
@@ -15912,7 +15937,8 @@ function OrbitalPolymeter() {
             </div>
           );
         })()}
-      </>
+      </>,
+      document.body,
     ) : null;
   const desktopBeginnerHint = null;
   const mobileBeginnerIntroCard = MOBILE_GUIDE_INTRO_CARD_ENABLED && isMobile && !presentationMode ? (
