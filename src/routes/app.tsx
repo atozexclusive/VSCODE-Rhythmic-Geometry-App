@@ -727,7 +727,7 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
   },
   riff_section_bars: {
     title: 'Section Bars',
-    body: 'Global makes the whole sequence fit one bar count. Per Cell gives each sequence entry its own bars and repeat count.',
+    body: 'Global restarts the sequence after the chosen number of bars, without stretching the cells. Per Cell sets each slot’s length in full pattern plays or bars. These controls replace Riff Restart while Cell Sequencer is on.',
   },
   riff_steps: {
     title: 'Steps',
@@ -4812,6 +4812,7 @@ function RiffCellSequenceEditor({
                       </button>
                       <div className="pointer-events-auto flex items-center gap-1">
                         <label
+                          data-guide={phraseSelected ? 'riff-cell-phrase-repeats' : undefined}
                           className="flex items-center overflow-hidden rounded-md border bg-white/[0.035]"
                           style={{ borderColor: `${phraseColor}24` }}
                         >
@@ -4834,6 +4835,7 @@ function RiffCellSequenceEditor({
                             className="h-6 w-9 bg-transparent text-center text-[10px] font-mono outline-none"
                             style={{ color: phraseColor }}
                             aria-label={`Set Phrase ${phraseIndex + 1} repeats`}
+                            title="Repeat this whole phrase before advancing"
                           />
                         </label>
                         {phraseRanges.length > 1 ? (
@@ -5027,6 +5029,7 @@ function RiffCellSequenceEditor({
                     {(['global', 'per-cell'] as const).map((mode) => (
                       <button
                         key={mode}
+                        data-guide={mode === 'global' ? 'riff-cell-global-mode' : 'riff-cell-per-cell-mode'}
                         aria-pressed={sequenceBarsMode === mode}
                         type="button"
                         onClick={() => onSetSequenceBarsMode(mode)}
@@ -5042,6 +5045,7 @@ function RiffCellSequenceEditor({
                   </div>
                   <button
                     type="button"
+                    data-guide="riff-cell-chain"
                     onClick={() => onSetChainEnabled(!chainEnabled)}
                     aria-pressed={chainEnabled}
                     className="rounded-md border px-1.5 py-0.5 text-[6.5px] font-mono uppercase tracking-[0.1em] transition"
