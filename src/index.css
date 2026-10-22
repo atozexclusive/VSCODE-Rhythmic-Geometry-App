@@ -711,3 +711,14 @@
 [data-compact-scene-menu] [data-orbit-scene-menu] > div { margin-top: 8px; }
 
 [data-guide="mobile-customize"] [data-orbit-layer] + [data-orbit-layer] { margin-top: 6px; }
+
+/* Keep mobile guide copy and navigation together without a nested scroll pane. */
+@media (max-width: 767px) {
+  .rg-guide-card { padding: 12px; }
+  .rg-guide-card .mt-2 { margin-top: 6px; }
+  .rg-guide-card .mt-3 { margin-top: 8px; }
+  .rg-guide-card .mt-4 { margin-top: 10px; }
+  .rg-guide-card .leading-relaxed { line-height: 1.45; }
+  .rg-guide-card .py-3 { padding-top: 9px; padding-bottom: 9px; }
+  .rg-guide-navigation button { min-height: 36px; }
+}

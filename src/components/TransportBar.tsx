@@ -1,3 +1,4 @@
+import FullscreenControls from './FullscreenControls';
 // ============================================================
 // Orbital Polymeter — Transport Control Bar
 // Play/Pause, Tempo, Trace Toggle, Reset, Sidebar Menu
@@ -597,319 +598,36 @@ export default function TransportBar({
   ) : null;
 
   if (presentationMode) {
-    return (
-      <div
-        className={`fixed z-30 pointer-events-auto ${isMobile ? 'left-5 right-5' : 'left-6 right-6 bottom-6'}`}
-        style={
-          isMobile
-            ? { bottom: 'max(20px, calc(env(safe-area-inset-bottom) + 12px))' }
-            : undefined
-        }
-      >
-        {audioMixPanel}
-        <div
-          className={`rounded-2xl border ${isMobile ? 'space-y-2.5 px-3 py-3' : 'grid grid-cols-[auto_minmax(28rem,1fr)_auto] items-center gap-3 px-4 py-3'}`}
-          style={{
-            background: 'rgba(17, 17, 22, 0.74)',
-            backdropFilter: 'blur(16px)',
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.28)',
-          }}
-        >
-          {isMobile ? (
-            <>
-              <div className="grid grid-cols-5 gap-1.5">
-                <button
-                  onClick={onTogglePlay}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{
-                    background: playing ? 'rgba(255, 51, 102, 0.18)' : 'rgba(0, 255, 170, 0.18)',
-                    border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.35)' : 'rgba(0, 255, 170, 0.35)'}`,
-                    color: playing ? '#FF3366' : '#00FFAA',
-                  }}
-                  title={playing ? 'Pause' : 'Play'}
-                >
-                  {playing ? <Pause size={15} /> : <Play size={15} />}
-                  <span>{playing ? 'Pause' : 'Play'}</span>
-                </button>
-                <button
-                  onClick={onReset}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
-                  title="Reset"
-                >
-                  <RotateCcw size={15} />
-                  <span>Reset</span>
-                </button>
-                <button
-                  onClick={onRandomPattern}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
-                  title="Random pattern"
-                >
-                  <Shuffle size={15} />
-                  <span>Random</span>
-                </button>
-                <button
-                  onClick={onRemixPattern}
-                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={getLockedStyle({ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }, lockedFeatures.remix)}
-                  title="Refresh the current setup with new color, direction, sound, and speed"
-                >
-                  <Zap size={15} />
-                  <span>Remix</span>
-                  {lockedFeatures.remix ? lockBadge : null}
-                </button>
-                <button
-                  onClick={onRandomPatternPlus}
-                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={getLockedStyle({ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }, lockedFeatures.randomPlus)}
-                  title="Extended random pattern"
-                >
-                  <Shuffle size={15} />
-                  <span>Random+</span>
-                  {lockedFeatures.randomPlus ? lockBadge : null}
-                </button>
-              </div>
-              <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2.5">
-                <div className="rg-transport-tempo-row flex items-center gap-3">
-                  <div
-                    className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    Tempo
-                  </div>
-                  <input
-                    type="range"
-                    min={String(ORBIT_TEMPO_MIN_BPM)}
-                    max={String(anchorTempoMaxBpm)}
-                    step="1"
-                    value={anchorTempoSliderValue}
-                    onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
-                    onPointerDown={(event) =>
-                      handleTouchSliderPointerDown(event, 'present-tempo', (value) => onSpeedChange(value))
-                    }
-                    onPointerMove={(event) =>
-                      handleTouchSliderPointerMove(event, 'present-tempo', (value) => onSpeedChange(value))
-                    }
-                    onPointerUp={() => clearTouchSlider('present-tempo')}
-                    onPointerCancel={() => clearTouchSlider('present-tempo')}
-                    onBlur={() => clearTouchSlider('present-tempo')}
-                    data-dragging={activeTouchSlider === 'present-tempo'}
-                    className="touch-slider rg-transport-tempo-track"
-                    style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
-                  />
-                  <div className="w-12 shrink-0 text-right">
-                    <EditableTempoValue
-                      value={anchorTempoBpm}
-                      min={ORBIT_TEMPO_MIN_BPM}
-                      max={anchorTempoMaxBpm}
-                      onCommit={onSpeedChange}
-                      className="text-[14px]"
-                      ariaLabel="Type exact orbit tempo"
-                    />
-                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      {anchorLabel}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                <button
-                  onClick={onToggleTrace}
-                  className="flex h-11 items-center justify-center rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{
-                    background: traceMode ? 'rgba(0, 255, 170, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-                    color: traceMode ? '#00FFAA' : 'rgba(255,255,255,0.72)',
-                  }}
-                  title={traceMode ? 'Hide trace' : 'Show trace'}
-                >
-                  Trace
-                </button>
-                <button
-                  onClick={onTogglePlanets}
-                  className="flex h-11 items-center justify-center rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{
-                    background: showPlanets ? 'rgba(136, 204, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${showPlanets ? 'rgba(136, 204, 255, 0.26)' : 'rgba(255, 255, 255, 0.1)'}`,
-                    color: showPlanets ? '#88CCFF' : 'rgba(255,255,255,0.72)',
-                  }}
-                  title={showPlanets ? 'Hide markers' : 'Show markers'}
-                >
-                  Markers
-                </button>
-                <button
-                  onClick={() => {
-                    if (lockedFeatures.soundEditing) {
-                      onLockedFeature?.('sound-editing');
-                      return;
-                    }
-                    setAudioMixOpen((open) => !open);
-                  }}
-                  className="relative flex h-11 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={getLockedStyle({
-                    background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-                    color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
-                  }, lockedFeatures.soundEditing)}
-                  title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
-                >
-                  {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                  <span>Audio</span>
-                  {lockedFeatures.soundEditing ? lockBadge : null}
-                </button>
-                <button
-                  onClick={onTogglePresentation}
-                  className="flex h-11 items-center justify-center gap-1 rounded-xl px-1.5 text-[9px] font-mono uppercase tracking-[0.1em] transition-all duration-200 active:scale-95"
-                  style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
-                  title="Exit fullscreen mode"
-                >
-                  <Minimize2 size={15} />
-                  <span>Exit</span>
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onTogglePlay}
-                className={desktopDockButtonStyle}
-                style={{
-                  background: playing ? 'rgba(255, 51, 102, 0.18)' : 'rgba(0, 255, 170, 0.18)',
-                  border: `1px solid ${playing ? 'rgba(255, 51, 102, 0.35)' : 'rgba(0, 255, 170, 0.35)'}`,
-                  color: playing ? '#FF3366' : '#00FFAA',
-                }}
-                title={playing ? 'Pause' : 'Play'}
-              >
-                {playing ? <Pause size={15} /> : <Play size={15} />}
-                <span>{playing ? 'Pause' : 'Play'}</span>
-              </button>
-          <button
-            onClick={onReset}
-            className={desktopDockButtonStyle}
-            style={{ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }}
-            title="Reset"
-          >
-            <RotateCcw size={15} />
-            <span>Reset</span>
-          </button>
-          <button
-            onClick={onRandomPattern}
-            className={desktopDockButtonStyle}
-            style={{ background: 'rgba(51, 136, 255, 0.14)', border: '1px solid rgba(51, 136, 255, 0.28)', color: '#88CCFF' }}
-            title="Random pattern"
-          >
-            <Shuffle size={15} />
-            <span>Random</span>
-          </button>
-          <button
-            onClick={onRemixPattern}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({ background: 'rgba(0, 255, 170, 0.14)', border: '1px solid rgba(0, 255, 170, 0.28)', color: '#00FFAA' }, lockedFeatures.remix)}
-            title="Refresh the current setup with new color, direction, sound, and speed"
-          >
-            <Zap size={15} />
-            <span>Remix</span>
-            {lockedFeatures.remix ? lockBadge : null}
-          </button>
-          <button
-            onClick={onRandomPatternPlus}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({ background: 'rgba(255, 170, 0, 0.14)', border: '1px solid rgba(255, 170, 0, 0.28)', color: '#FFAA00' }, lockedFeatures.randomPlus)}
-            title="Extended random pattern"
-          >
-            <Shuffle size={15} />
-            <span>Random+</span>
-            {lockedFeatures.randomPlus ? lockBadge : null}
-          </button>
-            </div>
-          )}
-          {!isMobile ? (
-            <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
-              <div className="rg-transport-tempo-row flex items-center gap-4">
-                <div
-                  className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
-                  style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                >
-                  Tempo
-                </div>
-                <input
-                  type="range"
-                  min={String(ORBIT_TEMPO_MIN_BPM)}
-                  max={String(anchorTempoMaxBpm)}
-                  step="1"
-                  value={anchorTempoSliderValue}
-                  onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
-                  className="touch-slider rg-transport-tempo-track"
-                  style={{ ['--slider-accent' as string]: '#ffffff' }}
-                  aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`}
-                />
-                <div className="w-[52px] shrink-0 text-right">
-                  <EditableTempoValue
-                    value={anchorTempoBpm}
-                    min={ORBIT_TEMPO_MIN_BPM}
-                    max={anchorTempoMaxBpm}
-                    onCommit={onSpeedChange}
-                    className="text-[18px]"
-                    ariaLabel="Type exact orbit tempo"
-                  />
-                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                    {anchorLabel}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {!isMobile ? (
-          <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={onToggleTrace}
-            className={desktopDockButtonStyle}
-            style={{
-              background: traceMode ? 'rgba(0, 255, 170, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-              border: `1px solid ${traceMode ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: traceMode ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-            }}
-            title={traceMode ? 'Hide trace' : 'Show trace'}
-          >
-            <span>Trace</span>
-          </button>
-          <button
-            onClick={() => {
-              if (lockedFeatures.soundEditing) {
-                onLockedFeature?.('sound-editing');
-                return;
-              }
-              setAudioMixOpen((open) => !open);
-            }}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({
-              background: muted ? 'rgba(255, 51, 102, 0.14)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${muted ? 'rgba(255, 51, 102, 0.28)' : 'rgba(255, 255, 255, 0.1)'}`,
-              color: muted ? '#FF7799' : 'rgba(255, 255, 255, 0.74)',
-            }, lockedFeatures.soundEditing)}
-            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
-          >
-            {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-            <span>Audio</span>
-            {lockedFeatures.soundEditing ? lockBadge : null}
-          </button>
-          <button
-            onClick={onTogglePresentation}
-            className={desktopDockButtonStyle}
-            style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.75)' }}
-            title="Exit fullscreen mode"
-          >
-            <Minimize2 size={15} />
-            <span>Exit</span>
-          </button>
+    return <>
+      {audioMixPanel}
+      <FullscreenControls playing={playing} muted={muted}
+        onTogglePlay={onTogglePlay} onRestart={onReset} onRandom={onRandomPattern}
+        onRandomPlus={onRandomPatternPlus} onRemix={onRemixPattern} onToggleMute={onToggleMute} onExit={onTogglePresentation}
+        randomPlusLocked={lockedFeatures.randomPlus} remixLocked={lockedFeatures.remix} optionsLabel="Orbit options">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3 text-xs"><span>Tempo</span>
+            <EditableTempoValue value={anchorTempoBpm} min={ORBIT_TEMPO_MIN_BPM} max={anchorTempoMaxBpm} onCommit={onSpeedChange} className="text-sm" ariaLabel="Type exact orbit tempo" />
           </div>
-          ) : null}
+          <input type="range" min={ORBIT_TEMPO_MIN_BPM} max={anchorTempoMaxBpm} step="1" value={anchorTempoSliderValue}
+            onChange={(event) => onSpeedChange(parseFloat(event.target.value))}
+            onPointerDown={(event) => handleTouchSliderPointerDown(event, 'present-tempo', (value) => onSpeedChange(value))}
+            onPointerMove={(event) => handleTouchSliderPointerMove(event, 'present-tempo', (value) => onSpeedChange(value))}
+            onPointerUp={() => clearTouchSlider('present-tempo')} onPointerCancel={() => clearTouchSlider('present-tempo')} onBlur={() => clearTouchSlider('present-tempo')}
+            data-dragging={activeTouchSlider === 'present-tempo'} className="touch-slider w-full" aria-label={`Set orbit tempo from ${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM`} />
+          <div className="text-[9px] font-mono uppercase tracking-wider text-white/35">{anchorLabel}</div>
         </div>
-      </div>
-    );
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onToggleTrace} aria-pressed={traceMode} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Trace</button>
+          <button type="button" onClick={onTogglePlanets} aria-pressed={showPlanets} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Markers</button>
+        </div>
+        <button type="button" onClick={() => {
+          if (lockedFeatures.soundEditing) { onLockedFeature?.('sound-editing'); return; }
+          setAudioMixOpen((open) => !open);
+        }} className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07]">
+          <Volume2 size={14} />Audio{lockedFeatures.soundEditing ? <Lock size={10} /> : null}
+        </button>
+      </FullscreenControls>
+    </>;
   }
 
   return (

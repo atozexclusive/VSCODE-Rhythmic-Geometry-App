@@ -19,8 +19,8 @@ export function getGuideViewport(
   };
 }
 
-export function getGuideDockLayout(viewport: GuideViewport, mobile: boolean) {
-  const height = Math.min(340, Math.max(180, Math.round(viewport.height * 0.34)), Math.max(1, viewport.height - 24));
+export function getGuideDockLayout(viewport: GuideViewport, mobile: boolean, contentHeight?: number) {
+  const height = Math.min(contentHeight ? Math.ceil(contentHeight) : Math.min(340, Math.max(180, Math.round(viewport.height * 0.34))), Math.max(1, viewport.height - 24));
   const width = Math.max(1, mobile ? viewport.width - 24 : Math.min(480, viewport.width - 48));
   return {
     height,

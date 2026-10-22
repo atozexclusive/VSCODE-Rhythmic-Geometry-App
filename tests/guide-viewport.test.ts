@@ -29,3 +29,13 @@ test('desktop guide is centered and constrained when visual viewport is unavaila
   assert.equal(card.left + card.width / 2, 640);
   assert.equal(card.top + card.height, 888);
 });
+
+test('guide dock grows to show the complete step and follows shorter content', () => {
+  const viewport = getGuideViewport(390, 664);
+  for (const contentHeight of [365, 420, 248]) {
+    const card = getGuideDockLayout(viewport, true, contentHeight);
+    assert.equal(card.height, contentHeight);
+    assert.equal(card.top + card.height, 652);
+  }
+  assert.equal(getGuideDockLayout(viewport, true, 900).height, 640);
+});

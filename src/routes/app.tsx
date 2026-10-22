@@ -1,3 +1,4 @@
+import FullscreenControls from '../components/FullscreenControls';
 import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
 import LayerStepsIcon from '../components/LayerStepsIcon';
 // ============================================================
@@ -6,9 +7,9 @@ import LayerStepsIcon from '../components/LayerStepsIcon';
 // ============================================================
 
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useRef, useEffect, useMemo, type ButtonHTMLAttributes, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Dice5, AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -2949,59 +2950,6 @@ function LimitedColorPickerButton({
           )
         : null}
     </>
-  );
-}
-
-function MobilePresentActionButton({
-  label,
-  icon,
-  accent,
-  active = true,
-  locked = false,
-  compact = false,
-  className = '',
-  style,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string;
-  icon?: ReactNode;
-  accent: string;
-  active?: boolean;
-  locked?: boolean;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      className={`relative flex min-w-0 items-center justify-center overflow-hidden border text-center transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 ${compact ? 'flex-row gap-1 rounded-lg px-1 py-1.5' : 'flex-col gap-1 rounded-xl px-1.5 py-2'} ${className}`}
-      style={{
-        background: active ? `${accent}14` : 'rgba(255,255,255,0.05)',
-        borderColor: active ? `${accent}30` : 'rgba(255,255,255,0.1)',
-        color: active ? accent : 'rgba(255,255,255,0.76)',
-        boxShadow: active ? `0 0 0 1px ${accent}14 inset` : 'inset 0 1px 0 rgba(255,255,255,0.04)',
-        ...style,
-        ...(locked
-          ? {
-              background: 'rgba(255,255,255,0.035)',
-              borderColor: 'rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.44)',
-              boxShadow: 'none',
-              filter: 'grayscale(0.55)',
-            }
-          : null),
-      }}
-      {...props}
-    >
-      {icon ? <span className={`flex items-center justify-center ${compact ? 'h-3.5 scale-90' : 'h-4'}`}>{icon}</span> : null}
-      <span className={`min-w-0 truncate font-mono uppercase ${compact ? 'text-[7px] tracking-[0.08em]' : 'text-[8px] tracking-[0.12em]'}`}>
-        {label}
-      </span>
-      {locked ? (
-        <span className="pointer-events-none absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-white/14 bg-black/38 text-white/68">
-          <Lock size={8} strokeWidth={2.4} />
-        </span>
-      ) : null}
-    </button>
   );
 }
 
@@ -11641,7 +11589,7 @@ function OrbitalPolymeter() {
     ? Math.max(0, viewportWidth - 24)
     : guideSideSpace >= 310 ? Math.min(360, guideSideSpace - 30) : 360;
   const guideDocked = isMobile || Boolean(guideRect && guideSideSpace < 310 && guideRect.height > viewportHeight * 0.45);
-  const guideDockLayout = getGuideDockLayout(guideViewport, isMobile);
+  const guideDockLayout = getGuideDockLayout(guideViewport, isMobile, guideMeasuredHeight);
   const dockedGuidePanelHeight = guideDockLayout.height;
   const guideContentBottom = guideDockLayout.top - 16;
   const guideHighlightBottom = guideRect
@@ -12744,18 +12692,22 @@ function OrbitalPolymeter() {
     }
 
     const updateGuideHeight = () => {
-      const nextHeight = guideCalloutRef.current?.getBoundingClientRect().height;
+      const card = guideCalloutRef.current;
+      const nextHeight = card ? Math.max(card.scrollHeight + 2, card.getBoundingClientRect().height) : 0;
       if (nextHeight) {
         setGuideMeasuredHeight(nextHeight);
       }
     };
 
     updateGuideHeight();
+    const observer = new ResizeObserver(updateGuideHeight);
+    if (guideCalloutRef.current) observer.observe(guideCalloutRef.current);
     if (helpOpen) {
       window.addEventListener('resize', updateGuideHeight);
       window.visualViewport?.addEventListener('resize', updateGuideHeight);
     }
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', updateGuideHeight);
       window.visualViewport?.removeEventListener('resize', updateGuideHeight);
     };
@@ -15683,7 +15635,7 @@ function OrbitalPolymeter() {
         <div
           ref={guideCalloutRef}
           data-guide-callout="true"
-          className={`fixed rounded-2xl border p-3.5 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
+          className={`rg-guide-card fixed rounded-2xl border p-3.5 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
           style={{ ...guideCalloutStyle, zIndex: zIndexBase + 10 }}
         >
           <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: accentColor }}>
@@ -15752,7 +15704,7 @@ function OrbitalPolymeter() {
               {currentGuideStep.notice}
             </div>
           ) : null}
-          <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'sticky -bottom-3.5 z-10 -mx-3.5 bg-[#111116] px-3.5 py-2.5' : ''}`}>
+          <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'rg-guide-navigation' : ''}`}>
             <button
               onClick={closeStartGuide}
               className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
@@ -15818,7 +15770,7 @@ function OrbitalPolymeter() {
             <div
               ref={guideCalloutRef}
               data-tutorial-callout="true"
-              className={`fixed rounded-[24px] border px-4 py-4 pointer-events-auto ${isMobile ? '' : 'w-[360px]'}`}
+              className={`rg-guide-card fixed rounded-[24px] border px-4 py-4 pointer-events-auto ${isMobile ? '' : 'w-[360px]'}`}
               style={{
                 ...tutorialPanelStyle,
                 zIndex: zIndexBase + 10,
@@ -15898,7 +15850,7 @@ function OrbitalPolymeter() {
                 </div>
               </div>
 
-              <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'sticky -bottom-4 z-10 -mx-4 bg-[#111116] px-4 py-2.5' : ''}`}>
+              <div className={`mt-4 flex items-center justify-between gap-2 ${guideDocked ? 'rg-guide-navigation' : ''}`}>
                 <button
                   onClick={closeTutorial}
                   className="rounded-xl border border-white/8 bg-white/[0.05] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-white/62"
@@ -20091,59 +20043,15 @@ function OrbitalPolymeter() {
           </div>
         ) : null}
 
-        {isMobile && presentationMode ? (
-          <div className="fixed z-20 bottom-3 left-3 right-3">
-            <StudyShellPanel className="!rounded-2xl !p-2 space-y-1.5">
-              <div className="grid grid-cols-5 gap-1">
-                <MobilePresentActionButton
-                  compact
-                  label={polyrhythmStudy.playing ? 'Pause' : 'Play'}
-                  icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />}
-                  accent={polyrhythmStudy.playing ? '#FF3366' : '#00FFAA'}
-                  onClick={handleTogglePolyrhythmPlayback}
-                  aria-label={polyrhythmStudy.playing ? 'Pause study' : 'Play study'}
-                  title={polyrhythmStudy.playing ? 'Pause' : 'Play'}
-                />
-                <MobilePresentActionButton
-                  compact
-                  label="Restart"
-                  icon={<RotateCcw size={15} />}
-                  accent="#FFAA00"
-                  onClick={handleRestartPolyrhythmTransport}
-                  aria-label="Restart study"
-                  title="Restart"
-                />
-                <MobilePresentActionButton
-                  compact
-                  label="Random"
-                  icon={<Shuffle size={15} />}
-                  accent="#88CCFF"
-                  onClick={handleRandomPolyrhythmStudy}
-                  aria-label="Random study"
-                  title="Random"
-                />
-                <MobilePresentActionButton
-                  compact
-                  label="Remix"
-                  icon={<Zap size={15} />}
-                  accent="#B6A0FF"
-                  onClick={handleRemixPolyrhythmStudy}
-                  aria-label="Remix study"
-                  title="Remix"
-                  locked={remixLocked}
-                />
-                <MobilePresentActionButton
-                  compact
-                  label="Random+"
-                  icon={<Shuffle size={15} />}
-                  accent="#FFAA00"
-                  onClick={handleRandomPlusPolyrhythmStudy}
-                  aria-label="Random plus study"
-                  title="Random+"
-                  locked={randomPlusLocked}
-                />
-              </div>
-              <div className="grid grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] gap-1.5">
+        {presentationMode ? (
+          <FullscreenControls
+            playing={polyrhythmStudy.playing} muted={!polyrhythmStudy.soundEnabled}
+            onTogglePlay={handleTogglePolyrhythmPlayback} onRestart={handleRestartPolyrhythmTransport}
+            onRandom={handleRandomPolyrhythmStudy} onRandomPlus={handleRandomPlusPolyrhythmStudy} onRemix={handleRemixPolyrhythmStudy}
+            onToggleMute={handleTogglePolyrhythmSound} onExit={handleTogglePresentation}
+            randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
+            muteGuide="study-mobile-mute" exitGuide="study-mobile-present" optionsLabel="Study options">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Layer</div>
                 <div
                   className="rounded-xl border px-1.5 py-1.5"
                   style={{
@@ -20192,34 +20100,11 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                 </div>
-                <MobilePresentActionButton
-                  label="Labels"
-                  accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-                  active={Boolean(polyrhythmStudy.showStepLabels)}
-                  onClick={handleTogglePolyrhythmStepLabels}
-                  title={polyrhythmStudy.showStepLabels ? 'Hide labels' : 'Show labels'}
-                />
-                <MobilePresentActionButton
-                  label={polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
-                  icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                  accent="#88CCFF"
-                  active={polyrhythmStudy.soundEnabled}
-                  onClick={handleTogglePolyrhythmSound}
-                  data-guide="study-mobile-mute"
-                  aria-label={polyrhythmStudy.soundEnabled ? 'Mute study audio' : 'Enable study audio'}
-                  title={polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
-                />
-                <MobilePresentActionButton
-                  label="Exit"
-                  icon={<Minimize2 size={15} />}
-                  accent="#72F1B8"
-                  onClick={handleTogglePresentation}
-                  aria-label="Exit fullscreen mode"
-                  title="Exit Fullscreen"
-                />
-              </div>
-            </StudyShellPanel>
-          </div>
+            <button type="button" onClick={handleTogglePolyrhythmStepLabels} aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
+              className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-xs text-white/65 hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">
+              <Hash size={14} />Labels
+            </button>
+          </FullscreenControls>
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
             <StudyShellDock className={isMobile ? 'space-y-3' : 'rg-desktop-dock-scale grid grid-cols-[auto_minmax(20rem,1fr)_auto] items-center gap-3'}>
@@ -25896,27 +25781,14 @@ function OrbitalPolymeter() {
         ) : null}
 
         {presentationMode ? (
-          <div className="fixed inset-x-3 z-20 flex justify-center" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-            <div role="toolbar" aria-label="Fullscreen controls" className="flex max-w-full items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-1 backdrop-blur-md">
-              {[
-                { id: 'play', label: riffCycleStudy.playing ? 'Pause' : 'Play', icon: riffCycleStudy.playing ? <Pause size={14} strokeWidth={1.5} /> : <Play size={14} strokeWidth={1.5} />, action: handleToggleRiffCyclePlayback, pressed: riffCycleStudy.playing },
-                { id: 'restart', label: 'Restart', icon: <RotateCcw size={14} strokeWidth={1.5} />, action: handleResetRiffCycleStudy },
-                { id: 'random', label: 'Random', icon: <Dice5 size={14} strokeWidth={1.5} />, action: handleRandomRiffCycleStudy, separator: true },
-                { id: 'random-plus', label: 'Random+', icon: <span className="relative flex h-4 w-4 items-center justify-center"><Dice5 size={14} strokeWidth={1.5} /><Plus size={9} strokeWidth={2} className="absolute -right-1 -top-0.5 rounded-full bg-[#17171e]" /></span>, action: handleRandomPlusRiffCycleStudy, locked: randomPlusLocked },
-                { id: 'remix', label: 'Remix', icon: <Shuffle size={14} strokeWidth={1.5} />, action: handleRemixRiffCycleStudy, locked: remixLocked },
-                { id: 'mute', label: riffCycleStudy.soundEnabled ? 'Mute' : 'Unmute', icon: riffCycleStudy.soundEnabled ? <Volume2 size={14} strokeWidth={1.5} /> : <VolumeX size={14} strokeWidth={1.5} />, action: handleToggleRiffCycleSound, pressed: !riffCycleStudy.soundEnabled, separator: true, guide: 'riff-mobile-mute' },
-                { id: 'exit', label: 'Exit Fullscreen', icon: <Minimize2 size={14} strokeWidth={1.5} />, action: handleTogglePresentation, guide: 'riff-mobile-present' },
-              ].map(({ id, label, icon, action, locked, pressed, separator, guide }) => (
-                <div key={id} className={`flex items-center ${separator ? 'before:mx-1 before:h-3.5 before:w-px before:bg-white/[0.08]' : ''}`}>
-                  <button type="button" onClick={action} data-guide={guide} aria-label={locked ? `${label} (Pro)` : label} title={locked ? `${label} (Pro)` : label} aria-pressed={pressed}
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white/75 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-sky-200/60 active:bg-white/10">
-                    <span aria-hidden="true">{icon}</span>
-                    {locked ? <Lock size={7} aria-hidden="true" className="absolute bottom-1.5 right-1.5 text-white/30" /> : null}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <FullscreenControls
+            playing={riffCycleStudy.playing} muted={!riffCycleStudy.soundEnabled}
+            onTogglePlay={handleToggleRiffCyclePlayback} onRestart={handleResetRiffCycleStudy}
+            onRandom={handleRandomRiffCycleStudy} onRandomPlus={handleRandomPlusRiffCycleStudy} onRemix={handleRemixRiffCycleStudy}
+            onToggleMute={handleToggleRiffCycleSound} onExit={handleTogglePresentation}
+            randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
+            muteGuide="riff-mobile-mute" exitGuide="riff-mobile-present"
+          />
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
             <StudyShellDock
