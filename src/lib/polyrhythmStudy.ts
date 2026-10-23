@@ -6,11 +6,13 @@ export type PolyrhythmSoundPalette =
   | 'study-pulse'
   | 'wood'
   | 'soft-synth'
+  | 'chorus-keys'
+  | 'atmosphere-synth'
+  | 'muted-pluck'
+  | 'stereo-pluck'
   | 'bright-marker'
   | 'chime'
-  | 'warm-synth'
-  | 'crystal-bell'
-  | 'ambient-bloom';
+  | 'crystal-bell';
 export type PolyrhythmPitchMode = 'free' | 'keyed';
 export type PolyrhythmRegister = 'tight' | 'wide';
 export type PolyrhythmDisplayStyle = 'shared' | 'nested';
@@ -185,11 +187,13 @@ function normalizePolyrhythmSoundSettings(
         'study-pulse',
         'wood',
         'soft-synth',
+        'chorus-keys',
+        'atmosphere-synth',
+        'muted-pluck',
+        'stereo-pluck',
         'bright-marker',
         'chime',
-        'warm-synth',
         'crystal-bell',
-        'ambient-bloom',
       ].includes(normalizedPalette)
         ? normalizedPalette
         : 'wood',
@@ -219,10 +223,10 @@ function createRandomPolyrhythmSoundSettings(
   const plusScales: ScaleName[] = [...baseScales, 'wholeTone', 'diminished'];
   const palettePool =
     intensity === 'plus'
-      ? (['study-pulse', 'wood', 'soft-synth', 'bright-marker', 'chime', 'warm-synth', 'crystal-bell'] as const)
+      ? (['study-pulse', 'wood', 'soft-synth', 'bright-marker', 'chime', 'muted-pluck', 'stereo-pluck', 'crystal-bell'] as const)
       : intensity === 'remix'
         ? (['study-pulse', 'wood', 'soft-synth'] as const)
-        : (['study-pulse', 'wood', 'soft-synth', 'chime', 'warm-synth'] as const);
+        : (['study-pulse', 'wood', 'soft-synth', 'chime', 'muted-pluck'] as const);
   const palette =
     current && intensity === 'remix' && Math.random() < 0.6
       ? current.palette

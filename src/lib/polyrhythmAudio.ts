@@ -1,9 +1,11 @@
+import { isStudyInstrument, getStudyInstrumentSample, getStudyInstrumentLevel, type StudyInstrument } from './studyInstruments';
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
 let masterBus: StudyOutputBus | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
+const activeSamples = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
 const activeVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
 
 // One mix path for speakers and recording: raise the quiet voices before limiting.
@@ -206,10 +208,15 @@ export function silencePolyrhythmAudio(): void {
   const context = getAudioContext();
   if (!context) {
     activeVoices.clear();
+    activeSamples.clear();
     return;
   }
 
   const now = context.currentTime;
+  activeSamples.forEach(({ gain }) => {
+    gain.gain.cancelAndHoldAtTime(now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.025);
+  });
   activeVoices.forEach(({ oscillator, gain }) => {
     try {
       gain.gain.cancelAndHoldAtTime(now);
@@ -332,31 +339,6 @@ function triggerPalettePulse(
     return;
   }
 
-  if (palette === 'warm-synth') {
-    const level = clamp(gain * 0.74, 0.008, 0.105);
-    withVoice({
-      type: 'triangle',
-      frequency,
-      gain: level,
-      attack: 0.032,
-      release: 1.12,
-      filterFrequency: 1250,
-      filterQ: 0.45,
-      atTime,
-    }, target);
-    withVoice({
-      type: 'sine',
-      frequency: clamp(frequency * 0.5, 42, 800),
-      gain: level * 0.26,
-      attack: 0.04,
-      release: 1.26,
-      filterFrequency: 720,
-      filterQ: 0.38,
-      atTime,
-    }, target);
-    return;
-  }
-
   if (palette === 'crystal-bell') {
     const level = clamp(gain * 0.64, 0.007, 0.09);
     withVoice({
@@ -377,31 +359,6 @@ function triggerPalettePulse(
       release: 1.1,
       filterFrequency: 5200,
       filterQ: 0.28,
-      atTime,
-    }, target);
-    return;
-  }
-
-  if (palette === 'ambient-bloom') {
-    const level = clamp(gain * 0.65, 0.007, 0.092);
-    withVoice({
-      type: 'sine',
-      frequency,
-      gain: level,
-      attack: 0.024,
-      release: 1.42,
-      filterFrequency: 1650,
-      filterQ: 0.3,
-      atTime,
-    }, target);
-    withVoice({
-      type: 'triangle',
-      frequency: clamp(frequency * 2, 140, 4200),
-      gain: level * 0.2,
-      attack: 0.045,
-      release: 1.66,
-      filterFrequency: 2500,
-      filterQ: 0.25,
       atTime,
     }, target);
     return;
@@ -468,6 +425,41 @@ export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
   return recordingDestination.stream;
 }
 
+function triggerStudyInstrument(
+  instrument: StudyInstrument, frequency: number, gain: number,
+  accented: boolean, atTime: number | undefined, target: VoiceTarget,
+): void {
+  const { context } = target;
+  const buses: StudyOutputBus[] = [];
+  if (target.outputToSpeakers) buses.push(getMasterOutput(context as AudioContext));
+  if (target.destination) buses.push(getPolyrhythmOutputBus(context, target.destination));
+  // Generate/cache the multisample before choosing a start time: the first
+  // selection must not skip the sample's soft attack on slower mobile devices.
+  const sample = getStudyInstrumentSample(context, instrument, frequency, accented);
+  const source = context.createBufferSource();
+  const output = context.createGain();
+  source.buffer = sample.buffer;
+  source.playbackRate.value = sample.playbackRate;
+  output.gain.value = gain * getStudyInstrumentLevel(instrument);
+  source.connect(output);
+  const sends: GainNode[] = [];
+  buses.forEach(bus => {
+    output.connect(bus.input);
+    if ((target.reverbAmount ?? 0) > 0.001) {
+      const send = context.createGain();
+      send.gain.value = (target.reverbAmount ?? 0) * 0.24;
+      output.connect(send); send.connect(bus.reverb); sends.push(send);
+    }
+  });
+  const voice = { source, gain: output };
+  activeSamples.add(voice);
+  source.addEventListener('ended', () => {
+    activeSamples.delete(voice);
+    source.disconnect(); output.disconnect(); sends.forEach(send => send.disconnect());
+  }, { once: true });
+  source.start(Math.max(atTime ?? 0, context.currentTime + 0.008));
+}
+
 export function triggerPolyrhythmPulse(options: {
   frequency: number;
   gain: number;
@@ -494,6 +486,10 @@ export function triggerPolyrhythmPulse(options: {
         reverbAmount: options.sound.reverbAmount ?? 0,
       }
     : options.target;
+  if (isStudyInstrument(options.sound.palette) && voiceTarget) {
+    triggerStudyInstrument(options.sound.palette, frequency, peakGain, Boolean(options.accented), options.atTime, voiceTarget);
+    return;
+  }
   triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
   if (options.accented) {
     triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
@@ -541,6 +537,16 @@ export function createPolyrhythmExportAudioStream(
     destination,
     outputToSpeakers: false,
   };
+  if (isStudyInstrument(study.soundSettings.palette)) {
+    const palette = study.soundSettings.palette;
+    const layerGroups = [study.layers, ...(study.chainCells ?? []).map(cell => cell.layers)];
+    layerGroups.forEach(layers => layers.forEach((layer, index) => {
+      if (!layer.soundEnabled) return;
+      const frequency = mapLayerPitch(layer.pitchHz, study.soundSettings, index);
+      getStudyInstrumentSample(context, palette, frequency, false);
+      if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, palette, frequency, true);
+    }));
+  }
   const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const cyclesPerSecond = study.bpm / 60 / 4;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));

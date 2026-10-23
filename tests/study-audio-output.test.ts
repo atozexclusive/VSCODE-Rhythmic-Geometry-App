@@ -14,7 +14,7 @@ class Param {
 class Node {
   connections: Node[] = [];
   disconnected = false;
-  gain = new Param(); frequency = new Param(); Q = new Param();
+  gain = new Param(); frequency = new Param(); Q = new Param(); playbackRate = new Param();
   threshold = new Param(); knee = new Param(); ratio = new Param(); attack = new Param(); release = new Param();
   ended?: () => void;
   connect(node: Node) { this.connections.push(node); return node; }
@@ -26,8 +26,9 @@ class Node {
 class Context {
   static latest: Context;
   currentTime = 1; sampleRate = 48000; state = 'running';
-  destination = new Node(); oscillators: Node[] = []; convolvers: Node[] = [];
+  destination = new Node(); oscillators: Node[] = []; convolvers: Node[] = []; sources: Node[] = [];
   constructor() { Context.latest = this; }
+  createBufferSource() { const node = new Node(); this.sources.push(node); return node; }
   createGain() { return new Node(); }
   createBiquadFilter() { return new Node(); }
   createDynamicsCompressor() { return new Node(); }
@@ -93,4 +94,27 @@ test('retired Meditation Pad scenes load with the supported Wood sound', () => {
     const legacy = { palette } as unknown as Parameters<typeof createPolyrhythmSoundSettings>[0];
     assert.equal(createPolyrhythmSoundSettings(legacy).palette, 'wood');
   }
+});
+
+
+test('new key instruments share the protected output and release their sampled voices', () => {
+  const ctx = new Context();
+  const destination = ctx.destination as unknown as AudioNode;
+  const target = { context: ctx as unknown as AudioContext, destination, outputToSpeakers: false };
+  for (const palette of ['chorus-keys', 'atmosphere-synth', 'muted-pluck', 'stereo-pluck'] as const) {
+    const options = { frequency: 188, gain: 0.13, sound: createPolyrhythmSoundSettings({ palette, reverbAmount: 0.5 }), layerIndex: 0, beatCount: 5, target };
+    const count = ctx.sources.length;
+    triggerPolyrhythmPulse({ ...options, gain: 0 });
+    assert.equal(ctx.sources.length, count);
+    triggerPolyrhythmPulse(options);
+    const source = ctx.sources.at(-1)!;
+    const envelope = source.connections[0];
+    const bus = getPolyrhythmOutputBus(target.context, destination);
+    assert.equal(envelope.connections[0], bus.input, 'new instruments use the same live/export limiter');
+    assert.ok(source.playbackRate.value > 0);
+    source.ended?.();
+    assert.ok(source.disconnected && envelope.disconnected && envelope.connections[1].disconnected);
+  }
+  assert.equal(ctx.oscillators.length, 0, 'cached stereo voices do not allocate unison oscillators for each hit');
+  assert.equal(ctx.convolvers.length, 1);
 });
