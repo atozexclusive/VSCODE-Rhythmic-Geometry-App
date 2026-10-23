@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import { RIFF_SCENE_CATALOG } from '../src/lib/sceneCatalog';
 import { RIFF_CATALOG_PRESETS, RIFF_CYCLE_PRESETS, cloneRiffCycleStudy } from '../src/lib/riffCycleStudy';
 
-test('main-site scenes appear once in Riff, with four Standard and six Pro entries', () => {
+test('main-site scenes appear once in Riff, with five Standard and six Pro entries', () => {
   assert.equal(RIFF_CATALOG_PRESETS.length, RIFF_SCENE_CATALOG.length);
-  assert.equal(RIFF_CATALOG_PRESETS.filter((scene) => !scene.pro).length, 4);
+  assert.equal(RIFF_CATALOG_PRESETS.filter((scene) => !scene.pro).length, 5);
   assert.equal(RIFF_CATALOG_PRESETS.filter((scene) => scene.pro).length, 6);
   assert.equal(new Set(RIFF_CYCLE_PRESETS.map((scene) => scene.id)).size, RIFF_CYCLE_PRESETS.length);
   for (const scene of RIFF_SCENE_CATALOG) {

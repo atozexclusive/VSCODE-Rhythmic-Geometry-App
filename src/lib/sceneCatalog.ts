@@ -14,6 +14,16 @@ export interface CatalogScene {
 
 export const RIFF_SCENE_CATALOG: CatalogScene[] = [
   {
+    id: 'in-death',
+    name: 'In Death',
+    description: 'A 21-step phrase in 4/4 with a sixteen-bar restart at 126 BPM.',
+    mode: 'riff',
+    image: '/scene-captures/riff-library/in-death.svg',
+    accent: '#FF7A7A',
+    tier: 'free',
+    downloadUrl: '/scenes/in-death.json',
+  },
+  {
     id: 'art-of-dying',
     name: 'Art of Dying',
     description: 'A 5-step phrase in 3/4 over a 16th-note grid.',

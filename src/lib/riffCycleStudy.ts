@@ -10,6 +10,7 @@ import catalogScene6 from '../../public/scenes/atropos.json' with { type: 'json'
 import catalogScene7 from '../../public/scenes/obzen.json' with { type: 'json' };
 import catalogScene8 from '../../public/scenes/invincible.json' with { type: 'json' };
 import catalogScene9 from '../../public/scenes/entertain-me.json' with { type: 'json' };
+import inDeathScene from '../../public/scenes/in-death.json' with { type: 'json' };
 
 const TAU = Math.PI * 2;
 export const RIFF_REFERENCE_TEMPO_MIN_BPM = 45;
@@ -3432,6 +3433,7 @@ export const RIFF_POLYRHYTHM_BREAKDOWNS: RiffCyclePreset[] = [
 export const RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS = RIFF_POLYRHYTHM_BREAKDOWNS.filter((preset) => !preset.pro);
 
 const RIFF_CATALOG_FILES = {
+  'in-death': inDeathScene,
   'art-of-dying': catalogScene0,
   'straws-pulled-at-random': catalogScene1,
   'pitch-black': catalogScene2,
