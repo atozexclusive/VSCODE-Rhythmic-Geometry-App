@@ -194,7 +194,7 @@ function normalizePolyrhythmSoundSettings(
         'ambient-bloom',
       ].includes(normalizedPalette)
         ? normalizedPalette
-        : 'study-pulse',
+        : 'soft-synth',
     pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
     rootNote: settings?.rootNote ?? 'C',
     scaleName: settings?.scaleName ?? 'majorPentatonic',
@@ -1198,7 +1198,7 @@ const THREE_FIVE_STUDY: PolyrhythmStudy = {
   showInactiveSteps: false,
   showStepLabels: false,
   soundSettings: createPolyrhythmSoundSettings({
-    palette: 'study-pulse',
+    palette: 'soft-synth',
     pitchMode: 'free',
     register: 'tight',
   }),

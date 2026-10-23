@@ -2,12 +2,19 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
-let masterGain: GainNode | null = null;
-let outputLimiter: DynamicsCompressorNode | null = null;
+let masterBus: StudyOutputBus | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 const activeVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
 
-const MASTER_GAIN_CEILING = 0.5;
+// One mix path for speakers and recording: raise the quiet voices before limiting.
+const STUDY_INPUT_GAIN = 4;
+const STUDY_OUTPUT_GAIN = 0.75;
+interface StudyOutputBus {
+  input: GainNode;
+  reverb: ConvolverNode;
+  output: GainNode;
+}
+const outputBuses = new WeakMap<AudioNode, StudyOutputBus>();
 
 interface VoiceOptions {
   type: OscillatorType;
@@ -22,15 +29,15 @@ interface VoiceOptions {
 }
 
 interface VoiceTarget {
-  context: AudioContext;
+  context: BaseAudioContext;
   destination?: AudioNode;
   outputToSpeakers: boolean;
   reverbAmount?: number;
 }
 
-const reverbImpulseCache = new WeakMap<AudioContext, AudioBuffer>();
+const reverbImpulseCache = new WeakMap<BaseAudioContext, AudioBuffer>();
 
-function getReverbImpulse(context: AudioContext): AudioBuffer {
+function getReverbImpulse(context: BaseAudioContext): AudioBuffer {
   const cached = reverbImpulseCache.get(context);
   if (cached) {
     return cached;
@@ -61,8 +68,7 @@ function getAudioContext(): AudioContext | null {
 
   if (audioContext?.state === 'closed') {
     audioContext = null;
-    masterGain = null;
-    outputLimiter = null;
+    masterBus = null;
     recordingDestination = null;
   }
 
@@ -77,26 +83,61 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function getMasterOutput(context: AudioContext): AudioNode {
-  if (!masterGain || !outputLimiter) {
-    masterGain = context.createGain();
-    masterGain.gain.value = MASTER_GAIN_CEILING;
+/** Reused by every note on an output; exports get the identical gain/limiter chain. */
+export function getPolyrhythmOutputBus(context: BaseAudioContext, destination: AudioNode): StudyOutputBus {
+  const cached = outputBuses.get(destination);
+  if (cached) return cached;
+  const input = context.createGain();
+  input.gain.value = STUDY_INPUT_GAIN;
+  const highpass = context.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = 28;
+  highpass.Q.value = 0.5;
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -8;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.12;
+  const output = context.createGain();
+  output.gain.value = STUDY_OUTPUT_GAIN;
+  const reverb = context.createConvolver();
+  reverb.buffer = getReverbImpulse(context);
+  reverb.connect(input);
+  input.connect(highpass);
+  highpass.connect(limiter);
+  limiter.connect(output);
+  output.connect(destination);
+  const bus = { input, reverb, output };
+  outputBuses.set(destination, bus);
+  return bus;
+}
 
-    outputLimiter = context.createDynamicsCompressor();
-    outputLimiter.threshold.value = -20;
-    outputLimiter.knee.value = 18;
-    outputLimiter.ratio.value = 14;
-    outputLimiter.attack.value = 0.003;
-    outputLimiter.release.value = 0.14;
+function getMasterOutput(context: AudioContext): StudyOutputBus {
+  if (!masterBus) {
+    masterBus = getPolyrhythmOutputBus(context, context.destination);
+    if (recordingDestination) masterBus.output.connect(recordingDestination);
+  }
+  return masterBus;
+}
 
-    masterGain.connect(outputLimiter);
-    outputLimiter.connect(context.destination);
-    if (recordingDestination) {
-      outputLimiter.connect(recordingDestination);
+/** A rounded attack and a zero-ending tail avoid waveform discontinuities. */
+export function createPolyrhythmEnvelope(peak: number, attack: number, duration: number): Float32Array {
+  const envelope = new Float32Array(1024);
+  const attackEnd = Math.min(duration * 0.4, Math.max(0.006, attack));
+  for (let index = 0; index < envelope.length; index += 1) {
+    const time = index / (envelope.length - 1) * duration;
+    if (time < attackEnd) {
+      envelope[index] = peak * (0.5 - 0.5 * Math.cos(Math.PI * time / attackEnd));
+    } else {
+      const decay = (time - attackEnd) / (duration - attackEnd);
+      const tailFade = decay > 0.85 ? 0.5 + 0.5 * Math.cos(Math.PI * (decay - 0.85) / 0.15) : 1;
+      envelope[index] = peak * Math.exp(-7 * decay) * tailFade;
     }
   }
-
-  return masterGain;
+  envelope[0] = 0;
+  envelope[envelope.length - 1] = 0;
+  return envelope;
 }
 
 function midiToFrequency(midi: number): number {
@@ -109,7 +150,14 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
     return;
   }
 
-  const now = options.atTime ?? context.currentTime;
+  if (!Number.isFinite(options.gain) || options.gain <= 0) return;
+  // Build the shared graph before choosing the start time so its first-use work
+  // cannot skip over a note's attack on slower devices.
+  const buses: StudyOutputBus[] = [];
+  if (target?.outputToSpeakers ?? true) buses.push(getMasterOutput(context as AudioContext));
+  if (target?.destination) buses.push(getPolyrhythmOutputBus(context, target.destination));
+  const earliestStart = context.currentTime + 0.006;
+  const now = Math.max(options.atTime ?? earliestStart, earliestStart);
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
   const filter = context.createBiquadFilter();
@@ -121,34 +169,23 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   filter.frequency.setValueAtTime(options.filterFrequency, now);
   filter.Q.setValueAtTime(options.filterQ ?? 0.7, now);
 
-  gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.exponentialRampToValueAtTime(options.gain, now + options.attack);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + options.release);
+  gainNode.gain.setValueCurveAtTime(
+    createPolyrhythmEnvelope(options.gain, options.attack, options.release), now, options.release,
+  );
 
   oscillator.connect(filter);
   filter.connect(gainNode);
-  const connectOutput = (node: AudioNode) => {
-    if (target?.outputToSpeakers ?? true) {
-      node.connect(getMasterOutput(context));
-    }
-    if (target?.destination) {
-      node.connect(target.destination);
-    }
-    if (recordingDestination && !(target?.outputToSpeakers ?? true)) {
-      node.connect(recordingDestination);
-    }
-  };
-  connectOutput(gainNode);
-
   const reverbAmount = clamp(target?.reverbAmount ?? 0, 0, 1);
-  if (reverbAmount > 0.001) {
-    const convolver = context.createConvolver();
-    const wetGain = context.createGain();
-    convolver.buffer = getReverbImpulse(context);
-    wetGain.gain.setValueAtTime(reverbAmount * 0.55, now);
-    gainNode.connect(convolver);
-    convolver.connect(wetGain);
-    connectOutput(wetGain);
+  const sends: GainNode[] = [];
+  for (const bus of buses) {
+    gainNode.connect(bus.input);
+    if (reverbAmount > 0.001) {
+      const send = context.createGain();
+      send.gain.value = reverbAmount * 0.35;
+      gainNode.connect(send);
+      send.connect(bus.reverb);
+      sends.push(send);
+    }
   }
 
   oscillator.start(now);
@@ -157,6 +194,10 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   activeVoices.add(activeVoice);
   oscillator.addEventListener('ended', () => {
     activeVoices.delete(activeVoice);
+    oscillator.disconnect();
+    filter.disconnect();
+    gainNode.disconnect();
+    sends.forEach((send) => send.disconnect());
   }, { once: true });
 }
 
@@ -171,7 +212,7 @@ export function silencePolyrhythmAudio(): void {
   activeVoices.forEach(({ oscillator, gain }) => {
     try {
       gain.gain.cancelAndHoldAtTime(now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+      gain.gain.linearRampToValueAtTime(0, now + 0.025);
       oscillator.stop(now + 0.03);
     } catch {
       // The voice may already have reached its scheduled stop time.
@@ -247,8 +288,8 @@ function triggerPalettePulse(
       type: 'sine',
       frequency,
       gain: clamp(gain * 0.92, 0.01, 0.2),
-      attack: 0.012,
-      release: 0.2,
+      attack: 0.02,
+      release: 0.28,
       filterFrequency: 1500,
       atTime,
     }, target);
@@ -396,9 +437,9 @@ function triggerPalettePulse(
     gain: clamp(gain * 0.82, 0.01, 0.2),
     attack: 0.003,
     release: 0.07,
-    filterFrequency: 2600,
-    filterType: 'highpass',
-    filterQ: 0.82,
+    filterFrequency: 2200,
+    filterType: 'lowpass',
+    filterQ: 0.5,
     atTime,
   }, target);
 }
@@ -410,16 +451,17 @@ function triggerAccentLayer(
   atTime?: number,
   target?: VoiceTarget,
 ): void {
+  const softPalette = palette === 'soft-synth';
   const brightPalette = palette === 'bright-marker';
   const woodPalette = palette === 'wood';
   withVoice({
-    type: woodPalette ? 'triangle' : brightPalette ? 'square' : 'triangle',
+    type: softPalette ? 'sine' : 'triangle',
     frequency: clamp(frequency * (woodPalette ? 1.72 : 2.35), 190, 3200),
-    gain: clamp(gain * (brightPalette ? 0.36 : 0.46), 0.01, 0.085),
-    attack: 0.002,
-    release: woodPalette ? 0.095 : 0.082,
+    gain: clamp(gain * (softPalette ? 0.22 : brightPalette ? 0.36 : 0.46), 0, 0.085),
+    attack: softPalette ? 0.022 : 0.008,
+    release: softPalette ? 0.24 : woodPalette ? 0.095 : 0.1,
     filterFrequency: brightPalette ? 4200 : 3100,
-    filterType: brightPalette ? 'highpass' : 'bandpass',
+    filterType: softPalette ? 'lowpass' : 'bandpass',
     filterQ: brightPalette ? 1.05 : 1.55,
     atTime,
   }, target);
@@ -440,9 +482,7 @@ export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
 
   if (!recordingDestination) {
     recordingDestination = context.createMediaStreamDestination();
-    if (outputLimiter) {
-      outputLimiter.connect(recordingDestination);
-    }
+    if (masterBus) masterBus.output.connect(recordingDestination);
   }
 
   if (context.state === 'suspended') {
@@ -467,7 +507,8 @@ export function triggerPolyrhythmPulse(options: {
     options.sound,
     options.layerIndex,
   );
-  const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
+  if (!Number.isFinite(options.gain) || options.gain <= 0) return;
+  const peakGain = Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82));
   const context = options.target?.context ?? getAudioContext();
   const voiceTarget = context
     ? {
