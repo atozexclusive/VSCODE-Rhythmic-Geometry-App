@@ -682,6 +682,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 durationSeconds,
                 CANVAS_EXPORT_PREROLL_SECONDS,
                 activeCountMode,
+                { geometryMode: geometryModeRef.current, interferenceSettings: interferenceSettingsRef.current },
               ),
             );
             const recorder = new MediaRecorder(stream, {
