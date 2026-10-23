@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createOrbit, DEFAULT_ORBITS } from '../src/lib/orbitalEngine';
-import { playResonanceBeep, updateOrbitAudioMix, createOrbitExportAudioStream, DEFAULT_HARMONY_SETTINGS, type OrbitSoundPalette } from '../src/lib/audioEngine';
+import { prepareOrbitInstrument, type OrbitDesignedInstrument } from '../src/lib/orbitInstruments';
+import { playResonanceBeep, updateOrbitAudioMix, createOrbitExportAudioStream, DEFAULT_HARMONY_SETTINGS, type OrbitSoundPalette, normalizeOrbitSoundPalette, resumeAudio, stopAllAudio, voiceToFrequency } from '../src/lib/audioEngine';
 
 class Param {
   value = 1;
@@ -30,9 +31,10 @@ class Context {
   createDynamicsCompressor() { return new Node(); }
   createOscillator() { const n = new Node(); this.oscillators.push(n); return n; }
   createConvolver() { const n = new Node(); this.convolvers.push(n); return n; }
-  createBuffer(_channels: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
+  createBuffer(_channels: number, length: number, sampleRate = this.sampleRate) { return { length, sampleRate, getChannelData: () => new Float32Array(length) }; }
   createMediaStreamDestination() { return new Node(); }
   resume() { return Promise.resolve(); }
+  close() { this.state = 'closed'; return Promise.resolve(); }
 }
 
 test('layer mix isolates levels, applies live updates, and respects mute in exports', () => {
@@ -96,7 +98,7 @@ test('high-ratio Sweep export schedules selected voices through the full clip in
     }
     const latest = Math.max(...ctx.oscillators.map((node) => node.startedAt));
     assert.ok(latest > 3.5 && latest <= 4.121, 'notes continue through the end of the export');
-    assert.equal(ctx.convolvers.length, 1);
+    assert.equal(ctx.convolvers.length, 0, 'zero reverb allocates no convolver');
   } finally {
     Context.current.state = 'closed';
     Object.assign(globalThis, { AudioContext: originalContext });
@@ -135,8 +137,10 @@ test('older scenes with retired sounds use sampled replacements in playback and 
   try {
     const orbit = createOrbit(DEFAULT_ORBITS[0]);
     for (const retired of ['warm-pad', 'pluck']) {
-      if (Context.current) Context.current.state = 'closed';
+      stopAllAudio();
       const harmony = { ...DEFAULT_HARMONY_SETTINGS, soundPalette: retired as OrbitSoundPalette };
+      resumeAudio();
+      prepareOrbitInstrument(Context.current as unknown as AudioContext, normalizeOrbitSoundPalette(retired) as OrbitDesignedInstrument, voiceToFrequency({ ...orbit, orbitIndex: 0 }, harmony), 1);
       playResonanceBeep({ ...orbit, orbitIndex: 0 }, harmony);
       const ctx = Context.current;
       assert.equal(ctx.sources.length, 2, 'live playback resolves the retired sound');

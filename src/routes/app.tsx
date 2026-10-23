@@ -51,6 +51,7 @@ import {
   stopAllAudio,
   toggleAudioMute,
   updateOrbitAudioMix,
+  warmOrbitAudio,
 } from '../lib/audioEngine';
 import {
   type Orbit,
@@ -13091,12 +13092,13 @@ function OrbitalPolymeter() {
 
   const handleTogglePlay = useCallback(() => {
     resumeAudio();
+    if (!engineState.playing) warmOrbitAudio(engineState.orbits, harmonySettings, engineState.speedMultiplier);
     engineState.playing = !engineState.playing;
     if (!engineState.playing) {
       engineState.lastTimestamp = -1;
     }
     rerender();
-  }, [engineState, rerender]);
+  }, [engineState, harmonySettings, rerender]);
 
   const handleToggleTrace = useCallback(() => {
     setTraceMode((t) => !t);
@@ -13219,7 +13221,8 @@ function OrbitalPolymeter() {
 
   useEffect(() => {
     updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0);
-  }, [engineState, harmonySettings.reverbAmount]);
+    warmOrbitAudio(engineState.orbits, harmonySettings, engineState.speedMultiplier);
+  }, [engineState, harmonySettings, engineState.speedMultiplier]);
 
   const handleReset = useCallback(() => {
     stopAllAudio();

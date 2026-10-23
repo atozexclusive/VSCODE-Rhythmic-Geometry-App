@@ -1,186 +1,200 @@
-import { getAstralDuration, isAstralInstrument, renderAstralInstrument } from './orbitAstralInstrument';
-
-// Independent Orbit voices: low-register, non-resonant unison with diffuse tails.
-// IDs remain stable so saved scenes keep their instrument selection.
-export const ORBIT_DESIGNED_INSTRUMENTS = [
-  ['orbit-keys', 'Nebula Keys'],
-  ['velvet-pluck', 'Velvet Drift'],
-  ['halo-synth', 'Aurora'],
-  ['round-bass', 'Deep Space'],
-  ['astral-veil', 'Astral Veil'],
-  ['lunar-silk', 'Lunar Silk'],
-  ['prism-tide', 'Prism Tide'],
-] as const;
-export type OrbitDesignedInstrument = typeof ORBIT_DESIGNED_INSTRUMENTS[number][0];
-export function isOrbitDesignedInstrument(value: string | undefined): value is OrbitDesignedInstrument {
-  return ORBIT_DESIGNED_INSTRUMENTS.some(([id]) => id === value);
-}
+import { isAstralInstrument } from './orbitAstralInstrument';
+import { renderOrbitInstrument, type OrbitDesignedInstrument } from './orbitInstrumentSamples';
+export { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, renderOrbitInstrument, getOrbitInstrumentDuration } from './orbitInstrumentSamples';
+export type { OrbitDesignedInstrument } from './orbitInstrumentSamples';
 
 const TAU = Math.PI * 2;
-const cache = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
-const ease = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, x)));
+// The voices are intentionally dark (their upper layer rolls off below 2 kHz).
+// 16 kHz samples retain that sound while avoiding full device-rate PCM storage.
+export const ORBIT_SAMPLE_RATE = 16000;
+export const ORBIT_SAMPLE_CACHE_BYTES = 6 * 1024 * 1024;
+export const ORBIT_MAX_VOICES = 20;
+const MAX_PENDING_SAMPLES = 8;
+type SamplePair = { buffer: AudioBuffer; quadratureBuffer: AudioBuffer; bytes: number; root: number; instrument: OrbitDesignedInstrument; band: number };
+type SampleCache = { samples: Map<string, SamplePair>; bytes: number };
+const caches = new WeakMap<BaseAudioContext, SampleCache>();
+type SampleRequest = { id: number; context: BaseAudioContext; key: string; instrument: OrbitDesignedInstrument; root: number; band: number; speed: number; sampleRate: number };
+const pending = new Map<number, SampleRequest>();
+let worker: Worker | null = null;
+let workerFailed = false;
+let nextRequest = 0;
+let idleWorkerTimer: ReturnType<typeof setTimeout> | undefined;
 
-const programs = {
-  'orbit-keys': { durations: [1.65, 0.85, 0.38], attack: 0.045, decay: 0.58, octave: 0.25, spread: 5, warmth: 1.5, space: 0.2 },
-  'velvet-pluck': { durations: [2.2, 1.1, 0.48], attack: 0.075, decay: 0.95, octave: 0.25, spread: 8, warmth: 1.9, space: 0.32 },
-  'halo-synth': { durations: [2.8, 1.4, 0.6], attack: 0.11, decay: 1.4, octave: 0.25, spread: 11, warmth: 2.4, space: 0.4 },
-  'round-bass': { durations: [1.8, 0.9, 0.42], attack: 0.055, decay: 0.8, octave: 0.125, spread: 3, warmth: 1.6, space: 0.15 },
-} as const;
-const spectra = {
-  'orbit-keys': [1, 0.24, 0.18, 0.045, 0.045, 0.02, 0.015, 0.006],
-  'velvet-pluck': [1, 0.42, 0.11, 0.14, 0.04, 0.04, 0.02, 0.01],
-  'halo-synth': [1, 0.38, 0.28, 0.18, 0.09, 0.055, 0.03, 0.02],
-  'round-bass': [1, 0.45, 0.12, 0.08, 0.03, 0.02, 0.01, 0.005],
-} as const;
-
-// Dense passages shorten the tail, while keeping a rounded onset and stable pitch.
-export function getOrbitInstrumentDuration(instrument: OrbitDesignedInstrument, speed: number): number {
-  if (isAstralInstrument(instrument)) return getAstralDuration(speed, instrument);
-  return programs[instrument].durations[speed >= 7 ? 2 : speed >= 3 ? 1 : 0];
+function cacheFor(context: BaseAudioContext): SampleCache {
+  let cache = caches.get(context);
+  if (!cache) { cache = { samples: new Map(), bytes: 0 }; caches.set(context, cache); }
+  return cache;
 }
-
-/** Dark additive unison: only harmonic partials, no FM strike, pitch sweep,
- * resonant filter spike, or shortened Study-patch attack. Independent slow
- * timbre movement and stereo diffusion follow the evolving-pad approach:
- * https://www.syntorial.com/tutorials/synth-quickie-evolving-pad/
- */
-export function renderOrbitInstrument(
-  instrument: OrbitDesignedInstrument, frequency: number, sampleRate: number, speed = 1, phaseOffset = 0,
-): [Float32Array, Float32Array] {
-  if (isAstralInstrument(instrument)) return renderAstralInstrument(frequency, sampleRate, speed, phaseOffset, instrument);
-  const program = programs[instrument];
-  const duration = getOrbitInstrumentDuration(instrument, speed);
-  const length = Math.ceil(duration * sampleRate);
-  const left = new Float32Array(length), right = new Float32Array(length);
-  const fundamental = frequency * program.octave;
-  const attack = Math.min(program.attack, duration * 0.16);
-  const decay = program.decay * duration / program.durations[0];
-  const envelope = new Float32Array(length), brightness = new Float32Array(length);
-  for (let i = 0; i < length; i++) {
-    const t = i / sampleRate;
-    envelope[i] = ease(t / attack) * Math.exp(-Math.max(0, t - attack) / decay)
-      * (1 - ease((t - duration * 0.55) / (duration * 0.45)));
-    // Slow spectral breathing instead of a bright percussive filter envelope.
-    brightness[i] = program.warmth + 0.3 * Math.sin(TAU * 0.23 * t + 0.4);
-  }
-  for (let harmonic = 1; harmonic <= 8; harmonic++) {
-    const weight = spectra[instrument][harmonic - 1];
-    const levels = new Float32Array(length);
-    for (let i = 0; i < length; i++) {
-      const hz = fundamental * harmonic;
-      // Absolute treble damping also keeps the highest color notes mellow.
-      const motion = harmonic === 1 ? 1 : 0.88 + 0.12 * Math.sin(TAU * 0.17 * i / sampleRate + harmonic * 0.7);
-      levels[i] = weight * motion * envelope[i] / Math.sqrt(1 + (harmonic / brightness[i]) ** 6)
-        / Math.sqrt(1 + (hz / 1050) ** 4);
-    }
-    for (let voice = 0; voice < 5; voice++) {
-      const detune = (voice - 2) * program.spread / 2;
-      const hz = fundamental * 2 ** (detune / 1200);
-      if (hz * harmonic >= sampleRate * 0.42) continue;
-      // Restrained width keeps a solid center and survives mono phone playback.
-      const pan = 0.2 + voice * 0.15;
-      const gainL = Math.cos(pan * Math.PI / 2) / 4.2;
-      const gainR = Math.sin(pan * Math.PI / 2) / 4.2;
-      const step = TAU * hz * harmonic / sampleRate;
-      const sinStep = Math.sin(step), cosStep = Math.cos(step);
-      const phase = voice * 0.41 * harmonic + phaseOffset;
-      let sin = Math.sin(phase), cos = Math.cos(phase);
-      for (let i = 0; i < length; i++) {
-        left[i] += sin * levels[i] * gainL;
-        right[i] += sin * levels[i] * gainR;
-        const nextSin = sin * cosStep + cos * sinStep;
-        cos = cos * cosStep - sin * sinStep;
-        sin = nextSin;
-      }
-    }
-  }
-  // Quiet, filtered cross-channel reflections create a diffuse space even when
-  // the user's global Reverb is zero. No feedback or extra live audio nodes.
-  const dryL = left.slice(), dryR = right.slice();
-  const taps = [0.043, 0.071, 0.113, 0.173, 0.251, 0.337];
-  const delayScale = Math.min(1, duration / 1.3);
-  const delays = taps.map((time, tap) => ({
-    left: Math.round(time * delayScale * sampleRate),
-    right: Math.round((time + 0.019) * delayScale * sampleRate),
-    level: program.space * (1 - tap / 8) / 3,
-  }));
-  let lowL = 0, lowR = 0;
-  let inputL = 0, inputR = 0, highL = 0, highR = 0;
-  const filter = 1 - Math.exp(-TAU * 850 / sampleRate);
-  const highPass = Math.exp(-TAU * 20 / sampleRate);
-  for (let i = 0; i < length; i++) {
-    let reflectionsL = 0, reflectionsR = 0;
-    for (const { left: delayL, right: delayR, level } of delays) {
-      const atL = i - delayL;
-      const atR = i - delayR;
-      if (atL >= 0) reflectionsL += dryR[atL] * level;
-      if (atR >= 0) reflectionsR += dryL[atR] * level;
-    }
-    lowL += filter * (reflectionsL - lowL);
-    lowR += filter * (reflectionsR - lowR);
-    const sumL = dryL[i] + lowL, sumR = dryR[i] + lowR;
-    highL = highPass * (highL + sumL - inputL);
-    highR = highPass * (highR + sumR - inputR);
-    inputL = sumL; inputR = sumR;
-    const fade = 1 - ease((i / sampleRate - duration * 0.82) / (duration * 0.18));
-    left[i] = highL * 0.75 * fade;
-    right[i] = highR * 0.75 * fade;
-  }
-  // Attenuate only: never boost a weak attack or noise into a hard transient.
-  let peak = 0;
-  for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(left[i]), Math.abs(right[i]));
-  const trim = Math.min(1, 0.68 / Math.max(peak, 1e-9));
-  for (let i = 0; i < length; i++) { left[i] *= trim; right[i] *= trim; }
-  left[0] = right[0] = left[length - 1] = right[length - 1] = 0;
-  return [left, right];
-}
-
-export function prepareOrbitInstrument(
-  context: BaseAudioContext, instrument: OrbitDesignedInstrument, frequency: number, speed: number,
-): { buffer: AudioBuffer; quadratureBuffer: AudioBuffer; playbackRate: number } {
-  let samples = cache.get(context);
-  if (!samples) { samples = new Map(); cache.set(context, samples); }
+function sampleDetails(context: BaseAudioContext, instrument: OrbitDesignedInstrument, frequency: number, speed: number) {
   const midi = Math.min(108, Math.max(24, Math.round((69 + 12 * Math.log2(frequency / 440)) / 3) * 3));
   const root = 440 * 2 ** ((midi - 69) / 12);
   const band = speed >= 7 ? 2 : speed >= 3 ? 1 : 0;
-  const key = `${instrument}:${midi}:${band}`;
-  const getBuffer = (quadrature: boolean) => {
-    const phaseKey = `${key}:${quadrature}`;
-    let buffer = samples!.get(phaseKey);
-    if (!buffer) {
-      const channels = renderOrbitInstrument(instrument, root, context.sampleRate, speed, quadrature ? Math.PI / 2 : 0);
-      buffer = context.createBuffer(2, channels[0].length, context.sampleRate);
-      buffer.getChannelData(0).set(channels[0]); buffer.getChannelData(1).set(channels[1]);
-      samples!.set(phaseKey, buffer);
-    }
-    return buffer;
-  };
-  return { buffer: getBuffer(false), quadratureBuffer: getBuffer(true), playbackRate: frequency / root };
+  return { root, band, key: `${instrument}:${midi}:${band}`, sampleRate: Math.min(context.sampleRate, ORBIT_SAMPLE_RATE) };
+}
+function getCached(cache: SampleCache, key: string): SamplePair | undefined {
+  const sample = cache.samples.get(key);
+  if (sample) { cache.samples.delete(key); cache.samples.set(key, sample); }
+  return sample;
+}
+function storeSample(request: Omit<SampleRequest, 'id' | 'speed'>, channels: Float32Array[]): SamplePair {
+  const { context, key, instrument, root, band, sampleRate } = request;
+  const buffer = context.createBuffer(2, channels[0].length, sampleRate);
+  const quadratureBuffer = context.createBuffer(2, channels[2].length, sampleRate);
+  buffer.getChannelData(0).set(channels[0]); buffer.getChannelData(1).set(channels[1]);
+  quadratureBuffer.getChannelData(0).set(channels[2]); quadratureBuffer.getChannelData(1).set(channels[3]);
+  const sample = { buffer, quadratureBuffer, bytes: channels.reduce((sum, data) => sum + data.byteLength, 0), root, instrument, band };
+  const cache = cacheFor(context);
+  const previous = cache.samples.get(key);
+  if (previous) { cache.bytes -= previous.bytes; cache.samples.delete(key); }
+  while (cache.samples.size && cache.bytes + sample.bytes > ORBIT_SAMPLE_CACHE_BYTES) {
+    const oldestKey = cache.samples.keys().next().value!;
+    cache.bytes -= cache.samples.get(oldestKey)!.bytes;
+    cache.samples.delete(oldestKey);
+  }
+  cache.samples.set(key, sample); cache.bytes += sample.bytes;
+  return sample;
+}
+function getWorker(): Worker | null {
+  clearTimeout(idleWorkerTimer);
+  if (worker || workerFailed || typeof Worker === 'undefined') return worker;
+  try {
+    worker = new Worker(new URL('./orbitInstrumentWorker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (event: MessageEvent<{ id: number; channels?: Float32Array[] }>) => {
+      const request = pending.get(event.data.id);
+      if (!request) return;
+      pending.delete(request.id);
+      if (event.data.channels && request.context.state !== 'closed') storeSample(request, event.data.channels);
+      if (!pending.size) idleWorkerTimer = setTimeout(() => { worker?.terminate(); worker = null; }, 2000);
+    };
+    worker.onerror = () => { clearTimeout(idleWorkerTimer); worker?.terminate(); worker = null; workerFailed = true; pending.clear(); };
+  } catch { workerFailed = true; worker = null; }
+  return worker;
+}
+
+/** Background-only preparation for live notes. Never performs synthesis here. */
+export function requestOrbitInstrument(context: BaseAudioContext, instrument: OrbitDesignedInstrument, frequency: number, speed: number): void {
+  const details = sampleDetails(context, instrument, frequency, speed);
+  if (cacheFor(context).samples.has(details.key)) return;
+  if (pending.size >= MAX_PENDING_SAMPLES) return;
+  for (const job of pending.values()) if (job.context === context && job.key === details.key) return;
+  const renderer = getWorker();
+  if (!renderer) return;
+  const request = { ...details, context, instrument, speed, id: ++nextRequest };
+  pending.set(request.id, request);
+  renderer.postMessage({ id: request.id, instrument, frequency: details.root, sampleRate: details.sampleRate, speed });
+}
+
+/** Export preparation runs before its start clock; live notes never call it. */
+export function prepareOrbitInstrument(context: BaseAudioContext, instrument: OrbitDesignedInstrument, frequency: number, speed: number) {
+  const details = sampleDetails(context, instrument, frequency, speed);
+  let sample = getCached(cacheFor(context), details.key);
+  if (!sample) {
+    const first = renderOrbitInstrument(instrument, details.root, details.sampleRate, speed);
+    const second = renderOrbitInstrument(instrument, details.root, details.sampleRate, speed, Math.PI / 2);
+    sample = storeSample({ ...details, context, instrument }, [...first, ...second]);
+  }
+  return { buffer: sample.buffer, quadratureBuffer: sample.quadratureBuffer, playbackRate: frequency / sample.root };
+}
+
+export function releaseOrbitInstrumentContext(context: BaseAudioContext): void {
+  caches.delete(context);
+  voices.delete(context);
+  for (const [id, job] of pending) if (job.context === context) pending.delete(id);
+  if (!pending.size) { clearTimeout(idleWorkerTimer); worker?.terminate(); worker = null; workerFailed = false; }
+}
+
+type ActiveVoice = { end: number; release: () => void };
+const voices = new WeakMap<BaseAudioContext, ActiveVoice[]>();
+function registerVoice(context: BaseAudioContext, voice: ActiveVoice): () => void {
+  const active = voices.get(context) ?? [];
+  for (let i = active.length - 1; i >= 0; i--) if (active[i].end <= context.currentTime) active.splice(i, 1);
+  while (active.length >= ORBIT_MAX_VOICES) active.shift()!.release();
+  active.push(voice); voices.set(context, active);
+  return () => { const index = active.indexOf(voice); if (index >= 0) active.splice(index, 1); };
+}
+
+// An uncached first impact must sound on time, never wait for the worker and
+// replay late. A small rounded core covers it; subsequent hits use the full PCM.
+function scheduleImmediateCore(context: AudioContext, destination: AudioNode, instrument: OrbitDesignedInstrument, frequency: number, volume: number, at: number, speed: number): void {
+  const fundamental = frequency * (isAstralInstrument(instrument) ? 0.5 : instrument === 'round-bass' ? 0.125 : 0.25);
+  const duration = speed >= 7 ? 0.2 : 0.6;
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(volume * 1.3, at + 0.035);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+  gain.gain.linearRampToValueAtTime(0, at + duration + 0.015);
+  gain.connect(destination);
+  const oscillators = [-3, 3].map(detune => {
+    const oscillator = context.createOscillator();
+    oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(fundamental, at); oscillator.detune.value = detune;
+    oscillator.connect(gain); return oscillator;
+  });
+  let ended = 0;
+  const remove = registerVoice(context, { end: at + duration + 0.02, release: () => {
+    gain.gain.setTargetAtTime(0, context.currentTime, 0.003);
+    oscillators.forEach(source => source.stop(context.currentTime + 0.015));
+  } });
+  oscillators.forEach(source => {
+    source.onended = () => { source.disconnect(); if (++ended === 2) { gain.disconnect(); remove(); } };
+    source.start(at); source.stop(at + duration + 0.02);
+  });
 }
 
 export function scheduleDesignedOrbitInstrument(
   context: AudioContext, destination: AudioNode, instrument: OrbitDesignedInstrument,
-  frequency: number, volume: number, atTime: number, speed: number, variation = 0,
+  frequency: number, volume: number, atTime: number, speed: number, variation = 0, realtime = false,
 ): void {
   if (!Number.isFinite(volume) || volume <= 0) return;
-  const sample = prepareOrbitInstrument(context, instrument, frequency, speed);
+  let sample: ReturnType<typeof prepareOrbitInstrument> | undefined;
+  if (realtime) {
+    const details = sampleDetails(context, instrument, frequency, speed);
+    const cache = cacheFor(context);
+    const ready = getCached(cache, details.key);
+    if (ready) sample = { ...ready, playbackRate: frequency / ready.root };
+    else {
+      requestOrbitInstrument(context, instrument, frequency, speed);
+      // A nearby prepared note keeps the same character while a new pitch or
+      // speed band is prepared. Playback rate still preserves exact tuning.
+      let nearby: SamplePair | undefined, closest = Infinity;
+      for (const candidate of cache.samples.values()) {
+        if (candidate.instrument !== instrument) continue;
+        const distance = Math.abs(Math.log2(candidate.root / frequency)) + (candidate.band === details.band ? 0 : 2);
+        if (distance < closest) { nearby = candidate; closest = distance; }
+      }
+      if (nearby) sample = { ...nearby, playbackRate: frequency / nearby.root };
+    }
+  } else sample = prepareOrbitInstrument(context, instrument, frequency, speed);
+  const at = Math.max(atTime, context.currentTime + 0.008);
+  if (!sample) { scheduleImmediateCore(context, destination, instrument, frequency, volume, at, speed); return; }
   const level = instrument === 'round-bass' ? 3 : instrument === 'halo-synth' ? 2.4 : 2.6;
-  // Recover some body lost to shorter envelopes. The caller's trigger-density
-  // attenuation and the final limiter still protect crowded patterns.
   const densityMakeup = Math.min(3, Math.sqrt(Math.max(1, (Number.isFinite(speed) ? speed : 1) / 3)));
-  // Deterministic phase variation avoids both the repeated-sample character
-  // and destructive cancellation when hundreds of soft onsets overlap.
   let hash = Math.imul((variation | 0) + 1, 0x45d9f3b);
   hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
   const phase = ((hash ^ (hash >>> 16)) >>> 0) / 0x100000000 * TAU;
-  const at = Math.max(atTime, context.currentTime + 0.008);
+  const sources: AudioBufferSourceNode[] = [], gains: GainNode[] = [];
+  const end = at + sample.buffer.length / sample.buffer.sampleRate / sample.playbackRate;
+  // Exports schedule a future window in advance. Counting those future notes
+  // as live overlap would stop them before their start time.
+  const remove = realtime ? registerVoice(context, { end, release: () => {
+    gains.forEach(gain => gain.gain.setTargetAtTime(0, context.currentTime, 0.003));
+    sources.forEach(source => source.stop(context.currentTime + 0.015));
+  } }) : () => {};
+  let ended = 0;
   for (const [buffer, weight] of [[sample.buffer, Math.cos(phase)], [sample.quadratureBuffer, Math.sin(phase)]] as const) {
     const source = context.createBufferSource();
     const gain = context.createGain();
+    sources.push(source); gains.push(gain);
     source.buffer = buffer; source.playbackRate.value = sample.playbackRate;
     gain.gain.value = volume * level * densityMakeup * weight;
     source.connect(gain); gain.connect(destination);
-    source.onended = () => { source.disconnect(); gain.disconnect(); };
+    source.onended = () => { source.disconnect(); gain.disconnect(); if (++ended === 2) remove(); };
     source.start(at);
   }
+}
+
+export function getOrbitInstrumentResources(context: BaseAudioContext) {
+  const cache = cacheFor(context);
+  return { cacheBytes: cache.bytes, cachedNotes: cache.samples.size,
+    pendingNotes: [...pending.values()].filter(job => job.context === context).length,
+    activeVoices: (voices.get(context) ?? []).filter(voice => voice.end > context.currentTime).length };
 }

@@ -41,7 +41,7 @@ test('Orbit instruments reuse multisamples, keep precise tuning, and clean up vo
   const node = () => { const n = { gain: { value: 0 }, playbackRate: { value: 1 }, connections: [] as any[], disconnected: false,
     connect(other: any) { this.connections.push(other); }, disconnect() { this.disconnected = true; } }; nodes.push(n); return n; };
   const context = { sampleRate: 16000, currentTime: 2,
-    createBuffer(channels: number, length: number) { allocations++; const data = Array.from({ length: channels }, () => new Float32Array(length)); return { getChannelData: (c: number) => data[c] }; },
+    createBuffer(channels: number, length: number) { allocations++; const data = Array.from({ length: channels }, () => new Float32Array(length)); return { length, sampleRate: 16000, getChannelData: (c: number) => data[c] }; },
     createGain: node,
     createBufferSource() { const n = Object.assign(node(), { buffer: null, startedAt: -1, onended: null as (() => void) | null, start(at: number) { this.startedAt = at; } }); sources.push(n); return n; },
   } as unknown as AudioContext;

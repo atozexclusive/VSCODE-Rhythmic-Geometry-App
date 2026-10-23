@@ -1,4 +1,4 @@
-import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, prepareOrbitInstrument, scheduleDesignedOrbitInstrument } from './orbitInstruments';
+import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, prepareOrbitInstrument, requestOrbitInstrument, releaseOrbitInstrumentContext, scheduleDesignedOrbitInstrument } from './orbitInstruments';
 // ============================================================
 // Orbital Polymeter — Audio Engine
 // Every rotation triggers audio. At high speeds, transitions
@@ -288,12 +288,18 @@ function shouldDropDenseTrigger(triggerRate: number, voiceKey: number): boolean 
  */
 // Each destination owns its mixer graph, so export effects stay isolated from live audio.
 const orbitMixGraphs = new WeakMap<AudioNode, {
-  reverb: ConvolverNode;
+  reverb: ConvolverNode | null;
   layers: Map<number, { input: GainNode; send: GainNode }>;
 }>();
 function getOrbitVoiceOutput(ctx: AudioContext, destination: AudioNode, voice: ResonanceVoice): GainNode {
   let graph = orbitMixGraphs.get(destination);
   if (!graph) {
+    graph = { reverb: null, layers: new Map() };
+    orbitMixGraphs.set(destination, graph);
+  }
+  const volume = Number.isFinite(voice.volume) ? Math.max(0, Math.min(1, voice.volume!)) : 1;
+  const reverbAmount = Number.isFinite(voice.reverbAmount) ? Math.max(0, Math.min(1, voice.reverbAmount!)) : 0;
+  if (reverbAmount > 0 && !graph.reverb) {
     const reverb = ctx.createConvolver();
     const length = Math.floor(ctx.sampleRate * 1.6);
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
@@ -303,25 +309,23 @@ function getOrbitVoiceOutput(ctx: AudioContext, destination: AudioNode, voice: R
     }
     reverb.buffer = impulse;
     reverb.connect(destination);
-    graph = { reverb, layers: new Map() };
-    orbitMixGraphs.set(destination, graph);
+    graph.reverb = reverb;
+    graph.layers.forEach(layer => layer.send.connect(reverb));
   }
-  const volume = Number.isFinite(voice.volume) ? Math.max(0, Math.min(1, voice.volume!)) : 1;
-  const reverb = Number.isFinite(voice.reverbAmount) ? Math.max(0, Math.min(1, voice.reverbAmount!)) : 0;
   let layer = graph.layers.get(voice.orbitIndex);
   if (!layer) {
     const input = ctx.createGain();
     const send = ctx.createGain();
     input.gain.value = voice.soundEnabled === false ? 0 : volume;
-    send.gain.value = reverb * 0.65;
+    send.gain.value = reverbAmount * 0.65;
     input.connect(destination);
     input.connect(send);
-    send.connect(graph.reverb);
+    if (graph.reverb) send.connect(graph.reverb);
     layer = { input, send };
     graph.layers.set(voice.orbitIndex, layer);
   }
   layer.input.gain.setTargetAtTime(voice.soundEnabled === false ? 0 : volume, ctx.currentTime, 0.01);
-  layer.send.gain.setTargetAtTime(reverb * 0.65, ctx.currentTime, 0.01);
+  layer.send.gain.setTargetAtTime(reverbAmount * 0.65, ctx.currentTime, 0.01);
   return layer.input;
 }
 
@@ -330,12 +334,22 @@ export function updateOrbitAudioMix(orbits: EngineState['orbits'], reverbAmount 
   orbits.forEach((orbit, orbitIndex) => getOrbitVoiceOutput(audioCtx!, masterGain!, { ...orbit, orbitIndex, reverbAmount }));
 }
 
+export function warmOrbitAudio(orbits: EngineState['orbits'], harmony: HarmonySettings, speed = 1): void {
+  const palette = normalizeOrbitSoundPalette(harmony.soundPalette);
+  if (!isOrbitDesignedInstrument(palette)) return;
+  const context = getAudioContext();
+  orbits.forEach((orbit, orbitIndex) => {
+    if (orbit.soundEnabled === false || orbit.volume === 0) return;
+    requestOrbitInstrument(context, palette, voiceToFrequency({ ...orbit, orbitIndex, hitIndex: 0 }, harmony), speed);
+  });
+}
+
 function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, frequency: number,
-  palette: OrbitSoundPalette | undefined, volume: number, atTime: number, speed: number, variation = 0): boolean {
+  palette: OrbitSoundPalette | undefined, volume: number, atTime: number, speed: number, variation = 0, realtime = false): boolean {
   palette = normalizeOrbitSoundPalette(palette);
   if (!palette || palette === 'standard') return false;
   if (isOrbitDesignedInstrument(palette)) {
-    scheduleDesignedOrbitInstrument(ctx, destination, palette, frequency, volume, atTime, speed, variation);
+    scheduleDesignedOrbitInstrument(ctx, destination, palette, frequency, volume, atTime, speed, variation, realtime);
     return true;
   }
   const presets: Record<Exclude<OrbitSoundPalette, 'standard' | typeof ORBIT_DESIGNED_INSTRUMENTS[number][0]>, { attack: number; duration: number; partials: Array<[OscillatorType, number, number, number]> }> = {
@@ -391,7 +405,7 @@ export function playResonanceBeep(
     }
     const safetyGain = getTriggerRateGain(triggerRate);
     const safeVolume = Math.min(volume, 0.12) * safetyGain;
-    if (scheduleOrbitInstrument(ctx, master, freq, harmony.soundPalette, safeVolume, now, Math.max(speedMultiplier, triggerRate / 12), (voice.hitIndex ?? 0) + voice.orbitIndex * 4099)) return;
+    if (scheduleOrbitInstrument(ctx, master, freq, harmony.soundPalette, safeVolume, now, Math.max(speedMultiplier, triggerRate / 12), (voice.hitIndex ?? 0) + voice.orbitIndex * 4099, true)) return;
 
     // Very fast: sustained chord tone
     if (speedMultiplier > 6.0 || triggerRate >= VERY_DENSE_TRIGGER_RATE) {
@@ -655,6 +669,7 @@ export function getAudioMuted(): boolean {
  */
 export function stopAllAudio(): void {
   if (audioCtx) {
+    releaseOrbitInstrumentContext(audioCtx);
     audioCtx.close().catch(() => {});
     audioCtx = null;
     masterGain = null;
