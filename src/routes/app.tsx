@@ -42,6 +42,7 @@ import {
   NOTE_NAMES,
   SCALE_PRESETS,
   getFriendlyScaleLabel,
+  normalizeOrbitSoundPalette,
   type HarmonySettings,
   type RootNote,
   type ScaleName,
@@ -7782,7 +7783,7 @@ function applySceneSnapshot(
   engineState.orbits = snapshot.orbits.map((orbit) => createOrbit(orbit));
   resetEngine(engineState);
   setTraceMode(snapshot.traceMode);
-  setHarmonySettings(snapshot.harmonySettings);
+  setHarmonySettings({ ...snapshot.harmonySettings, soundPalette: normalizeOrbitSoundPalette(snapshot.harmonySettings.soundPalette) });
   setGeometryMode(snapshot.geometryMode);
   setStandardTimingMode(normalizeOrbitCountMode(snapshot.standardTimingMode));
   setInterferenceSettings(

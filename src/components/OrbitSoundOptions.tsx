@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NOTE_NAMES, SCALE_PRESETS, ORBIT_SOUND_PALETTES, getFriendlyScaleLabel, type HarmonySettings, type OrbitSoundPalette, type RootNote, type ScaleName } from '../lib/audioEngine';
+import { NOTE_NAMES, SCALE_PRESETS, ORBIT_SOUND_PALETTES, getFriendlyScaleLabel, normalizeOrbitSoundPalette, type HarmonySettings, type OrbitSoundPalette, type RootNote, type ScaleName } from '../lib/audioEngine';
 import type { Orbit } from '../lib/orbitalEngine';
 import { StudyShellButton } from './StudyInstrumentShell';
 import InfoTip from './InfoTip';
@@ -43,7 +43,7 @@ export default function OrbitSoundOptions({ settings, onChange, orbits, muted, o
         <StudyShellButton size="compact" tone="green" highlighted={!keyed} onClick={() => onChange({ tonePreset: 'original' })}>Original</StudyShellButton>
         <StudyShellButton size="compact" tone="green" highlighted={keyed} onClick={() => onChange({ tonePreset: 'scale-quantized' })}>In Key</StudyShellButton>
       </div>
-      <select aria-label="Orbit sound palette" className={selectClass} value={settings.soundPalette ?? 'standard'} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette })}>
+      <select aria-label="Orbit sound palette" className={selectClass} value={normalizeOrbitSoundPalette(settings.soundPalette)} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette })}>
         {ORBIT_SOUND_PALETTES.map(([value, label]) => <option key={value} value={value} style={{ background: '#181820' }}>{label}</option>)}
       </select>
       <div className="grid grid-cols-2 gap-2">

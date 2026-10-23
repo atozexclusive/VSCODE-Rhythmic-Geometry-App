@@ -1,3 +1,4 @@
+import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, prepareOrbitInstrument, scheduleDesignedOrbitInstrument } from './orbitInstruments';
 // ============================================================
 // Orbital Polymeter — Audio Engine
 // Every rotation triggers audio. At high speeds, transitions
@@ -55,10 +56,16 @@ export type ScaleName = keyof typeof SCALE_PRESETS;
 export type HarmonyMappingMode = 'orbit-index' | 'pulse-count' | 'radius' | 'color-hue';
 export type TonePreset = 'original' | 'scale-quantized';
 export const ORBIT_SOUND_PALETTES = [
-  ['standard', 'Standard'], ['soft-pad', 'Soft Pad'], ['warm-pad', 'Warm Pad'],
-  ['bell', 'Bell'], ['pluck', 'Pluck'], ['organ', 'Organ'], ['bass', 'Soft Bass'],
+  ['standard', 'Standard'], ['soft-pad', 'Soft Pad'],
+  ['bell', 'Bell'], ['organ', 'Organ'], ['bass', 'Soft Bass'],
+  ...ORBIT_DESIGNED_INSTRUMENTS,
 ] as const;
 export type OrbitSoundPalette = typeof ORBIT_SOUND_PALETTES[number][0];
+export function normalizeOrbitSoundPalette(value: unknown): OrbitSoundPalette {
+  if (value === 'warm-pad') return 'lunar-silk';
+  if (value === 'pluck') return 'prism-tide';
+  return ORBIT_SOUND_PALETTES.some(([id]) => id === value) ? value as OrbitSoundPalette : 'standard';
+}
 export type OrbitNoteMotion = 'fixed' | 'ascending' | 'descending' | 'up-down' | 'arpeggio';
 
 export function getFriendlyScaleLabel(
@@ -324,13 +331,16 @@ export function updateOrbitAudioMix(orbits: EngineState['orbits'], reverbAmount 
 }
 
 function scheduleOrbitInstrument(ctx: AudioContext, destination: AudioNode, frequency: number,
-  palette: OrbitSoundPalette | undefined, volume: number, atTime: number, speed: number): boolean {
+  palette: OrbitSoundPalette | undefined, volume: number, atTime: number, speed: number, variation = 0): boolean {
+  palette = normalizeOrbitSoundPalette(palette);
   if (!palette || palette === 'standard') return false;
-  const presets: Record<Exclude<OrbitSoundPalette, 'standard'>, { attack: number; duration: number; partials: Array<[OscillatorType, number, number, number]> }> = {
+  if (isOrbitDesignedInstrument(palette)) {
+    scheduleDesignedOrbitInstrument(ctx, destination, palette, frequency, volume, atTime, speed, variation);
+    return true;
+  }
+  const presets: Record<Exclude<OrbitSoundPalette, 'standard' | typeof ORBIT_DESIGNED_INSTRUMENTS[number][0]>, { attack: number; duration: number; partials: Array<[OscillatorType, number, number, number]> }> = {
     'soft-pad': { attack: 0.09, duration: 1.1, partials: [['sine', 1, 0.6, -4], ['triangle', 1, 0.4, 4]] },
-    'warm-pad': { attack: 0.06, duration: 0.9, partials: [['triangle', 1, 0.65, -3], ['sine', 0.5, 0.35, 3]] },
     bell: { attack: 0.003, duration: 0.9, partials: [['sine', 1, 0.75, 0], ['sine', 2.76, 0.25, 0]] },
-    pluck: { attack: 0.003, duration: 0.22, partials: [['triangle', 1, 0.8, 0], ['sine', 2, 0.2, 0]] },
     organ: { attack: 0.015, duration: 0.45, partials: [['sine', 1, 0.6, 0], ['sine', 2, 0.25, 0], ['sine', 4, 0.15, 0]] },
     bass: { attack: 0.008, duration: 0.3, partials: [['sine', 0.5, 0.7, 0], ['triangle', 1, 0.3, 0]] },
   };
@@ -381,7 +391,7 @@ export function playResonanceBeep(
     }
     const safetyGain = getTriggerRateGain(triggerRate);
     const safeVolume = Math.min(volume, 0.12) * safetyGain;
-    if (scheduleOrbitInstrument(ctx, master, freq, harmony.soundPalette, safeVolume, now, Math.max(speedMultiplier, triggerRate / 12))) return;
+    if (scheduleOrbitInstrument(ctx, master, freq, harmony.soundPalette, safeVolume, now, Math.max(speedMultiplier, triggerRate / 12), (voice.hitIndex ?? 0) + voice.orbitIndex * 4099)) return;
 
     // Very fast: sustained chord tone
     if (speedMultiplier > 6.0 || triggerRate >= VERY_DENSE_TRIGGER_RATE) {
@@ -496,7 +506,7 @@ function scheduleResonanceBeep(
   if (voice.soundEnabled === false || voice.volume === 0) return;
   const freq = voiceToFrequency(voice, harmony);
   const safeVolume = Math.min(volume, 0.12);
-  if (scheduleOrbitInstrument(ctx, output, freq, harmony.soundPalette, safeVolume, atTime, speedMultiplier)) return;
+  if (scheduleOrbitInstrument(ctx, output, freq, harmony.soundPalette, safeVolume, atTime, speedMultiplier, (voice.hitIndex ?? 0) + voice.orbitIndex * 4099)) return;
 
   if (speedMultiplier > 6.0) {
     const osc = ctx.createOscillator();
@@ -571,13 +581,31 @@ export function createOrbitExportAudioStream(
   if (typeof ctx.createMediaStreamDestination !== 'function') return null;
   if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   const destination = ctx.createMediaStreamDestination();
-  const target = { context: ctx, destination };
+  const soundPalette = normalizeOrbitSoundPalette(harmony.soundPalette);
+  // New programs use the same gain and limiter for speakers and exports.
+  // Leave the existing programs' export path intact.
+  let exportOutput: AudioNode = destination;
+  if (isOrbitDesignedInstrument(soundPalette)) {
+    const gain = ctx.createGain();
+    gain.gain.value = MASTER_GAIN_CEILING;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -20; limiter.knee.value = 24; limiter.ratio.value = 12;
+    limiter.attack.value = 0.001; limiter.release.value = 0.08;
+    gain.connect(limiter); limiter.connect(destination);
+    exportOutput = gain;
+  }
+  const target = { context: ctx, destination: exportOutput };
   const plans = getOrbitAudioExportPlan(state, countMode, options);
   // Warm the shared mixer before setting the start clock.
-  plans.forEach(({ orbit, orbitIndex }) => getOrbitVoiceOutput(ctx, destination, { ...orbit, orbitIndex, reverbAmount: harmony.reverbAmount ?? 0 }));
+  plans.forEach(({ orbit, orbitIndex }) => getOrbitVoiceOutput(ctx, exportOutput, { ...orbit, orbitIndex, reverbAmount: harmony.reverbAmount ?? 0 }));
+  const totalRate = plans.reduce((sum, plan) => sum + 1 / plan.secondsPerHit, 0);
+  const instrumentSpeed = isOrbitDesignedInstrument(soundPalette) ? Math.max(state.speedMultiplier, totalRate / 12) : state.speedMultiplier;
+  if (isOrbitDesignedInstrument(soundPalette)) {
+    const palette = soundPalette;
+    plans.forEach(({ orbit, orbitIndex }) => prepareOrbitInstrument(ctx, palette, voiceToFrequency({ ...orbit, orbitIndex, hitIndex: 0 }, harmony), instrumentSpeed));
+  }
   const startTime = ctx.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
-  const totalRate = plans.reduce((sum, plan) => sum + 1 / plan.secondsPerHit, 0);
   // Match live audio's density ceiling without losing an entire orbit's voice.
   const minGap = totalRate >= EXTREME_TRIGGER_RATE ? 0.024
     : totalRate >= VERY_DENSE_TRIGGER_RATE ? 0.014 : totalRate >= DENSE_TRIGGER_RATE ? 0.007 : 0;
@@ -594,7 +622,7 @@ export function createOrbitExportAudioStream(
             orbitIndex, hitIndex, pulseCount: orbit.pulseCount, radius: orbit.radius, color: orbit.color,
             harmonyDegree: orbit.harmonyDegree, harmonyRegister: orbit.harmonyRegister,
             volume: orbit.volume, reverbAmount: orbit.reverbAmount, soundEnabled: orbit.soundEnabled,
-          }, harmony, 0.12 * getTriggerRateGain(totalRate), state.speedMultiplier, atTime, target);
+          }, harmony, 0.12 * getTriggerRateGain(totalRate), instrumentSpeed, atTime, target);
         }
         cursor.nextHit += cursor.stride;
       }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createOrbit, DEFAULT_ORBITS } from '../src/lib/orbitalEngine';
-import { playResonanceBeep, updateOrbitAudioMix, createOrbitExportAudioStream, DEFAULT_HARMONY_SETTINGS } from '../src/lib/audioEngine';
+import { playResonanceBeep, updateOrbitAudioMix, createOrbitExportAudioStream, DEFAULT_HARMONY_SETTINGS, type OrbitSoundPalette } from '../src/lib/audioEngine';
 
 class Param {
   value = 1;
@@ -12,7 +12,8 @@ class Param {
 }
 class Node {
   connections: Node[] = [];
-  gain = new Param(); frequency = new Param(); detune = new Param();
+  gain = new Param(); frequency = new Param(); detune = new Param(); playbackRate = new Param();
+  onended?: () => void;
   threshold = new Param(); knee = new Param(); ratio = new Param(); attack = new Param(); release = new Param();
   stream = {}; buffer: unknown; type = '';
   connect(n: Node) { this.connections.push(n); return n; }
@@ -22,8 +23,9 @@ class Node {
 class Context {
   static current: Context;
   state = 'running'; currentTime = 0; sampleRate = 1000;
-  destination = new Node(); oscillators: Node[] = []; convolvers: Node[] = [];
+  destination = new Node(); oscillators: Node[] = []; convolvers: Node[] = []; sources: Node[] = [];
   constructor() { Context.current = this; }
+  createBufferSource() { const n = new Node(); this.sources.push(n); return n; }
   createGain() { return new Node(); }
   createDynamicsCompressor() { return new Node(); }
   createOscillator() { const n = new Node(); this.oscillators.push(n); return n; }
@@ -99,4 +101,51 @@ test('high-ratio Sweep export schedules selected voices through the full clip in
     Context.current.state = 'closed';
     Object.assign(globalThis, { AudioContext: originalContext });
   }
+});
+
+
+test('new Orbit instruments keep export voices active in every drawing mode with protected output', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const originalContext = globalThis.AudioContext;
+  Object.assign(globalThis, { AudioContext: Context });
+  try {
+    const orbits = [97, 101].map((pulseCount, index) => ({ ...createOrbit({ ...DEFAULT_ORBITS[index], pulseCount }), id: `new-${index}` }));
+    for (const soundPalette of ['orbit-keys', 'velvet-pluck', 'halo-synth', 'round-bass', 'astral-veil', 'lunar-silk', 'prism-tide'] as const) {
+      for (const geometryMode of ['standard-trace', 'interference-trace', 'sweep'] as const) {
+        if (Context.current) Context.current.state = 'closed';
+        createOrbitExportAudioStream({ orbits, playing: false, speedMultiplier: 50, elapsedBeats: 0, lastTimestamp: -1, baseBPM: 120 },
+          { ...DEFAULT_HARMONY_SETTINGS, soundPalette }, 4, 0, undefined, { geometryMode, interferenceSettings: { sourceOrbitAId: 'new-0', sourceOrbitBId: 'new-1' } });
+        const ctx = Context.current;
+        assert.ok(ctx.sources.length >= 2, `${soundPalette} is scheduled in ${geometryMode}`);
+        const layer = ctx.sources[0].connections[0].connections[0];
+        const master = layer.connections[0];
+        assert.equal(master.gain.value, 0.5, 'export uses live master headroom');
+        assert.equal(master.connections[0].threshold.value, -20, 'export has the same limiter');
+        for (let step = 1; step <= 42; step++) { ctx.currentTime = step / 10; t.mock.timers.tick(100); }
+        assert.ok(Math.max(...ctx.sources.map(n => n.startedAt)) > 3.5, 'notes continue to the end');
+        assert.equal(ctx.oscillators.length, 0, 'high ratios reuse buffered voices');
+      }
+    }
+  } finally { Context.current.state = 'closed'; Object.assign(globalThis, { AudioContext: originalContext }); }
+});
+
+test('older scenes with retired sounds use sampled replacements in playback and protected exports', () => {
+  const originalContext = globalThis.AudioContext;
+  Object.assign(globalThis, { AudioContext: Context });
+  try {
+    const orbit = createOrbit(DEFAULT_ORBITS[0]);
+    for (const retired of ['warm-pad', 'pluck']) {
+      if (Context.current) Context.current.state = 'closed';
+      const harmony = { ...DEFAULT_HARMONY_SETTINGS, soundPalette: retired as OrbitSoundPalette };
+      playResonanceBeep({ ...orbit, orbitIndex: 0 }, harmony);
+      const ctx = Context.current;
+      assert.equal(ctx.sources.length, 2, 'live playback resolves the retired sound');
+      createOrbitExportAudioStream({ orbits: [orbit], playing: false, speedMultiplier: 1, elapsedBeats: 0, lastTimestamp: -1, baseBPM: 120 }, harmony, 0.1);
+      assert.equal(ctx.sources.length, 4, 'the exported note uses the same sampled replacement');
+      const master = ctx.sources[2].connections[0].connections[0].connections[0];
+      assert.equal(master.gain.value, 0.5);
+      assert.equal(master.connections[0].threshold.value, -20);
+      assert.equal(ctx.oscillators.length, 0, 'removed oscillator patches cannot play');
+    }
+  } finally { Context.current.state = 'closed'; Object.assign(globalThis, { AudioContext: originalContext }); }
 });
