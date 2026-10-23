@@ -81,8 +81,16 @@ test('Study reuses its reverb bus, cleans up ended voices, and records the same 
   }
 });
 
-test('new Study sessions use Soft Synth while explicit scene palettes stay intact', () => {
-  assert.equal(createPolyrhythmSoundSettings().palette, 'soft-synth');
-  assert.equal(POLYRHYTHM_PRESETS.find((preset) => preset.id === 'three-five')!.study.soundSettings.palette, 'soft-synth');
-  assert.equal(createPolyrhythmSoundSettings({ palette: 'wood' }).palette, 'wood');
+test('new Study sessions use Wood while explicit scene palettes stay intact', () => {
+  assert.equal(createPolyrhythmSoundSettings().palette, 'wood');
+  assert.equal(POLYRHYTHM_PRESETS.find((preset) => preset.id === 'three-five')!.study.soundSettings.palette, 'wood');
+  assert.equal(createPolyrhythmSoundSettings({ palette: 'soft-synth' }).palette, 'soft-synth');
+});
+
+
+test('retired Meditation Pad scenes load with the supported Wood sound', () => {
+  for (const palette of ['meditation-pad', 'soft-piano']) {
+    const legacy = { palette } as unknown as Parameters<typeof createPolyrhythmSoundSettings>[0];
+    assert.equal(createPolyrhythmSoundSettings(legacy).palette, 'wood');
+  }
 });

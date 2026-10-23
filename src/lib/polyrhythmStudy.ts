@@ -9,7 +9,6 @@ export type PolyrhythmSoundPalette =
   | 'bright-marker'
   | 'chime'
   | 'warm-synth'
-  | 'meditation-pad'
   | 'crystal-bell'
   | 'ambient-bloom';
 export type PolyrhythmPitchMode = 'free' | 'keyed';
@@ -173,12 +172,12 @@ function chooseDifferent<T>(items: readonly T[], current: T): T {
 function normalizePolyrhythmSoundSettings(
   settings: Partial<PolyrhythmSoundSettings> | undefined,
 ): PolyrhythmSoundSettings {
-  const rawPalette = settings?.palette as PolyrhythmSoundPalette | 'glass-tick' | 'soft-piano' | undefined;
+  const rawPalette = settings?.palette as PolyrhythmSoundPalette | 'glass-tick' | 'soft-piano' | 'meditation-pad' | undefined;
   const normalizedPalette =
     rawPalette === 'glass-tick'
       ? 'bright-marker'
-      : rawPalette === 'soft-piano'
-        ? 'meditation-pad'
+      : rawPalette === 'soft-piano' || rawPalette === 'meditation-pad'
+        ? 'wood'
       : rawPalette;
   return {
     palette:
@@ -189,12 +188,11 @@ function normalizePolyrhythmSoundSettings(
         'bright-marker',
         'chime',
         'warm-synth',
-        'meditation-pad',
         'crystal-bell',
         'ambient-bloom',
       ].includes(normalizedPalette)
         ? normalizedPalette
-        : 'soft-synth',
+        : 'wood',
     pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
     rootNote: settings?.rootNote ?? 'C',
     scaleName: settings?.scaleName ?? 'majorPentatonic',
@@ -1198,7 +1196,7 @@ const THREE_FIVE_STUDY: PolyrhythmStudy = {
   showInactiveSteps: false,
   showStepLabels: false,
   soundSettings: createPolyrhythmSoundSettings({
-    palette: 'soft-synth',
+    palette: 'wood',
     pitchMode: 'free',
     register: 'tight',
   }),

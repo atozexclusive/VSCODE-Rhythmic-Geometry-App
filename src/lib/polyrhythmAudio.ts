@@ -357,31 +357,6 @@ function triggerPalettePulse(
     return;
   }
 
-  if (palette === 'meditation-pad') {
-    const level = clamp(gain * 0.68, 0.008, 0.095);
-    withVoice({
-      type: 'triangle',
-      frequency,
-      gain: level,
-      attack: 0.038,
-      release: 1.72,
-      filterFrequency: 1380,
-      filterQ: 0.38,
-      atTime,
-    }, target);
-    withVoice({
-      type: 'sine',
-      frequency: clamp(frequency * 1.5, 110, 3600),
-      gain: level * 0.3,
-      attack: 0.052,
-      release: 1.9,
-      filterFrequency: 2100,
-      filterQ: 0.3,
-      atTime,
-    }, target);
-    return;
-  }
-
   if (palette === 'crystal-bell') {
     const level = clamp(gain * 0.64, 0.007, 0.09);
     withVoice({

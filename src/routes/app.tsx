@@ -16992,7 +16992,6 @@ function OrbitalPolymeter() {
                           ['bright-marker', 'Bright Marker'],
                           ['chime', 'Chime'],
                           ['warm-synth', 'Warm Synth'],
-                          ['meditation-pad', 'Meditation Pad'],
                           ['crystal-bell', 'Crystal Bell'],
                           ['ambient-bloom', 'Ambient Bloom'],
                         ].map(([id, label]) => (
@@ -19376,7 +19375,6 @@ function OrbitalPolymeter() {
                       <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
                       <option value="chime" style={{ background: '#181820' }}>Chime</option>
                       <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
-                      <option value="meditation-pad" style={{ background: '#181820' }}>Meditation Pad</option>
                       <option value="crystal-bell" style={{ background: '#181820' }}>Crystal Bell</option>
                       <option value="ambient-bloom" style={{ background: '#181820' }}>Ambient Bloom</option>
                     </select>
