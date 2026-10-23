@@ -7,7 +7,8 @@ let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 const activeVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
 
 // One mix path for speakers and recording: raise the quiet voices before limiting.
-const STUDY_INPUT_GAIN = 4;
+// Add 6 dB before the limiter so quiet mobile playback and exports rise together.
+const STUDY_INPUT_GAIN = 8;
 const STUDY_OUTPUT_GAIN = 0.75;
 interface StudyOutputBus {
   input: GainNode;
@@ -287,7 +288,7 @@ function triggerPalettePulse(
     withVoice({
       type: 'sine',
       frequency,
-      gain: clamp(gain * 0.92, 0.01, 0.2),
+      gain: clamp(gain * 1.5, 0.01, 0.3),
       attack: 0.02,
       release: 0.28,
       filterFrequency: 1500,
