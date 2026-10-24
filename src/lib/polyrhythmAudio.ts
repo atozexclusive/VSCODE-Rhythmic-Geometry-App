@@ -2,12 +2,15 @@ import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
-let masterGain: GainNode | null = null;
-let outputLimiter: DynamicsCompressorNode | null = null;
+let masterBus: StudyOutputBus | null = null;
 let recordingDestination: MediaStreamAudioDestinationNode | null = null;
 const activeVoices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
 
-const MASTER_GAIN_CEILING = 0.5;
+// Raise quiet Study voices before limiting; speakers and exports share this mix.
+const STUDY_INPUT_GAIN = 4;
+const STUDY_OUTPUT_GAIN = 0.75;
+interface StudyOutputBus { input: GainNode; output: GainNode }
+const outputBuses = new WeakMap<AudioNode, StudyOutputBus>();
 
 interface VoiceOptions {
   type: OscillatorType;
@@ -61,8 +64,7 @@ function getAudioContext(): AudioContext | null {
 
   if (audioContext?.state === 'closed') {
     audioContext = null;
-    masterGain = null;
-    outputLimiter = null;
+    masterBus = null;
     recordingDestination = null;
   }
 
@@ -77,26 +79,33 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function getStudyOutputBus(context: AudioContext, destination: AudioNode): StudyOutputBus {
+  const cached = outputBuses.get(destination);
+  if (cached) return cached;
+  const input = context.createGain();
+  input.gain.value = STUDY_INPUT_GAIN;
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -8;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.12;
+  const output = context.createGain();
+  output.gain.value = STUDY_OUTPUT_GAIN;
+  input.connect(limiter);
+  limiter.connect(output);
+  output.connect(destination);
+  const bus = { input, output };
+  outputBuses.set(destination, bus);
+  return bus;
+}
+
 function getMasterOutput(context: AudioContext): AudioNode {
-  if (!masterGain || !outputLimiter) {
-    masterGain = context.createGain();
-    masterGain.gain.value = MASTER_GAIN_CEILING;
-
-    outputLimiter = context.createDynamicsCompressor();
-    outputLimiter.threshold.value = -20;
-    outputLimiter.knee.value = 18;
-    outputLimiter.ratio.value = 14;
-    outputLimiter.attack.value = 0.003;
-    outputLimiter.release.value = 0.14;
-
-    masterGain.connect(outputLimiter);
-    outputLimiter.connect(context.destination);
-    if (recordingDestination) {
-      outputLimiter.connect(recordingDestination);
-    }
+  if (!masterBus) {
+    masterBus = getStudyOutputBus(context, context.destination);
+    if (recordingDestination) masterBus.output.connect(recordingDestination);
   }
-
-  return masterGain;
+  return masterBus.input;
 }
 
 function midiToFrequency(midi: number): number {
@@ -132,10 +141,7 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
       node.connect(getMasterOutput(context));
     }
     if (target?.destination) {
-      node.connect(target.destination);
-    }
-    if (recordingDestination && !(target?.outputToSpeakers ?? true)) {
-      node.connect(recordingDestination);
+      node.connect(getStudyOutputBus(context, target.destination).input);
     }
   };
   connectOutput(gainNode);
@@ -440,8 +446,8 @@ export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
 
   if (!recordingDestination) {
     recordingDestination = context.createMediaStreamDestination();
-    if (outputLimiter) {
-      outputLimiter.connect(recordingDestination);
+    if (masterBus) {
+      masterBus.output.connect(recordingDestination);
     }
   }
 
@@ -524,6 +530,7 @@ export function createPolyrhythmExportAudioStream(
     destination,
     outputToSpeakers: false,
   };
+  getStudyOutputBus(context, destination);
   const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const cyclesPerSecond = study.bpm / 60 / 4;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));

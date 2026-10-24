@@ -4,7 +4,8 @@
 // from discrete beeps to sustained chord tones.
 // ============================================================
 
-import { computeOrbitRotations, getOrbitCyclePulseCount, type EngineState, type OrbitCountMode } from './orbitalEngine';
+import { type EngineState, type OrbitCountMode } from './orbitalEngine';
+import { getOrbitAudioExportPlan, type OrbitAudioExportOptions } from './orbitAudioTimeline';
 
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -400,6 +401,7 @@ export function playResonanceBeep(
 
       osc.connect(gain);
       gain.connect(master);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
       osc.start(now);
       osc.stop(now + 0.42);
       return;
@@ -422,6 +424,7 @@ export function playResonanceBeep(
 
       osc.connect(gain);
       gain.connect(master);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
       osc.start(now);
       osc.stop(now + duration + 0.01);
       return;
@@ -440,6 +443,7 @@ export function playResonanceBeep(
 
     osc.connect(gain);
     gain.connect(master);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     osc.start(now);
     osc.stop(now + 0.1);
   } catch {
@@ -510,6 +514,7 @@ function scheduleResonanceBeep(
 
     osc.connect(gain);
     gain.connect(output);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     osc.start(atTime);
     osc.stop(atTime + 0.42);
     return;
@@ -531,6 +536,7 @@ function scheduleResonanceBeep(
 
     osc.connect(gain);
     gain.connect(output);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     osc.start(atTime);
     osc.stop(atTime + duration + 0.01);
     return;
@@ -548,6 +554,7 @@ function scheduleResonanceBeep(
 
   osc.connect(gain);
   gain.connect(output);
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   osc.start(atTime);
   osc.stop(atTime + 0.1);
 }
@@ -558,64 +565,51 @@ export function createOrbitExportAudioStream(
   durationSeconds: number,
   prerollSeconds = 0,
   countMode?: OrbitCountMode,
+  options: OrbitAudioExportOptions = {},
 ): MediaStream | null {
   const ctx = getAudioContext();
-  if (typeof ctx.createMediaStreamDestination !== 'function') {
-    return null;
-  }
-
-  if (ctx.state === 'suspended') {
-    void ctx.resume().catch(() => {});
-  }
-
+  if (typeof ctx.createMediaStreamDestination !== 'function') return null;
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   const destination = ctx.createMediaStreamDestination();
-  const target = {
-    context: ctx,
-    destination,
-  };
+  const target = { context: ctx, destination };
+  const plans = getOrbitAudioExportPlan(state, countMode, options);
+  // Warm the shared mixer before setting the start clock.
+  plans.forEach(({ orbit, orbitIndex }) => getOrbitVoiceOutput(ctx, destination, { ...orbit, orbitIndex, reverbAmount: harmony.reverbAmount ?? 0 }));
   const startTime = ctx.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
-  const beatsPerSecond = (state.baseBPM / 60.0) * state.speedMultiplier;
-  const cyclePulseCount = getOrbitCyclePulseCount(state.orbits);
-
-  if (beatsPerSecond <= 0) {
-    return destination.stream;
-  }
-
-  state.orbits.forEach((orbit, orbitIndex) => {
-    let rotationIndex = 0;
-    while (true) {
-      const triggerBeat =
-        countMode === 'turns-per-cycle'
-          ? (rotationIndex * cyclePulseCount) / Math.max(1, orbit.pulseCount)
-          : rotationIndex * Math.max(1, orbit.pulseCount);
-      const seconds = triggerBeat / beatsPerSecond;
-      if (seconds > audibleDuration) {
-        break;
-      }
-      if (computeOrbitRotations(triggerBeat, orbit.pulseCount, countMode, cyclePulseCount) >= rotationIndex) {
-        scheduleResonanceBeep(
-          {
-            orbitIndex,
-            hitIndex: rotationIndex,
-            pulseCount: orbit.pulseCount,
-            radius: orbit.radius,
-            color: orbit.color,
-            harmonyDegree: orbit.harmonyDegree,
-            harmonyRegister: orbit.harmonyRegister,
+  const totalRate = plans.reduce((sum, plan) => sum + 1 / plan.secondsPerHit, 0);
+  // Match live audio's density ceiling without losing an entire orbit's voice.
+  const minGap = totalRate >= EXTREME_TRIGGER_RATE ? 0.024
+    : totalRate >= VERY_DENSE_TRIGGER_RATE ? 0.014 : totalRate >= DENSE_TRIGGER_RATE ? 0.007 : 0;
+  const cursors = plans.map((plan) => ({ ...plan, nextHit: 0, stride: Math.max(1, Math.ceil(minGap / plan.secondsPerHit)) }));
+  const scheduleWindow = () => {
+    const until = Math.min(audibleDuration, ctx.currentTime + 1 - startTime);
+    for (const cursor of cursors) {
+      const { orbit, orbitIndex, secondsPerHit } = cursor;
+      while (cursor.nextHit * secondsPerHit <= until + 1e-9) {
+        const hitIndex = cursor.nextHit;
+        const atTime = startTime + hitIndex * secondsPerHit;
+        if (atTime >= ctx.currentTime) {
+          scheduleResonanceBeep({
+            orbitIndex, hitIndex, pulseCount: orbit.pulseCount, radius: orbit.radius, color: orbit.color,
+            harmonyDegree: orbit.harmonyDegree, harmonyRegister: orbit.harmonyRegister,
             volume: orbit.volume, reverbAmount: orbit.reverbAmount, soundEnabled: orbit.soundEnabled,
-          },
-          harmony,
-          0.12,
-          state.speedMultiplier,
-          startTime + seconds,
-          target,
-        );
+          }, harmony, 0.12 * getTriggerRateGain(totalRate), state.speedMultiplier, atTime, target);
+        }
+        cursor.nextHit += cursor.stride;
       }
-      rotationIndex += 1;
     }
-  });
-
+    return cursors.every((cursor) => cursor.nextHit * cursor.secondsPerHit > audibleDuration + 1e-9);
+  };
+  // Schedule a rolling lookahead instead of allocating every oscillator in a
+  // long export up front (which can make the first notes late or inaudible).
+  if (plans.length && !scheduleWindow()) {
+    const deadline = performance.now() + Math.max(0, durationSeconds) * 1000 + 2000;
+    const timer = setInterval(() => {
+      if (ctx.state === 'closed' || performance.now() > deadline || scheduleWindow()) clearInterval(timer);
+    }, 100);
+    (timer as unknown as { unref?: () => void }).unref?.();
+  }
   return destination.stream;
 }
 

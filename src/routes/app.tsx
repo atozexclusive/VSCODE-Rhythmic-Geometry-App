@@ -3073,25 +3073,20 @@ function PolyrhythmRollEditor({
               </div>
               <div className={`${compact ? 'mt-1' : 'mt-2'} flex items-center justify-center gap-1`}>
                 <span
-                  className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} rounded-full border`}
+                  className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} relative inline-flex items-center justify-center rounded-full border`}
+                  aria-hidden="true"
                   style={{
                     background: active ? layer.color : 'rgba(255,255,255,0.08)',
                     borderColor: active ? `${layer.color}cc` : 'rgba(255,255,255,0.12)',
-                    boxShadow: active ? `0 0 0 1px ${layer.color}25` : 'none',
+                    boxShadow: accented
+                      ? '0 0 0 2px #111116, 0 0 0 3.5px rgba(255,209,102,0.88)'
+                      : active ? `0 0 0 1px ${layer.color}25` : 'none',
                   }}
-                />
-                {accented ? (
-                  <span
-                    className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full border px-1 text-[8px] font-mono uppercase tracking-[0.08em]"
-                    style={{
-                      borderColor: 'rgba(255,209,102,0.44)',
-                      background: 'rgba(255,209,102,0.16)',
-                      color: '#FFD166',
-                    }}
-                  >
-                    A
-                  </span>
-                ) : null}
+                >
+                  {accented ? (
+                    <span className="h-[5px] w-[5px] rotate-45 border border-[#111116b8] bg-[#FFD166]" />
+                  ) : null}
+                </span>
               </div>
               <div className={`${compact ? 'mt-1 text-[7px]' : 'mt-2 text-[8px]'} font-mono uppercase tracking-[0.14em] text-white/34`}>
                 {accented ? 'Accent' : active ? 'On' : 'Off'}

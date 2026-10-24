@@ -16,7 +16,8 @@ class Node {
   threshold = new Param(); knee = new Param(); ratio = new Param(); attack = new Param(); release = new Param();
   stream = {}; buffer: unknown; type = '';
   connect(n: Node) { this.connections.push(n); return n; }
-  start() {} stop() {} disconnect() {}
+  startedAt = 0;
+  start(atTime = 0) { this.startedAt = atTime; } stop() {} disconnect() {}
 }
 class Context {
   static current: Context;
@@ -70,6 +71,30 @@ test('layer mix isolates levels, applies live updates, and respects mute in expo
     const restored = createOrbit(JSON.parse(JSON.stringify(a)));
     assert.equal(restored.volume, 0.4);
     assert.equal(restored.reverbAmount, 0.5);
+  } finally {
+    Context.current.state = 'closed';
+    Object.assign(globalThis, { AudioContext: originalContext });
+  }
+});
+
+
+test('high-ratio Sweep export schedules selected voices through the full clip in bounded windows', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const originalContext = globalThis.AudioContext;
+  Object.assign(globalThis, { AudioContext: Context });
+  try {
+    const orbits = [97, 101, 127].map((pulseCount, index) => ({ ...createOrbit({ ...DEFAULT_ORBITS[index], pulseCount }), id: `o${index}` }));
+    createOrbitExportAudioStream({ orbits, playing: false, speedMultiplier: 50, elapsedBeats: 0, lastTimestamp: -1, baseBPM: 120 }, DEFAULT_HARMONY_SETTINGS, 4, 0, undefined, { geometryMode: 'sweep', interferenceSettings: { sourceOrbitAId: 'o0', sourceOrbitBId: 'o1' } });
+    const ctx = Context.current;
+    assert.ok(ctx.oscillators.length > 2, 'Sweep cannot be reduced to just the initial notes');
+    assert.ok(ctx.oscillators.length < 100, 'do not allocate the whole dense clip up front');
+    for (let step = 1; step <= 42; step++) {
+      ctx.currentTime = step / 10;
+      t.mock.timers.tick(100);
+    }
+    const latest = Math.max(...ctx.oscillators.map((node) => node.startedAt));
+    assert.ok(latest > 3.5 && latest <= 4.121, 'notes continue through the end of the export');
+    assert.equal(ctx.convolvers.length, 1);
   } finally {
     Context.current.state = 'closed';
     Object.assign(globalThis, { AudioContext: originalContext });
