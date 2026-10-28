@@ -20,6 +20,7 @@ interface VoiceOptions {
   frequency: number;
   gain: number;
   attack: number;
+  smoothAttack?: boolean;
   release: number;
   filterFrequency: number;
   filterType?: BiquadFilterType;
@@ -129,8 +130,19 @@ function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   filter.frequency.setValueAtTime(options.filterFrequency, now);
   filter.Q.setValueAtTime(options.filterQ ?? 0.7, now);
 
-  gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.exponentialRampToValueAtTime(options.gain, now + options.attack);
+  if (options.smoothAttack) {
+    // A raised-cosine fade has a gentle slope at both ends. The old
+    // exponential rise concentrated almost the entire attack at its peak.
+    gainNode.gain.setValueAtTime(0, now);
+    for (let step = 1; step <= 16; step += 1) {
+      const progress = step / 16;
+      const level = options.gain * (1 - Math.cos(Math.PI * progress)) / 2;
+      gainNode.gain.linearRampToValueAtTime(level, now + options.attack * progress);
+    }
+  } else {
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(options.gain, now + options.attack);
+  }
   gainNode.gain.exponentialRampToValueAtTime(0.0001, now + options.release);
 
   oscillator.connect(filter);
@@ -213,7 +225,8 @@ function triggerPalettePulse(
       type: 'triangle',
       frequency: frequency * 0.92,
       gain: clamp(gain * 0.96, 0.01, 0.24),
-      attack: 0.006,
+      attack: 0.01,
+      smoothAttack: true,
       release: 0.13,
       filterFrequency: 980,
       filterQ: 0.6,
@@ -227,7 +240,8 @@ function triggerPalettePulse(
       type: 'sine',
       frequency,
       gain: clamp(gain * 0.92, 0.01, 0.2),
-      attack: 0.012,
+      attack: 0.018,
+      smoothAttack: true,
       release: 0.2,
       filterFrequency: 1500,
       atTime,
@@ -392,11 +406,13 @@ function triggerAccentLayer(
 ): void {
   const brightPalette = palette === 'bright-marker';
   const woodPalette = palette === 'wood';
+  const smoothAttack = woodPalette || palette === 'soft-synth';
   withVoice({
     type: woodPalette ? 'triangle' : brightPalette ? 'square' : 'triangle',
     frequency: clamp(frequency * (woodPalette ? 1.72 : 2.35), 190, 3200),
     gain: clamp(gain * (brightPalette ? 0.36 : 0.46), 0.01, 0.085),
-    attack: 0.002,
+    attack: smoothAttack ? (woodPalette ? 0.008 : 0.012) : 0.002,
+    smoothAttack,
     release: woodPalette ? 0.095 : 0.082,
     filterFrequency: brightPalette ? 4200 : 3100,
     filterType: brightPalette ? 'highpass' : 'bandpass',

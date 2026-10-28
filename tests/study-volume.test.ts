@@ -5,8 +5,10 @@ import { createPolyrhythmSoundSettings, POLYRHYTHM_PRESETS, cloneStudy } from '.
 
 class Param {
   value = 1;
-  setValueAtTime(value: number) { this.value = value; }
-  exponentialRampToValueAtTime(value: number) { this.value = value; }
+  events: { kind: string; value: number; time: number }[] = [];
+  setValueAtTime(value: number, time: number) { this.value = value; this.events.push({kind:'set',value,time}); }
+  linearRampToValueAtTime(value: number, time: number) { this.value = value; this.events.push({kind:'linear',value,time}); }
+  exponentialRampToValueAtTime(value: number, time: number) { this.value = value; this.events.push({kind:'exponential',value,time}); }
 }
 class Node {
   connections: Node[] = [];
@@ -27,7 +29,7 @@ class Context {
   createMediaStreamDestination() { const node = Object.assign(new Node(), { stream: {} }); this.recordings.push(node); return node; }
 }
 
-test('Study boosts quiet voices and records the same limited output without altering Soft Synth', () => {
+test('Study boosts quiet voices and records the same limited output while preserving Soft Synth pitch', () => {
   const originalWindow = globalThis.window;
   Object.assign(globalThis, { window: { AudioContext: Context } });
   try {
@@ -55,5 +57,33 @@ test('Study boosts quiet voices and records the same limited output without alte
   } finally {
     Context.latest.state = 'closed';
     Object.assign(globalThis, { window: originalWindow });
+  }
+});
+
+
+test('Wood and Soft Synth fade from silence with gentler attacks, including accents and scheduled export voices', () => {
+  for (const palette of ['wood', 'soft-synth'] as const) {
+    const ctx = new Context();
+    const sound = createPolyrhythmSoundSettings({ palette, pitchMode: 'free', reverbAmount: 0 });
+    triggerPolyrhythmPulse({ frequency: 220, gain: 0.13, sound, layerIndex: 0, beatCount: 5,
+      accented: true, atTime: 3, target: {context:ctx as unknown as AudioContext, destination:new Node() as unknown as AudioNode, outputToSpeakers:false} });
+    assert.equal(ctx.oscillators.length,2);
+    assert.equal(ctx.oscillators[0].frequency.value, palette === 'wood' ? 220*0.92 : 220);
+    for (const [index, oscillator] of ctx.oscillators.entries()) {
+      const envelope = oscillator.connections[0].connections[0].gain.events;
+      assert.deepEqual(envelope[0],{kind:'set',value:0,time:3});
+      const rise = envelope.filter(event=>event.kind==='linear');
+      assert.equal(rise.length,16);
+      const peak = rise.at(-1)!;
+      const expectedAttack = index === 0 ? (palette === 'wood' ? 0.01 : 0.018) : (palette === 'wood' ? 0.008 : 0.012);
+      assert.ok(Math.abs(peak.time-3-expectedAttack)<1e-12);
+      assert.ok(rise.every((event,i)=>event.value >= (rise[i-1]?.value ?? 0)));
+      const largestStep = Math.max(...rise.map((event,i)=>event.value-(rise[i-1]?.value ?? 0)));
+      const oldExponentialLastStep = peak.value-Math.pow(0.0001,1/16)*Math.pow(peak.value,15/16);
+      assert.ok(largestStep < oldExponentialLastStep/2, 'reduces the concentrated attack rather than just delaying it');
+      assert.equal(envelope.at(-1)!.value,0.0001,'keeps the original decay floor');
+      const expectedPeak = index === 0 ? 0.13*1.18*(palette === 'wood' ? 0.96 : 0.92) : 0.13*1.18*0.46;
+      assert.ok(Math.abs(peak.value-expectedPeak)<1e-12,'keeps the existing voice level');
+    }
   }
 });
