@@ -53,6 +53,10 @@ interface TransportBarProps {
   showPlanets: boolean;
   showHomeMarker?: boolean;
   showCenterSun?: boolean;
+  traceAura?: boolean;
+  outlineOnly?: boolean;
+  onToggleOutline?: () => void;
+  onToggleTraceAura?: () => void;
   showRatioLabels?: boolean;
   muted: boolean;
   allClockwise: boolean;
@@ -203,6 +207,10 @@ export default function TransportBar({
   showPlanets,
   showHomeMarker = false,
   showCenterSun = false,
+  traceAura = false,
+  outlineOnly = false,
+  onToggleOutline,
+  onToggleTraceAura,
   showRatioLabels = true,
   muted,
   allClockwise,
@@ -1121,6 +1129,11 @@ export default function TransportBar({
                       <div className={standardUtilityGroupClass}>
                         <OrbitReadAids
                           guidePrefix="desktop"
+                          geometryMode={geometryMode}
+                          traceAura={traceAura}
+                          outlineOnly={outlineOnly}
+                          onToggleOutline={onToggleOutline}
+                          onToggleTraceAura={onToggleTraceAura}
                           counts={quickOrbitControls.map(orbit => orbit.pulseCount)}
                           numberMode={geometryMode === 'sweep' ? 'sweep' : ENABLE_STANDARD_TURNS_PER_CYCLE ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE}
                           trace={traceMode}

@@ -1,12 +1,18 @@
+import type { GeometryMode } from '../lib/geometry';
 import { useId, useState } from 'react';
 import { getOrbitCanvasNumbers, getOrbitTurnExplanation } from '../lib/orbitReadingAids';
 import type { OrbitCountMode } from '../lib/orbitalEngine';
-import { CircleDot, CircleHelp, Flag, Hash, Spline, Sun } from 'lucide-react';
+import { CircleDot, CircleHelp, Flag, Hash, Circle, Sparkles, Spline, Sun } from 'lucide-react';
 
 interface OrbitReadAidsProps {
   guidePrefix?: 'mobile' | 'desktop';
   counts?: number[];
   numberMode?: OrbitCountMode | 'sweep';
+  geometryMode?: GeometryMode;
+  traceAura?: boolean;
+  outlineOnly?: boolean;
+  onToggleOutline?: () => void;
+  onToggleTraceAura?: () => void;
   trace: boolean;
   markers: boolean;
   cycleCue: boolean;
@@ -20,6 +26,7 @@ interface OrbitReadAidsProps {
 }
 
 export default function OrbitReadAids({
+  geometryMode = 'standard-trace', traceAura = false, onToggleTraceAura, outlineOnly = false, onToggleOutline,
   counts = [], numberMode = 'beats-per-turn', guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
   onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun, onToggleRatioLabels,
 }: OrbitReadAidsProps) {
@@ -32,12 +39,16 @@ export default function OrbitReadAids({
     { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the moving orbit markers' },
     { label: 'Cycle Cue', Icon: Flag, active: cycleCue, action: onToggleCycleCue, title: 'Marks beat 1 and flashes when all orbits return together' },
     { label: 'Sun', Icon: Sun, active: sun, action: onToggleSun, title: 'Show a sun at the center of the orbits' },
+    ...(geometryMode === 'standard-trace'
+      ? [{ label: 'Outline', Icon: Circle, active: outlineOnly, action: onToggleOutline, title: 'Highlight the pattern’s curves, corners and turning points without the dense interior web' }] : []),
+    ...(geometryMode === 'interference-trace' || geometryMode === 'sweep'
+      ? [{ label: 'Aura', Icon: Sparkles, active: traceAura, action: onToggleTraceAura, title: 'Add a soft colored halo behind the trace lines' }] : []),
     { label: 'Numbers', Icon: Hash, active: ratioLabels, action: onToggleRatioLabels, title: 'Show the ratio numbers beside the orbit rings' },
   ];
   return (
     <div className="grid grid-cols-2 gap-1.5" onKeyDown={(event) => { if (event.key === 'Escape') setExplanationOpen(false); }}>
       {items.map(({ label, Icon, active, action, guide, title }) => (
-        <div key={label} className={`flex items-stretch gap-1 ${label === 'Numbers' ? 'col-span-2' : ''}`}>
+        <div key={label} className={`flex items-stretch gap-1 ${label === 'Numbers' || label === 'Aura' || label === 'Outline' ? 'col-span-2' : ''}`}>
         <button
           type="button"
           aria-label={label}

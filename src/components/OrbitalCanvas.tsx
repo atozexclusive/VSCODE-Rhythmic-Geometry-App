@@ -1,3 +1,5 @@
+import { drawOrbitTraceContours, invalidateOrbitTraceContours } from '../lib/orbitTraceContours';
+import { drawOrbitTraceAura, invalidateOrbitTraceAura } from '../lib/orbitTraceAura';
 // ============================================================
 // Rhythmic Geometry — High-Performance Canvas Visualizer
 // 60fps rendering via requestAnimationFrame
@@ -137,6 +139,8 @@ interface OrbitalCanvasProps {
   showPlanets?: boolean;
   showHomeMarker?: boolean;
   showCenterSun?: boolean;
+  traceAura?: boolean;
+  outlineOnly?: boolean;
   showRatioLabels?: boolean;
   showHudStats?: boolean;
   onToggleHudStats?: () => void;
@@ -157,6 +161,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     showPlanets = true,
     showHomeMarker = false,
     showCenterSun = false,
+    traceAura = false,
+    outlineOnly = false,
     showRatioLabels = true,
     showHudStats = true,
     harmonySettings,
@@ -179,6 +185,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const showPlanetsRef = useRef(showPlanets);
     const showHomeMarkerRef = useRef(showHomeMarker);
     const showCenterSunRef = useRef(showCenterSun);
+    const traceAuraRef = useRef(traceAura);
+    const outlineOnlyRef = useRef(outlineOnly);
     const showRatioLabelsRef = useRef(showRatioLabels);
     const homeFlashStartedRef = useRef<number | null>(null);
     const harmonySettingsRef = useRef(harmonySettings);
@@ -213,6 +221,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     showPlanetsRef.current = showPlanets;
     showHomeMarkerRef.current = showHomeMarker;
     showCenterSunRef.current = showCenterSun;
+    traceAuraRef.current = traceAura;
+    outlineOnlyRef.current = outlineOnly;
     showRatioLabelsRef.current = showRatioLabels;
     hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
@@ -228,6 +238,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
       const traceCanvas = traceCanvasRef.current;
       const traceCtx = traceCanvas?.getContext('2d');
       if (traceCanvas && traceCtx) {
+        invalidateOrbitTraceAura(traceCanvas);
+        invalidateOrbitTraceContours(traceCanvas);
         traceCtx.setTransform(1, 0, 0, 1, 0, 0);
         traceCtx.clearRect(0, 0, traceCanvas.width, traceCanvas.height);
         const traceDpr = exportVideoSizeRef.current ? 1 : window.devicePixelRatio || 1;
@@ -591,9 +603,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             exportCtx.save();
             exportCtx.globalCompositeOperation = 'screen';
             exportCtx.globalAlpha = 1;
-            exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
-            exportCtx.globalAlpha = 0.7;
-            exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
+            if (!(geometryModeRef.current === 'standard-trace' && outlineOnlyRef.current)) {
+              exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
+              exportCtx.globalAlpha = 0.7;
+              exportCtx.drawImage(traceCanvas, offsetX, offsetY, drawWidth, drawHeight);
+            }
             exportCtx.restore();
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1320,8 +1334,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
+        const outlineView = geometryModeRef.current === 'standard-trace' && outlineOnlyRef.current;
         // ---- Trace lines (the sweep geometry Mark loves) ----
-        if ((traceModeRef.current || exportVideoActiveRef.current) && state.orbits.length >= 2) {
+        if (!outlineView && (traceModeRef.current || exportVideoActiveRef.current) && state.orbits.length >= 2) {
           const deltaBeats = Math.max(0, state.elapsedBeats - previousElapsedBeats);
           if (deltaBeats > 0) {
             if (isSweepMode) {
@@ -1535,7 +1550,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           // Render the accumulated trace layer in one pass so history persists.
           ctx.save();
           ctx.setTransform(1, 0, 0, 1, 0, 0);
+          if (traceAuraRef.current && (isInterferenceMode || isSweepMode)) {
+            drawOrbitTraceAura(ctx, traceCanvas, timestamp, traceSegmentCountRef.current);
+          }
           ctx.drawImage(traceCanvas, 0, 0);
+          ctx.restore();
+        }
+
+        if (outlineView && (traceModeRef.current || exportVideoActiveRef.current)) {
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          drawOrbitTraceContours(ctx, traceCanvas, state.orbits, state.elapsedBeats,
+            w, h, cx, cy, orbitScale, activeCountMode, activeCyclePulseCount, isExportRendering ? 1.5 : 1.1);
           ctx.restore();
         }
 
