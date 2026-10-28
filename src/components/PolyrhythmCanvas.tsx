@@ -310,18 +310,19 @@ export default function PolyrhythmCanvas({
         return layerB.radius - layerA.radius;
       });
 
-    ctx.save();
-    ctx.strokeStyle = `rgba(255,255,255,${0.04 * lineAlpha})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(metrics.centerX, metrics.topPadding - 16);
-    ctx.lineTo(metrics.centerX, metrics.height - metrics.bottomPadding + 18);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(metrics.sidePadding - 12, metrics.centerY);
-    ctx.lineTo(metrics.width - metrics.sidePadding + 12, metrics.centerY);
-    ctx.stroke();
-    ctx.restore();
+    if (currentDisplaySettings.squareGrid !== false && currentDisplaySettings.centerAxes !== false) {
+      const gridRadius = Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,255,255,${0.04 * lineAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(metrics.centerX, metrics.centerY - gridRadius);
+      ctx.lineTo(metrics.centerX, metrics.centerY + gridRadius);
+      ctx.moveTo(metrics.centerX - gridRadius, metrics.centerY);
+      ctx.lineTo(metrics.centerX + gridRadius, metrics.centerY);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (currentStudy.barMarkerVisualEnabled && barMarkerFlashStartedAtRef.current != null) {
       const elapsed = Math.max(0, animationTimestamp - barMarkerFlashStartedAtRef.current);

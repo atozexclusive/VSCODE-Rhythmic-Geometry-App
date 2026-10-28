@@ -8843,6 +8843,16 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
+  const handleTogglePolyrhythmGrid = useCallback(() => {
+    setCanvasDisplayState((current) => {
+      const enabled = current.polyrhythm.squareGrid !== false && current.polyrhythm.centerAxes !== false;
+      return {
+        ...current,
+        polyrhythm: { ...current.polyrhythm, squareGrid: !enabled, centerAxes: !enabled },
+      };
+    });
+  }, []);
+
   const handleUpdatePolyrhythmDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
     if (!canUseProFeature(effectivePlan, 'canvas-options')) {
       showProPrompt('canvas-options');
@@ -17105,6 +17115,17 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
+                                    highlighted={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    onClick={handleTogglePolyrhythmGrid}
+                                    icon={<Grid3X3 size={13} />}
+                                    title="Show the center reference grid"
+                                    aria-pressed={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                  >
+                                    Grid
+                                  </StudyShellButton>
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.showStepLabels)}
                                     onClick={handleTogglePolyrhythmStepLabels}
                                     icon={<Hash size={13} />}
@@ -19513,6 +19534,17 @@ function OrbitalPolymeter() {
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
+                                  <StudyShellButton
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    onClick={handleTogglePolyrhythmGrid}
+                                    icon={<Grid3X3 size={13} />}
+                                    title="Show the center reference grid"
+                                    aria-pressed={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                  >
+                                    Grid
+                                  </StudyShellButton>
                       <StudyShellButton
                         size="compact"
                         tone="amber"
