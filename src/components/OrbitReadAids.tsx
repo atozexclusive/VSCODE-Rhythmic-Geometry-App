@@ -1,3 +1,4 @@
+import { useId, useState } from 'react';
 import { getOrbitCanvasNumbers, getOrbitTurnExplanation } from '../lib/orbitReadingAids';
 import type { OrbitCountMode } from '../lib/orbitalEngine';
 import { CircleDot, CircleHelp, Flag, Hash, Spline, Sun } from 'lucide-react';
@@ -22,6 +23,8 @@ export default function OrbitReadAids({
   counts = [], numberMode = 'beats-per-turn', guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
   onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun, onToggleRatioLabels,
 }: OrbitReadAidsProps) {
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const explanationId = useId();
   const explanation = getOrbitTurnExplanation(counts, numberMode);
   const canvasNumbers = getOrbitCanvasNumbers(counts, numberMode);
   const items = [
@@ -32,17 +35,17 @@ export default function OrbitReadAids({
     { label: 'Numbers', Icon: Hash, active: ratioLabels, action: onToggleRatioLabels, title: 'Show the ratio numbers beside the orbit rings' },
   ];
   return (
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className="grid grid-cols-2 gap-1.5" onKeyDown={(event) => { if (event.key === 'Escape') setExplanationOpen(false); }}>
       {items.map(({ label, Icon, active, action, guide, title }) => (
+        <div key={label} className={`flex items-stretch gap-1 ${label === 'Numbers' ? 'col-span-2' : ''}`}>
         <button
-          key={label}
           type="button"
           aria-label={label}
           aria-pressed={active}
           data-guide={guide}
           title={title}
           onClick={action}
-          className={`flex min-h-8 items-center gap-2 rounded-[9px] border px-2.5 py-2 text-[10px] font-normal normal-case tracking-normal transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300/70 ${label === 'Numbers' ? 'col-span-2' : ''}`}
+          className={`flex min-h-8 items-center gap-2 rounded-[9px] border px-2.5 py-2 text-[10px] font-normal normal-case tracking-normal transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300/70 flex-1`}
           style={{
             color: active ? '#B5DCEF' : 'rgba(255,255,255,.55)',
             background: active ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)',
@@ -53,29 +56,38 @@ export default function OrbitReadAids({
           <span>{label}</span>
           <span aria-hidden="true" className="ml-auto h-1 w-1 shrink-0 rounded-full" style={{ background: active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />
         </button>
+        {label === 'Numbers' && explanation ? (
+          <button
+            type="button"
+            aria-label="Explain Numbers"
+            aria-expanded={explanationOpen}
+            aria-controls={explanationId}
+            title="Explain Numbers"
+            onClick={() => setExplanationOpen(open => !open)}
+            className="flex min-h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border transition-colors hover:bg-sky-200/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300/70"
+            style={{ color: explanationOpen ? '#B5DCEF' : 'rgba(255,255,255,.55)', background: explanationOpen ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)', borderColor: explanationOpen ? 'rgba(127,215,255,.18)' : 'rgba(255,255,255,.045)' }}
+          >
+            <CircleHelp size={13} aria-hidden="true" />
+          </button>
+        ) : null}
+        </div>
       ))}
-      {explanation ? (
-        <details className="col-span-2 rounded-[9px] border border-sky-200/10 bg-sky-200/[0.025] text-[10px] text-white/60">
-          <summary className="flex min-h-8 cursor-pointer items-center gap-2 px-2.5 py-2 text-sky-100/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300/70">
-            <CircleHelp size={13} aria-hidden="true" /> Numbers explained
-          </summary>
-          <div className="space-y-1 border-t border-white/5 px-2.5 py-2 leading-snug">
-            <p>{numberMode === 'beats-per-turn'
-              ? 'Labels are flipped reading cues. Timing and editing stay unchanged.'
-              : 'In this mode, the numbers already follow each ring’s rotation speed.'}</p>
+      {explanation && explanationOpen ? (
+        <div id={explanationId} role="region" aria-label="Numbers explanation" className="col-span-2 rounded-[9px] border border-sky-200/10 bg-sky-200/[0.025] text-[10px] text-white/60">
+          <div className="space-y-1 px-2.5 py-2 leading-snug">
+            <p>The numbers help you follow each orbit as it moves around the center.</p>
             <p>{explanation.sharedBeats
-              ? `Shared return: ${explanation.sharedBeats} beats ÷ each timing value:`
-              : `For ${counts.join(' : ')}, divide by the greatest common factor to count full turns before every ring lines up:`}</p>
+              ? `These ${counts.length} orbits share a ${explanation.sharedBeats}-beat cycle. That’s when they all meet back at the start. Here’s how many turns each makes:`
+              : `These ${counts.length} orbits meet back at the start after making these turns:`}</p>
             <div className="font-mono text-[9px] text-sky-100/75">
               {counts.map((count, index) => (
                 <div key={index}>
-                  Label {canvasNumbers[index]}: {explanation.sharedBeats ? `${explanation.sharedBeats} ÷ ${count} = ` : ''}{explanation.turns[index]} {explanation.turns[index] === '1' ? 'turn' : 'turns'}
+                  Orbit {canvasNumbers[index]}: {explanation.sharedBeats ? `${explanation.sharedBeats} ÷ ${count} = ` : ''}{explanation.turns[index]} {explanation.turns[index] === '1' ? 'turn' : 'turns'}
                 </div>
               ))}
             </div>
-            <p>Turn counts exclude the starting impact.</p>
           </div>
-        </details>
+        </div>
       ) : null}
     </div>
   );
