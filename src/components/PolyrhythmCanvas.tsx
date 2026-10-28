@@ -85,6 +85,7 @@ interface PolyrhythmPlaybackState {
   progress: number;
   lastTimestamp: number | null;
   previousPlaybackSteps: Map<string, number>;
+  noteOrderHits?: Map<string, number>;
   wasPlaying: boolean;
 }
 
@@ -809,6 +810,9 @@ export default function PolyrhythmCanvas({
           const activeStepHit =
             previousStepIndex !== currentStepIndex && layer.activeSteps[currentStepIndex];
 
+          const noteOrderHits = playbackState.noteOrderHits ??= new Map();
+          const hitIndex = noteOrderHits.get(layer.id) ?? 0;
+          if (activeStepHit) noteOrderHits.set(layer.id, hitIndex + 1);
           if (activeStepHit) {
             hitPulsesRef.current.push({
               layerId: layer.id,
@@ -824,6 +828,7 @@ export default function PolyrhythmCanvas({
               sound: currentStudy.soundSettings,
               layerIndex,
               beatCount: layer.beatCount,
+              hitIndex,
               accented: Boolean(layer.accents?.[currentStepIndex]),
             });
           }
@@ -867,6 +872,7 @@ export default function PolyrhythmCanvas({
   useEffect(() => {
     const playbackState = playbackStateHandleRef.current.current;
     playbackState.progress = 0;
+    playbackState.noteOrderHits?.clear();
     playbackState.previousPlaybackSteps.clear();
     playbackState.lastTimestamp = null;
     playbackState.wasPlaying = studyRef.current.playing;
@@ -874,6 +880,10 @@ export default function PolyrhythmCanvas({
     barMarkerFlashStartedAtRef.current = null;
     draw();
   }, [draw, restartToken]);
+
+  useEffect(() => {
+    playbackStateHandleRef.current.current.noteOrderHits?.clear();
+  }, [study.soundSettings.noteOrder]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -949,6 +959,7 @@ export default function PolyrhythmCanvas({
         const playbackState = playbackStateHandleRef.current.current;
         silencePolyrhythmAudio();
         playbackState.progress = 0;
+        playbackState.noteOrderHits?.clear();
         playbackState.lastTimestamp = null;
         playbackState.previousPlaybackSteps.clear();
         playbackState.wasPlaying = false;

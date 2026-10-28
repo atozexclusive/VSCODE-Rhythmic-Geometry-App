@@ -1,5 +1,6 @@
+import { SCALE_PRESETS } from './audioEngine';
 import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument } from './studyInstruments';
-import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
+import { getStudyPitch } from './studyPitch';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
@@ -110,10 +111,6 @@ function getMasterOutput(context: AudioContext): AudioNode {
   return masterBus.input;
 }
 
-function midiToFrequency(midi: number): number {
-  return 440 * Math.pow(2, (midi - 69) / 12);
-}
-
 function withVoice(options: VoiceOptions, target?: VoiceTarget): void {
   const context = target?.context ?? getAudioContext();
   if (!context) {
@@ -189,35 +186,6 @@ export function silencePolyrhythmAudio(): void {
       // The voice may already have reached its scheduled stop time.
     }
   });
-}
-
-function mapRegisterMultiplier(register: PolyrhythmSoundSettings['register']): number {
-  return register === 'wide' ? 1.2 : 1;
-}
-
-function mapLayerPitch(
-  baseFrequency: number,
-  sound: PolyrhythmSoundSettings,
-  layerIndex: number,
-): number {
-  const octaveMultiplier = 2 ** sound.octaveShift;
-  if (sound.pitchMode === 'free') {
-    return clamp(baseFrequency * mapRegisterMultiplier(sound.register) * octaveMultiplier, 45, 2800);
-  }
-
-  const scale = SCALE_PRESETS[sound.scaleName];
-  const rootSemitone = NOTE_NAMES.indexOf(sound.rootNote);
-  const baseMidi = sound.register === 'wide' ? 50 : 43;
-  // A layer's rhythm and pitch are independent: changing its step count must
-  // never move it to another note in the selected scale.
-  const degreeSource = layerIndex * 2;
-  const degree = degreeSource % scale.intervals.length;
-  const octave = Math.floor(degreeSource / scale.intervals.length);
-  return midiToFrequency(clamp(
-    baseMidi + rootSemitone + scale.intervals[degree] + octave * 12 + sound.octaveShift * 12,
-    20,
-    104,
-  ));
 }
 
 function triggerPalettePulse(
@@ -507,9 +475,13 @@ function prepareChorusKeys(context: AudioContext, study: PolyrhythmStudy): void 
   const groups = [study.layers, ...(study.chainEnabled ? study.chainCells ?? [] : []).map(cell => cell.layers)];
   for (const layers of groups) layers.forEach((layer, index) => {
     if (!layer.soundEnabled) return;
-    const frequency = mapLayerPitch(layer.pitchHz, study.soundSettings, index);
-    getStudyInstrumentSample(context, 'chorus-keys', frequency, false);
-    if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, 'chorus-keys', frequency, true);
+    const noteCount = !study.soundSettings.noteOrder || study.soundSettings.noteOrder === 'standard'
+      ? 1 : SCALE_PRESETS[study.soundSettings.scaleName].intervals.length * 2;
+    for (let hit = 0; hit < noteCount; hit++) {
+      const frequency = getStudyPitch(layer.pitchHz, study.soundSettings, index, hit);
+      getStudyInstrumentSample(context, 'chorus-keys', frequency, false);
+      if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, 'chorus-keys', frequency, true);
+    }
   });
 }
 
@@ -528,14 +500,16 @@ export function triggerPolyrhythmPulse(options: {
   sound: PolyrhythmSoundSettings;
   layerIndex: number;
   beatCount: number;
+  hitIndex?: number;
   accented?: boolean;
   atTime?: number;
   target?: VoiceTarget;
 }): void {
-  const frequency = mapLayerPitch(
+  const frequency = getStudyPitch(
     options.frequency,
     options.sound,
     options.layerIndex,
+    options.hitIndex ?? 0,
   );
   const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
   const context = options.target?.context ?? getAudioContext();
@@ -643,6 +617,7 @@ export function createPolyrhythmExportAudioStream(
   };
 
   if (study.soundEnabled && cyclesPerSecond > 0) {
+    const noteOrderHits = new Map<string, number>();
     const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond) + 1;
     for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
       layersForCycle(cycleIndex).forEach((layer, layerIndex) => {
@@ -660,7 +635,10 @@ export function createPolyrhythmExportAudioStream(
         if (seconds > audibleDuration) {
           continue;
         }
+        const hitIndex = noteOrderHits.get(layer.id) ?? 0;
+        noteOrderHits.set(layer.id, hitIndex + 1);
         triggerPolyrhythmPulse({
+          hitIndex,
           frequency: layer.pitchHz,
           gain: layer.gain,
           sound: study.soundSettings,

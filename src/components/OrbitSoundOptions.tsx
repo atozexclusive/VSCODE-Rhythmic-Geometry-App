@@ -1,3 +1,4 @@
+import NoteOrderControl from './NoteOrderControl';
 import type { ReactNode } from 'react';
 import { NOTE_NAMES, SCALE_PRESETS, ORBIT_SOUND_PALETTES, getFriendlyScaleLabel, type HarmonySettings, type OrbitSoundPalette, type RootNote, type ScaleName } from '../lib/audioEngine';
 import type { Orbit } from '../lib/orbitalEngine';
@@ -46,6 +47,11 @@ export default function OrbitSoundOptions({ settings, onChange, orbits, muted, o
       <select aria-label="Orbit sound palette" className={selectClass} value={settings.soundPalette ?? 'standard'} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette, ...(event.target.value === 'orbit-keys' ? { reverbAmount: 1 } : {}) })}>
         {ORBIT_SOUND_PALETTES.map(([value, label]) => <option key={value} value={value} style={{ background: '#181820' }}>{label}</option>)}
       </select>
+      <NoteOrderControl
+        mode="Orbit"
+        value={!settings.noteMotion || settings.noteMotion === 'fixed' ? 'standard' : settings.noteMotion}
+        onChange={value => onChange({ noteMotion: value === 'standard' ? 'fixed' : value, ...(value !== 'standard' ? { tonePreset: 'scale-quantized' as const } : {}) })}
+      />
       <div className="grid grid-cols-2 gap-2">
         <StudyShellButton size="compact" tone="amber" highlighted={settings.pitchSpacing !== 'wide'} onClick={() => onChange({ pitchSpacing: 'standard' })}>Tight</StudyShellButton>
         <StudyShellButton size="compact" tone="amber" highlighted={settings.pitchSpacing === 'wide'} onClick={() => onChange({ pitchSpacing: 'wide', tonePreset: 'scale-quantized' })}>Wide</StudyShellButton>

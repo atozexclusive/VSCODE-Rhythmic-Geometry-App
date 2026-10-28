@@ -1,3 +1,4 @@
+import NoteOrderControl from '../components/NoteOrderControl';
 import OrbitReadAids from '../components/OrbitReadAids';
 import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
 import FullscreenControls from '../components/FullscreenControls';
@@ -387,8 +388,8 @@ const DEFAULT_ORBIT_DISPLAY_SETTINGS: CanvasDisplaySettings = {
   theme: 'classic',
   atmosphere: 'none',
   glow: 'medium',
-  squareGrid: true,
-  centerAxes: true,
+  squareGrid: false,
+  centerAxes: false,
 };
 const MANUAL_STEP_BEATS = 0.25;
 const RANDOM_PLUS_MIN_TEMPO_BPM = 20;
@@ -2504,6 +2505,7 @@ interface PolyrhythmPlaybackState {
   progress: number;
   lastTimestamp: number | null;
   previousPlaybackSteps: Map<string, number>;
+  noteOrderHits?: Map<string, number>;
   wasPlaying: boolean;
 }
 
@@ -8892,6 +8894,7 @@ function OrbitalPolymeter() {
         ...current,
         soundSettings: {
           ...current.soundSettings,
+          ...(updates.pitchMode === 'free' ? { noteOrder: 'standard' as const } : {}),
           ...updates,
         },
       }));
@@ -17000,6 +17003,11 @@ function OrbitalPolymeter() {
                           </option>
                         ))}
                       </select>
+                      <NoteOrderControl
+                        mode="Study"
+                        value={polyrhythmStudy.soundSettings.noteOrder ?? 'standard'}
+                        onChange={noteOrder => handleUpdatePolyrhythmSoundSettings({ noteOrder, ...(noteOrder !== 'standard' ? { pitchMode: 'keyed' as const } : {}) })}
+                      />
                       <div className="grid grid-cols-2 gap-2">
                         <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
                           Tight
@@ -19380,6 +19388,11 @@ function OrbitalPolymeter() {
                       <option value="crystal-bell" style={{ background: '#181820' }}>Crystal Bell</option>
                       <option value="ambient-bloom" style={{ background: '#181820' }}>Ambient Bloom</option>
                     </select>
+                    <NoteOrderControl
+                      mode="Study"
+                      value={polyrhythmStudy.soundSettings.noteOrder ?? 'standard'}
+                      onChange={noteOrder => handleUpdatePolyrhythmSoundSettings({ noteOrder, ...(noteOrder !== 'standard' ? { pitchMode: 'keyed' as const } : {}) })}
+                    />
                     <div className="grid grid-cols-2 gap-2">
                       <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
                         Tight

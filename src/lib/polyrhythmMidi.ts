@@ -1,3 +1,4 @@
+import { getStudyPitch } from './studyPitch';
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import type { PolyrhythmLayer, PolyrhythmSoundSettings, PolyrhythmStudy } from './polyrhythmStudy';
 
@@ -98,7 +99,8 @@ function getLayerMidiNote(
 function getLayerEvents(
   layer: PolyrhythmLayer,
   layerIndex: number,
-  note: number,
+  standardNote: number,
+  sound: PolyrhythmSoundSettings,
 ): TimedMidiEvent[] {
   const totalTicksPerCycle = MIDI_PPQ * CYCLE_BEATS;
   const offsetFraction = (((layer.rotationOffset / 360) % 1) + 1) % 1;
@@ -106,13 +108,15 @@ function getLayerEvents(
   const noteLengthTicks = Math.max(30, Math.floor(stepTicks * 0.78));
   const events: TimedMidiEvent[] = [];
 
-  layer.activeSteps.forEach((active, stepIndex) => {
-    if (!active) {
-      return;
-    }
-
+  const steps = layer.activeSteps.flatMap((active, stepIndex) => {
+    if (!active) return [];
     const stepFraction = (((stepIndex / layer.beatCount) + offsetFraction) % 1 + 1) % 1;
-    const tick = Math.round(stepFraction * totalTicksPerCycle);
+    return [{ stepIndex, tick: Math.round(stepFraction * totalTicksPerCycle) }];
+  }).sort((a, b) => a.tick - b.tick);
+  steps.forEach(({ stepIndex, tick }, hitIndex) => {
+    const note = !sound.noteOrder || sound.noteOrder === 'standard'
+      ? standardNote
+      : clamp(frequencyToMidi(getStudyPitch(layer.pitchHz, sound, layerIndex, hitIndex)), 0, 127);
     const velocity = clamp(
       Math.round(layer.gain * 1000 * (layer.accents?.[stepIndex] ? 1.32 : 1)),
       48,
@@ -220,7 +224,7 @@ export function buildPolyrhythmMidiFile(
     layersToExport.forEach((layer) => {
       const layerIndex = study.layers.findIndex((entry) => entry.id === layer.id);
       const note = getLayerMidiNote(layer, study.soundSettings, Math.max(0, layerIndex));
-      mergedEvents.push(...getLayerEvents(layer, Math.max(0, layerIndex), note));
+      mergedEvents.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings));
     });
 
     tracks.push(buildTrackChunk(mergedEvents));
@@ -238,7 +242,7 @@ export function buildPolyrhythmMidiFile(
           ),
         },
       ];
-      events.push(...getLayerEvents(layer, Math.max(0, layerIndex), note));
+      events.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings));
       tracks.push(buildTrackChunk(events));
     });
   }

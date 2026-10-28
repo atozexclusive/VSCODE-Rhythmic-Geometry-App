@@ -1,3 +1,4 @@
+import { normalizeNoteOrder, type NoteOrder } from './noteOrder';
 import type { RootNote, ScaleName } from './audioEngine';
 
 const TAU = Math.PI * 2;
@@ -20,6 +21,7 @@ export type PolyrhythmPresetGroup = 'one-layer' | 'two-layer' | 'advanced';
 export const MAX_POLYRHYTHM_LAYERS = 6;
 
 export interface PolyrhythmSoundSettings {
+  noteOrder?: NoteOrder;
   palette: PolyrhythmSoundPalette;
   pitchMode: PolyrhythmPitchMode;
   rootNote: RootNote;
@@ -197,6 +199,7 @@ function normalizePolyrhythmSoundSettings(
       ].includes(normalizedPalette)
         ? normalizedPalette
         : 'study-pulse',
+    noteOrder: normalizeNoteOrder(settings?.noteOrder),
     pitchMode: settings?.pitchMode === 'keyed' ? 'keyed' : 'free',
     rootNote: settings?.rootNote ?? 'C',
     scaleName: settings?.scaleName ?? 'majorPentatonic',

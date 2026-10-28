@@ -1,3 +1,4 @@
+import { getNoteOrderOffset } from './noteOrder';
 import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, isOrbitInstrumentReady, prepareOrbitInstrument, requestOrbitInstrument, releaseOrbitInstrumentContext, scheduleDesignedOrbitInstrument } from './orbitInstruments';
 // ============================================================
 // Orbital Polymeter — Audio Engine
@@ -69,7 +70,7 @@ export function getOrbitReverbAmount(settings: Pick<HarmonySettings, 'soundPalet
   return isOrbitDesignedInstrument(settings.soundPalette) ? 1 : 0;
 }
 
-export type OrbitNoteMotion = 'fixed' | 'ascending' | 'descending' | 'up-down' | 'arpeggio';
+export type OrbitNoteMotion = 'fixed' | 'ascending' | 'descending' | 'up-down' | 'arpeggio' | 'random';
 
 export function getFriendlyScaleLabel(
   scaleName: ScaleName,
@@ -215,6 +216,7 @@ function quantizedFrequency(
     degreeSource += phase < span ? phase : 2 * (span - 1) - phase;
   }
   if (motion === 'arpeggio') degreeSource += (hit * 2) % span;
+  if (motion === 'random') degreeSource += getNoteOrderOffset('random', hit, span);
   const degree = ((degreeSource % scale.intervals.length) + scale.intervals.length) % scale.intervals.length;
   const octave = Math.floor(degreeSource / scale.intervals.length);
   const midi = Math.min(96, baseMidi + octave * 12 + scale.intervals[degree]);
