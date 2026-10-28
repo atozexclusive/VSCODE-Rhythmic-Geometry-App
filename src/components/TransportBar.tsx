@@ -1121,6 +1121,8 @@ export default function TransportBar({
                       <div className={standardUtilityGroupClass}>
                         <OrbitReadAids
                           guidePrefix="desktop"
+                          counts={quickOrbitControls.map(orbit => orbit.pulseCount)}
+                          numberMode={geometryMode === 'sweep' ? 'sweep' : ENABLE_STANDARD_TURNS_PER_CYCLE ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE}
                           trace={traceMode}
                           markers={showPlanets}
                           cycleCue={showHomeMarker}

@@ -28,3 +28,29 @@ test('startup, pauses, rewinds, and missing counts cannot fire a return', () => 
   assert.equal(getOrbitHomeCycleBeats([], 'beats-per-turn'), null);
   assert.equal(getOrbitHomeCycleBeats([0, 3], 'beats-per-turn'), null);
 });
+
+test('canvas numbers reverse placement by speed without modifying editing counts', async () => {
+  const { getOrbitCanvasNumbers } = await import('../src/lib/orbitReadingAids.ts');
+  const counts = [7, 3, 5];
+  assert.deepEqual(getOrbitCanvasNumbers(counts, 'beats-per-turn'), [3, 7, 5]);
+  assert.deepEqual(counts, [7, 3, 5]);
+  assert.deepEqual(getOrbitCanvasNumbers([3, 5], 'beats-per-turn'), [5, 3]);
+  assert.deepEqual(getOrbitCanvasNumbers([3, 5, 7], 'beats-per-turn'), [7, 5, 3]);
+  assert.deepEqual(getOrbitCanvasNumbers([3, 5, 7], 'sweep'), [3, 5, 7]);
+  assert.deepEqual(getOrbitCanvasNumbers([3, 5, 7], 'turns-per-cycle'), [3, 5, 7]);
+  assert.deepEqual(getOrbitCanvasNumbers([4], 'beats-per-turn'), [4]);
+  assert.deepEqual(getOrbitCanvasNumbers([], 'beats-per-turn'), []);
+});
+
+test('Numbers info explains exact full turns until the shared return', async () => {
+  const { getOrbitTurnExplanation } = await import('../src/lib/orbitReadingAids.ts');
+  assert.deepEqual(getOrbitTurnExplanation([3, 5, 7], 'beats-per-turn'), { sharedBeats: '105', turns: ['35', '21', '15'] });
+  assert.deepEqual(getOrbitTurnExplanation([3, 5], 'beats-per-turn'), { sharedBeats: '15', turns: ['5', '3'] });
+  assert.deepEqual(getOrbitTurnExplanation([4, 6], 'beats-per-turn'), { sharedBeats: '12', turns: ['3', '2'] });
+  assert.deepEqual(getOrbitTurnExplanation([4, 6], 'sweep'), { sharedBeats: null, turns: ['2', '3'] });
+  assert.equal(getOrbitTurnExplanation([], 'beats-per-turn'), null);
+  assert.equal(getOrbitTurnExplanation([0, 5], 'beats-per-turn'), null);
+  const counts = [997, 991, 983, 977, 971, 967];
+  const large = getOrbitTurnExplanation(counts, 'beats-per-turn')!;
+  counts.forEach((count, index) => assert.equal(BigInt(large.turns[index]) * BigInt(count), BigInt(large.sharedBeats!)));
+});

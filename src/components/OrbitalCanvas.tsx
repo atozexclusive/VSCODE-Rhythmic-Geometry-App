@@ -31,7 +31,7 @@ import {
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
-import { crossedOrbitHome, getOrbitHomeCycleBeats } from '../lib/orbitReadingAids';
+import { crossedOrbitHome, getOrbitHomeCycleBeats, getOrbitCanvasNumbers } from '../lib/orbitReadingAids';
 import {
   addAudioToCanvasStream,
   CANVAS_EXPORT_PREROLL_SECONDS,
@@ -1660,8 +1660,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
+        const canvasNumbers = getOrbitCanvasNumbers(
+          visibleOrbits.map(orbit => orbit.pulseCount), isSweepMode ? 'sweep' : activeCountMode,
+        );
         // ---- Orbit rings ----
-        for (const orbit of visibleOrbits) {
+        for (const [visibleIndex, orbit] of visibleOrbits.entries()) {
           const isSweepInnerOrbit = isSweepMode && currentInnerOrbit?.id === orbit.id;
           const isSweepOuterOrbit = isSweepMode && currentOuterOrbit?.id === orbit.id;
           const r = isSweepInnerOrbit
@@ -1804,7 +1807,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.font = `${labelFontSize}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';
             ctx.fillText(
-              `${orbit.pulseCount}`,
+              `${canvasNumbers[visibleIndex]}`,
               renderCx + (r + labelOffset) * Math.cos(-Math.PI / 4),
               renderCy + (r + labelOffset) * Math.sin(-Math.PI / 4),
             );

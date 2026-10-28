@@ -1,7 +1,11 @@
-import { CircleDot, Flag, Hash, Spline, Sun } from 'lucide-react';
+import { getOrbitCanvasNumbers, getOrbitTurnExplanation } from '../lib/orbitReadingAids';
+import type { OrbitCountMode } from '../lib/orbitalEngine';
+import { CircleDot, CircleHelp, Flag, Hash, Spline, Sun } from 'lucide-react';
 
 interface OrbitReadAidsProps {
   guidePrefix?: 'mobile' | 'desktop';
+  counts?: number[];
+  numberMode?: OrbitCountMode | 'sweep';
   trace: boolean;
   markers: boolean;
   cycleCue: boolean;
@@ -15,9 +19,11 @@ interface OrbitReadAidsProps {
 }
 
 export default function OrbitReadAids({
-  guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
+  counts = [], numberMode = 'beats-per-turn', guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
   onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun, onToggleRatioLabels,
 }: OrbitReadAidsProps) {
+  const explanation = getOrbitTurnExplanation(counts, numberMode);
+  const canvasNumbers = getOrbitCanvasNumbers(counts, numberMode);
   const items = [
     { label: 'Trace', Icon: Spline, active: trace, action: onToggleTrace, guide: guidePrefix === 'mobile' ? 'mobile-trail' : 'desktop-trace', title: 'Show the path left by the moving orbits' },
     { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the moving orbit markers' },
@@ -48,6 +54,29 @@ export default function OrbitReadAids({
           <span aria-hidden="true" className="ml-auto h-1 w-1 shrink-0 rounded-full" style={{ background: active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />
         </button>
       ))}
+      {explanation ? (
+        <details className="col-span-2 rounded-[9px] border border-sky-200/10 bg-sky-200/[0.025] text-[10px] text-white/60">
+          <summary className="flex min-h-8 cursor-pointer items-center gap-2 px-2.5 py-2 text-sky-100/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300/70">
+            <CircleHelp size={13} aria-hidden="true" /> Numbers explained
+          </summary>
+          <div className="space-y-1 border-t border-white/5 px-2.5 py-2 leading-snug">
+            <p>{numberMode === 'beats-per-turn'
+              ? 'Labels are flipped reading cues. Timing and editing stay unchanged.'
+              : 'In this mode, the numbers already follow each ring’s rotation speed.'}</p>
+            <p>{explanation.sharedBeats
+              ? `Shared return: ${explanation.sharedBeats} beats ÷ each timing value:`
+              : `For ${counts.join(' : ')}, divide by the greatest common factor to count full turns before every ring lines up:`}</p>
+            <div className="font-mono text-[9px] text-sky-100/75">
+              {counts.map((count, index) => (
+                <div key={index}>
+                  Label {canvasNumbers[index]}: {explanation.sharedBeats ? `${explanation.sharedBeats} ÷ ${count} = ` : ''}{explanation.turns[index]} {explanation.turns[index] === '1' ? 'turn' : 'turns'}
+                </div>
+              ))}
+            </div>
+            <p>Turn counts exclude the starting impact.</p>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

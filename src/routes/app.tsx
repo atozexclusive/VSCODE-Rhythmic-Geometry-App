@@ -26638,6 +26638,8 @@ function OrbitalPolymeter() {
                 </div></div>
  : <div data-guide="mobile-reading-aids" data-quick-panel="read">
                     <OrbitReadAids
+                      counts={getGeometryModeOrbits(engineState.orbits, geometryMode, interferenceSettings).map(orbit => orbit.pulseCount)}
+                      numberMode={geometryMode === 'sweep' ? 'sweep' : ENABLE_STANDARD_TURNS_PER_CYCLE ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE}
                       trace={traceMode}
                       markers={showPlanets}
                       cycleCue={showOrbitHomeMarker}
