@@ -1223,25 +1223,25 @@ export default function TransportBar({
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
-                              onClick={() => onCanvasDisplayChange({ squareGrid: true })}
+                              onClick={() => onCanvasDisplayChange({ squareGrid: true, centerAxes: true })}
                               className={standardUtilityButtonClass}
                               style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
-                              title="Show the square background grid"
+                              title="Show the background grid and center cross lines"
                             >
                               Grid On
                             </button>
                             <button
                               type="button"
-                              onClick={() => onCanvasDisplayChange({ squareGrid: false })}
+                              onClick={() => onCanvasDisplayChange({ squareGrid: false, centerAxes: false })}
                               className={standardUtilityButtonClass}
                               style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid === false, '#FFFFFF', 'rgba(255,255,255,0.12)')}
-                              title="Hide the square background grid"
+                              title="Hide the background grid and center cross lines"
                             >
                               Grid Off
                             </button>
                             <button
                               type="button"
-                              onClick={() => onCanvasDisplayChange({ centerAxes: true })}
+                              onClick={() => onCanvasDisplayChange({ squareGrid: true, centerAxes: true })}
                               className={standardUtilityButtonClass}
                               style={getStandardUtilityPillStyle(canvasDisplaySettings.centerAxes !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
                               title="Show the center X and Y axis lines"

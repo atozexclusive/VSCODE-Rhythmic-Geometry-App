@@ -1253,7 +1253,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           currentDisplaySettings.theme === 'classic' && currentDisplaySettings.atmosphere === 'none';
         const orbitGlowMultiplier = getCanvasGlowMultiplier(currentDisplaySettings, presentationModeRef.current);
         const showSquareGrid = currentDisplaySettings.squareGrid !== false;
-        const showCenterAxes = currentDisplaySettings.centerAxes !== false;
+        const showCenterAxes = showSquareGrid && currentDisplaySettings.centerAxes !== false;
 
         // ---- Clear ----
         if (useOriginalOrbitBackground) {
@@ -1710,24 +1710,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.globalAlpha = 0.34;
             ctx.lineWidth = 2.2;
             ctx.stroke();
-            ctx.restore();
-          }
-
-          if (showPlanetsRef.current) {
-            // Pulse tick marks around the ring
-            ctx.save();
-            ctx.globalAlpha = 0.12;
-            ctx.strokeStyle = orbit.color;
-            ctx.lineWidth = 0.5;
-            for (let i = 0; i < orbit.pulseCount; i++) {
-              const angle = (i / orbit.pulseCount) * TAU - Math.PI / 2;
-              const innerR = r - 4;
-              const outerR = r + 4;
-              ctx.beginPath();
-              ctx.moveTo(renderCx + innerR * Math.cos(angle), renderCy + innerR * Math.sin(angle));
-              ctx.lineTo(renderCx + outerR * Math.cos(angle), renderCy + outerR * Math.sin(angle));
-              ctx.stroke();
-            }
             ctx.restore();
           }
 

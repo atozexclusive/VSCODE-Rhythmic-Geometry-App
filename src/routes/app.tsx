@@ -3415,7 +3415,7 @@ function CanvasDisplayControls({
         >
           <InlineInfoLabel
             infoId="canvas_display"
-            label="Square Grid"
+            label="Grid"
             labelClassName={canvasSubheaderClass}
             labelStyle={canvasSubheaderStyle}
           />
@@ -3424,7 +3424,7 @@ function CanvasDisplayControls({
               size="compact"
               tone="blue"
               highlighted={settings.squareGrid !== false}
-              onClick={() => onChange({ squareGrid: true })}
+              onClick={() => onChange({ squareGrid: true, centerAxes: true })}
             >
               On
             </StudyShellButton>
@@ -3432,7 +3432,7 @@ function CanvasDisplayControls({
               size="compact"
               tone="neutral"
               highlighted={settings.squareGrid === false}
-              onClick={() => onChange({ squareGrid: false })}
+              onClick={() => onChange({ squareGrid: false, centerAxes: false })}
             >
               Off
             </StudyShellButton>
