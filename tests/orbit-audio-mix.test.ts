@@ -94,7 +94,7 @@ test('high-ratio Sweep export schedules selected voices through the full clip in
     }
     const latest = Math.max(...ctx.oscillators.map((node) => node.startedAt));
     assert.ok(latest > 3.5 && latest <= 4.121, 'notes continue through the end of the export');
-    assert.equal(ctx.convolvers.length, 1);
+    assert.equal(ctx.convolvers.length, 0, 'dry exports need no convolution processor');
   } finally {
     Context.current.state = 'closed';
     Object.assign(globalThis, { AudioContext: originalContext });

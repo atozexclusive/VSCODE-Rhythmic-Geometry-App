@@ -18,7 +18,7 @@ import {
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { createOrbitExportAudioStream, playResonanceBeep, type HarmonySettings } from '../lib/audioEngine';
+import { createOrbitExportAudioStream, playResonanceBeep, warmOrbitAudio, type HarmonySettings } from '../lib/audioEngine';
 import {
   normalizeInterferenceSettings,
   type GeometryMode,
@@ -1081,7 +1081,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const sweepScale = sweepLayout.scale;
 
         // Physics tick — returns triggers for every 12 o'clock crossing
-        const triggers = tick(state, timestamp, cx, cy, activeCountMode);
+        const audioReady = !state.playing || isExportRendering || warmOrbitAudio(state.orbits, harmonySettingsRef.current, state.speedMultiplier);
+        if (!audioReady) state.lastTimestamp = timestamp;
+        const triggers = audioReady ? tick(state, timestamp, cx, cy, activeCountMode) : [];
 
         // Process triggers — every single one gets audio + bloom
         for (const trig of triggers) {

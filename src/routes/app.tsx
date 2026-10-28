@@ -13215,8 +13215,8 @@ function OrbitalPolymeter() {
   }, [requireProFeature, requireUnlockedSceneEditing]);
 
   useEffect(() => {
-    updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0);
-  }, [engineState, harmonySettings.reverbAmount]);
+    updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0, harmonySettings.soundPalette);
+  }, [engineState, harmonySettings.reverbAmount, harmonySettings.soundPalette]);
 
   const handleReset = useCallback(() => {
     stopAllAudio();
@@ -13344,7 +13344,7 @@ function OrbitalPolymeter() {
           return;
         }
         Object.assign(orbit, updates);
-        updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0);
+        updateOrbitAudioMix(engineState.orbits, harmonySettings.reverbAmount ?? 0, harmonySettings.soundPalette);
         setInterferenceSettings((current) => normalizeInterferenceSettings(engineState.orbits, current));
         if (typeof updates.direction === 'number' || typeof updates.pulseCount === 'number') {
           resetEngine(engineState);
@@ -16987,6 +16987,7 @@ function OrbitalPolymeter() {
                           ['study-pulse', 'Study Pulse'],
                           ['wood', 'Wood'],
                           ['soft-synth', 'Soft Synth'],
+                          ['chorus-keys', 'Chorus Keys'],
                           ['bright-marker', 'Bright Marker'],
                           ['chime', 'Chime'],
                           ['warm-synth', 'Warm Synth'],
@@ -19371,6 +19372,7 @@ function OrbitalPolymeter() {
                       <option value="study-pulse" style={{ background: '#181820' }}>Study Pulse</option>
                       <option value="wood" style={{ background: '#181820' }}>Wood</option>
                       <option value="soft-synth" style={{ background: '#181820' }}>Soft Synth</option>
+                      <option value="chorus-keys" style={{ background: '#181820' }}>Chorus Keys</option>
                       <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
                       <option value="chime" style={{ background: '#181820' }}>Chime</option>
                       <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>

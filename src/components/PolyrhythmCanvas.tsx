@@ -2,7 +2,7 @@ import { getStudyVideoViewport } from '../lib/studyVideoViewport';
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
-  getPolyrhythmAudioRecordingStream,
+  preparePolyrhythmAudioRecording,
   silencePolyrhythmAudio,
   triggerPolyrhythmBarMarker,
   triggerPolyrhythmPulse,
@@ -964,7 +964,7 @@ export default function PolyrhythmCanvas({
 
         stream = addAudioToCanvasStream(
           canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-          getPolyrhythmAudioRecordingStream(),
+          await preparePolyrhythmAudioRecording(studyRef.current),
         );
         const recorder = new MediaRecorder(stream, {
           mimeType: recordingFormat.mimeType,
