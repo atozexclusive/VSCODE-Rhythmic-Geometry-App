@@ -1,4 +1,4 @@
-import { CircleDot, Flag, Spline, Sun } from 'lucide-react';
+import { CircleDot, Flag, Hash, Spline, Sun } from 'lucide-react';
 
 interface OrbitReadAidsProps {
   guidePrefix?: 'mobile' | 'desktop';
@@ -6,21 +6,24 @@ interface OrbitReadAidsProps {
   markers: boolean;
   cycleCue: boolean;
   sun: boolean;
+  ratioLabels?: boolean;
   onToggleTrace: () => void;
   onToggleMarkers: () => void;
   onToggleCycleCue?: () => void;
   onToggleSun?: () => void;
+  onToggleRatioLabels?: () => void;
 }
 
 export default function OrbitReadAids({
-  guidePrefix = 'mobile', trace, markers, cycleCue, sun,
-  onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun,
+  guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
+  onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun, onToggleRatioLabels,
 }: OrbitReadAidsProps) {
   const items = [
     { label: 'Trace', Icon: Spline, active: trace, action: onToggleTrace, guide: guidePrefix === 'mobile' ? 'mobile-trail' : 'desktop-trace', title: 'Show the path left by the moving orbits' },
     { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the moving orbit markers' },
     { label: 'Cycle Cue', Icon: Flag, active: cycleCue, action: onToggleCycleCue, title: 'Marks beat 1 and flashes when all orbits return together' },
     { label: 'Sun', Icon: Sun, active: sun, action: onToggleSun, title: 'Show a sun at the center of the orbits' },
+    { label: 'Numbers', Icon: Hash, active: ratioLabels, action: onToggleRatioLabels, title: 'Show the ratio numbers beside the orbit rings' },
   ];
   return (
     <div className="grid grid-cols-2 gap-1.5">
@@ -33,7 +36,7 @@ export default function OrbitReadAids({
           data-guide={guide}
           title={title}
           onClick={action}
-          className="flex min-h-8 items-center gap-2 rounded-[9px] border px-2.5 py-2 text-[10px] font-normal normal-case tracking-normal transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300/70"
+          className={`flex min-h-8 items-center gap-2 rounded-[9px] border px-2.5 py-2 text-[10px] font-normal normal-case tracking-normal transition-colors hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300/70 ${label === 'Numbers' ? 'col-span-2' : ''}`}
           style={{
             color: active ? '#B5DCEF' : 'rgba(255,255,255,.55)',
             background: active ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)',

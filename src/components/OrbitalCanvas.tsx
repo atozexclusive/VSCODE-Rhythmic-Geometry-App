@@ -137,6 +137,7 @@ interface OrbitalCanvasProps {
   showPlanets?: boolean;
   showHomeMarker?: boolean;
   showCenterSun?: boolean;
+  showRatioLabels?: boolean;
   showHudStats?: boolean;
   onToggleHudStats?: () => void;
   harmonySettings: HarmonySettings;
@@ -156,6 +157,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     showPlanets = true,
     showHomeMarker = false,
     showCenterSun = false,
+    showRatioLabels = true,
     showHudStats = true,
     harmonySettings,
     geometryMode,
@@ -177,6 +179,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const showPlanetsRef = useRef(showPlanets);
     const showHomeMarkerRef = useRef(showHomeMarker);
     const showCenterSunRef = useRef(showCenterSun);
+    const showRatioLabelsRef = useRef(showRatioLabels);
     const homeFlashStartedRef = useRef<number | null>(null);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
@@ -210,6 +213,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     showPlanetsRef.current = showPlanets;
     showHomeMarkerRef.current = showHomeMarker;
     showCenterSunRef.current = showCenterSun;
+    showRatioLabelsRef.current = showRatioLabels;
     hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
@@ -1084,6 +1088,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === trig.orbitId);
           const orbit = orbitIndex >= 0 ? state.orbits[orbitIndex] : null;
           const shouldRenderOrbitBloom =
+            showPlanetsRef.current &&
             !isSweepMode &&
             ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
           if (shouldRenderOrbitBloom && state.speedMultiplier <= MAX_BLOOM_SPEED) {
@@ -1789,7 +1794,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             ctx.restore();
           }
 
-          if (showPlanetsRef.current) {
+          if (showRatioLabelsRef.current) {
             // Pulse count label
             const labelFontSize = (isMobileRef.current ? 8.5 : 10) * pointScale;
             const labelOffset = (isMobileRef.current ? 14 : 18) * pointScale;
@@ -1894,7 +1899,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         }
 
         // ---- Radial blooms (on 12 o'clock trigger) ----
-        bloomsRef.current = bloomsRef.current.filter((b) => now - b.birth < BLOOM_DURATION);
+        bloomsRef.current = showPlanetsRef.current
+          ? bloomsRef.current.filter((b) => now - b.birth < BLOOM_DURATION)
+          : [];
 
         for (const bloom of bloomsRef.current) {
           const age = (now - bloom.birth) / BLOOM_DURATION;

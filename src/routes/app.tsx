@@ -7854,6 +7854,7 @@ function OrbitalPolymeter() {
   const [showPlanets, setShowPlanets] = useState(true);
   const [showOrbitHomeMarker, setShowOrbitHomeMarker] = useState(false);
   const [showOrbitCenterSun, setShowOrbitCenterSun] = useState(false);
+  const [showOrbitRatioLabels, setShowOrbitRatioLabels] = useState(true);
   const [topStatusVisible, setTopStatusVisible] = useState(true);
   const [canvasHudVisible, setCanvasHudVisible] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
@@ -26486,6 +26487,7 @@ function OrbitalPolymeter() {
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
           showHudStats={isMobile ? canvasHudVisible : false}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -26514,6 +26516,7 @@ function OrbitalPolymeter() {
             showPlanets={showPlanets}
             showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
             muted={muted}
             allClockwise={allClockwise}
             presentationMode={presentationMode}
@@ -26541,6 +26544,7 @@ function OrbitalPolymeter() {
             onTogglePlanets={handleTogglePlanets}
             onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
           onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
+          onToggleRatioLabels={() => setShowOrbitRatioLabels((visible) => !visible)}
             onToggleMute={handleToggleMute}
             onToggleHelp={handleToggleHelpGuide}
             onToggleTutorial={handleToggleHelpGuide}
@@ -26602,6 +26606,7 @@ function OrbitalPolymeter() {
               showPlanets={showPlanets}
               showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
               showHudStats={canvasHudVisible}
               onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
               harmonySettings={harmonySettings}
@@ -26637,10 +26642,12 @@ function OrbitalPolymeter() {
                       markers={showPlanets}
                       cycleCue={showOrbitHomeMarker}
                       sun={showOrbitCenterSun}
+                      ratioLabels={showOrbitRatioLabels}
                       onToggleTrace={handleToggleTrace}
                       onToggleMarkers={handleTogglePlanets}
                       onToggleCycleCue={() => setShowOrbitHomeMarker((visible) => !visible)}
                       onToggleSun={() => setShowOrbitCenterSun((visible) => !visible)}
+                      onToggleRatioLabels={() => setShowOrbitRatioLabels((visible) => !visible)}
                     />
                   </div>}
  </QuickCanvasControls></div>
@@ -27156,6 +27163,7 @@ function OrbitalPolymeter() {
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27185,6 +27193,7 @@ function OrbitalPolymeter() {
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27487,6 +27496,7 @@ function OrbitalPolymeter() {
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
           showCenterSun={showOrbitCenterSun}
+          showRatioLabels={showOrbitRatioLabels}
           muted={muted}
           allClockwise={allClockwise}
           presentationMode={presentationMode}
@@ -27514,6 +27524,7 @@ function OrbitalPolymeter() {
           onTogglePlanets={handleTogglePlanets}
           onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
           onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
+          onToggleRatioLabels={() => setShowOrbitRatioLabels((visible) => !visible)}
           onToggleMute={handleToggleMute}
           onToggleHelp={handleToggleHelpGuide}
           onToggleTutorial={handleToggleHelpGuide}

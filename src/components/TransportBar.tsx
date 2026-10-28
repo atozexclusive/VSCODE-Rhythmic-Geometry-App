@@ -53,6 +53,7 @@ interface TransportBarProps {
   showPlanets: boolean;
   showHomeMarker?: boolean;
   showCenterSun?: boolean;
+  showRatioLabels?: boolean;
   muted: boolean;
   allClockwise: boolean;
   presentationMode: boolean;
@@ -86,6 +87,7 @@ interface TransportBarProps {
   onTogglePlanets: () => void;
   onToggleHomeMarker?: () => void;
   onToggleCenterSun?: () => void;
+  onToggleRatioLabels?: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onToggleTutorial: () => void;
@@ -201,6 +203,7 @@ export default function TransportBar({
   showPlanets,
   showHomeMarker = false,
   showCenterSun = false,
+  showRatioLabels = true,
   muted,
   allClockwise,
   presentationMode,
@@ -225,6 +228,7 @@ export default function TransportBar({
   onTogglePlanets,
   onToggleHomeMarker,
   onToggleCenterSun,
+  onToggleRatioLabels,
   onToggleMute,
   onToggleHelp,
   onToggleTutorial,
@@ -1121,10 +1125,12 @@ export default function TransportBar({
                           markers={showPlanets}
                           cycleCue={showHomeMarker}
                           sun={showCenterSun}
+                          ratioLabels={showRatioLabels}
                           onToggleTrace={onToggleTrace}
                           onToggleMarkers={onTogglePlanets}
                           onToggleCycleCue={onToggleHomeMarker}
                           onToggleSun={onToggleCenterSun}
+                          onToggleRatioLabels={onToggleRatioLabels}
                         />
                       </div>
                     ),
