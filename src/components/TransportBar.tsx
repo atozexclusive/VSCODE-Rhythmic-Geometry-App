@@ -1,3 +1,4 @@
+import OrbitReadAids from './OrbitReadAids';
 import FullscreenControls from './FullscreenControls';
 // ============================================================
 // Orbital Polymeter — Transport Control Bar
@@ -1114,50 +1115,17 @@ export default function TransportBar({
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={onToggleTrace}
-                            data-guide="desktop-trace"
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(traceMode, '#72F1B8', 'rgba(114,241,184,0.16)')}
-                            title="Toggle motion history drawing"
-                          >
-                            {traceMode ? 'Trace On' : 'Trace Off'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onTogglePlanets}
-                            data-guide="desktop-markers"
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(showPlanets, '#88CCFF', 'rgba(136,204,255,0.14)')}
-                            title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
-                          >
-                            {showPlanets ? 'Markers On' : 'Markers Off'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onToggleHomeMarker}
-                            aria-label="Cycle Cue"
-                            aria-pressed={showHomeMarker}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(showHomeMarker, '#D9F5FF', 'rgba(217,245,255,0.1)')}
-                            title="Marks beat 1 and gently flashes when all orbits return together"
-                          >
-                            Cycle Cue {showHomeMarker ? 'On' : 'Off'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onToggleCenterSun}
-                            aria-label="Sun"
-                            aria-pressed={showCenterSun}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(showCenterSun, '#FFD166', 'rgba(255,209,102,0.1)')}
-                            title="Show a sun at the center of the orbits"
-                          >
-                            Sun {showCenterSun ? 'On' : 'Off'}
-                          </button>
-                        </div>
+                        <OrbitReadAids
+                          guidePrefix="desktop"
+                          trace={traceMode}
+                          markers={showPlanets}
+                          cycleCue={showHomeMarker}
+                          sun={showCenterSun}
+                          onToggleTrace={onToggleTrace}
+                          onToggleMarkers={onTogglePlanets}
+                          onToggleCycleCue={onToggleHomeMarker}
+                          onToggleSun={onToggleCenterSun}
+                        />
                       </div>
                     ),
                   })}

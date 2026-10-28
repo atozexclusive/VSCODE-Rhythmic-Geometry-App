@@ -1,3 +1,4 @@
+import OrbitReadAids from '../components/OrbitReadAids';
 import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
 import FullscreenControls from '../components/FullscreenControls';
 import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
@@ -26630,54 +26631,18 @@ function OrbitalPolymeter() {
                     showSquareGridControl
                   />
                 </div></div>
- : <div data-guide="mobile-reading-aids" data-quick-panel="read"><div className="grid grid-cols-2 gap-2">
-                      <button
-                        data-guide="mobile-trail"
-                        onClick={handleToggleTrace}
-                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                        style={{
-                          background: traceMode ? 'rgba(136,204,255,0.12)' : 'rgba(255,255,255,0.035)',
-                          border: `1px solid ${traceMode ? 'rgba(136,204,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
-                          color: traceMode ? '#88CCFF' : 'rgba(255,255,255,0.62)',
-                        }}
-                      >
-                        {traceMode ? 'Trace On' : 'Trace Off'}
-                      </button>
-                      <button
-                        data-guide="mobile-markers"
-                        onClick={handleTogglePlanets}
-                        className="px-3 py-3 rounded-xl text-[10px] font-mono uppercase tracking-[0.16em]"
-                        style={{
-                          background: showPlanets ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.035)',
-                          border: `1px solid ${showPlanets ? 'rgba(182,160,255,0.26)' : 'rgba(255,255,255,0.08)'}`,
-                          color: showPlanets ? '#B6A0FF' : 'rgba(255,255,255,0.62)',
-                        }}
-                      >
-                        {showPlanets ? 'Markers On' : 'Markers Off'}
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={showOrbitHomeMarker}
-                        aria-label="Cycle Cue"
-                        onClick={() => setShowOrbitHomeMarker((visible) => !visible)}
-                        className="px-3 py-3 rounded-xl border text-[10px] font-mono uppercase tracking-[0.16em]"
-                        title="Marks beat 1 and gently flashes when all orbits return together"
-                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.12)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.26)' : 'rgba(255,255,255,0.08)', color: showOrbitHomeMarker ? '#D9F5FF' : 'rgba(255,255,255,0.62)' }}
-                      >
-                        Cycle Cue {showOrbitHomeMarker ? 'On' : 'Off'}
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={showOrbitCenterSun}
-                        aria-label="Sun"
-                        onClick={() => setShowOrbitCenterSun((visible) => !visible)}
-                        className="px-3 py-3 rounded-xl border text-[10px] font-mono uppercase tracking-[0.16em]"
-                        title="Show a sun at the center of the orbits"
-                        style={{ background: showOrbitCenterSun ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitCenterSun ? 'rgba(255,209,102,0.26)' : 'rgba(255,255,255,0.08)', color: showOrbitCenterSun ? '#FFD166' : 'rgba(255,255,255,0.62)' }}
-                      >
-                        Sun {showOrbitCenterSun ? 'On' : 'Off'}
-                      </button>
-                    </div></div>}
+ : <div data-guide="mobile-reading-aids" data-quick-panel="read">
+                    <OrbitReadAids
+                      trace={traceMode}
+                      markers={showPlanets}
+                      cycleCue={showOrbitHomeMarker}
+                      sun={showOrbitCenterSun}
+                      onToggleTrace={handleToggleTrace}
+                      onToggleMarkers={handleTogglePlanets}
+                      onToggleCycleCue={() => setShowOrbitHomeMarker((visible) => !visible)}
+                      onToggleSun={() => setShowOrbitCenterSun((visible) => !visible)}
+                    />
+                  </div>}
  </QuickCanvasControls></div>
 
           <div className="px-4 flex flex-col gap-3">
