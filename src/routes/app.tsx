@@ -943,7 +943,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'orbit-mobile-read-aids-button',
     title: 'Read Aids',
     kicker: 'Orbit Guide',
-    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Cycle Start marks beat 1 and gently flashes when all orbits return together.',
+    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Cycle Cue marks beat 1 and gently flashes when all orbits return together. Sun adds a glowing center to orbit around.',
     doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
     notice: 'These are visual helpers. They do not change timing or orbit counts.',
   },
@@ -7852,6 +7852,7 @@ function OrbitalPolymeter() {
   const [traceMode, setTraceMode] = useState(true);
   const [showPlanets, setShowPlanets] = useState(true);
   const [showOrbitHomeMarker, setShowOrbitHomeMarker] = useState(false);
+  const [showOrbitCenterSun, setShowOrbitCenterSun] = useState(false);
   const [topStatusVisible, setTopStatusVisible] = useState(true);
   const [canvasHudVisible, setCanvasHudVisible] = useState(true);
   const [muted, setMuted] = useState(() => getAudioMuted());
@@ -26483,6 +26484,7 @@ function OrbitalPolymeter() {
           traceMode={traceMode}
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
           showHudStats={isMobile ? canvasHudVisible : false}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -26510,6 +26512,7 @@ function OrbitalPolymeter() {
             traceMode={traceMode}
             showPlanets={showPlanets}
             showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
             muted={muted}
             allClockwise={allClockwise}
             presentationMode={presentationMode}
@@ -26536,6 +26539,7 @@ function OrbitalPolymeter() {
             onToggleTrace={handleToggleTrace}
             onTogglePlanets={handleTogglePlanets}
             onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
+          onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
             onToggleMute={handleToggleMute}
             onToggleHelp={handleToggleHelpGuide}
             onToggleTutorial={handleToggleHelpGuide}
@@ -26596,6 +26600,7 @@ function OrbitalPolymeter() {
               traceMode={traceMode}
               showPlanets={showPlanets}
               showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
               showHudStats={canvasHudVisible}
               onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
               harmonySettings={harmonySettings}
@@ -26653,16 +26658,24 @@ function OrbitalPolymeter() {
                       <button
                         type="button"
                         aria-pressed={showOrbitHomeMarker}
-                        aria-label="Cycle Start"
+                        aria-label="Cycle Cue"
                         onClick={() => setShowOrbitHomeMarker((visible) => !visible)}
-                        className="col-span-2 h-8 rounded-xl border px-2 py-0.5 text-left"
+                        className="px-3 py-3 rounded-xl border text-[10px] font-mono uppercase tracking-[0.16em]"
                         title="Marks beat 1 and gently flashes when all orbits return together"
-                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.08)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.3)' : 'rgba(255,255,255,0.08)', color: showOrbitHomeMarker ? '#D9F5FF' : 'rgba(255,255,255,0.62)' }}
+                        style={{ background: showOrbitHomeMarker ? 'rgba(217,245,255,0.12)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitHomeMarker ? 'rgba(217,245,255,0.26)' : 'rgba(255,255,255,0.08)', color: showOrbitHomeMarker ? '#D9F5FF' : 'rgba(255,255,255,0.62)' }}
                       >
-                        <span className="flex items-center justify-between font-mono text-[9px] uppercase leading-[11px] tracking-[0.12em]">
-                          Cycle Start <span>{showOrbitHomeMarker ? 'On' : 'Off'}</span>
-                        </span>
-                        <span className="block text-[8px] leading-3 text-white/50">Marks beat 1 and flashes when every orbit returns.</span>
+                        Cycle Cue {showOrbitHomeMarker ? 'On' : 'Off'}
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={showOrbitCenterSun}
+                        aria-label="Sun"
+                        onClick={() => setShowOrbitCenterSun((visible) => !visible)}
+                        className="px-3 py-3 rounded-xl border text-[10px] font-mono uppercase tracking-[0.16em]"
+                        title="Show a sun at the center of the orbits"
+                        style={{ background: showOrbitCenterSun ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.035)', borderColor: showOrbitCenterSun ? 'rgba(255,209,102,0.26)' : 'rgba(255,255,255,0.08)', color: showOrbitCenterSun ? '#FFD166' : 'rgba(255,255,255,0.62)' }}
+                      >
+                        Sun {showOrbitCenterSun ? 'On' : 'Off'}
                       </button>
                     </div></div>}
  </QuickCanvasControls></div>
@@ -27177,6 +27190,7 @@ function OrbitalPolymeter() {
           traceMode={traceMode}
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27205,6 +27219,7 @@ function OrbitalPolymeter() {
           traceMode={traceMode}
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
           showHudStats={canvasHudVisible}
           onToggleHudStats={() => setCanvasHudVisible((visible) => !visible)}
           harmonySettings={harmonySettings}
@@ -27506,6 +27521,7 @@ function OrbitalPolymeter() {
           traceMode={traceMode}
           showPlanets={showPlanets}
           showHomeMarker={showOrbitHomeMarker}
+          showCenterSun={showOrbitCenterSun}
           muted={muted}
           allClockwise={allClockwise}
           presentationMode={presentationMode}
@@ -27532,6 +27548,7 @@ function OrbitalPolymeter() {
           onToggleTrace={handleToggleTrace}
           onTogglePlanets={handleTogglePlanets}
           onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
+          onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
           onToggleMute={handleToggleMute}
           onToggleHelp={handleToggleHelpGuide}
           onToggleTutorial={handleToggleHelpGuide}

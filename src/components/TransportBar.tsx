@@ -51,6 +51,7 @@ interface TransportBarProps {
   traceMode: boolean;
   showPlanets: boolean;
   showHomeMarker?: boolean;
+  showCenterSun?: boolean;
   muted: boolean;
   allClockwise: boolean;
   presentationMode: boolean;
@@ -83,6 +84,7 @@ interface TransportBarProps {
   onToggleTrace: () => void;
   onTogglePlanets: () => void;
   onToggleHomeMarker?: () => void;
+  onToggleCenterSun?: () => void;
   onToggleMute: () => void;
   onToggleHelp: () => void;
   onToggleTutorial: () => void;
@@ -197,6 +199,7 @@ export default function TransportBar({
   traceMode,
   showPlanets,
   showHomeMarker = false,
+  showCenterSun = false,
   muted,
   allClockwise,
   presentationMode,
@@ -220,6 +223,7 @@ export default function TransportBar({
   onToggleTrace,
   onTogglePlanets,
   onToggleHomeMarker,
+  onToggleCenterSun,
   onToggleMute,
   onToggleHelp,
   onToggleTutorial,
@@ -1106,7 +1110,7 @@ export default function TransportBar({
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
                     title: 'Open overlay controls',
-                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Cycle Start marks beat 1 and flashes when all orbits return together. Turn them down when you want the final form to read cleaner.',
+                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Cycle Cue marks beat 1 and flashes when all orbits return together. Sun adds a glowing center to orbit around. Turn them down when you want the final form to read cleaner.',
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
@@ -1134,13 +1138,24 @@ export default function TransportBar({
                           <button
                             type="button"
                             onClick={onToggleHomeMarker}
-                            aria-label="Cycle Start"
+                            aria-label="Cycle Cue"
                             aria-pressed={showHomeMarker}
                             className={standardUtilityButtonClass}
                             style={getStandardUtilityPillStyle(showHomeMarker, '#D9F5FF', 'rgba(217,245,255,0.1)')}
                             title="Marks beat 1 and gently flashes when all orbits return together"
                           >
-                            Cycle Start {showHomeMarker ? 'On' : 'Off'}
+                            Cycle Cue {showHomeMarker ? 'On' : 'Off'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onToggleCenterSun}
+                            aria-label="Sun"
+                            aria-pressed={showCenterSun}
+                            className={standardUtilityButtonClass}
+                            style={getStandardUtilityPillStyle(showCenterSun, '#FFD166', 'rgba(255,209,102,0.1)')}
+                            title="Show a sun at the center of the orbits"
+                          >
+                            Sun {showCenterSun ? 'On' : 'Off'}
                           </button>
                         </div>
                       </div>

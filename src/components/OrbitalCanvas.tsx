@@ -5,6 +5,7 @@
 // ============================================================
 
 import { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
+import { getOrbitVideoFraming } from '../lib/orbitVideoFraming';
 import {
   type Orbit,
   type EngineState,
@@ -135,6 +136,7 @@ interface OrbitalCanvasProps {
   traceMode: boolean;
   showPlanets?: boolean;
   showHomeMarker?: boolean;
+  showCenterSun?: boolean;
   showHudStats?: boolean;
   onToggleHudStats?: () => void;
   harmonySettings: HarmonySettings;
@@ -153,6 +155,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     traceMode,
     showPlanets = true,
     showHomeMarker = false,
+    showCenterSun = false,
     showHudStats = true,
     harmonySettings,
     geometryMode,
@@ -173,6 +176,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const traceModeRef = useRef(traceMode);
     const showPlanetsRef = useRef(showPlanets);
     const showHomeMarkerRef = useRef(showHomeMarker);
+    const showCenterSunRef = useRef(showCenterSun);
     const homeFlashStartedRef = useRef<number | null>(null);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
@@ -205,6 +209,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     traceModeRef.current = traceMode;
     showPlanetsRef.current = showPlanets;
     showHomeMarkerRef.current = showHomeMarker;
+    showCenterSunRef.current = showCenterSun;
     hudVisibleRef.current = showHudStats;
     harmonySettingsRef.current = harmonySettings;
     geometryModeRef.current = geometryMode;
@@ -329,15 +334,12 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               : maxRadius;
         const exportVideoSize = exportVideoSizeRef.current;
         if (exportVideoSize && orbits.length > 0) {
-          const isShortsExport = exportVideoSize.height > exportVideoSize.width;
-          const exportPadding = isShortsExport ? 44 : 56;
-          const targetRadius = Math.max(1, Math.min(width, height) / 2 - exportPadding);
           const exportVisualRadius =
             geometryModeRef.current === 'interference-trace'
               ? Math.max(maxRadius, interferenceRadiusBudget)
               : maxRadius;
-          const effectiveVisualRadius = Math.max(1, exportVisualRadius + 12);
-          const orbitScale = Math.min(1.6, targetRadius / effectiveVisualRadius);
+          const { targetRadius, effectiveVisualRadius, orbitScale } =
+            getOrbitVideoFraming(width, height, exportVisualRadius);
 
           return {
             cx,
@@ -1624,6 +1626,34 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         const homeFlash = homeFlashStartedRef.current === null
           ? 0 : Math.max(0, 1 - (now - homeFlashStartedRef.current) / 700);
         let outerHomeRadius = 0;
+
+        // A stationary visual anchor, independent of the timing and trace layers.
+        if (showCenterSunRef.current && visibleOrbits.length > 0) {
+          const radius = 7 * pointScale;
+          ctx.save();
+          const halo = ctx.createRadialGradient(renderCx, renderCy, radius * 0.5, renderCx, renderCy, radius * 4);
+          halo.addColorStop(0, 'rgba(255,209,102,0.22)');
+          halo.addColorStop(0.45, 'rgba(255,184,75,0.08)');
+          halo.addColorStop(1, 'rgba(255,184,75,0)');
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(renderCx, renderCy, radius * 4, 0, Math.PI * 2);
+          ctx.fill();
+          const core = ctx.createRadialGradient(renderCx - radius * 0.25, renderCy - radius * 0.3, 0, renderCx, renderCy, radius);
+          core.addColorStop(0, '#FFF3CE');
+          core.addColorStop(0.5, '#FFD166');
+          core.addColorStop(1, '#D99235');
+          ctx.fillStyle = core;
+          ctx.beginPath();
+          ctx.arc(renderCx, renderCy, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,224,151,0.28)';
+          ctx.lineWidth = 0.75 * pointScale;
+          ctx.beginPath();
+          ctx.arc(renderCx, renderCy, radius * 1.55, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         // ---- Orbit rings ----
         for (const orbit of visibleOrbits) {
