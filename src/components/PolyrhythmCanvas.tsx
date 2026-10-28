@@ -272,6 +272,14 @@ export default function PolyrhythmCanvas({
       rect.height,
       renderAsMobile,
     );
+    // Give portrait videos room for social-player overlays and edge labels.
+    // Scale the complete artwork together, keeping the background full bleed.
+    if (exportVideoSize && exportVideoSize.height > exportVideoSize.width) {
+      const artworkScale = 0.9;
+      ctx.translate(metrics.centerX, metrics.centerY);
+      ctx.scale(artworkScale, artworkScale);
+      ctx.translate(-metrics.centerX, -metrics.centerY);
+    }
     const playbackState = playbackStateHandleRef.current.current;
     const animationTimestamp = animationTimestampRef.current;
     const cursorAngle = -Math.PI / 2 + playbackState.progress * TAU;
