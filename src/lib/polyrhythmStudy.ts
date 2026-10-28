@@ -8,6 +8,7 @@ export type PolyrhythmSoundPalette =
   | 'wood'
   | 'soft-synth'
   | 'chorus-keys'
+  | 'velvet-keys'
   | 'bright-marker'
   | 'chime'
   | 'warm-synth'
@@ -190,6 +191,7 @@ function normalizePolyrhythmSoundSettings(
         'wood',
         'soft-synth',
         'chorus-keys',
+        'velvet-keys',
         'bright-marker',
         'chime',
         'warm-synth',

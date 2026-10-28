@@ -3,6 +3,7 @@
 // IDs remain stable so saved scenes keep their instrument selection.
 export const ORBIT_DESIGNED_INSTRUMENTS = [
   ['orbit-keys', 'Nebula Keys'],
+  ['dusk-synth', 'Dusk Synth'],
 ] as const;
 export type OrbitDesignedInstrument = typeof ORBIT_DESIGNED_INSTRUMENTS[number][0];
 export function isOrbitDesignedInstrument(value: string | undefined): value is OrbitDesignedInstrument {
@@ -13,9 +14,11 @@ const TAU = Math.PI * 2;
 const ease = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, x)));
 
 const programs = {
+  'dusk-synth': { durations: [1.35, 0.72, 0.34], attack: 0.032, decay: 0.5, octave: 0.25, spread: 3, warmth: 1.35, space: 0.12 },
   'orbit-keys': { durations: [1.65, 0.85, 0.38], attack: 0.045, decay: 0.58, octave: 0.25, spread: 5, warmth: 1.5, space: 0.2 },
 } as const;
 const spectra = {
+  'dusk-synth': [1, 0.3, 0.12, 0.08, 0.025, 0.018, 0.009, 0.004],
   'orbit-keys': [1, 0.24, 0.18, 0.045, 0.045, 0.02, 0.015, 0.006],
 } as const;
 

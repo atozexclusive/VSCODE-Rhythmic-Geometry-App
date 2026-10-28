@@ -6,13 +6,13 @@
  * mysticalankar.com/blogs/blog/pop-edm-pluck-synth-serum-tutorial-sound-design
  * These are browser-native instruments, not Serum presets or sampled commercial assets.
  */
-export type StudyInstrument = 'chorus-keys';
+export type StudyInstrument = 'chorus-keys' | 'velvet-keys';
 const TAU = Math.PI * 2;
 const buffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
 const clamp = (x: number, low: number, high: number) => Math.min(high, Math.max(low, x));
 
 export function isStudyInstrument(palette: string): palette is StudyInstrument {
-  return palette === 'chorus-keys';
+  return palette === 'chorus-keys' || palette === 'velvet-keys';
 }
 
 /** Smooth attack and damped release, with a longer body than the old ping voices. */
@@ -46,31 +46,34 @@ function addEnsemble(left: Float32Array, right: Float32Array, sampleRate: number
 export function renderStudyInstrument(
   instrument: StudyInstrument, frequency: number, sampleRate: number, accented = false,
 ): [Float32Array, Float32Array] {
-  const duration = 1.1;
+  const velvet = instrument === 'velvet-keys';
+  const duration = velvet ? 0.95 : 1.1;
   const length = Math.ceil(duration * sampleRate);
   const left = new Float32Array(length);
   const right = new Float32Array(length);
   // Seven low-detune voices, using a dark saw/triangle harmonic blend. A
   // separate brightness decay closes the timbre before the amplitude tail.
-  const detunes = [-7, -4, -2, 0, 2, 4, 7];
+  const detunes = velvet ? [-4, -2, 0, 2, 4] : [-7, -4, -2, 0, 2, 4, 7];
   const envelopes = new Float32Array(length);
   const brightness = new Float32Array(length);
   for (let i = 0; i < length; i++) {
     const t = i / sampleRate;
-    envelopes[i] = amplitude(t, duration, 0.025, 0.26);
-    brightness[i] = 1.25 + (accented ? 2.8 : 1.9) * Math.exp(-t / 0.13);
+    envelopes[i] = amplitude(t, duration, velvet ? 0.016 : 0.025, velvet ? 0.31 : 0.26);
+    brightness[i] = velvet
+      ? 1.05 + (accented ? 1.7 : 1.15) * Math.exp(-t / 0.18)
+      : 1.25 + (accented ? 2.8 : 1.9) * Math.exp(-t / 0.13);
   }
   for (let harmonic = 1; harmonic <= 10; harmonic++) {
     const triangle = harmonic % 2 ? (harmonic % 4 === 1 ? 1 : -1) / (harmonic * harmonic) : 0;
-    const weight = harmonic === 1 ? 1 : 0.3 / harmonic + 0.7 * triangle;
+    const weight = harmonic === 1 ? 1 : velvet ? 0.15 / harmonic + 0.85 * triangle : 0.3 / harmonic + 0.7 * triangle;
     const levels = new Float32Array(length);
     for (let i = 0; i < length; i++) levels[i] = weight * envelopes[i] / Math.sqrt(1 + (harmonic / brightness[i]) ** 4);
     for (let voice = 0; voice < detunes.length; voice++) {
       const hz = frequency * 2 ** (detunes[voice] / 1200);
       if (hz * harmonic >= sampleRate * 0.42) continue;
       const position = voice / (detunes.length - 1);
-      const panL = Math.cos(position * Math.PI / 2) / 4.5;
-      const panR = Math.sin(position * Math.PI / 2) / 4.5;
+      const panL = Math.cos(position * Math.PI / 2) / (velvet ? 3.5 : 4.5);
+      const panR = Math.sin(position * Math.PI / 2) / (velvet ? 3.5 : 4.5);
       const step = TAU * hz * harmonic / sampleRate;
       const sinStep = Math.sin(step), cosStep = Math.cos(step);
       let sin = Math.sin(voice * 0.37), cos = Math.cos(voice * 0.37);
@@ -83,7 +86,7 @@ export function renderStudyInstrument(
       }
     }
   }
-  addEnsemble(left, right, sampleRate, 0.12);
+  addEnsemble(left, right, sampleRate, velvet ? 0.08 : 0.12);
   // A fixed trim preserves dynamics between notes; no peak normalization or
   // clipping distortion. Fade all stereo delay tails fully to zero as well.
   const trim = 0.72;

@@ -16991,6 +16991,7 @@ function OrbitalPolymeter() {
                           ['wood', 'Wood'],
                           ['soft-synth', 'Soft Synth'],
                           ['chorus-keys', 'Chorus Keys'],
+                          ['velvet-keys', 'Velvet Keys'],
                           ['bright-marker', 'Bright Marker'],
                           ['chime', 'Chime'],
                           ['warm-synth', 'Warm Synth'],
@@ -19381,6 +19382,7 @@ function OrbitalPolymeter() {
                       <option value="wood" style={{ background: '#181820' }}>Wood</option>
                       <option value="soft-synth" style={{ background: '#181820' }}>Soft Synth</option>
                       <option value="chorus-keys" style={{ background: '#181820' }}>Chorus Keys</option>
+                      <option value="velvet-keys" style={{ background: '#181820' }}>Velvet Keys</option>
                       <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
                       <option value="chime" style={{ background: '#181820' }}>Chime</option>
                       <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>

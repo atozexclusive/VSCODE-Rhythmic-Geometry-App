@@ -43,8 +43,8 @@ class Context {
   close() { this.state = 'closed'; return Promise.resolve(); } resume() { return Promise.resolve(); }
 }
 
-test('only Chorus Keys and Nebula Keys return; original Orbit menu and Study default remain', () => {
-  assert.deepEqual(ORBIT_DESIGNED_INSTRUMENTS, [['orbit-keys','Nebula Keys']]);
+test('selected experimental instruments preserve the original Orbit menu and Study default', () => {
+  assert.deepEqual(ORBIT_DESIGNED_INSTRUMENTS, [['orbit-keys','Nebula Keys'],['dusk-synth','Dusk Synth']]);
   assert.deepEqual(ORBIT_SOUND_PALETTES.slice(0,7).map(p => p[0]), ['standard','soft-pad','warm-pad','bell','pluck','organ','bass']);
   assert.equal(createPolyrhythmSoundSettings({palette:'chorus-keys'}).palette, 'chorus-keys');
   assert.equal(createPolyrhythmSoundSettings().palette, 'study-pulse');
@@ -121,4 +121,48 @@ test('Nebula export uses buffered voices and a controllable dry/wet mix', () => 
     assert.equal(Context.latest.oscillators.length,0);
     assert.equal(Context.latest.convolvers.length,0,'preset ambience uses its own slider-controlled stem');
   } finally { stopAllAudio(); Object.assign(globalThis,{AudioContext:previous}); }
+});
+
+test('Velvet Keys and Dusk Synth are distinct, bounded stereo voices with shorter tails', () => {
+  assert.equal(createPolyrhythmSoundSettings({palette:'velvet-keys'}).palette,'velvet-keys');
+  for(const frequency of [110,220,880]) {
+    for(const [fresh,original] of [
+      [renderStudyInstrument('velvet-keys',frequency,16000),renderStudyInstrument('chorus-keys',frequency,16000)],
+      [renderOrbitInstrument('dusk-synth',frequency,16000),renderOrbitInstrument('orbit-keys',frequency,16000)],
+    ]) {
+      assert.ok(fresh[0].length<original[0].length,'new sounds leave more space between hits');
+      let energy=0,width=0;
+      for(let i=0;i<fresh[0].length;i++) {
+        const l=fresh[0][i],r=fresh[1][i];
+        assert.ok(Number.isFinite(l)&&Number.isFinite(r)&&Math.abs(l)<1&&Math.abs(r)<1);
+        energy+=l*l; width+=(l-r)**2;
+      }
+      assert.ok(energy>1&&width>0.001,'audible stereo body');
+      fresh.forEach(c=>{assert.equal(c[0],0);assert.equal(c.at(-1),0);assert.ok(Math.abs(c[1])<0.001);});
+    }
+  }
+  for(const speed of [1,4,12]) {
+    const layers=renderOrbitInstrumentLayers('dusk-synth',440,16000,speed);
+    const full=renderOrbitInstrument('dusk-synth',440,16000,speed);
+    for(let c=0;c<2;c++)for(let i=0;i<full[c].length;i++)assert.ok(Math.abs(layers[c][i]+layers[c+2][i]-full[c][i])<1e-7,'the reverb slider can remove exactly the ambience stem');
+  }
+});
+
+test('Velvet Keys uses its own prepared samples rather than falling back to Chorus Keys', async () => {
+  const previousWindow=globalThis.window;
+  Object.assign(globalThis,{window:{AudioContext:Context}});
+  try {
+    const study=cloneStudy(POLYRHYTHM_PRESETS.find(p=>p.id==='three-five')!.study);
+    study.soundSettings=createPolyrhythmSoundSettings({palette:'velvet-keys',pitchMode:'free'});
+    await preparePolyrhythmAudioRecording(study);
+    const ctx=Context.latest, layer=study.layers[0];
+    const sample=getStudyInstrumentSample(ctx as unknown as AudioContext,'velvet-keys',layer.pitchHz,false);
+    const before=ctx.allocations;
+    triggerPolyrhythmPulse({frequency:layer.pitchHz,gain:layer.gain,sound:study.soundSettings,layerIndex:0,beatCount:layer.beatCount,atTime:3});
+    assert.equal(ctx.allocations,before,'first impact reuses prepared PCM');
+    assert.equal(ctx.sources[0].buffer,sample.buffer);
+    assert.equal(ctx.sources[0].startedAt,3);
+    assert.equal(ctx.oscillators.length,0);
+    ctx.sources.forEach(source=>source.onended?.());
+  } finally {Context.latest.state='closed';Object.assign(globalThis,{window:previousWindow});}
 });

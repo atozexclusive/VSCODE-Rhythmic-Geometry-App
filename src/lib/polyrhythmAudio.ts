@@ -1,5 +1,5 @@
 import { SCALE_PRESETS } from './audioEngine';
-import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument } from './studyInstruments';
+import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument, type StudyInstrument } from './studyInstruments';
 import { getStudyPitch } from './studyPitch';
 import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
@@ -432,7 +432,7 @@ export function getPolyrhythmAudioRecordingStream(): MediaStream | null {
   return recordingDestination.stream;
 }
 
-function triggerChorusKeys(frequency: number, gain: number, accented: boolean, atTime: number | undefined, target: VoiceTarget): void {
+function triggerStudyKeys(instrument: StudyInstrument, frequency: number, gain: number, accented: boolean, atTime: number | undefined, target: VoiceTarget): void {
   const context = target.context;
   const buses: StudyOutputBus[] = [];
   if (target.outputToSpeakers) {
@@ -440,12 +440,12 @@ function triggerChorusKeys(frequency: number, gain: number, accented: boolean, a
     buses.push(masterBus!);
   }
   if (target.destination) buses.push(getStudyOutputBus(context, target.destination));
-  const sample = getStudyInstrumentSample(context, 'chorus-keys', frequency, accented);
+  const sample = getStudyInstrumentSample(context, instrument, frequency, accented);
   const source = context.createBufferSource();
   const output = context.createGain();
   source.buffer = sample.buffer;
   source.playbackRate.value = sample.playbackRate;
-  output.gain.value = gain * getStudyInstrumentLevel('chorus-keys');
+  output.gain.value = gain * getStudyInstrumentLevel(instrument);
   source.connect(output);
   const sends: GainNode[] = [];
   for (const bus of buses) {
@@ -470,8 +470,9 @@ function triggerChorusKeys(frequency: number, gain: number, accented: boolean, a
   source.start(Math.max(atTime ?? 0, context.currentTime + 0.008));
 }
 
-function prepareChorusKeys(context: AudioContext, study: PolyrhythmStudy): void {
-  if (!study.soundEnabled || !isStudyInstrument(study.soundSettings.palette)) return;
+function prepareStudyKeys(context: AudioContext, study: PolyrhythmStudy): void {
+  const instrument = study.soundSettings.palette;
+  if (!study.soundEnabled || !isStudyInstrument(instrument)) return;
   const groups = [study.layers, ...(study.chainEnabled ? study.chainCells ?? [] : []).map(cell => cell.layers)];
   for (const layers of groups) layers.forEach((layer, index) => {
     if (!layer.soundEnabled) return;
@@ -479,8 +480,8 @@ function prepareChorusKeys(context: AudioContext, study: PolyrhythmStudy): void 
       ? 1 : SCALE_PRESETS[study.soundSettings.scaleName].intervals.length * 2;
     for (let hit = 0; hit < noteCount; hit++) {
       const frequency = getStudyPitch(layer.pitchHz, study.soundSettings, index, hit);
-      getStudyInstrumentSample(context, 'chorus-keys', frequency, false);
-      if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, 'chorus-keys', frequency, true);
+      getStudyInstrumentSample(context, instrument, frequency, false);
+      if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, instrument, frequency, true);
     }
   });
 }
@@ -490,7 +491,7 @@ export async function preparePolyrhythmAudioRecording(study: PolyrhythmStudy): P
   if (!context) return null;
   if (context.state === 'suspended') await context.resume();
   getMasterOutput(context);
-  prepareChorusKeys(context, study);
+  prepareStudyKeys(context, study);
   return getPolyrhythmAudioRecordingStream();
 }
 
@@ -523,7 +524,7 @@ export function triggerPolyrhythmPulse(options: {
     : options.target;
   if (isStudyInstrument(options.sound.palette) && voiceTarget) {
     if (!Number.isFinite(options.gain) || options.gain <= 0) return;
-    triggerChorusKeys(frequency, peakGain, Boolean(options.accented), options.atTime, voiceTarget);
+    triggerStudyKeys(options.sound.palette, frequency, peakGain, Boolean(options.accented), options.atTime, voiceTarget);
     return;
   }
   triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
@@ -574,7 +575,7 @@ export function createPolyrhythmExportAudioStream(
     outputToSpeakers: false,
   };
   getStudyOutputBus(context, destination);
-  prepareChorusKeys(context, study);
+  prepareStudyKeys(context, study);
   const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
   const cyclesPerSecond = study.bpm / 60 / 4;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));

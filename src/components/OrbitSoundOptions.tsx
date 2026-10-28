@@ -44,7 +44,7 @@ export default function OrbitSoundOptions({ settings, onChange, orbits, muted, o
         <StudyShellButton size="compact" tone="green" highlighted={!keyed} onClick={() => onChange({ tonePreset: 'original' })}>Original</StudyShellButton>
         <StudyShellButton size="compact" tone="green" highlighted={keyed} onClick={() => onChange({ tonePreset: 'scale-quantized' })}>In Key</StudyShellButton>
       </div>
-      <select aria-label="Orbit sound palette" className={selectClass} value={settings.soundPalette ?? 'standard'} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette, ...(event.target.value === 'orbit-keys' ? { reverbAmount: 1 } : {}) })}>
+      <select aria-label="Orbit sound palette" className={selectClass} value={settings.soundPalette ?? 'standard'} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette, ...((event.target.value === 'orbit-keys' || event.target.value === 'dusk-synth') ? { reverbAmount: 1 } : {}) })}>
         {ORBIT_SOUND_PALETTES.map(([value, label]) => <option key={value} value={value} style={{ background: '#181820' }}>{label}</option>)}
       </select>
       <NoteOrderControl
