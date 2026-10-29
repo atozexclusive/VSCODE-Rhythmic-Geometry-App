@@ -1,3 +1,5 @@
+import { drawDistantPlanet, normalizeDistantPlanets, type DistantPlanetPair } from './distantPlanets';
+
 export type CanvasDisplayThemeId =
   | 'classic'
   | 'void'
@@ -38,6 +40,7 @@ export interface CanvasInnerClockAutomation {
 export interface CanvasDisplaySettings {
   theme: CanvasDisplayThemeId;
   atmosphere: CanvasAtmosphereId;
+  distantPlanets?: DistantPlanetPair;
   glow: CanvasGlowLevel;
   squareGrid?: boolean;
   centerAxes?: boolean;
@@ -425,6 +428,7 @@ export function normalizeCanvasDisplaySettings(
     theme: value?.theme ? clampDisplayTheme(value.theme) : fallback.theme,
     atmosphere: value?.atmosphere ? clampAtmosphere(value.atmosphere) : fallback.atmosphere,
     glow: value?.glow ? clampGlow(value.glow) : fallback.glow,
+    distantPlanets: normalizeDistantPlanets(value?.distantPlanets, fallback.distantPlanets),
     squareGrid: typeof value?.squareGrid === 'boolean' ? value.squareGrid : fallback.squareGrid,
     centerAxes: typeof value?.centerAxes === 'boolean' ? value.centerAxes : fallback.centerAxes,
     subdivisionGuide,
@@ -614,75 +618,10 @@ export function drawCanvasDisplayBackground(
     ctx.save();
     ctx.globalAlpha = presentationMode ? 0.19 : 0.15;
 
-    // Small, shaded worlds sit off-center so the rhythmic drawing stays clear.
-    const saturnX = width * 0.15;
-    const saturnY = height * 0.24;
-    const saturnRadius = unit * 0.047;
-    const drawRing = (start: number, end: number) => {
-      ctx.beginPath();
-      ctx.ellipse(saturnX, saturnY, saturnRadius * 1.95, saturnRadius * 0.53, -0.35, start, end);
-      ctx.stroke();
-    };
-    ctx.strokeStyle = 'rgba(173,157,124,0.58)';
-    ctx.lineWidth = Math.max(1, saturnRadius * 0.18);
-    drawRing(0, Math.PI * 2);
-
-    const saturnShade = ctx.createRadialGradient(
-      saturnX - saturnRadius * 0.4, saturnY - saturnRadius * 0.4, 0,
-      saturnX, saturnY, saturnRadius,
-    );
-    saturnShade.addColorStop(0, '#b9ac8b');
-    saturnShade.addColorStop(0.55, '#726750');
-    saturnShade.addColorStop(1, '#11151c');
-    ctx.fillStyle = saturnShade;
-    ctx.beginPath();
-    ctx.arc(saturnX, saturnY, saturnRadius, 0, Math.PI * 2);
-    ctx.fill();
-    drawRing(0, Math.PI);
-
-    const earthX = width * 0.87;
-    const earthY = height * 0.74;
-    const earthRadius = unit * 0.038;
-    const earthShade = ctx.createRadialGradient(
-      earthX - earthRadius * 0.35, earthY - earthRadius * 0.4, 0,
-      earthX, earthY, earthRadius,
-    );
-    earthShade.addColorStop(0, '#7194a3');
-    earthShade.addColorStop(0.5, '#345c73');
-    earthShade.addColorStop(1, '#0d151f');
-    ctx.fillStyle = earthShade;
-    ctx.beginPath();
-    ctx.arc(earthX, earthY, earthRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-    ctx.translate(earthX, earthY);
-    ctx.scale(earthRadius, earthRadius);
-    ctx.fillStyle = 'rgba(126,149,120,0.55)';
-    ctx.beginPath();
-    ctx.moveTo(-0.72, -0.52);
-    ctx.bezierCurveTo(-0.34, -0.84, 0.16, -0.62, 0.04, -0.29);
-    ctx.bezierCurveTo(-0.3, -0.12, 0.02, 0.08, -0.22, 0.24);
-    ctx.bezierCurveTo(-0.34, 0.5, -0.27, 0.66, -0.47, 0.74);
-    ctx.bezierCurveTo(-0.72, 0.4, -0.52, 0.03, -0.76, -0.12);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(0.38, -0.42);
-    ctx.bezierCurveTo(0.74, -0.58, 1.06, -0.13, 0.88, 0.1);
-    ctx.bezierCurveTo(0.59, 0.08, 0.76, 0.55, 0.47, 0.48);
-    ctx.bezierCurveTo(0.28, 0.18, 0.52, 0.06, 0.3, -0.14);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(208,218,222,0.28)';
-    ctx.lineWidth = 0.09;
-    ctx.beginPath();
-    ctx.moveTo(-0.9, -0.36);
-    ctx.bezierCurveTo(-0.2, -0.61, 0.1, -0.09, 0.78, -0.26);
-    ctx.moveTo(-0.54, 0.46);
-    ctx.bezierCurveTo(-0.12, 0.2, 0.41, 0.54, 0.94, 0.3);
-    ctx.stroke();
-    ctx.restore();
+    // Slot positions, sizes and atmosphere opacity stay fixed when a world changes.
+    const planets = normalizeDistantPlanets(settings.distantPlanets);
+    drawDistantPlanet(ctx, planets[0], width * 0.15, height * 0.24, unit * 0.047);
+    drawDistantPlanet(ctx, planets[1], width * 0.87, height * 0.74, unit * 0.038);
     ctx.restore();
   }
 

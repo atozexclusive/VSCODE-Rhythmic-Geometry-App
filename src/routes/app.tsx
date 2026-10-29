@@ -1,3 +1,4 @@
+import DistantPlanetsControl from '../components/DistantPlanetsControl';
 import NoteOrderControl from '../components/NoteOrderControl';
 import OrbitReadAids from '../components/OrbitReadAids';
 import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
@@ -3390,7 +3391,9 @@ function CanvasDisplayControls({
           labelStyle={canvasSubheaderStyle}
         />
         <div className="grid grid-cols-3 gap-1.5">
-          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => (
+          {CANVAS_ATMOSPHERE_OPTIONS.map((option) => option.id === 'distant-planets' ? (
+            <DistantPlanetsControl key={option.id} settings={settings} onChange={onChange} />
+          ) : (
             <StudyShellButton
               key={option.id}
               size="compact"
