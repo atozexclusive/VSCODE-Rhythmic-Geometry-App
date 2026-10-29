@@ -50,3 +50,25 @@ export function getOrbitTurnExplanation(counts: number[], mode: OrbitCountMode |
   const commonDivisor = values.reduce(divisor);
   return { sharedBeats: null, turns: values.map(value => (value / commonDivisor).toString()) };
 }
+
+/** Latest shared return crossed by the visible rings, without frame-dependent phase checks. */
+export function getOrbitAlignment(
+  counts: number[], previous: number, current: number,
+  mode: OrbitCountMode | 'sweep', cyclePulseCount = Math.max(1, ...counts),
+): { beat: number; indices: number[]; full: boolean } | null {
+  if (counts.length < 2 || previous < 0 || current <= previous) return null;
+  let latest = previous === 0 ? 0 : -1;
+  for (let i = 0; i < counts.length; i++) for (let j = i + 1; j < counts.length; j++) {
+    const period = getOrbitHomeCycleBeats([counts[i], counts[j]], mode, cyclePulseCount);
+    if (!period) continue;
+    const beat = Math.floor(current / period + 1e-9) * period;
+    if (beat > previous + 1e-9 && beat > latest) latest = beat;
+  }
+  if (latest < 0) return null;
+  const indices = counts.flatMap((count, index) => {
+    const period = getOrbitHomeCycleBeats([count], mode, cyclePulseCount);
+    const turns = period ? latest / period : NaN;
+    return Number.isFinite(turns) && Math.abs(turns - Math.round(turns)) < 1e-7 ? [index] : [];
+  });
+  return indices.length >= 2 ? { beat: latest, indices, full: indices.length === counts.length } : null;
+}

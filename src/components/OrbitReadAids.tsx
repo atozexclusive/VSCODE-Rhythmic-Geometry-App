@@ -2,7 +2,7 @@ import type { GeometryMode } from '../lib/geometry';
 import { useId, useState } from 'react';
 import { getOrbitCanvasNumbers, getOrbitTurnExplanation } from '../lib/orbitReadingAids';
 import type { OrbitCountMode } from '../lib/orbitalEngine';
-import { CircleDot, CircleHelp, Flag, Hash, Circle, Sparkles, Spline, Sun } from 'lucide-react';
+import { CircleDot, CircleHelp, Orbit, Zap, Hash, Circle, Sparkles, Spline, Sun } from 'lucide-react';
 
 interface OrbitReadAidsProps {
   guidePrefix?: 'mobile' | 'desktop';
@@ -15,20 +15,24 @@ interface OrbitReadAidsProps {
   onToggleTraceAura?: () => void;
   trace: boolean;
   markers: boolean;
-  cycleCue: boolean;
+  orbits: boolean;
+  onToggleOrbits: () => void;
+  impacts: boolean;
+  alignments: boolean;
+  onToggleAlignments: () => void;
   sun: boolean;
   ratioLabels?: boolean;
   onToggleTrace: () => void;
   onToggleMarkers: () => void;
-  onToggleCycleCue?: () => void;
+  onToggleImpacts: () => void;
   onToggleSun?: () => void;
   onToggleRatioLabels?: () => void;
 }
 
 export default function OrbitReadAids({
   geometryMode = 'standard-trace', traceAura = false, onToggleTraceAura, outlineOnly = false, onToggleOutline,
-  counts = [], numberMode = 'beats-per-turn', guidePrefix = 'mobile', trace, markers, cycleCue, sun, ratioLabels = true,
-  onToggleTrace, onToggleMarkers, onToggleCycleCue, onToggleSun, onToggleRatioLabels,
+  counts = [], numberMode = 'beats-per-turn', guidePrefix = 'mobile', trace, markers, orbits, onToggleOrbits, impacts, alignments, onToggleAlignments, sun, ratioLabels = true,
+  onToggleTrace, onToggleMarkers, onToggleImpacts, onToggleSun, onToggleRatioLabels,
 }: OrbitReadAidsProps) {
   const [explanationOpen, setExplanationOpen] = useState(false);
   const explanationId = useId();
@@ -36,8 +40,10 @@ export default function OrbitReadAids({
   const canvasNumbers = getOrbitCanvasNumbers(counts, numberMode);
   const items = [
     { label: 'Trace', Icon: Spline, active: trace, action: onToggleTrace, guide: guidePrefix === 'mobile' ? 'mobile-trail' : 'desktop-trace', title: 'Show the path left by the moving orbits' },
-    { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the moving orbit markers' },
-    { label: 'Cycle Cue', Icon: Flag, active: cycleCue, action: onToggleCycleCue, title: 'Marks beat 1 and flashes when all orbits return together' },
+    { label: 'Orbits', Icon: Circle, active: orbits, action: onToggleOrbits, title: 'Show the moving planets and nodes' },
+    { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the 12 o’clock starting ticks' },
+    { label: 'Alignments', Icon: Orbit, active: alignments, action: onToggleAlignments, title: 'Highlight shared returns; double gold halos mark the full-cycle restart' },
+    { label: 'Impacts', Icon: Zap, active: impacts, action: onToggleImpacts, title: 'Show a flash when an orbit passes its starting point' },
     { label: 'Sun', Icon: Sun, active: sun, action: onToggleSun, title: 'Show a sun at the center of the orbits' },
     ...(geometryMode === 'standard-trace'
       ? [{ label: 'Outline', Icon: Circle, active: outlineOnly, action: onToggleOutline, title: 'Highlight the pattern’s curves, corners and turning points without the dense interior web' }] : []),
@@ -48,7 +54,7 @@ export default function OrbitReadAids({
   return (
     <div className="grid grid-cols-2 gap-1.5" onKeyDown={(event) => { if (event.key === 'Escape') setExplanationOpen(false); }}>
       {items.map(({ label, Icon, active, action, guide, title }) => (
-        <div key={label} className={`flex items-stretch gap-1 ${label === 'Numbers' || label === 'Aura' || label === 'Outline' ? 'col-span-2' : ''}`}>
+        <div key={label} className={`flex items-stretch gap-1 ${label === 'Numbers' || label === 'Outline' || label === 'Aura' ? 'col-span-2' : ''}`}>
         <button
           type="button"
           aria-label={label}

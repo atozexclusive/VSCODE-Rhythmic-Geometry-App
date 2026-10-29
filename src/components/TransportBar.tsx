@@ -51,7 +51,11 @@ interface TransportBarProps {
   tempoMode: OrbitTempoMode;
   traceMode: boolean;
   showPlanets: boolean;
-  showHomeMarker?: boolean;
+  showImpactMarkers: boolean;
+  showAlignments: boolean;
+  onToggleAlignments: () => void;
+  onToggleImpactMarkers: () => void;
+  showStartMarkers?: boolean;
   showCenterSun?: boolean;
   traceAura?: boolean;
   outlineOnly?: boolean;
@@ -89,7 +93,7 @@ interface TransportBarProps {
   onSpeedChange: (speed: number) => void;
   onToggleTrace: () => void;
   onTogglePlanets: () => void;
-  onToggleHomeMarker?: () => void;
+  onToggleStartMarkers: () => void;
   onToggleCenterSun?: () => void;
   onToggleRatioLabels?: () => void;
   onToggleMute: () => void;
@@ -205,7 +209,11 @@ export default function TransportBar({
   tempoMode,
   traceMode,
   showPlanets,
-  showHomeMarker = false,
+  showImpactMarkers,
+  showAlignments,
+  onToggleAlignments,
+  onToggleImpactMarkers,
+  showStartMarkers = true,
   showCenterSun = false,
   traceAura = false,
   outlineOnly = false,
@@ -234,7 +242,7 @@ export default function TransportBar({
   onSpeedChange,
   onToggleTrace,
   onTogglePlanets,
-  onToggleHomeMarker,
+  onToggleStartMarkers,
   onToggleCenterSun,
   onToggleRatioLabels,
   onToggleMute,
@@ -635,7 +643,10 @@ export default function TransportBar({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={onToggleTrace} aria-pressed={traceMode} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Trace</button>
-          <button type="button" onClick={onTogglePlanets} aria-pressed={showPlanets} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Markers</button>
+          <button type="button" onClick={onToggleAlignments} aria-pressed={showAlignments} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Alignments</button>
+          <button type="button" onClick={onToggleStartMarkers} aria-pressed={showStartMarkers} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Markers</button>
+          <button type="button" onClick={onToggleImpactMarkers} aria-pressed={showImpactMarkers} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Impacts</button>
+          <button type="button" onClick={onTogglePlanets} aria-pressed={showPlanets} className="min-h-9 rounded-lg border border-white/10 bg-white/[0.03] text-xs hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">Orbits</button>
         </div>
         <button type="button" onClick={() => {
           if (lockedFeatures.soundEditing) { onLockedFeature?.('sound-editing'); return; }
@@ -1123,7 +1134,7 @@ export default function TransportBar({
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
                     title: 'Open overlay controls',
-                    info: 'Trace shows the memory of movement. Markers show the moving bodies. Cycle Cue marks beat 1 and flashes when all orbits return together. Sun adds a glowing center to orbit around. Turn them down when you want the final form to read cleaner.',
+                    info: 'Trace shows the memory of movement. Orbits shows the moving bodies. Markers shows the starting ticks. Impacts shows the return flashes. Alignments highlights shared returns. Sun adds a glowing center to orbit around. Turn them down when you want the final form to read cleaner.',
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
                       <div className={standardUtilityGroupClass}>
@@ -1137,13 +1148,17 @@ export default function TransportBar({
                           counts={quickOrbitControls.map(orbit => orbit.pulseCount)}
                           numberMode={geometryMode === 'sweep' ? 'sweep' : ENABLE_STANDARD_TURNS_PER_CYCLE ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE}
                           trace={traceMode}
-                          markers={showPlanets}
-                          cycleCue={showHomeMarker}
+                          markers={showStartMarkers}
+                          alignments={showAlignments}
+                          onToggleAlignments={onToggleAlignments}
+                          orbits={showPlanets}
+                          onToggleOrbits={onTogglePlanets}
+                          impacts={showImpactMarkers}
                           sun={showCenterSun}
                           ratioLabels={showRatioLabels}
                           onToggleTrace={onToggleTrace}
-                          onToggleMarkers={onTogglePlanets}
-                          onToggleCycleCue={onToggleHomeMarker}
+                          onToggleMarkers={onToggleStartMarkers}
+                          onToggleImpacts={onToggleImpactMarkers}
                           onToggleSun={onToggleCenterSun}
                           onToggleRatioLabels={onToggleRatioLabels}
                         />
@@ -1481,9 +1496,9 @@ export default function TransportBar({
                   border: `1px solid ${showPlanets ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.22)'}`,
                   color: 'rgba(255, 255, 255, 0.75)',
                 }}
-                title={showPlanets ? 'Hide orbit markers' : 'Show orbit markers'}
+                title={showPlanets ? 'Hide moving planets and nodes' : 'Show moving planets and nodes'}
               >
-                {showPlanets ? 'MARKERS ON' : 'MARKERS OFF'}
+                {showPlanets ? 'ORBITS ON' : 'ORBITS OFF'}
               </button>
               <button
                 onClick={onToggleHelp}

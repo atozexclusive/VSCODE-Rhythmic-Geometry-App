@@ -945,7 +945,7 @@ const MOBILE_START_GUIDE: StartGuideStep[] = [
     target: 'orbit-mobile-read-aids-button',
     title: 'Read Aids',
     kicker: 'Orbit Guide',
-    text: 'The eye button opens Read Aids. Trace leaves the path visible. Markers show the moving dots so you can track each orbit. Cycle Cue marks beat 1 and gently flashes when all orbits return together. Sun adds a glowing center to orbit around.',
+    text: 'The eye button opens Read Aids. Trace leaves the path visible. Orbits shows the moving planets and nodes. Markers shows the starting ticks. Impacts shows flashes at each return. Alignments highlights shared returns, with double gold halos for the full-cycle restart. Sun adds a glowing center to orbit around.',
     doThis: 'Turn Trace on when you want to see the full path the orbits are drawing.',
     notice: 'These are visual helpers. They do not change timing or orbit counts.',
   },
@@ -7854,7 +7854,11 @@ function OrbitalPolymeter() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [traceMode, setTraceMode] = useState(true);
   const [showPlanets, setShowPlanets] = useState(true);
-  const [showOrbitHomeMarker, setShowOrbitHomeMarker] = useState(false);
+  const [showOrbitAlignments, setShowOrbitAlignments] = useState(false);
+  const handleToggleOrbitAlignments = useCallback(() => setShowOrbitAlignments(value => !value), []);
+  const [showOrbitImpactMarkers, setShowOrbitImpactMarkers] = useState(true);
+  const handleToggleOrbitImpactMarkers = useCallback(() => setShowOrbitImpactMarkers(value => !value), []);
+  const [showOrbitStartMarkers, setShowOrbitStartMarkers] = useState(true);
   const [showOrbitCenterSun, setShowOrbitCenterSun] = useState(false);
   const [orbitTraceAura, setOrbitTraceAura] = useState(false);
   const [orbitOutlineOnly, setOrbitOutlineOnly] = useState(false);
@@ -26536,7 +26540,9 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
-          showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+          showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -26567,7 +26573,9 @@ function OrbitalPolymeter() {
             tempoMode={orbitTempoMode}
             traceMode={traceMode}
             showPlanets={showPlanets}
-            showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+            showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -26597,7 +26605,9 @@ function OrbitalPolymeter() {
             onSpeedChange={handleSpeedChange}
             onToggleTrace={handleToggleTrace}
             onTogglePlanets={handleTogglePlanets}
-            onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
+          onToggleImpactMarkers={handleToggleOrbitImpactMarkers}
+          onToggleAlignments={handleToggleOrbitAlignments}
+            onToggleStartMarkers={() => setShowOrbitStartMarkers((visible) => !visible)}
           onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
           onToggleTraceAura={() => setOrbitTraceAura((enabled) => !enabled)}
           onToggleOutline={() => setOrbitOutlineOnly((enabled) => !enabled)}
@@ -26661,7 +26671,9 @@ function OrbitalPolymeter() {
               engineState={engineState}
               traceMode={traceMode}
               showPlanets={showPlanets}
-              showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+              showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -26705,13 +26717,17 @@ function OrbitalPolymeter() {
                       counts={getGeometryModeOrbits(engineState.orbits, geometryMode, interferenceSettings).map(orbit => orbit.pulseCount)}
                       numberMode={geometryMode === 'sweep' ? 'sweep' : ENABLE_STANDARD_TURNS_PER_CYCLE ? standardTimingMode : DEFAULT_ORBIT_COUNT_MODE}
                       trace={traceMode}
-                      markers={showPlanets}
-                      cycleCue={showOrbitHomeMarker}
+                      markers={showOrbitStartMarkers}
+                      alignments={showOrbitAlignments}
+                      onToggleAlignments={handleToggleOrbitAlignments}
+                      orbits={showPlanets}
+                      onToggleOrbits={handleTogglePlanets}
+                      impacts={showOrbitImpactMarkers}
                       sun={showOrbitCenterSun}
                       ratioLabels={showOrbitRatioLabels}
                       onToggleTrace={handleToggleTrace}
-                      onToggleMarkers={handleTogglePlanets}
-                      onToggleCycleCue={() => setShowOrbitHomeMarker((visible) => !visible)}
+                      onToggleImpacts={handleToggleOrbitImpactMarkers}
+                      onToggleMarkers={() => setShowOrbitStartMarkers((visible) => !visible)}
                       onToggleSun={() => setShowOrbitCenterSun((visible) => !visible)}
                       onToggleRatioLabels={() => setShowOrbitRatioLabels((visible) => !visible)}
                     />
@@ -27227,7 +27243,9 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
-          showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+          showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -27259,7 +27277,9 @@ function OrbitalPolymeter() {
           engineState={engineState}
           traceMode={traceMode}
           showPlanets={showPlanets}
-          showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+          showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -27564,7 +27584,9 @@ function OrbitalPolymeter() {
           tempoMode={orbitTempoMode}
           traceMode={traceMode}
           showPlanets={showPlanets}
-          showHomeMarker={showOrbitHomeMarker}
+          showImpactMarkers={showOrbitImpactMarkers}
+          showAlignments={showOrbitAlignments}
+          showStartMarkers={showOrbitStartMarkers}
           showCenterSun={showOrbitCenterSun}
           traceAura={orbitTraceAura}
           outlineOnly={orbitOutlineOnly}
@@ -27594,7 +27616,9 @@ function OrbitalPolymeter() {
           onSpeedChange={handleSpeedChange}
           onToggleTrace={handleToggleTrace}
           onTogglePlanets={handleTogglePlanets}
-          onToggleHomeMarker={() => setShowOrbitHomeMarker((visible) => !visible)}
+          onToggleImpactMarkers={handleToggleOrbitImpactMarkers}
+          onToggleAlignments={handleToggleOrbitAlignments}
+          onToggleStartMarkers={() => setShowOrbitStartMarkers((visible) => !visible)}
           onToggleCenterSun={() => setShowOrbitCenterSun((visible) => !visible)}
           onToggleTraceAura={() => setOrbitTraceAura((enabled) => !enabled)}
           onToggleOutline={() => setOrbitOutlineOnly((enabled) => !enabled)}

@@ -33,7 +33,7 @@ import {
   type CanvasDisplaySettings,
 } from '../lib/canvasDisplayThemes';
 import { useIsMobile } from '../hooks/use-mobile';
-import { crossedOrbitHome, getOrbitHomeCycleBeats, getOrbitCanvasNumbers } from '../lib/orbitReadingAids';
+import { getOrbitAlignment, getOrbitCanvasNumbers } from '../lib/orbitReadingAids';
 import {
   addAudioToCanvasStream,
   CANVAS_EXPORT_PREROLL_SECONDS,
@@ -137,7 +137,9 @@ interface OrbitalCanvasProps {
   engineState: EngineState;
   traceMode: boolean;
   showPlanets?: boolean;
-  showHomeMarker?: boolean;
+  showImpactMarkers?: boolean;
+  showAlignments?: boolean;
+  showStartMarkers?: boolean;
   showCenterSun?: boolean;
   traceAura?: boolean;
   outlineOnly?: boolean;
@@ -159,7 +161,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineState,
     traceMode,
     showPlanets = true,
-    showHomeMarker = false,
+    showImpactMarkers = true,
+    showAlignments = false,
+    showStartMarkers = true,
     showCenterSun = false,
     traceAura = false,
     outlineOnly = false,
@@ -183,12 +187,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const engineRef = useRef<EngineState>(engineState);
     const traceModeRef = useRef(traceMode);
     const showPlanetsRef = useRef(showPlanets);
-    const showHomeMarkerRef = useRef(showHomeMarker);
+    const showImpactMarkersRef = useRef(showImpactMarkers);
+    const showAlignmentsRef = useRef(showAlignments);
+    const alignmentFlashRef = useRef<{ started: number; beat: number; ids: string[]; full: boolean } | null>(null);
+    const showStartMarkersRef = useRef(showStartMarkers);
     const showCenterSunRef = useRef(showCenterSun);
     const traceAuraRef = useRef(traceAura);
     const outlineOnlyRef = useRef(outlineOnly);
     const showRatioLabelsRef = useRef(showRatioLabels);
-    const homeFlashStartedRef = useRef<number | null>(null);
     const harmonySettingsRef = useRef(harmonySettings);
     const geometryModeRef = useRef(geometryMode);
     const standardTimingModeRef = useRef<OrbitCountMode>(standardTimingMode);
@@ -219,7 +225,9 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     engineRef.current = engineState;
     traceModeRef.current = traceMode;
     showPlanetsRef.current = showPlanets;
-    showHomeMarkerRef.current = showHomeMarker;
+    showImpactMarkersRef.current = showImpactMarkers;
+    showAlignmentsRef.current = showAlignments;
+    showStartMarkersRef.current = showStartMarkers;
     showCenterSunRef.current = showCenterSun;
     traceAuraRef.current = traceAura;
     outlineOnlyRef.current = outlineOnly;
@@ -246,6 +254,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         traceCtx.setTransform(traceDpr, 0, 0, traceDpr, 0, 0);
       }
       traceSegmentCountRef.current = 0;
+      alignmentFlashRef.current = null;
     }, []);
 
     const getAdaptiveTraceSteps = useCallback(
@@ -1104,7 +1113,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === trig.orbitId);
           const orbit = orbitIndex >= 0 ? state.orbits[orbitIndex] : null;
           const shouldRenderOrbitBloom =
-            showPlanetsRef.current &&
+            showImpactMarkersRef.current &&
             !isSweepMode &&
             ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
           if (shouldRenderOrbitBloom && state.speedMultiplier <= MAX_BLOOM_SPEED) {
@@ -1279,6 +1288,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           drawCanvasDisplayBackground(ctx, w, h, currentDisplaySettings, {
             presentationMode: presentationModeRef.current,
             seed: 43,
+            // Keep export backgrounds clear of broad radial glow bands.
+            hideBackdropBloom: isExportRendering,
           });
         }
 
@@ -1644,21 +1655,18 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                   ((isSweepQuad || isInterferenceQuad) && orbit.id === currentFourthOrbit?.id),
               )
             : state.orbits;
-        const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
-
-        const homeMarkerEnabled = showHomeMarkerRef.current && !isExportRendering;
-        if (!homeMarkerEnabled || !state.playing || state.elapsedBeats <= previousElapsedBeats) {
-          homeFlashStartedRef.current = null;
-        } else if (crossedOrbitHome(previousElapsedBeats, state.elapsedBeats, getOrbitHomeCycleBeats(
-          visibleOrbits.map((orbit) => orbit.pulseCount),
-          isSweepMode ? 'sweep' : activeCountMode,
-          activeCyclePulseCount,
-        ))) {
-          homeFlashStartedRef.current = now;
+        if (!showAlignmentsRef.current || state.elapsedBeats < previousElapsedBeats || state.elapsedBeats === 0) {
+          alignmentFlashRef.current = null;
+        } else if (state.playing) {
+          const alignment = getOrbitAlignment(visibleOrbits.map(orbit => orbit.pulseCount),
+            previousElapsedBeats, state.elapsedBeats, isSweepMode ? 'sweep' : activeCountMode, activeCyclePulseCount);
+          if (alignment) alignmentFlashRef.current = {
+            started: now, beat: alignment.beat, full: alignment.full,
+            ids: alignment.indices.map(index => visibleOrbits[index].id),
+          };
         }
-        const homeFlash = homeFlashStartedRef.current === null
-          ? 0 : Math.max(0, 1 - (now - homeFlashStartedRef.current) / 700);
-        let outerHomeRadius = 0;
+        const alignmentRadii = new Map<string, number>();
+        const hoveredOrbitId = !isMobileRef.current && !presentationModeRef.current ? hoverOrbitIdRef.current : null;
 
         // A stationary visual anchor, independent of the timing and trace layers.
         if (showCenterSunRef.current && visibleOrbits.length > 0) {
@@ -1680,11 +1688,6 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.beginPath();
           ctx.arc(renderCx, renderCy, radius, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = 'rgba(255,224,151,0.28)';
-          ctx.lineWidth = 0.75 * pointScale;
-          ctx.beginPath();
-          ctx.arc(renderCx, renderCy, radius * 1.55, 0, Math.PI * 2);
-          ctx.stroke();
           ctx.restore();
         }
 
@@ -1704,6 +1707,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                 : isSweepMode && currentFourthOrbit?.id === orbit.id
                   ? SWEEP_FOURTH_RADIUS * sweepScale
               : orbit.radius * orbitScale;
+          alignmentRadii.set(orbit.id, r);
           const isHoveredOrbit = hoveredOrbitId === orbit.id;
 
           // Ring
@@ -1716,16 +1720,14 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.stroke();
           ctx.restore();
 
-          if (homeMarkerEnabled) {
-            outerHomeRadius = Math.max(outerHomeRadius, r);
+          if (showStartMarkersRef.current) {
             ctx.save();
-            ctx.strokeStyle = '#D9F5FF';
-            ctx.globalAlpha = 0.42 + homeFlash * 0.35;
-            ctx.lineWidth = 1.4;
+            ctx.strokeStyle = orbit.color;
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = 1.3 * pointScale;
             ctx.beginPath();
-            ctx.moveTo(renderCx - 4, renderCy - r - 9);
-            ctx.lineTo(renderCx, renderCy - r - 5);
-            ctx.lineTo(renderCx + 4, renderCy - r - 9);
+            ctx.moveTo(renderCx, renderCy - r - 4 * pointScale);
+            ctx.lineTo(renderCx, renderCy - r + 4 * pointScale);
             ctx.stroke();
             ctx.restore();
           }
@@ -1753,7 +1755,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
                     ? currentFourthPoint
                 : scalePointFromCenter(resonancePosition(orbit, renderCx, renderCy), renderCx, renderCy, orbitScale);
 
-          if (isHoveredOrbit) {
+          if (isHoveredOrbit && showPlanetsRef.current) {
             ctx.save();
             const hoverGlowRadius = 18 * orbitGlowMultiplier * pointScale;
             const hoverGlow = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, hoverGlowRadius);
@@ -1890,29 +1892,51 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.restore();
         }
 
-        if (homeMarkerEnabled && outerHomeRadius > 0) {
-          const homeY = renderCy - outerHomeRadius;
-          ctx.save();
-          ctx.font = '9px monospace';
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = `rgba(217,245,255,${0.6 + homeFlash * 0.3})`;
-          ctx.fillText('1 · HOME', renderCx + 12, homeY - 7);
-          if (homeFlash > 0) {
-            ctx.strokeStyle = '#D9F5FF';
-            ctx.lineWidth = 2;
-            ctx.globalAlpha = homeFlash * 0.45;
-            ctx.shadowColor = '#B9E8FF';
-            ctx.shadowBlur = 12;
-            ctx.beginPath();
-            ctx.arc(renderCx, homeY, 13, 0, TAU);
-            ctx.stroke();
+        const alignment = alignmentFlashRef.current;
+        if (showAlignmentsRef.current && alignment) {
+          const duration = alignment.full ? 1100 : 700;
+          const progress = Math.min(1, (now - alignment.started) / duration);
+          const fade = (1 - progress) ** 2;
+          if (fade > 0) {
+            const participants = visibleOrbits.filter(orbit => alignment.ids.includes(orbit.id));
+            ctx.save();
+            ctx.lineCap = 'round';
+            const radii = participants.map(orbit => alignmentRadii.get(orbit.id) ?? 0);
+            if (radii.length >= 2) {
+              ctx.strokeStyle = alignment.full ? '#FFD166' : '#B9E8FF';
+              ctx.globalAlpha = fade * 0.65;
+              ctx.lineWidth = (alignment.full ? 2 : 1) * pointScale;
+              ctx.beginPath();
+              ctx.moveTo(renderCx, renderCy - Math.max(...radii));
+              ctx.lineTo(renderCx, renderCy - Math.min(...radii));
+              ctx.stroke();
+            }
+            for (const orbit of participants) {
+              const radius = alignmentRadii.get(orbit.id) ?? 0;
+              ctx.strokeStyle = alignment.full ? '#FFD166' : orbit.color;
+              ctx.globalAlpha = fade * 0.35;
+              ctx.lineWidth = (alignment.full ? 2 : 1.4) * pointScale;
+              ctx.beginPath();
+              ctx.arc(renderCx, renderCy, radius, 0, TAU);
+              ctx.stroke();
+              ctx.globalAlpha = fade * 0.95;
+              const cueRadius = (alignment.full ? 8 + progress * 12 : 5 + progress * 7) * pointScale;
+              ctx.beginPath();
+              ctx.arc(renderCx, renderCy - radius, cueRadius, 0, TAU);
+              ctx.stroke();
+              if (alignment.full) {
+                // Double gold halos identify the shared restart, versus single colored partial cues.
+                ctx.beginPath();
+                ctx.arc(renderCx, renderCy - radius, cueRadius + 4 * pointScale, 0, TAU);
+                ctx.stroke();
+              }
+            }
+            ctx.restore();
           }
-          ctx.restore();
         }
 
         // ---- Radial blooms (on 12 o'clock trigger) ----
-        bloomsRef.current = showPlanetsRef.current
+        bloomsRef.current = showImpactMarkersRef.current
           ? bloomsRef.current.filter((b) => now - b.birth < BLOOM_DURATION)
           : [];
 
