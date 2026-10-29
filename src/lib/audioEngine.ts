@@ -656,7 +656,11 @@ export function createOrbitExportAudioStream(
   peakGuard.curve = EXPORT_PEAK_GUARD_CURVE;
   peakGuard.oversample = '2x';
   peakLimiter.connect(peakGuard);
-  peakGuard.connect(destination);
+  // Leave another ~2 dB above the finished mix for comfortable phone playback.
+  const outputTrim = ctx.createGain();
+  outputTrim.gain.value = 0.8;
+  peakGuard.connect(outputTrim);
+  outputTrim.connect(destination);
   const exportOutput: AudioNode = exportInput;
   const target = { context: ctx, destination: exportOutput };
   const plans = getOrbitAudioExportPlan(state, countMode, options);

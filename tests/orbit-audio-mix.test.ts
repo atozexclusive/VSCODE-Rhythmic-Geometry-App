@@ -74,7 +74,9 @@ test('layer mix isolates levels, applies live updates, and respects mute in expo
     assert.equal(makeup.gain.value,1.5);
     assert.equal(peakLimiter.threshold.value,-3,'final peak protection follows the volume boost');
     assert.equal(peakLimiter.ratio.value,20);
-    assert.deepEqual(peakLimiter.connections[0].connections,[ctx.recordings[0]],'export mastering never feeds the speakers');
+    const trim=peakLimiter.connections[0].connections[0];
+    assert.equal(trim.gain.value,0.8,'final trim lowers both loudness and the ceiling by about 2 dB');
+    assert.deepEqual(trim.connections,[ctx.recordings[0]],'export mastering never feeds the speakers');
     assert.equal(ctx.compressors[0].threshold.value,-20,'live sound is unchanged');
     assert.equal(ctx.convolvers.length, 2);
     const before = ctx.oscillators.length;
