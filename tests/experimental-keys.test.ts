@@ -34,6 +34,7 @@ class Context {
     const pcm = Array.from({length: channels}, () => new Float32Array(length));
     return {length, sampleRate, numberOfChannels: channels, getChannelData: (c: number) => pcm[c]};
   }
+  createWaveShaper() { return new Node(); }
   createGain() { return new Node(); } createBiquadFilter() { return new Node(); } createDynamicsCompressor() { return new Node(); }
   createChannelSplitter() { return new Node(); } createChannelMerger() { return new Node(); }
   createConvolver() { const n = new Node(); this.convolvers.push(n); return n; }

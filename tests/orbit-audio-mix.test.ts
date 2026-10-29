@@ -23,13 +23,15 @@ class Context {
   static current: Context;
   state = 'running'; currentTime = 0; sampleRate = 1000;
   destination = new Node(); oscillators: Node[] = []; convolvers: Node[] = [];
+  compressors: Node[] = []; recordings: Node[] = [];
   constructor() { Context.current = this; }
   createGain() { return new Node(); }
-  createDynamicsCompressor() { return new Node(); }
+  createWaveShaper() { return new Node(); }
+  createDynamicsCompressor() { const node=new Node(); this.compressors.push(node); return node; }
   createOscillator() { const n = new Node(); this.oscillators.push(n); return n; }
   createConvolver() { const n = new Node(); this.convolvers.push(n); return n; }
   createBuffer(_channels: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
-  createMediaStreamDestination() { return new Node(); }
+  createMediaStreamDestination() { const node=new Node(); this.recordings.push(node); return node; }
   resume() { return Promise.resolve(); }
 }
 
@@ -63,6 +65,17 @@ test('layer mix isolates levels, applies live updates, and respects mute in expo
     assert.notEqual(exportBus, firstBus);
     assert.equal(exportBus.gain.value, 0.4);
     assert.equal(exportBus.connections[1].gain.value, 0.325);
+    const exportInput=exportBus.connections[0];
+    const compressor=exportInput.connections[0];
+    const makeup=compressor.connections[0];
+    const peakLimiter=makeup.connections[0];
+    assert.equal(exportInput.gain.value,4,'exports boost quiet notes before compression');
+    assert.equal(compressor.threshold.value,-12);
+    assert.equal(makeup.gain.value,1.5);
+    assert.equal(peakLimiter.threshold.value,-3,'final peak protection follows the volume boost');
+    assert.equal(peakLimiter.ratio.value,20);
+    assert.deepEqual(peakLimiter.connections[0].connections,[ctx.recordings[0]],'export mastering never feeds the speakers');
+    assert.equal(ctx.compressors[0].threshold.value,-20,'live sound is unchanged');
     assert.equal(ctx.convolvers.length, 2);
     const before = ctx.oscillators.length;
     createOrbitExportAudioStream({ orbits: [a], playing: false, speedMultiplier: 1, elapsedBeats: 0, lastTimestamp: 0, baseBPM: 120 }, { ...DEFAULT_HARMONY_SETTINGS, soundPalette: 'soft-pad' }, 0.5);
