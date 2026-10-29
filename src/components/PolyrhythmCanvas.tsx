@@ -204,7 +204,7 @@ export default function PolyrhythmCanvas({
     }
   }, []);
 
-  const draw = useCallback(() => {
+  const draw = useCallback((cleanExport = false) => {
     const canvas = canvasRef.current;
     if (!canvas) {
       return;
@@ -309,6 +309,42 @@ export default function PolyrhythmCanvas({
         }
         return layerB.radius - layerA.radius;
       });
+
+    if (exportVideoSize || cleanExport) {
+      // Remove radial bloom only beneath filled shapes, retaining the same
+      // stars and atmosphere. Guides and overlapping layers are drawn later.
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      let hasFilledShape = false;
+      for (const layer of orderedLayers) {
+        const isReferenceLayer = soloLayerDisplayRef.current && showReferenceLayersRef.current &&
+          displayLayerIdRef.current != null && layer.id !== displayLayerIdRef.current;
+        if (isReferenceLayer) continue;
+        const activePoints = getLayerStepPoints(layer, metrics.centerX, metrics.centerY, metrics.scale)
+          .filter((point) => point.active);
+        if (activePoints.length < 3) continue;
+        hasFilledShape = true;
+        ctx.moveTo(activePoints[0].x, activePoints[0].y);
+        for (let index = 1; index < activePoints.length; index += 1) {
+          ctx.lineTo(activePoints[index].x, activePoints[index].y);
+        }
+        ctx.closePath();
+      }
+      if (hasFilledShape) {
+        ctx.clip();
+        // The clip follows the export's artwork scale; atmosphere stays in
+        // canvas coordinates so stars match across the polygon boundary.
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawCanvasDisplayBackground(ctx, rect.width, rect.height, currentDisplaySettings, {
+          presentationMode: presentationModeRef.current || soloLayerDisplayRef.current,
+          seed: 31,
+          hideBackdropBloom: true,
+        });
+      }
+      ctx.restore();
+    }
 
     if (currentDisplaySettings.squareGrid !== false && currentDisplaySettings.centerAxes !== false) {
       const gridRadius = Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
@@ -926,6 +962,7 @@ export default function PolyrhythmCanvas({
       exportCtx.fillStyle = '#111116';
       exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
+      draw(true);
       const sourceWidth = canvas.width;
       const sourceHeight = canvas.height;
       const containScale = Math.min(
@@ -939,7 +976,11 @@ export default function PolyrhythmCanvas({
 
       exportCtx.imageSmoothingEnabled = true;
       exportCtx.imageSmoothingQuality = 'high';
-      exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+      try {
+        exportCtx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight);
+      } finally {
+        draw();
+      }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const link = document.createElement('a');

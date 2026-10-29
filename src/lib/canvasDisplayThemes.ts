@@ -472,6 +472,7 @@ export function drawCanvasDisplayBackground(
   options: {
     presentationMode?: boolean;
     seed?: number;
+    hideBackdropBloom?: boolean;
   } = {},
 ): void {
   const theme = getCanvasDisplayTheme(settings.theme);
@@ -487,22 +488,24 @@ export function drawCanvasDisplayBackground(
   ctx.fillStyle = theme.base;
   ctx.fillRect(0, 0, width, height);
 
-  const mainGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.05, centerX, centerY, radius * 0.72);
-  mainGradient.addColorStop(0, theme.gradient[0]);
-  mainGradient.addColorStop(0.42, theme.gradient[1]);
-  mainGradient.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = mainGradient;
-  ctx.globalAlpha = intensity;
-  ctx.fillRect(0, 0, width, height);
+  if (!options.hideBackdropBloom) {
+    const mainGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.05, centerX, centerY, radius * 0.72);
+    mainGradient.addColorStop(0, theme.gradient[0]);
+    mainGradient.addColorStop(0.42, theme.gradient[1]);
+    mainGradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mainGradient;
+    ctx.globalAlpha = intensity;
+    ctx.fillRect(0, 0, width, height);
 
-  const sideGradient = ctx.createRadialGradient(width * 0.82, height * 0.16, 0, width * 0.82, height * 0.16, radius * 0.52);
-  sideGradient.addColorStop(0, theme.gradient[2]);
-  sideGradient.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.globalAlpha = presentationMode ? 0.86 : 0.56;
-  ctx.fillStyle = sideGradient;
-  ctx.fillRect(0, 0, width, height);
+    const sideGradient = ctx.createRadialGradient(width * 0.82, height * 0.16, 0, width * 0.82, height * 0.16, radius * 0.52);
+    sideGradient.addColorStop(0, theme.gradient[2]);
+    sideGradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = presentationMode ? 0.86 : 0.56;
+    ctx.fillStyle = sideGradient;
+    ctx.fillRect(0, 0, width, height);
+  }
 
-  if (atmosphere === 'deep-field') {
+  if (!options.hideBackdropBloom && atmosphere === 'deep-field') {
     const hazeA = ctx.createRadialGradient(width * 0.22, height * 0.78, 0, width * 0.22, height * 0.78, radius * 0.46);
     hazeA.addColorStop(0, theme.gradient[1]);
     hazeA.addColorStop(1, 'rgba(0,0,0,0)');
@@ -722,7 +725,7 @@ export function drawCanvasDisplayBackground(
     ctx.restore();
   }
 
-  if (atmosphere === 'orbital-grid' || atmosphere === 'deep-field') {
+  if (!options.hideBackdropBloom && (atmosphere === 'orbital-grid' || atmosphere === 'deep-field')) {
     ctx.globalAlpha =
       atmosphere === 'orbital-grid'
         ? presentationMode ? 0.5 : 0.34
@@ -751,7 +754,7 @@ export function drawCanvasDisplayBackground(
     }
   }
 
-  if (atmosphere === 'deep-field') {
+  if (!options.hideBackdropBloom && atmosphere === 'deep-field') {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.lineWidth = 1;
@@ -801,11 +804,13 @@ export function drawCanvasDisplayBackground(
     });
   }
 
-  const vignette = ctx.createRadialGradient(centerX, centerY, radius * 0.22, centerX, centerY, radius * 0.72);
-  vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, `rgba(0,0,0,${Math.min(0.72, theme.vignetteAlpha * (presentationMode ? 1.16 : 1))})`);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, width, height);
+  if (!options.hideBackdropBloom) {
+    const vignette = ctx.createRadialGradient(centerX, centerY, radius * 0.22, centerX, centerY, radius * 0.72);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, `rgba(0,0,0,${Math.min(0.72, theme.vignetteAlpha * (presentationMode ? 1.16 : 1))})`);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+  }
   ctx.restore();
 }
