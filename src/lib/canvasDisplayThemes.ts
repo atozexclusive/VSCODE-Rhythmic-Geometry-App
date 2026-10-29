@@ -503,7 +503,7 @@ export function drawCanvasDisplayBackground(
     wash.addColorStop(0, theme.gradient[1]);
     wash.addColorStop(0.5, theme.gradient[0]);
     wash.addColorStop(1, theme.gradient[2]);
-    ctx.globalAlpha = intensity;
+    ctx.globalAlpha = intensity * 0.9;
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, width, height);
   }
