@@ -80,4 +80,25 @@ export function drawOrbitTraceContours(
     ctx.stroke();
   }
   output.drawImage(cache.canvas, 0, 0, source.width, source.height);
+
+  // Clipping the segment envelope leaves gaps where it meets an endpoint's
+  // orbit. Those inner endpoint paths complete the shape's circular borders.
+  // The outermost ring is only a guide, so it keeps its ordinary faint stroke.
+  const outerRadius = Math.max(0, ...orbits.map(orbit => orbit.radius));
+  output.save();
+  output.setTransform(source.width / width, 0, 0, source.height / height, 0, 0);
+  output.globalAlpha = 0.8;
+  output.lineWidth = lineWidth;
+  output.lineCap = 'round';
+  for (const [index, orbit] of orbits.entries()) {
+    if (orbit.radius >= outerRadius) continue;
+    const turns = Math.min(1, Math.max(0, elapsedBeats * rates[index]));
+    if (turns <= 0) continue;
+    output.strokeStyle = orbit.color;
+    output.beginPath();
+    output.arc(cx, cy, orbit.radius * scale, -Math.PI / 2,
+      -Math.PI / 2 + turns * Math.PI * 2 * orbit.direction, orbit.direction < 0);
+    output.stroke();
+  }
+  output.restore();
 }

@@ -29,7 +29,8 @@ test('contours follow the tangent envelope of the connecting segments', () => {
 });
 
 class Paint {
-  lines=0; draws=0;
+  lines=0; draws=0; arcs:any[][]=[];
+  save(){} restore(){} arc(...values:any[]){this.arcs.push(values);}
   setTransform(){} beginPath(){} moveTo(){} lineTo(){this.lines++;} stroke(){} drawImage(){this.draws++;}
 }
 test('contour drawing is cached, bounded per frame, and clears on restart', () => {
@@ -41,13 +42,20 @@ test('contour drawing is cached, bounded per frame, and clears on restart', () =
   const draw=(beat:number)=>drawOrbitTraceContours(output,source,orbits,beat,1080,1920,540,960,1,'beats-per-turn',1);
   try {
     draw(200); assert.equal(created.length,1);
+    const rings=(output as unknown as Paint).arcs;
+    assert.deepEqual(rings.map(arc=>arc[2]),[90,150,210], 'complete only the inner circular borders');
+    for(const arc of rings) assert.ok(Math.abs(Math.abs(arc[4]-arc[3])-Math.PI*2)<1e-12,'completed rings have no gaps');
+    assert.equal(rings[1][5],true,'counterclockwise borders follow their orbit');
+    rings.length=0;
     assert.ok(created[0].paint.lines>0);
     assert.ok(created[0].paint.lines<=1200);
     assert.equal(created[0].height,1536);
     for(let i=0;i<100;i++)draw(200);
     const finished=created[0].paint.lines;
     draw(200); assert.equal(created[0].paint.lines,finished,'paused completed shape is reused');
+    (output as unknown as Paint).arcs.length=0;
     draw(0); assert.equal(created.length,2,'rewinding clears the contour history');
+    assert.equal((output as unknown as Paint).arcs.length,0,'restart clears circular borders too');
     invalidateOrbitTraceContours(source); draw(1); assert.equal(created.length,3);
     assert.deepEqual(source,{width:2160,height:3840});
   } finally {Object.assign(globalThis,{document:previous});}
