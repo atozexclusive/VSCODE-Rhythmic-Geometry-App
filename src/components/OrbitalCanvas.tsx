@@ -1290,6 +1290,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             seed: 43,
             // Keep export backgrounds clear of broad radial glow bands.
             hideBackdropBloom: isExportRendering,
+            exportBackground: isExportRendering,
           });
         }
 

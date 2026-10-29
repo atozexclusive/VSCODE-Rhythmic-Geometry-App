@@ -477,6 +477,7 @@ export function drawCanvasDisplayBackground(
     presentationMode?: boolean;
     seed?: number;
     hideBackdropBloom?: boolean;
+    exportBackground?: boolean;
   } = {},
 ): void {
   const theme = getCanvasDisplayTheme(settings.theme);
@@ -487,10 +488,25 @@ export function drawCanvasDisplayBackground(
   const centerX = width * 0.5;
   const centerY = height * 0.47;
   const radius = Math.max(width, height);
+  // Tiny live-canvas stars need larger, clearer cores in compressed HD video.
+  const starScale = options.exportBackground ? Math.max(1, Math.min(3, Math.min(width, height) / 480)) : 1;
+  const starBrightness = options.exportBackground ? 1.8 : 1;
 
   ctx.save();
   ctx.fillStyle = theme.base;
   ctx.fillRect(0, 0, width, height);
+
+  if (options.hideBackdropBloom && options.exportBackground) {
+    // Preserve each theme's color depth with a broad diagonal wash. Unlike
+    // radial bloom, this has no circular contour behind the orbit geometry.
+    const wash = ctx.createLinearGradient(0, 0, width, height);
+    wash.addColorStop(0, theme.gradient[1]);
+    wash.addColorStop(0.5, theme.gradient[0]);
+    wash.addColorStop(1, theme.gradient[2]);
+    ctx.globalAlpha = intensity;
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   if (!options.hideBackdropBloom) {
     const mainGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.05, centerX, centerY, radius * 0.72);
@@ -565,10 +581,10 @@ export function drawCanvasDisplayBackground(
     const embeddedStars = getParticles(width, height, atmosphere, seed + 29, 36);
     ctx.globalCompositeOperation = 'screen';
     embeddedStars.forEach((star) => {
-      ctx.globalAlpha = star.alpha * (presentationMode ? 0.32 : 0.24);
+      ctx.globalAlpha = Math.min(1, star.alpha * (presentationMode ? 0.32 : 0.24) * starBrightness);
       ctx.fillStyle = '#c6ccdc';
       ctx.beginPath();
-      ctx.arc(star.x, star.y, star.radius * 0.55, 0, Math.PI * 2);
+      ctx.arc(star.x, star.y, star.radius * 0.55 * starScale, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.restore();
@@ -580,10 +596,10 @@ export function drawCanvasDisplayBackground(
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     skyStars.forEach((star) => {
-      ctx.globalAlpha = star.alpha * (presentationMode ? 0.58 : 0.42);
+      ctx.globalAlpha = Math.min(1, star.alpha * (presentationMode ? 0.58 : 0.42) * starBrightness);
       ctx.fillStyle = star.hue > 0.75 ? '#aabed7' : '#dce2eb';
       ctx.beginPath();
-      ctx.arc(star.x, star.y, star.radius * 0.7, 0, Math.PI * 2);
+      ctx.arc(star.x, star.y, star.radius * 0.7 * starScale, 0, Math.PI * 2);
       ctx.fill();
     });
 
@@ -607,10 +623,10 @@ export function drawCanvasDisplayBackground(
       const spread = star.y / height - 0.5;
       const y = Math.sign(spread) * spread * spread * unit * 0.45
         + Math.sin(x / unit * 7) * unit * 0.018;
-      ctx.globalAlpha = star.alpha * (presentationMode ? 0.32 : 0.24);
+      ctx.globalAlpha = Math.min(1, star.alpha * (presentationMode ? 0.32 : 0.24) * starBrightness);
       ctx.fillStyle = star.hue > 0.5 ? '#b3bfd7' : '#d5c9bf';
       ctx.beginPath();
-      ctx.arc(x, y, star.radius * 0.42, 0, Math.PI * 2);
+      ctx.arc(x, y, star.radius * 0.42 * starScale, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.restore();
@@ -714,21 +730,21 @@ export function drawCanvasDisplayBackground(
     const count = atmosphere === 'deep-field' ? 70 : 56;
     const particles = getParticles(width, height, atmosphere, seed, presentationMode ? count + 18 : count);
     particles.forEach((particle) => {
-      const alpha = particle.alpha * (presentationMode ? 1.08 : 0.74);
+      const alpha = Math.min(1, particle.alpha * (presentationMode ? 1.08 : 0.74) * starBrightness);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = particle.hue > 0.78 ? theme.swatch[2] : 'rgba(255,255,255,0.72)';
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, particle.radius * starScale, 0, Math.PI * 2);
       ctx.fill();
       if (atmosphere === 'stars' && particle.hue > 0.9) {
         ctx.globalAlpha = alpha * 0.46;
         ctx.strokeStyle = theme.swatch[2];
         ctx.lineWidth = 0.7;
         ctx.beginPath();
-        ctx.moveTo(particle.x - particle.radius * 2.2, particle.y);
-        ctx.lineTo(particle.x + particle.radius * 2.2, particle.y);
-        ctx.moveTo(particle.x, particle.y - particle.radius * 2.2);
-        ctx.lineTo(particle.x, particle.y + particle.radius * 2.2);
+        ctx.moveTo(particle.x - particle.radius * 2.2 * starScale, particle.y);
+        ctx.lineTo(particle.x + particle.radius * 2.2 * starScale, particle.y);
+        ctx.moveTo(particle.x, particle.y - particle.radius * 2.2 * starScale);
+        ctx.lineTo(particle.x, particle.y + particle.radius * 2.2 * starScale);
         ctx.stroke();
       }
       if (atmosphere === 'deep-field' && particle.hue > 0.86) {
@@ -736,8 +752,8 @@ export function drawCanvasDisplayBackground(
         ctx.strokeStyle = theme.swatch[1];
         ctx.lineWidth = 0.8;
         ctx.beginPath();
-        ctx.moveTo(particle.x - particle.radius * 3.2, particle.y + particle.radius * 1.4);
-        ctx.lineTo(particle.x + particle.radius * 3.2, particle.y - particle.radius * 1.4);
+        ctx.moveTo(particle.x - particle.radius * 3.2 * starScale, particle.y + particle.radius * 1.4 * starScale);
+        ctx.lineTo(particle.x + particle.radius * 3.2 * starScale, particle.y - particle.radius * 1.4 * starScale);
         ctx.stroke();
       }
     });
