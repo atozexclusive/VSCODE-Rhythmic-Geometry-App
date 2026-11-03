@@ -15307,6 +15307,22 @@ function OrbitalPolymeter() {
         : polyrhythmStudy.layers.every((layer) => layer.soundEnabled)
           ? 'stack'
           : 'stack';
+  const riffEndingToggle = (
+    <button
+      type="button"
+      aria-label="Ending"
+      aria-pressed={riffCycleStudy.landingEditEnabled}
+      onClick={handleToggleRiffLandingEdit}
+      className="min-h-9 min-w-14 shrink-0 rounded-lg border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors hover:border-[#7FD7FF]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7FD7FF]/60"
+      style={{
+        background: riffCycleStudy.landingEditEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.035)',
+        borderColor: riffCycleStudy.landingEditEnabled ? 'rgba(127,215,255,0.3)' : 'rgba(255,255,255,0.12)',
+        color: riffCycleStudy.landingEditEnabled ? '#7FD7FF' : 'rgba(255,255,255,0.5)',
+      }}
+    >
+      {riffCycleStudy.landingEditEnabled ? 'On' : 'Off'}
+    </button>
+  );
   const riffEditMode: RiffEditMode = riffCycleStudy.landingEditEnabled
     ? 'landing'
     : 'phrase';
@@ -22241,7 +22257,7 @@ function OrbitalPolymeter() {
                               borderColor: 'rgba(127,215,255,0.18)',
                             }}
                           >
-                            <InlineInfoLabel
+                            <div className="flex items-center justify-between gap-3"><InlineInfoLabel
                               infoId="riff_ending_pattern"
                               label="Ending Pattern"
                               labelClassName="text-[10px] font-mono uppercase tracking-[0.12em]"
@@ -22249,7 +22265,7 @@ function OrbitalPolymeter() {
                                 color: '#7FD7FF',
                                 textShadow: '0 0 14px rgba(127,215,255,0.3)',
                               }}
-                            />
+                            />{riffEndingToggle}</div>
                             <div className="mt-1 text-[9px] leading-relaxed text-white/46">
                               Final slots only play right before the riff restarts.
                             </div>
@@ -22916,6 +22932,7 @@ function OrbitalPolymeter() {
                           <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-[#7FD7FF]/80">
                             Ending Settings
                           </div>
+                          {riffEndingToggle}
                         </div>
                         <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
                           Return Cycle decides when the riff comes back to beat 1. Ending Length decides how many final slots you can rewrite.
@@ -23958,7 +23975,7 @@ function OrbitalPolymeter() {
                       boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
                     }}
                   >
-                    <InlineInfoLabel
+                    <div className="flex items-center justify-between gap-3"><InlineInfoLabel
                       infoId="riff_ending_pattern"
                       label="Ending Pattern"
                       labelClassName={riffQuickControlLabelClass}
@@ -23966,7 +23983,7 @@ function OrbitalPolymeter() {
                         color: '#7FD7FF',
                         textShadow: '0 0 14px rgba(127,215,255,0.3)',
                       }}
-                    />
+                    />{riffEndingToggle}</div>
                     <div className="mt-1 text-[10px] leading-relaxed text-white/46">
                       Final slots only play right before the riff restarts.
                     </div>
@@ -25256,9 +25273,7 @@ function OrbitalPolymeter() {
                     <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-[#7FD7FF]">
                       Ending
                     </div>
-                    <div className="text-[7px] font-mono uppercase tracking-[0.12em] text-white/32">
-                      Edit final nodes
-                    </div>
+                    {riffEndingToggle}
                   </div>
                   <div
                     data-guide="riff-editor-ending-length"
