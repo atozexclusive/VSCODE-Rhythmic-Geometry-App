@@ -3465,6 +3465,12 @@ const RIFF_CATALOG_FILES = {
 
 export const RIFF_CATALOG_PRESETS: RiffCyclePreset[] = RIFF_SCENE_CATALOG.map((scene) => {
   const file = RIFF_CATALOG_FILES[scene.id as keyof typeof RIFF_CATALOG_FILES];
+  const sourceStudy = file.study as unknown as RiffCycleStudy;
+  // Bundled standalone scenes often include an auto-created placeholder cell.
+  // It is not an authored sequence; seed it from the user's latest riff on first enable.
+  const sequenceInitialized = sourceStudy.riffSequenceInitialized ?? Boolean(
+    sourceStudy.riffSequenceEnabled || sourceStudy.riffCells?.length > 1 || sourceStudy.riffSequence?.length > 1,
+  );
   return {
     id: `catalog-${scene.id}`,
     name: scene.name,
@@ -3472,7 +3478,8 @@ export const RIFF_CATALOG_PRESETS: RiffCyclePreset[] = RIFF_SCENE_CATALOG.map((s
     pro: scene.tier === 'pro',
     catalogTier: scene.tier,
     study: createRiffCycleStudy({
-      ...file.study as unknown as RiffCycleStudy,
+      ...sourceStudy,
+      riffSequenceInitialized: sequenceInitialized,
       name: scene.name,
       description: scene.description,
       playing: false,

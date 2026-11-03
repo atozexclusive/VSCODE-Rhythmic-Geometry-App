@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addRiffSequenceCell,
+  RIFF_CATALOG_PRESETS,
   cloneRiffCycleStudy,
   createRiffCycleStudy,
   setRiffSequenceEnabled,
@@ -68,4 +69,38 @@ test('turning an unused sequencer off does not prevent its first copy', () => {
   let study = setRiffSequenceEnabled(createRiffCycleStudy(), false);
   study = updateRiffStepCount(study, 15);
   assert.equal(setRiffSequenceEnabled(study, true).riffCells[0].stepCount, 15);
+});
+
+test('bundled standalone scenes seed A from the latest riff instead of their placeholder cells', () => {
+  for (const preset of RIFF_CATALOG_PRESETS.filter(entry => !entry.study.riffSequenceInitialized)) {
+    let study = cloneRiffCycleStudy(preset.study);
+    study = toggleRiffStep(updateRiffStepCount(study, 27), 1);
+    study.riff.color = '#7FD7FF';
+    study.reference.numerator = 3;
+    study.reference.denominator = 8;
+    study.reference.subdivision = 12;
+    const enabled = setRiffSequenceEnabled(study, true);
+    const first = enabled.riffCells[0];
+    assert.equal(first.stepCount, study.riff.stepCount, preset.id);
+    assert.deepEqual(first.activeSteps, study.riff.activeSteps, preset.id);
+    assert.deepEqual(first.accents, study.riff.accents, preset.id);
+    assert.equal(first.color, study.riff.color);
+    assert.equal(first.numerator, 3);
+    assert.equal(first.denominator, 8);
+    assert.equal(first.subdivision, 12);
+    const edited = toggleRiffSequenceCellStep(enabled, first.label, 4);
+    const reopened = setRiffSequenceEnabled(setRiffSequenceEnabled(edited, false), true);
+    assert.deepEqual(reopened.riffCells, edited.riffCells, preset.id);
+  }
+  assert.ok(RIFF_CATALOG_PRESETS.some(entry => !entry.study.riffSequenceInitialized));
+});
+
+test('bundled authored sequences keep their saved cells and order', () => {
+  for (const preset of RIFF_CATALOG_PRESETS.filter(entry => entry.study.riffSequenceInitialized)) {
+    const original = cloneRiffCycleStudy(preset.study);
+    const study = toggleRiffStep(original, 1);
+    const enabled = setRiffSequenceEnabled(study, true);
+    assert.deepEqual(enabled.riffCells, original.riffCells, preset.id);
+    assert.deepEqual(enabled.riffSequence, original.riffSequence, preset.id);
+  }
 });

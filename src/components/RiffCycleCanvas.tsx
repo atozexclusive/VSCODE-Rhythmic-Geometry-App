@@ -1895,6 +1895,7 @@ export default function RiffCycleCanvas({
               (effectiveAccented ? 320 : 220),
           )
         : 0;
+      const classicContourNodes = carveViewActive && visibleRiff.stepCount <= 60;
       const radius =
         ((isSelected
           ? 8.4
@@ -1903,9 +1904,11 @@ export default function RiffCycleCanvas({
               ? 7
               : 5.4
             : effectiveActive
-              ? circularPhraseBoundsActive
-                ? 6.15
-                : 5.65
+              ? classicContourNodes
+                ? effectiveAccented || isPhraseRestart ? 5.75 : 4.35
+                : circularPhraseBoundsActive
+                  ? 6.15
+                  : 5.65
               : carveViewActive
                 ? 3.8
                 : circularPhraseBoundsActive
@@ -1953,7 +1956,9 @@ export default function RiffCycleCanvas({
           ? 'rgba(255,255,255,0.38)'
           : 'rgba(255,255,255,0.24)';
       ctx.globalAlpha = effectiveActive
-        ? Math.min(1, (isHovered ? 1 : 0.88) + attackRemaining * 0.3)
+        ? classicContourNodes
+          ? Math.min(0.95, (isHovered ? 0.95 : 0.74) + attackRemaining * 0.24)
+          : Math.min(1, (isHovered ? 1 : 0.88) + attackRemaining * 0.3)
         : carveViewActive
           ? (isHovered ? 0.62 : 0.48) * inactiveAlpha
         : circularPhraseBoundsActive
@@ -1963,7 +1968,9 @@ export default function RiffCycleCanvas({
           : (isHovered ? 0.52 : 0.34) * inactiveAlpha;
       // Each hit owns its fade; moving to the next step must not switch this glow off.
       ctx.shadowBlur = effectiveActive
-        ? ((isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * nodeScale
+        ? classicContourNodes
+          ? ((isHovered ? 12 : 5.5) + attackRemaining * 14) * glowMultiplier * nodeScale
+          : ((isHovered ? 16 : 9) + attackRemaining * 18) * glowMultiplier * nodeScale
         : isHovered
           ? 10 * glowMultiplier * nodeScale
           : carveViewActive
