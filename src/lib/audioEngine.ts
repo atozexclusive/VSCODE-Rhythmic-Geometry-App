@@ -1,4 +1,3 @@
-import { createAudioPeakGuardCurve } from './audioPeakGuard';
 import { getNoteOrderOffset } from './noteOrder';
 import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, isOrbitInstrumentReady, prepareOrbitInstrument, requestOrbitInstrument, releaseOrbitInstrumentContext, scheduleDesignedOrbitInstrument } from './orbitInstruments';
 // ============================================================
@@ -21,7 +20,6 @@ const lastAudibleTriggerByVoice = new Map<number, number>();
 let muted = false;
 
 const MASTER_GAIN_CEILING = 0.5;
-const EXPORT_PEAK_GUARD_CURVE = createAudioPeakGuardCurve();
 const DENSE_TRIGGER_RATE = 35;
 const VERY_DENSE_TRIGGER_RATE = 85;
 const EXTREME_TRIGGER_RATE = 150;
@@ -631,37 +629,18 @@ export function createOrbitExportAudioStream(
   if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   const destination = ctx.createMediaStreamDestination();
   const soundPalette = normalizeOrbitSoundPalette(harmony.soundPalette);
-  // One export-only mastering path for every palette. Raise quiet voices,
-  // control simultaneous returns, then catch peaks after the makeup gain.
-  const exportInput = ctx.createGain();
-  exportInput.gain.value = 4;
-  const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -12;
-  compressor.knee.value = 6;
-  compressor.ratio.value = 12;
-  compressor.attack.value = 0.002;
-  compressor.release.value = 0.12;
-  const exportLevel = ctx.createGain();
-  exportLevel.gain.value = 1.5;
-  const peakLimiter = ctx.createDynamicsCompressor();
-  peakLimiter.threshold.value = -3;
-  peakLimiter.knee.value = 0;
-  peakLimiter.ratio.value = 20;
-  peakLimiter.attack.value = 0;
-  peakLimiter.release.value = 0.08;
-  exportInput.connect(compressor);
-  compressor.connect(exportLevel);
-  exportLevel.connect(peakLimiter);
-  const peakGuard = ctx.createWaveShaper();
-  peakGuard.curve = EXPORT_PEAK_GUARD_CURVE;
-  peakGuard.oversample = '2x';
-  peakLimiter.connect(peakGuard);
-  // Leave another ~2 dB above the finished mix for comfortable phone playback.
-  const outputTrim = ctx.createGain();
-  outputTrim.gain.value = 0.8;
-  peakGuard.connect(outputTrim);
-  outputTrim.connect(destination);
-  const exportOutput: AudioNode = exportInput;
+  // New programs use the same gain and limiter for speakers and exports.
+  // Leave the existing programs' export path intact.
+  let exportOutput: AudioNode = destination;
+  if (isOrbitDesignedInstrument(soundPalette)) {
+    const gain = ctx.createGain();
+    gain.gain.value = MASTER_GAIN_CEILING;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -20; limiter.knee.value = 24; limiter.ratio.value = 12;
+    limiter.attack.value = 0.001; limiter.release.value = 0.08;
+    gain.connect(limiter); limiter.connect(destination);
+    exportOutput = gain;
+  }
   const target = { context: ctx, destination: exportOutput };
   const plans = getOrbitAudioExportPlan(state, countMode, options);
   // Warm the shared mixer before setting the start clock.
