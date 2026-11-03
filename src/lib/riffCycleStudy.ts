@@ -1019,7 +1019,7 @@ function createRandomRiffSoundSettings(
   });
 }
 
-function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'plus'): {
+function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'plus', subdivision?: RiffCycleSubdivision): {
   activeSteps: boolean[];
   accents: boolean[];
 } {
@@ -1033,9 +1033,21 @@ function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'pl
   ] as const;
   const template = randomChoice(grooveTemplates);
   const activeSteps = Array.from({ length: stepCount }, () => false);
-  template.forEach((index) => {
-    activeSteps[index % stepCount] = true;
-  });
+  const fullPhrase = intensity === 'plus' && stepCount > 17;
+  if (fullPhrase) {
+    // Carry a recognizable motif through the entire phrase, with occasional responses.
+    const motifLength = subdivision === 12 ? 12 : 16;
+    for (let start = 0; start < stepCount; start += motifLength) {
+      const motif = start === 0 || Math.random() < 0.65 ? template : randomChoice(grooveTemplates);
+      motif.forEach((index) => {
+        if (index < motifLength && start + index < stepCount) activeSteps[start + index] = true;
+      });
+    }
+  } else {
+    template.forEach((index) => {
+      activeSteps[index % stepCount] = true;
+    });
+  }
   const extraHits =
     intensity === 'plus' ? randomInt(1, Math.max(1, Math.floor(stepCount / 8))) : intensity === 'remix' ? randomInt(0, 2) : randomInt(0, 1);
   for (let hit = 0; hit < extraHits; hit += 1) {
@@ -1045,7 +1057,8 @@ function createPhraseMask(stepCount: number, intensity: 'random' | 'remix' | 'pl
     if (!activeSteps[index]) {
       return false;
     }
-    return index === 0 || index % 4 === 0 || (intensity === 'plus' && Math.random() < 0.12);
+    const accentSpacing = fullPhrase && subdivision === 12 ? 3 : 4;
+    return index === 0 || index % accentSpacing === 0 || (intensity === 'plus' && Math.random() < 0.12);
   });
   if (!accents.some(Boolean)) {
     const firstHit = activeSteps.findIndex(Boolean);
@@ -3117,14 +3130,15 @@ export function accentRiffTail(study: RiffCycleStudy): RiffCycleStudy {
   };
 }
 
-function createRandomReference(intensity: 'random' | 'plus'): ReferenceMeter {
+function createRandomReference(intensity: 'random' | 'plus', extendedPhrase = false): ReferenceMeter {
   const numerator =
     intensity === 'plus'
       ? randomChoice([4, 5, 5, 6, 6, 7] as const)
       : randomChoice([3, 4, 4, 4, 3] as const);
   const denominator = 4;
-  const subdivision =
-    intensity === 'plus'
+  const subdivision = extendedPhrase
+    ? randomChoice([16, 16, 12, 12, 12] as const)
+    : intensity === 'plus'
       ? randomChoice([16, 20, 20, 32] as const)
       : randomChoice([12, 16, 16, 16] as const);
   return createReferenceMeter({
@@ -3165,12 +3179,15 @@ function createReturnMode(intensity: 'random' | 'remix' | 'plus', current?: Riff
 }
 
 export function createRandomRiffCycleStudy(intensity: 'random' | 'plus' = 'random'): RiffCycleStudy {
-  const reference = createRandomReference(intensity);
-  const stepCount =
-    intensity === 'plus'
+  // Keep the original palette of ideas, mixed evenly with longer, readable phrases.
+  const extendedPhrase = intensity === 'plus' && Math.random() < 0.5;
+  const reference = createRandomReference(intensity, extendedPhrase);
+  const stepCount = extendedPhrase
+    ? randomChoice([22, 24, 26, 27, 28, 30, 32, 33, 35, 36] as const)
+    : intensity === 'plus'
       ? randomChoice([11, 13, 15, 17, 19, 21, 23] as const)
       : randomChoice([9, 11, 13, 15, 17] as const);
-  const mask = createPhraseMask(stepCount, intensity);
+  const mask = createPhraseMask(stepCount, intensity, reference.subdivision);
   const returnMode = createReturnMode(intensity);
   const soundSettings = createRandomRiffSoundSettings(intensity);
   const riffColor = createRandomRiffColor(undefined, intensity);

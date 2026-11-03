@@ -9,6 +9,33 @@ import {
   type RiffCycleStudy,
 } from './riffCycleStudy';
 
+/** Scale dense riff markers by the space between steps, including their accent rings. */
+export function getDenseRiffNodeScale(stepCount: number, radius: number, pointScale = 1): number {
+  if (stepCount <= 60) return pointScale;
+  const spacing = 2 * radius * Math.sin(Math.PI / stepCount);
+  const target = Math.min(Math.sqrt(60 / stepCount), spacing / (20 * pointScale));
+  const blend = Math.min(1, (stepCount - 60) / 30);
+  return pointScale * (1 + (Math.max(0.2, target) - 1) * blend);
+}
+
+/** Keep the grouping gap inside its span, even when dense steps are very close. */
+export function getRiffGroupingArc(startAngle: number, endAngle: number): [number, number] | null {
+  const span = endAngle - startAngle;
+  if (span <= 0.035) return null;
+  const inset = Math.min(0.16, Math.max(0.075, span * 0.24), span * 0.4);
+  return [startAngle + inset, endAngle - inset];
+}
+
+export function getDenseRiffLabelStride(stepCount: number, radius: number, labelScale = 1): number {
+  if (stepCount <= 60 || 2 * Math.PI * radius / stepCount >= 14 * labelScale) return 1;
+  return 2 * Math.PI * radius / stepCount >= 4 * labelScale ? 5 : 10;
+}
+
+export function getDenseRiffWindow(center: number, count: number): number[] {
+  return Array.from({ length: Math.min(7, count) }, (_, offset) =>
+    ((center - 3 + offset) % count + count) % count);
+}
+
 export interface RiffCyclePoint {
   x: number;
   y: number;
