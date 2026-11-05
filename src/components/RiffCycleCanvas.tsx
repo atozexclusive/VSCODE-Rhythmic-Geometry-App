@@ -1712,37 +1712,22 @@ export default function RiffCycleCanvas({
         const [a, left, b, right] = twoPointShape;
         ctx.save();
         ctx.lineJoin = 'round';
-        ctx.fillStyle = activeRiffColor;
-        if (currentStudy.showPhraseFill) {
-          // Different facet values give the straight-edged shape a quiet central ridge.
-          for (const [side, opacity] of [[left, 0.18], [right, 0.09]] as const) {
-            ctx.globalAlpha = opacity;
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(side.x, side.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.closePath();
-            ctx.fill();
-          }
-        }
-        ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = activeRiffColor;
-        ctx.lineWidth = 2.1;
-        ctx.shadowBlur = 14 * glowMultiplier;
-        ctx.shadowColor = activeRiffColor;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(left.x, left.y);
         ctx.lineTo(b.x, b.y);
         ctx.lineTo(right.x, right.y);
         ctx.closePath();
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.26;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        if (currentStudy.showPhraseFill) {
+          ctx.fillStyle = activeRiffColor;
+          ctx.globalAlpha = 0.14;
+          ctx.fill();
+        }
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = activeRiffColor;
+        ctx.lineWidth = 2.1;
+        ctx.shadowBlur = 14 * glowMultiplier;
+        ctx.shadowColor = activeRiffColor;
         ctx.stroke();
         ctx.restore();
       } else {
@@ -2435,20 +2420,21 @@ export default function RiffCycleCanvas({
       ctx.restore();
     });
 
+    const getMeterVoicePoint = (stepIndex: number) => currentStudy.pulseLayerVisible && currentStudy.pulseLayerEnabled
+      ? getPulseLayerPoint(
+          metrics.circleCenterX,
+          metrics.circleCenterY,
+          metrics.outerRadius,
+          stepIndex,
+          stepsPerBar,
+        )
+      : metrics.referencePerimeterPoints[stepIndex];
+
     const referenceSubdivisionVoiceEvents = voiceEvents.filter(
       (event) => event.surface === 'reference-subdivision',
     );
     referenceSubdivisionVoiceEvents.forEach((event) => {
-      const pulseStepCount = Math.max(1, stepsPerBar);
-      const point = currentStudy.pulseLayerEnabled
-        ? getPulseLayerPoint(
-            metrics.circleCenterX,
-            metrics.circleCenterY,
-            metrics.outerRadius,
-            event.index,
-            pulseStepCount,
-          )
-        : metrics.referencePerimeterPoints[event.index];
+      const point = getMeterVoicePoint(event.index);
       if (!point) return;
       const offsetX = 0;
       const editing = voiceEditModeRef.current && selectedVoiceInstrument === event.instrument;
@@ -2492,7 +2478,7 @@ export default function RiffCycleCanvas({
           const completionIndex = showOnRiff
             ? getEffectiveRiffStepStateAtReferenceStep(currentStudy, completedAt).phraseIndex
             : completedAt % stepsPerBar;
-          const completionPoint = showOnRiff ? riffPoints[completionIndex] : metrics.referencePerimeterPoints[completionIndex];
+          const completionPoint = showOnRiff ? riffPoints[completionIndex] : getMeterVoicePoint(completionIndex);
           if (fade > 0 && completionPoint) {
             ctx.save();
             ctx.globalAlpha = fade * 0.38;
@@ -2510,7 +2496,7 @@ export default function RiffCycleCanvas({
       const index = showOnRiff
         ? getEffectiveRiffStepStateAtReferenceStep(currentStudy, lastHit).phraseIndex
         : lastHit % stepsPerBar;
-      const point = showOnRiff ? riffPoints[index] : metrics.referencePerimeterPoints[index];
+      const point = showOnRiff ? riffPoints[index] : getMeterVoicePoint(index);
       if (!point) return;
       ctx.save();
       ctx.globalAlpha = Math.min(1, remaining);

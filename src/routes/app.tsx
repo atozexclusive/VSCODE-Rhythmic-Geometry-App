@@ -4516,6 +4516,14 @@ function RiffCellSequenceEditor({
                   >
                     <Dice5 size={14} strokeWidth={1.5} aria-hidden="true" />
                   </button>
+                  <LimitedColorPickerButton
+                    colors={RIFF_CYCLE_COLORS}
+                    value={selectedCell.color}
+                    onChange={(color) => onSetCellColor(selectedCell.label, color)}
+                    label={`Pick Cell ${selectedCell.label} color`}
+                    locked={colorEditingLocked}
+                    onLockedClick={onLockedColorClick}
+                  />
                   {cells.length > 1 ? (
                     <button
                       type="button"
@@ -4531,14 +4539,6 @@ function RiffCellSequenceEditor({
                       <Trash2 size={12} />
                     </button>
                   ) : null}
-                  <LimitedColorPickerButton
-                    colors={RIFF_CYCLE_COLORS}
-                    value={selectedCell.color}
-                    onChange={(color) => onSetCellColor(selectedCell.label, color)}
-                    label={`Pick Cell ${selectedCell.label} color`}
-                    locked={colorEditingLocked}
-                    onLockedClick={onLockedColorClick}
-                  />
                 </div>
               ) : null}
             </div>
@@ -4708,7 +4708,7 @@ function RiffCellSequenceEditor({
 
           {stepEditor ? (
             <div
-              className="cell-sequencer-step-editor min-w-0 rounded-lg border bg-black/15 px-2 py-1.5"
+              className="cell-sequencer-step-editor min-w-0 rounded-lg border bg-black/15 px-2 py-2"
               style={{ borderColor: `${selectedCellColor}25` }}
             >
               {stepEditor}
@@ -20434,7 +20434,7 @@ function OrbitalPolymeter() {
 
       const mobileRiffStepEditor = (
         <>
-          <div data-guide="riff-cell-steps" className={`${inlineMobileCellSteps ? 'cell-step-header' : 'mt-3 space-y-1.5'}`}>
+          <div data-guide="riff-cell-steps" className={`${inlineMobileCellSteps ? '' : 'mt-3 '}space-y-1.5`}>
             <div className="flex items-center justify-between gap-3">
               <InlineInfoLabel
                 infoId="riff_steps"
@@ -20443,7 +20443,7 @@ function OrbitalPolymeter() {
                 labelStyle={{ color: 'rgba(255,255,255,.55)' }}
               />
             </div>
-            <div className={inlineMobileCellSteps ? 'cell-step-count flex items-center gap-1' : 'flex items-center gap-2'}>
+            <div className="flex items-center gap-2">
               <StudyShellButton
                 size="square"
                 className="!h-8 !w-8 !rounded-lg"
@@ -20454,7 +20454,7 @@ function OrbitalPolymeter() {
                 <Minus size={14} />
               </StudyShellButton>
               <label
-                className={`min-w-0 flex-1 rounded-lg border px-2 text-center text-[12px] font-light ${inlineMobileCellSteps ? 'py-0.5' : 'py-1.5'}`}
+                className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-center text-[12px] font-light"
                 style={{
                   background: `${riffEditableColor}12`,
                   borderColor: `${riffEditableColor}30`,
@@ -20477,7 +20477,7 @@ function OrbitalPolymeter() {
                         event.currentTarget.blur();
                       }
                     }}
-                    className={`${inlineMobileCellSteps ? 'w-5' : 'w-9'} bg-transparent text-center font-light outline-none`}
+                    className="w-9 bg-transparent text-center font-light outline-none"
                     style={{ color: riffEditableColor }}
                     aria-label="Set riff steps"
                   />
@@ -20495,7 +20495,7 @@ function OrbitalPolymeter() {
               </StudyShellButton>
             </div>
           </div>
-          <div data-guide="riff-cell-roll" className={inlineMobileCellSteps ? 'mt-1.5' : 'mt-3'}>
+          <div data-guide="riff-cell-roll" className={inlineMobileCellSteps ? 'mt-2' : 'mt-3'}>
             <RiffRollEditor
               compact
               activeSteps={riffRollActiveSteps}
@@ -23069,7 +23069,7 @@ function OrbitalPolymeter() {
           boxShadow: `0 0 0 1px ${riffEditableColor}0d inset`,
         }}
       >
-        <div className={inlineQuickCellSteps ? 'cell-step-header' : 'space-y-1.5'}>
+        <div className="space-y-1.5">
           <div className="flex min-h-7 items-center justify-between gap-2">
             <InlineInfoLabel
               infoId="riff_steps"
@@ -23086,7 +23086,7 @@ function OrbitalPolymeter() {
               onLockedClick={() => openProPrompt('color-editing')}
             />
           </div>
-          <div className={`grid grid-cols-[1.85rem_minmax(0,1fr)_1.85rem] items-center ${inlineQuickCellSteps ? 'cell-step-count gap-1' : 'gap-1.5'}`}>
+          <div className="grid grid-cols-[1.85rem_minmax(0,1fr)_1.85rem] items-center gap-1.5">
             <button
               type="button"
               onClick={() =>
@@ -23117,7 +23117,7 @@ function OrbitalPolymeter() {
                   }
                   handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
                 }}
-                className={`h-7 w-full rounded-md border text-center font-light leading-none focus:outline-none ${inlineQuickCellSteps ? 'pl-1 pr-7 text-[12px]' : 'px-3 text-[20px]'}`}
+                className="h-7 w-full rounded-md border px-3 text-center text-[20px] font-light leading-none focus:outline-none"
                 style={{
                   background: `${riffCycleStudy.riff.color}16`,
                   borderColor: `${riffCycleStudy.riff.color}4a`,
@@ -23126,7 +23126,7 @@ function OrbitalPolymeter() {
                 }}
                 aria-label="Set riff phrase steps"
               />
-              <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-[8px] text-white/44 ${inlineQuickCellSteps ? 'right-1' : 'left-[calc(50%+1.35rem)]'}`}>
+              <span className="pointer-events-none absolute left-[calc(50%+1.35rem)] top-1/2 -translate-y-1/2 text-[8px] text-white/44">
                 steps
               </span>
             </div>
