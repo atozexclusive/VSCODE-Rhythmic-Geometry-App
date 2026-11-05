@@ -41,6 +41,28 @@ export interface RiffCyclePoint {
   y: number;
 }
 
+/** Decorative facets connect two actual hits without introducing extra rhythmic nodes. */
+export function getTwoPointRiffShape(
+  a: RiffCyclePoint, b: RiffCyclePoint, center: RiffCyclePoint, radius: number,
+): [RiffCyclePoint, RiffCyclePoint, RiffCyclePoint, RiffCyclePoint] | null {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.001 || radius <= 0) return null;
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const depth = Math.min(length * 0.13, radius * 0.22);
+  const nx = -dy / length, ny = dx / length;
+  const projection = (mid.x - center.x) * nx + (mid.y - center.y) * ny;
+  // Adjacent hits have less room outward; let the inward facet keep its depth.
+  const leftDepth = Math.min(depth, Math.max(0, radius - projection) * 0.75);
+  const rightDepth = Math.min(depth, Math.max(0, radius + projection) * 0.75);
+  return [
+    { ...a },
+    { x: mid.x + nx * leftDepth, y: mid.y + ny * leftDepth },
+    { ...b },
+    { x: mid.x - nx * rightDepth, y: mid.y - ny * rightDepth },
+  ];
+}
+
 export interface RiffCycleTimelineRect {
   x: number;
   y: number;

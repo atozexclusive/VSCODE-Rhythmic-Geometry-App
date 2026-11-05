@@ -26,6 +26,7 @@ import {
   getDenseRiffNodeScale,
   getDenseRiffLabelStride,
   getRiffGroupingArc,
+  getTwoPointRiffShape,
   getReferenceStepPoint,
   getRiffCycleCanvasMetrics,
 } from '../lib/riffCycleLayout';
@@ -1702,39 +1703,82 @@ export default function RiffCycleCanvas({
     }
 
     if (innerClockVisible && currentStudy.showPhraseRing && activeRiffPoints.length >= 2) {
-      if (!carveViewActive && currentStudy.showPhraseFill) {
+      const twoPointShape = !carveViewActive && activeRiffPoints.length === 2
+        ? getTwoPointRiffShape(activeRiffPoints[0], activeRiffPoints[1],
+          { x: metrics.circleCenterX, y: metrics.circleCenterY }, metrics.innerRadius)
+        : null;
+      if (twoPointShape) {
+        const [a, left, b, right] = twoPointShape;
         ctx.save();
+        ctx.lineJoin = 'round';
         ctx.fillStyle = activeRiffColor;
-        ctx.globalAlpha = 0.14;
-        ctx.beginPath();
-        ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
-        for (let index = 1; index < activeRiffPoints.length; index += 1) {
-          ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+        if (currentStudy.showPhraseFill) {
+          // Different facet values give the straight-edged shape a quiet central ridge.
+          for (const [side, opacity] of [[left, 0.18], [right, 0.09]] as const) {
+            ctx.globalAlpha = opacity;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(side.x, side.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.closePath();
+            ctx.fill();
+          }
         }
-        if (activeRiffPoints.length >= 3) {
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-
-      if (!carveViewActive) {
-        ctx.save();
+        ctx.globalAlpha = 0.9;
         ctx.strokeStyle = activeRiffColor;
         ctx.lineWidth = 2.1;
-        ctx.globalAlpha = 0.9;
         ctx.shadowBlur = 14 * glowMultiplier;
         ctx.shadowColor = activeRiffColor;
         ctx.beginPath();
-        ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
-        for (let index = 1; index < activeRiffPoints.length; index += 1) {
-          ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
-        }
-        if (activeRiffPoints.length >= 3) {
-          ctx.closePath();
-        }
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(left.x, left.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.lineTo(right.x, right.y);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.26;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
         ctx.stroke();
         ctx.restore();
+      } else {
+        if (!carveViewActive && currentStudy.showPhraseFill) {
+          ctx.save();
+          ctx.fillStyle = activeRiffColor;
+          ctx.globalAlpha = 0.14;
+          ctx.beginPath();
+          ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
+          for (let index = 1; index < activeRiffPoints.length; index += 1) {
+            ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+          }
+          if (activeRiffPoints.length >= 3) {
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        if (!carveViewActive) {
+          ctx.save();
+          ctx.strokeStyle = activeRiffColor;
+          ctx.lineWidth = 2.1;
+          ctx.globalAlpha = 0.9;
+          ctx.shadowBlur = 14 * glowMultiplier;
+          ctx.shadowColor = activeRiffColor;
+          ctx.beginPath();
+          ctx.moveTo(activeRiffPoints[0].x, activeRiffPoints[0].y);
+          for (let index = 1; index < activeRiffPoints.length; index += 1) {
+            ctx.lineTo(activeRiffPoints[index].x, activeRiffPoints[index].y);
+          }
+          if (activeRiffPoints.length >= 3) {
+            ctx.closePath();
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
       }
     }
 
