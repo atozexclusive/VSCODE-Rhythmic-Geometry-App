@@ -2712,7 +2712,7 @@ export function setRiffSequenceBars(study: RiffCycleStudy, bars: number): RiffCy
   return {
     ...study,
     riffSequenceBars: nextBars,
-    riffSequenceRestartBars: study.riffSequenceBarsMode === 'per-cell' ? nextBars : study.riffSequenceRestartBars,
+    riffSequenceRestartBars: nextBars,
     riffCells,
     riffSequence: sequence,
     riffSequenceEntryBars: normalizeRiffSequenceEntryBars(study.riffSequenceEntryBars, sequence, nextBars),

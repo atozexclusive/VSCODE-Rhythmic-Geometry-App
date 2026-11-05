@@ -23,7 +23,13 @@ export type CanvasAtmosphereId =
 export type CanvasGlowLevel = 'low' | 'medium' | 'high';
 export type CanvasSubdivisionGuideMode = 'off' | 'minimal' | 'subdivisions';
 export type CanvasSubdivisionGuideCycleBars = 2 | 4 | 8 | 16;
-export type CanvasInnerClockMode = 'off' | 'minimal' | 'full';
+export type CanvasPickupMode = 'off' | 'meter' | 'full';
+export interface CanvasPickup {
+  enabled: boolean;
+  bars: number;
+  mode: CanvasPickupMode;
+}
+export const DEFAULT_CANVAS_PICKUP: CanvasPickup = { enabled: false, bars: 8, mode: 'meter' };
 
 export interface CanvasSubdivisionGuideAutomation {
   enabled: boolean;
@@ -35,7 +41,7 @@ export interface CanvasInnerClockAutomation {
   enabled: boolean;
   pickup?: boolean;
   cycleBars: CanvasSubdivisionGuideCycleBars;
-  modes: CanvasInnerClockMode[];
+  modes: ('off' | 'minimal' | 'full')[];
 }
 
 export interface CanvasDisplaySettings {
@@ -47,20 +53,41 @@ export interface CanvasDisplaySettings {
   centerAxes?: boolean;
   subdivisionGuide?: CanvasSubdivisionGuideMode;
   subdivisionGuideAutomation?: CanvasSubdivisionGuideAutomation;
-  innerClock?: CanvasInnerClockMode;
+  pickup?: CanvasPickup;
   innerClockAutomation?: CanvasInnerClockAutomation;
   subdivisionGrid?: boolean;
   showCellStrip?: boolean;
   showMeterNumbers?: boolean;
 }
 
-/** Initial non-Full sections become a one-time meter pickup when enabled. */
+export function getCanvasPickup(settings?: Partial<CanvasDisplaySettings> | null): CanvasPickup {
+  const pickup = settings?.pickup;
+  if (pickup) {
+    return {
+      enabled: pickup.enabled === true,
+      bars: Number.isSafeInteger(pickup.bars) && pickup.bars > 0 ? pickup.bars : DEFAULT_CANVAS_PICKUP.bars,
+      mode: pickup.mode === 'off' || pickup.mode === 'full' ? pickup.mode : 'meter',
+    };
+  }
+  // Carry forward an existing one-time pickup from the old By Bars controls.
+  const legacy = settings?.innerClockAutomation;
+  if (legacy?.enabled && legacy.pickup && Array.isArray(legacy.modes)) {
+    const firstFull = legacy.modes.indexOf('full');
+    const sections = firstFull < 0 ? legacy.modes.length : firstFull;
+    if (sections > 0) {
+      return {
+        enabled: true,
+        bars: sections * clampSubdivisionGuideCycleBars(legacy.cycleBars),
+        mode: legacy.modes[0] === 'off' ? 'off' : 'meter',
+      };
+    }
+  }
+  return DEFAULT_CANVAS_PICKUP;
+}
+
 export function getInnerClockPickupSteps(settings: CanvasDisplaySettings | undefined, stepsPerBar: number): number {
-  const automation = settings?.innerClockAutomation;
-  if (!automation?.enabled || !automation.pickup || automation.modes.length === 0) return 0;
-  const firstFull = automation.modes.indexOf('full');
-  const leadingSections = firstFull < 0 ? automation.modes.length : firstFull;
-  return leadingSections * Math.max(1, automation.cycleBars) * Math.max(1, stepsPerBar);
+  const pickup = settings?.pickup ?? getCanvasPickup(settings);
+  return pickup.enabled ? pickup.bars * Math.max(1, stepsPerBar) : 0;
 }
 
 export function getInnerClockRiffProgress(
@@ -70,24 +97,11 @@ export function getInnerClockRiffProgress(
 }
 
 export function getEffectiveInnerClockMode(
-  settings: CanvasDisplaySettings | undefined,
-  absoluteReferenceStep: number,
-  stepsPerBar: number,
-): CanvasInnerClockMode {
-  const manualMode = settings?.innerClock ?? 'full';
-  const automation = settings?.innerClockAutomation;
-  if (!automation?.enabled || automation.modes.length === 0) {
-    return manualMode;
-  }
-
-  if (automation.pickup && absoluteReferenceStep >= getInnerClockPickupSteps(settings, stepsPerBar)) {
-    return 'full';
-  }
-
-  const bar = Math.floor(absoluteReferenceStep / Math.max(1, stepsPerBar));
-  const cycleIndex =
-    Math.floor(bar / Math.max(1, automation.cycleBars)) % automation.modes.length;
-  return automation.modes[cycleIndex] ?? manualMode;
+  settings: CanvasDisplaySettings | undefined, absoluteReferenceStep: number, stepsPerBar: number,
+): CanvasPickupMode {
+  return absoluteReferenceStep < getInnerClockPickupSteps(settings, stepsPerBar)
+    ? (settings?.pickup ?? getCanvasPickup(settings)).mode
+    : 'full';
 }
 
 interface CanvasDisplayTheme {
@@ -123,12 +137,6 @@ export const DEFAULT_CANVAS_DISPLAY_SETTINGS: CanvasDisplaySettings = {
     enabled: false,
     cycleBars: 8,
     modes: ['off', 'minimal'],
-  },
-  innerClock: 'full',
-  innerClockAutomation: {
-    enabled: false,
-    cycleBars: 8,
-    modes: ['off', 'full'],
   },
   subdivisionGrid: false,
   showCellStrip: true,
@@ -376,13 +384,6 @@ function clampSubdivisionGuideCycleBars(value: unknown): CanvasSubdivisionGuideC
   return value === 2 || value === 4 || value === 8 || value === 16 ? value : 8;
 }
 
-function clampInnerClockMode(value: unknown, fallback: CanvasInnerClockMode | undefined): CanvasInnerClockMode {
-  if (value === 'off' || value === 'minimal' || value === 'full') {
-    return value;
-  }
-  return fallback ?? DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClock ?? 'full';
-}
-
 function normalizeSubdivisionGuideAutomation(
   value: Partial<CanvasSubdivisionGuideAutomation> | null | undefined,
   fallback: CanvasSubdivisionGuideAutomation | undefined,
@@ -411,31 +412,6 @@ function normalizeSubdivisionGuideAutomation(
   };
 }
 
-function normalizeInnerClockAutomation(
-  value: Partial<CanvasInnerClockAutomation> | null | undefined,
-  fallback: CanvasInnerClockAutomation | undefined,
-): CanvasInnerClockAutomation {
-  const fallbackAutomation =
-    fallback ??
-    DEFAULT_CANVAS_DISPLAY_SETTINGS.innerClockAutomation ?? {
-      enabled: false,
-      cycleBars: 8,
-      modes: ['off', 'full'],
-    };
-  const sourceModes = Array.isArray(value?.modes) ? value.modes : fallbackAutomation.modes;
-  const normalizedModes = sourceModes
-    .slice(0, 8)
-    .map((mode, index) =>
-      clampInnerClockMode(mode, fallbackAutomation.modes[index] ?? fallbackAutomation.modes[0] ?? 'full'),
-    );
-  return {
-    enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
-    pickup: typeof value?.pickup === 'boolean' ? value.pickup : fallbackAutomation.pickup ?? false,
-    cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
-    modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'full'],
-  };
-}
-
 export function normalizeCanvasDisplaySettings(
   value: Partial<CanvasDisplaySettings> | null | undefined,
   fallback: CanvasDisplaySettings = DEFAULT_CANVAS_DISPLAY_SETTINGS,
@@ -457,11 +433,7 @@ export function normalizeCanvasDisplaySettings(
       value?.subdivisionGuideAutomation,
       fallback.subdivisionGuideAutomation,
     ),
-    innerClock: clampInnerClockMode(value?.innerClock, fallback.innerClock),
-    innerClockAutomation: normalizeInnerClockAutomation(
-      value?.innerClockAutomation,
-      fallback.innerClockAutomation,
-    ),
+    pickup: getCanvasPickup(value?.pickup || value?.innerClockAutomation ? value : fallback),
     subdivisionGrid: subdivisionGuide === 'subdivisions',
     showCellStrip: typeof value?.showCellStrip === 'boolean' ? value.showCellStrip : fallback.showCellStrip,
     showMeterNumbers: typeof value?.showMeterNumbers === 'boolean' ? value.showMeterNumbers : fallback.showMeterNumbers,

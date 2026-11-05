@@ -362,7 +362,8 @@ import {
   type CanvasDisplaySettings,
   type CanvasDisplayThemeId,
   type CanvasGlowLevel,
-  type CanvasInnerClockMode,
+  getCanvasPickup,
+  type CanvasPickup,
   type CanvasSubdivisionGuideCycleBars,
   type CanvasSubdivisionGuideMode,
 } from '../lib/canvasDisplayThemes';
@@ -729,8 +730,8 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
     body: 'This is the phrase order. Add cells to build sections like A B A, then use Global or Per Cell bars to decide how long the phrase resolves.',
   },
   riff_section_bars: {
-    title: 'Riff Restart',
-    body: 'Restarts the whole sequence after this many bars in either mode. Per Cell also lets each slot play a set number of patterns or bars. Auto keeps a saved sequence’s full arranged length until you choose a restart.',
+    title: 'Cell Timing',
+    body: 'Use Bar → Riff Restart to set the restart length. Per Cell also lets each slot play a set number of patterns or bars.',
   },
   riff_steps: {
     title: 'Steps',
@@ -1211,7 +1212,7 @@ const MOBILE_RIFF_GUIDE: StartGuideStep[] = [
     target: 'riff-mobile-canvas-button',
     title: 'Canvas',
     kicker: 'Riff Guide',
-    text: 'The palette icon between Sound and Read Aids opens Canvas. Choose a background and atmosphere, adjust count labels and the cell strip, or use Inner Clock at the end of the menu.',
+    text: 'The palette icon between Sound and Read Aids opens Canvas. Choose a background and atmosphere, adjust count labels and the cell strip, or set a Pickup before the riff starts.',
     doThis: 'Tap the palette icon to change the presentation, then close the popover to see the full canvas.',
     notice: 'Canvas is Pro and does not change your riff hits or timing.',
   },
@@ -2615,15 +2616,18 @@ function RiffBarStopSlider({
   accentColor,
   ariaLabel,
   disabled = false,
+  allowOff = true,
 }: {
   value: number;
   onChange: (value: number) => void;
   accentColor: string;
   ariaLabel: string;
   disabled?: boolean;
+  allowOff?: boolean;
 }) {
   const sliderRef = useRef<HTMLDivElement | null>(null);
-  const activeIndex = getRiffBarSliderStopIndex(value);
+  const firstIndex = allowOff ? 0 : 1;
+  const activeIndex = Math.max(firstIndex, getRiffBarSliderStopIndex(value));
   const activePercent = (activeIndex / Math.max(1, RIFF_BAR_SLIDER_STOPS.length - 1)) * 100;
 
   const applyClientX = useCallback(
@@ -2638,12 +2642,12 @@ function RiffBarStopSlider({
       const bounds = slider.getBoundingClientRect();
       const ratio = Math.max(0, Math.min(1, (clientX - bounds.left) / Math.max(1, bounds.width)));
       const nextIndex = Math.max(
-        0,
+        firstIndex,
         Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, Math.round(ratio * (RIFF_BAR_SLIDER_STOPS.length - 1))),
       );
       onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
     },
-    [disabled, onChange],
+    [disabled, firstIndex, onChange],
   );
 
   const handlePointerDown = useCallback(
@@ -2676,10 +2680,10 @@ function RiffBarStopSlider({
       }
       event.preventDefault();
       const delta = event.key === 'ArrowRight' ? 1 : -1;
-      const nextIndex = Math.max(0, Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, activeIndex + delta));
+      const nextIndex = Math.max(firstIndex, Math.min(RIFF_BAR_SLIDER_STOPS.length - 1, activeIndex + delta));
       onChange(RIFF_BAR_SLIDER_STOPS[nextIndex] ?? 0);
     },
-    [activeIndex, disabled, onChange],
+    [activeIndex, disabled, firstIndex, onChange],
   );
 
   return (
@@ -2690,10 +2694,10 @@ function RiffBarStopSlider({
         tabIndex={disabled ? -1 : 0}
         aria-label={ariaLabel}
         aria-disabled={disabled}
-        aria-valuemin={0}
+        aria-valuemin={firstIndex}
         aria-valuemax={RIFF_BAR_SLIDER_STOPS.length - 1}
         aria-valuenow={activeIndex}
-        aria-valuetext={value <= 0 ? 'Off' : `${value} bars`}
+        aria-valuetext={value <= 0 ? (allowOff ? 'Off' : 'Auto') : `${value} bars`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onKeyDown={handleKeyDown}
@@ -2726,7 +2730,7 @@ function RiffBarStopSlider({
         />
       </div>
       <div className="grid grid-cols-5 px-0.5 text-[7px] font-mono uppercase tracking-[0.08em] text-white/32">
-        <span>Off</span>
+        <span>{allowOff ? 'Off' : '1'}</span>
         <span className="text-center">2</span>
         <span className="text-center">4</span>
         <span className="text-center">8</span>
@@ -3171,165 +3175,56 @@ function CanvasDisplayControls({
       },
     });
   };
-  const innerClockMode: CanvasInnerClockMode = settings.innerClock ?? 'full';
-  const innerClockAutomation = settings.innerClockAutomation ?? {
-    enabled: false,
-    cycleBars: 8 as CanvasSubdivisionGuideCycleBars,
-    modes: ['off', 'full'] as CanvasInnerClockMode[],
-  };
-  const canAddInnerClockCycle = innerClockAutomation.modes.length < 8;
-  const innerClockModeOptions: Array<{ value: CanvasInnerClockMode; label: string }> = [
-    { value: 'off', label: 'Off' },
-    { value: 'minimal', label: 'Minimal' },
-    { value: 'full', label: 'Full' },
-  ];
-  const updateInnerClockAutomation = (
-    updates: Partial<typeof innerClockAutomation>,
-  ) => {
-    onChange({
-      innerClockAutomation: {
-        ...innerClockAutomation,
-        ...updates,
-      },
-    });
-  };
-
+  const pickup = getCanvasPickup(settings);
+  const pickupPresets = [2, 4, 8, 16];
+  const [customPickup, setCustomPickup] = useState(false);
+  const showCustomPickup = customPickup || !pickupPresets.includes(pickup.bars);
+  const updatePickup = (updates: Partial<CanvasPickup>) => onChange({ pickup: { ...pickup, ...updates } });
   const innerClockControl = showInnerClockControls ? (
-        <div
-          className={canvasCardClass}
-          style={{
-            background: 'rgba(255,136,194,0.032)',
-            borderColor: 'rgba(255,136,194,0.12)',
-            boxShadow: 'inset 0 1px 0 rgba(255,136,194,0.04)',
-          }}
-        >
-          <InlineInfoLabel
-            infoId="canvas_display"
-            label="Inner Clock"
-            labelClassName={canvasSubheaderClass}
-            labelStyle={canvasSubheaderStyle}
-          />
+    <div className={canvasCardClass} style={{ background: 'rgba(255,136,194,0.032)', borderColor: 'rgba(255,136,194,0.12)' }}>
+      <div className="flex items-center justify-between gap-2">
+        <InlineInfoLabel infoId="canvas_display" label="Pickup" labelClassName={canvasSubheaderClass} labelStyle={canvasSubheaderStyle} />
+        <StudyShellButton size="compact" tone="blue" aria-label="Pickup" aria-pressed={pickup.enabled}
+          highlighted={pickup.enabled} onClick={() => updatePickup({ enabled: !pickup.enabled })}>
+          {pickup.enabled ? 'On' : 'Off'}
+        </StudyShellButton>
+      </div>
+      {pickup.enabled ? (
+        <div className="space-y-2">
           <div className="grid grid-cols-3 gap-1.5">
-            {innerClockModeOptions.map((option) => (
-              <StudyShellButton
-                key={`inner-clock-manual-${option.value}`}
-                size="compact"
-                tone={option.value === 'off' ? 'neutral' : 'blue'}
-                highlighted={innerClockMode === option.value}
-                onClick={() => onChange({ innerClock: option.value })}
-              >
-                {option.label}
+            {pickupPresets.map(bars => (
+              <StudyShellButton key={bars} size="compact" tone="blue" highlighted={!showCustomPickup && pickup.bars === bars}
+                onClick={() => { setCustomPickup(false); updatePickup({ bars }); }}>{bars} Bars</StudyShellButton>
+            ))}
+            <StudyShellButton size="compact" tone="blue" highlighted={showCustomPickup} onClick={() => setCustomPickup(true)}>Custom</StudyShellButton>
+          </div>
+          {showCustomPickup ? (
+            <label className="flex items-center gap-2 text-xs text-white/60">
+              Bars
+              <input type="number" min={1} step={1} inputMode="numeric" aria-label="Custom pickup bars"
+                defaultValue={pickup.bars}
+                className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-white"
+                onChange={event => {
+                  const bars = event.currentTarget.valueAsNumber;
+                  if (Number.isSafeInteger(bars) && bars > 0) updatePickup({ bars });
+                }}
+                onBlur={event => { event.currentTarget.value = String(pickup.bars); }}
+              />
+            </label>
+          ) : null}
+          <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Pickup view">
+            {(['off', 'meter', 'full'] as const).map(mode => (
+              <StudyShellButton key={mode} size="compact" tone="blue" highlighted={pickup.mode === mode}
+                aria-pressed={pickup.mode === mode} onClick={() => updatePickup({ mode })}>
+                {mode === 'off' ? 'Off' : mode === 'meter' ? 'Meter' : 'Full'}
               </StudyShellButton>
             ))}
           </div>
-          <div className="h-px bg-white/6" />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[8px] font-mono uppercase tracking-[0.14em]" style={canvasSecondaryStyle}>
-              By Bars
-            </span>
-            <StudyShellButton
-              size="compact"
-              tone="amber"
-              highlighted={innerClockAutomation.enabled}
-              onClick={() =>
-                updateInnerClockAutomation({
-                  enabled: !innerClockAutomation.enabled,
-                })
-              }
-            >
-              {innerClockAutomation.enabled ? 'On' : 'Off'}
-            </StudyShellButton>
-          </div>
-          {innerClockAutomation.enabled ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[8px] leading-relaxed text-white/45">Meter first, then start the riff.</span>
-                <StudyShellButton
-                  size="compact" tone="blue"
-                  aria-label="Inner Clock Pickup"
-                  aria-pressed={Boolean(innerClockAutomation.pickup)}
-                  highlighted={Boolean(innerClockAutomation.pickup)}
-                  onClick={() => updateInnerClockAutomation({ pickup: !innerClockAutomation.pickup })}
-                >Pickup</StudyShellButton>
-              </div>
-              {innerClockAutomation.pickup ? (
-                <p className="text-[8px] leading-relaxed text-white/45">
-                  Minimal or Off sections play once before Full. The riff and cell order start at the first Full section.
-                </p>
-              ) : null}
-              <div className="grid grid-cols-3 gap-1.5">
-                {([2, 4, 8, 16] as const).map((cycleBars) => (
-                  <StudyShellButton
-                    key={`inner-clock-bars-${cycleBars}`}
-                    size="compact"
-                    tone="blue"
-                    highlighted={innerClockAutomation.cycleBars === cycleBars}
-                    onClick={() => updateInnerClockAutomation({ cycleBars })}
-                  >
-                    {cycleBars} Bars
-                  </StudyShellButton>
-                ))}
-              </div>
-              {innerClockAutomation.modes.map((cycleMode, cycleIndex) => (
-                <div key={`inner-clock-cycle-${cycleIndex}`} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/38">
-                      Cycle {cycleIndex + 1}
-                    </div>
-                    {innerClockAutomation.modes.length > 2 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateInnerClockAutomation({
-                            modes: innerClockAutomation.modes.filter((_, index) => index !== cycleIndex),
-                          });
-                        }}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] text-white/42 transition active:scale-[0.96]"
-                        aria-label={`Remove inner clock cycle ${cycleIndex + 1}`}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {innerClockModeOptions.map((option) => (
-                      <StudyShellButton
-                        key={`inner-clock-${cycleIndex}-${option.value}`}
-                        size="compact"
-                        tone={option.value === 'off' ? 'neutral' : 'blue'}
-                        highlighted={cycleMode === option.value}
-                        onClick={() => {
-                          const modes = [...innerClockAutomation.modes];
-                          modes[cycleIndex] = option.value;
-                          updateInnerClockAutomation({ modes });
-                        }}
-                      >
-                        {option.label}
-                      </StudyShellButton>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              <StudyShellButton
-                size="compact"
-                tone="amber"
-                icon={<Plus size={13} />}
-                disabled={!canAddInnerClockCycle}
-                onClick={() =>
-                  updateInnerClockAutomation({
-                    modes: [
-                      ...innerClockAutomation.modes,
-                      innerClockAutomation.modes[innerClockAutomation.modes.length - 1] ?? 'full',
-                    ],
-                  })
-                }
-              >
-                Add Cycle
-              </StudyShellButton>
-            </div>
-          ) : null}
+          <p className="text-[9px] leading-relaxed text-white/45">The meter plays first. The riff starts after the pickup.</p>
         </div>
-      ) : null;
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <div data-canvas-controls="true" className={compact ? 'space-y-2' : 'space-y-2.5'}>
@@ -3852,7 +3747,7 @@ function RiffRestartSliderControl({
   labelStyle,
   accentColor = '#7FD7FF',
   compact = false,
-  controlledByCellSequencer = false,
+  onSetSequenceRestartBars,
   onBeforeChange,
 }: {
   study: RiffCycleStudy;
@@ -3862,16 +3757,20 @@ function RiffRestartSliderControl({
   labelStyle?: CSSProperties;
   accentColor?: string;
   compact?: boolean;
-  controlledByCellSequencer?: boolean;
+  onSetSequenceRestartBars?: (bars: number) => void;
   onBeforeChange?: () => void;
 }) {
-  const restartBars = getRiffRestartBarValue(study.riff);
+  const sequenceRestart = study.riffSequenceEnabled && onSetSequenceRestartBars;
+  const restartBars = sequenceRestart
+    ? (study.riffSequenceBarsMode === 'per-cell' ? study.riffSequenceRestartBars ?? 0 : study.riffSequenceBars)
+    : getRiffRestartBarValue(study.riff);
   const naturalCopy = getNaturalRiffResolutionCopy(study);
   const applyRestartBars = (value: number) => {
-    if (controlledByCellSequencer) {
+    onBeforeChange?.();
+    if (sequenceRestart) {
+      sequenceRestart(Math.max(1, value));
       return;
     }
-    onBeforeChange?.();
     onUpdateRiff(getRiffRestartUpdatesForBars(value));
   };
 
@@ -3892,18 +3791,6 @@ function RiffRestartSliderControl({
           labelStyle={labelStyle}
         />
       </div>
-      {controlledByCellSequencer ? (
-        <div
-          className="rounded-md border px-2 py-1 text-center text-[7px] font-mono uppercase tracking-[0.1em]"
-          style={{
-            background: 'rgba(255,170,0,0.055)',
-            borderColor: 'rgba(255,170,0,0.18)',
-            color: 'rgba(255,224,160,0.82)',
-          }}
-        >
-          Controlled in Cell Sequencer
-        </div>
-      ) : null}
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <RiffBarStopSlider
@@ -3911,7 +3798,7 @@ function RiffRestartSliderControl({
             onChange={applyRestartBars}
             accentColor={accentColor}
             ariaLabel={`${label} slider`}
-            disabled={controlledByCellSequencer}
+            allowOff={!sequenceRestart}
           />
         </div>
         <div
@@ -3924,10 +3811,10 @@ function RiffRestartSliderControl({
           <input
             type="number"
             inputMode="numeric"
-            min={0}
+            min={sequenceRestart ? 1 : 0}
             max={RIFF_MAX_RESET_BARS}
-            value={restartBars}
-            disabled={controlledByCellSequencer}
+            value={sequenceRestart && restartBars === 0 ? '' : restartBars}
+            placeholder={sequenceRestart ? 'Auto' : undefined}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => applyRestartBars(Number.parseInt(event.target.value, 10) || 0)}
             className="min-w-0 flex-1 bg-transparent px-2 text-center text-[12px] font-light text-white outline-none disabled:cursor-not-allowed disabled:text-white/35"
@@ -4369,7 +4256,6 @@ function RiffCellSequenceEditor({
   onRemoveLastCell,
   onDeleteCell,
   onResetSequence,
-  onSetSequenceBars,
   onSetSequenceBarsMode,
   onSetChainEnabled,
   onSetSequenceEntryBars,
@@ -4401,7 +4287,6 @@ function RiffCellSequenceEditor({
   onRemoveLastCell: () => void;
   onDeleteCell: (label: RiffSequenceCellLabel) => void;
   onResetSequence: () => void;
-  onSetSequenceBars: (bars: number) => void;
   onSetSequenceBarsMode: (mode: 'global' | 'per-cell') => void;
   onSetChainEnabled: (enabled: boolean) => void;
   onSetSequenceEntryBars: (sequenceIndex: number, bars: number) => void;
@@ -5037,7 +4922,7 @@ function RiffCellSequenceEditor({
               <div className="flex items-center justify-between gap-2">
                 <InlineInfoLabel
                   infoId="riff_section_bars"
-                  label="Riff Restart"
+                  label="Timing"
                   labelClassName="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42"
                 />
                 <div className="flex items-center gap-1">
@@ -5078,28 +4963,6 @@ function RiffCellSequenceEditor({
               </div>
 
 
-                <div className="cell-bars-input flex overflow-hidden rounded-lg border border-white/10 bg-white/[0.045]">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={RIFF_MAX_RESET_BARS}
-                    value={sequenceBarsMode === 'per-cell' ? study.riffSequenceRestartBars ?? '' : sequenceResetBars}
-                    placeholder="Auto"
-                    aria-label="Riff restart in bars"
-                    onFocus={(event) => event.currentTarget.select()}
-                    onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
-                    className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-center text-[12px] font-light text-white outline-none"
-                  />
-                  <span className="flex items-center border-l border-white/10 px-2.5 text-[8px] font-mono uppercase tracking-[0.12em] text-white/42">
-                    Bars
-                  </span>
-                </div>
-              {sequenceBarsMode === 'per-cell' ? (
-                <div className="px-2 py-1 text-center text-[7px] leading-relaxed text-white/42">
-                  Each slot keeps its own length. Riff Restart returns the whole sequence to the first cell.
-                </div>
-              ) : null}
               {chainEnabled ? (
                 <div className="rounded-md border border-sky-300/15 bg-sky-300/[0.05] px-2 py-1 text-center text-[6.5px] font-mono uppercase tracking-[0.1em] text-sky-100/55">
                   Linear · each phrase advances after its repeats
@@ -15322,6 +15185,7 @@ function OrbitalPolymeter() {
         : polyrhythmStudy.layers.every((layer) => layer.soundEnabled)
           ? 'stack'
           : 'stack';
+  const riffEndingContentOpacity = riffCycleStudy.landingEditEnabled ? undefined : 0.48;
   const riffEndingToggle = (
     <button
       type="button"
@@ -21762,7 +21626,7 @@ function OrbitalPolymeter() {
 	                              labelClassName="text-[9px] font-medium tracking-wide"
 	                              labelStyle={{ color: 'rgba(255,255,255,.55)' }}
 	                              compact
-	                              controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                              onSetSequenceRestartBars={handleSetRiffSequenceBars}
 	                            />
                           </div>
                         </div>
@@ -21908,7 +21772,7 @@ function OrbitalPolymeter() {
                               onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                               onDeleteCell={handleDeleteRiffSequenceCell}
                               onResetSequence={handleResetRiffSequence}
-                              onSetSequenceBars={handleSetRiffSequenceBars}
+
                               onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
                               onSetChainEnabled={handleSetRiffSequenceChainEnabled}
                               onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
@@ -22285,7 +22149,7 @@ function OrbitalPolymeter() {
                               Final slots only play right before the riff restarts.
                             </div>
                           </div>
-                          <div>
+                          <div style={{ opacity: riffEndingContentOpacity }}>
                             <InlineInfoLabel
                               infoId="riff_final_slots"
                               label="Final Slots"
@@ -22296,7 +22160,7 @@ function OrbitalPolymeter() {
                               Lit slots come from the riff. Turn one off to silence that hit only in the ending.
                             </div>
                           </div>
-                          <div className="mt-2">
+                          <div className="mt-2" style={{ opacity: riffEndingContentOpacity }}>
                             <RiffRollEditor
                               activeSteps={riffLandingRollSteps}
                               accents={riffLandingRollAccents}
@@ -22320,7 +22184,7 @@ function OrbitalPolymeter() {
                               }}
                             />
                           </div>
-                          <div className="mt-2">
+                          <div className="mt-2" style={{ opacity: riffEndingContentOpacity }}>
                             <div className="space-y-1.5">
                               <InlineInfoLabel
                                 infoId="riff_ending_length"
@@ -22369,7 +22233,7 @@ function OrbitalPolymeter() {
                           </div>
                         </div>
 
-                        <div data-guide="riff-mobile-ending-lane">
+                        <div data-guide="riff-mobile-ending-lane" style={{ opacity: riffEndingContentOpacity }}>
                           <RiffEndingReturnWindowPanel
                             compact
                             landingWindowBars={riffLandingWindowBars}
@@ -22910,7 +22774,7 @@ function OrbitalPolymeter() {
                     ) : riffMobileEditorTab === 'return' ? (
                       <>
                       <div className="mt-3 max-h-[24svh] space-y-3 overflow-y-auto overscroll-contain pb-1 [scrollbar-width:none]">
-                      <StudyShellPanel className="space-y-2 px-3 py-2.5">
+                      <StudyShellPanel className="space-y-2 px-3 py-2.5" style={{ opacity: riffEndingContentOpacity }}>
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-white/56">
@@ -22950,21 +22814,23 @@ function OrbitalPolymeter() {
                           {riffEndingToggle}
                         </div>
                         <div className="rounded-xl border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.06] px-3 py-2 text-[10px] leading-relaxed text-[#BFEAFF]">
-                          Return Cycle decides when the riff comes back to beat 1. Ending Length decides how many final slots you can rewrite.
+                          Riff Restart in Bar sets when the riff comes back to beat 1. Ending Length sets how many final slots you can rewrite.
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <RiffRestartSliderControl
-                            study={riffCycleStudy}
-                            onUpdateRiff={handleUpdateRiffPhrase}
-                            label="Return Cycle"
-                            labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
-                            accentColor="#7FD7FF"
-                            compact
-                            onBeforeChange={() => {
-                              handleSetRiffEditMode('landing');
-                              setRiffMobileEditTab('return');
-                            }}
-                          />
+                          {!riffCycleStudy.riffSequenceEnabled ? (
+                            <RiffRestartSliderControl
+                              study={riffCycleStudy}
+                              onUpdateRiff={handleUpdateRiffPhrase}
+                              label="Return Cycle"
+                              labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
+                              accentColor="#7FD7FF"
+                              compact
+                              onBeforeChange={() => {
+                                handleSetRiffEditMode('landing');
+                                setRiffMobileEditTab('return');
+                              }}
+                            />
+                          ) : null}
                           <BarCueSliderControl
                             value={riffCycleStudy.barMarkerInterval}
                             onChange={handleSetRiffBarMarkerInterval}
@@ -22974,7 +22840,7 @@ function OrbitalPolymeter() {
                             compact
                           />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" style={{ opacity: riffEndingContentOpacity }}>
                           <InlineInfoLabel
                             infoId="riff_ending_length"
                             label="Ending Length"
@@ -23517,7 +23383,7 @@ function OrbitalPolymeter() {
 	                      labelClassName={riffQuickControlLabelClass}
 	                      labelStyle={desktopMenuSubheaderStyle}
 	                      compact
-	                      controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                      onSetSequenceRestartBars={handleSetRiffSequenceBars}
 	                    />
                   </div>
 
@@ -23683,7 +23549,7 @@ function OrbitalPolymeter() {
                     onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                     onDeleteCell={handleDeleteRiffSequenceCell}
                     onResetSequence={handleResetRiffSequence}
-                    onSetSequenceBars={handleSetRiffSequenceBars}
+
                     onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
                     onSetChainEnabled={handleSetRiffSequenceChainEnabled}
                     onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
@@ -24006,6 +23872,7 @@ function OrbitalPolymeter() {
                   <div
                     className="space-y-2 rounded-xl border px-2.5 py-2.5"
                     style={{
+                      opacity: riffEndingContentOpacity,
                       background: 'rgba(127,215,255,0.045)',
                       borderColor: 'rgba(127,215,255,0.14)',
                       boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
@@ -24047,6 +23914,7 @@ function OrbitalPolymeter() {
                   <div
                     className="space-y-2 rounded-xl border px-2.5 py-2.5"
                     style={{
+                      opacity: riffEndingContentOpacity,
                       background: 'rgba(127,215,255,0.045)',
                       borderColor: 'rgba(127,215,255,0.14)',
                       boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
@@ -24094,7 +23962,7 @@ function OrbitalPolymeter() {
                       </StudyShellButton>
                     </div>
                   </div>
-                  <div data-guide="riff-desktop-ending-lane">
+                  <div data-guide="riff-desktop-ending-lane" style={{ opacity: riffEndingContentOpacity }}>
                     <RiffEndingReturnWindowPanel
                       landingWindowBars={riffLandingWindowBars}
                       landingEditableSlots={riffEndingEditableSlots}
@@ -25292,6 +25160,7 @@ function OrbitalPolymeter() {
                   </div>
                   <div
                     data-guide="riff-editor-ending-length"
+                    style={{ opacity: riffEndingContentOpacity }}
                     className="grid w-full grid-cols-[auto_1.75rem_minmax(0,1fr)_1.75rem] items-center gap-1.5 rounded-lg border border-[#7FD7FF]/18 bg-[#7FD7FF]/[0.055] px-2 py-1"
                   >
                     <span className="pr-1 text-[8px] font-mono uppercase tracking-[0.14em] text-[#7FD7FF]/72">
@@ -25326,7 +25195,7 @@ function OrbitalPolymeter() {
                       <Plus size={12} />
                     </StudyShellButton>
                   </div>
-                  <StudyShellPanel data-guide="riff-editor-ending-roll" className="px-2 py-2">
+                  <StudyShellPanel data-guide="riff-editor-ending-roll" className="px-2 py-2" style={{ opacity: riffEndingContentOpacity }}>
                     <RiffRollEditor
                       activeSteps={riffLandingRollSteps}
                       accents={riffLandingRollAccents}
@@ -25350,7 +25219,7 @@ function OrbitalPolymeter() {
               <div
                 data-guide="riff-editor-ending-window"
                 className="absolute bottom-5 right-5 z-20"
-                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)' }}
+                style={{ width: 'clamp(15rem, calc((100vw - 54rem) / 2 - 1.75rem), 19rem)', opacity: riffEndingContentOpacity }}
               >
                 <RiffEndingReturnWindowPanel
                   landingWindowBars={riffLandingWindowBars}
@@ -25388,7 +25257,7 @@ function OrbitalPolymeter() {
                   onRemoveLastCell={handleRemoveLastRiffSequenceCell}
                   onDeleteCell={handleDeleteRiffSequenceCell}
                   onResetSequence={handleResetRiffSequence}
-                  onSetSequenceBars={handleSetRiffSequenceBars}
+
                   onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
                   onSetChainEnabled={handleSetRiffSequenceChainEnabled}
                   onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
@@ -25620,7 +25489,7 @@ function OrbitalPolymeter() {
 	                          labelClassName="text-[9px] font-mono uppercase tracking-[0.18em]"
 	                          labelStyle={desktopMenuSubheaderStyle}
 	                          compact
-	                          controlledByCellSequencer={riffCycleStudy.riffSequenceEnabled}
+	                          onSetSequenceRestartBars={handleSetRiffSequenceBars}
 	                        />
                       </div>
                       <StudyShellPanel data-guide="riff-editor-bar-cues" className="space-y-1.5 px-2.5 py-2">
@@ -25868,7 +25737,7 @@ function OrbitalPolymeter() {
                         </div>
                         <div className="text-[8px] text-white/34">Display only · edit ending nodes on the left</div>
                       </div>
-                      <div className="pointer-events-none">
+                      <div className="pointer-events-none" style={{ opacity: riffEndingContentOpacity }}>
                         <RiffRollEditor
                           activeSteps={riffEndingPatternSteps.map((step) => step.active)}
                           accents={riffEndingPatternSteps.map((step) => step.accented)}

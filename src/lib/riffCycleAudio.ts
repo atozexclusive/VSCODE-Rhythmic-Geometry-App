@@ -1,6 +1,5 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
-  getEffectiveInnerClockMode,
   getInnerClockRiffProgress,
   getInnerClockPickupSteps,
   type CanvasDisplaySettings,
@@ -645,12 +644,7 @@ export function createRiffCycleExportAudioStream(
     const riffReferenceStep = Math.floor(getInnerClockRiffProgress(displaySettings, referenceStep, getReferenceStepsPerBar(study.reference)));
     const pickupActive = referenceStep < getInnerClockPickupSteps(displaySettings, getReferenceStepsPerBar(study.reference));
     const riffStepState = getEffectiveRiffStepStateAtReferenceStep(study, riffReferenceStep);
-    const innerClockAudioEnabled =
-      getEffectiveInnerClockMode(
-        displaySettings,
-        referenceStep,
-        getReferenceStepsPerBar(study.reference),
-      ) === 'full';
+    const innerClockAudioEnabled = !pickupActive;
     if (innerClockAudioEnabled && study.soundEnabled && study.riff.soundEnabled && riffStepState.active) {
       triggerRiffPulse({
         frequency: study.riff.pitchHz,

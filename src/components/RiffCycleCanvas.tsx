@@ -917,6 +917,7 @@ export default function RiffCycleCanvas({
       getReferenceStepsPerBar(currentStudy.reference),
     );
     const innerClockVisible = innerClockMode !== 'off';
+    const showingPickup = referenceProgress < getInnerClockPickupSteps(currentDisplaySettings, getReferenceStepsPerBar(currentStudy.reference));
     const innerClockMotionVisible = innerClockMode === 'full';
     const currentReferenceStep =
       ((currentAbsoluteReferenceStep % totalDisplaySteps) + totalDisplaySteps) % totalDisplaySteps;
@@ -1936,7 +1937,7 @@ export default function RiffCycleCanvas({
       const effectiveAccented = isCurrent
         ? currentRiffStepState.accented
         : landingPointOverride?.accented ?? point.accented;
-      const attackRemaining = innerClockMotionVisible
+      const attackRemaining = innerClockMotionVisible && !showingPickup
         ? Math.max(
             0,
             ((riffAttackUntilRef.current[point.index] ?? 0) - now) /
@@ -2481,7 +2482,7 @@ export default function RiffCycleCanvas({
     });
 
     // Repeating voices move with the last hit and disappear between attacks.
-    if (currentStudy.playing && getEffectiveInnerClockMode(displaySettingsRef.current, Math.floor(referenceProgress), getReferenceStepsPerBar(currentStudy.reference)) === 'full') allVoiceEvents.forEach((event) => {
+    if (currentStudy.playing && !showingPickup) allVoiceEvents.forEach((event) => {
       const showOnRiff = event.accentSurface != null ? event.accentSurface === 'riff' : event.surface === 'subdivision';
       if (event.accentCycleFlash) {
         const completedAt = getLastRiffVoiceCycleCompletion(currentStudy, event, currentAbsoluteReferenceStep);
@@ -3164,12 +3165,7 @@ export default function RiffCycleCanvas({
           currentStudy,
           riffReferenceStep,
         );
-        const innerClockAudioEnabled =
-          getEffectiveInnerClockMode(
-            displaySettingsRef.current,
-            currentAbsoluteReferenceStep,
-            getReferenceStepsPerBar(currentStudy.reference),
-          ) === 'full';
+        const innerClockAudioEnabled = !pickupActive;
         const voiceImpactNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
         const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);

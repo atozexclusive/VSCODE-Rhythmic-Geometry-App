@@ -40,9 +40,9 @@ export const CELL_SEQUENCER_GUIDE = [
     notice: 'Example: A set to 2 Cell plays its pattern twice, then moves to B. A set to 2 Bar plays for two bars, then moves on. The order loops after all phrases and repeats; Riff Restart can bring it back to the first cell earlier.',
   },
   {
-    target: 'riff-cell-timing', title: 'How this replaces Riff Restart',
-    text: 'Riff Restart normally decides when the riff jumps back to its beginning. While Cell Sequencer is On, these timing controls take over that job.',
-    notice: 'Global restarts at the Riff Restart limit. Per Cell also uses Riff Restart, while the small selectors under each slot control that slot’s length. Older saved sequences show Auto until you set a restart. Turn Cell Sequencer Off to use the Bar menu’s Riff Restart setting again.',
+    target: 'riff-cell-timing', title: 'Set Riff Restart in Bar',
+    text: 'Open Bar and use Riff Restart to choose when the sequence returns to its beginning.',
+    notice: 'The Bar setting works in Global and Per Cell. In Per Cell, the selectors under each slot still control that slot’s length.',
   },
   {
     target: 'riff-cell-chain', title: 'Chain: finish each phrase, then move on',

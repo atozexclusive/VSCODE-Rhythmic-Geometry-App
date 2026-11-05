@@ -13,7 +13,7 @@ import { createRiffCycleExportAudioStream } from '../src/lib/riffCycleAudio';
 
 const settings = normalizeCanvasDisplaySettings({
   ...DEFAULT_RIFF_DISPLAY_SETTINGS,
-  innerClockAutomation: { enabled: true, pickup: true, cycleBars: 8, modes: ['minimal', 'full'] },
+  pickup: { enabled: true, bars: 8, mode: 'meter' },
 });
 
 test('eight-bar pickup holds cell A and starts its first step on the full-mode downbeat', () => {
@@ -24,7 +24,7 @@ test('eight-bar pickup holds cell A and starts its first step on the full-mode d
   for (let step = 0; step < pickupSteps; step++) {
     const progress = getInnerClockRiffProgress(settings, step, stepsPerBar);
     assert.equal(progress, 0);
-    assert.equal(getEffectiveInnerClockMode(settings, step, stepsPerBar), 'minimal');
+    assert.equal(getEffectiveInnerClockMode(settings, step, stepsPerBar), 'meter');
     assert.equal(getRiffSequenceStateAtReferenceProgress(study, progress)?.cell.label, 'A');
   }
   assert.equal(getInnerClockRiffProgress(settings, pickupSteps, stepsPerBar), 0);
@@ -35,15 +35,19 @@ test('eight-bar pickup holds cell A and starts its first step on the full-mode d
   assert.equal(getInnerClockRiffProgress(settings, 0, stepsPerBar), 0); // Restart repeats pickup.
 });
 
-test('pickup settings persist; ordinary bar automation and manual Minimal retain their timing', () => {
-  const restored = normalizeCanvasDisplaySettings(JSON.parse(JSON.stringify(settings)));
-  assert.equal(getInnerClockPickupSteps(restored, 16), 128);
-  const ordinary = normalizeCanvasDisplaySettings({ ...settings, innerClockAutomation: { ...settings.innerClockAutomation!, pickup: false } });
-  assert.equal(getInnerClockRiffProgress(ordinary, 100, 16), 100);
-  assert.equal(getEffectiveInnerClockMode(ordinary, 256, 16), 'minimal');
-  const manual = normalizeCanvasDisplaySettings({ ...settings, innerClock: 'minimal', innerClockAutomation: { ...settings.innerClockAutomation!, enabled: false } });
-  assert.equal(getInnerClockRiffProgress(manual, 100, 16), 100);
-  assert.equal(getEffectiveInnerClockMode(manual, 100, 16), 'minimal');
+test('custom counts persist, legacy pickups migrate, and disabled pickup starts immediately', () => {
+  const custom = normalizeCanvasDisplaySettings({ ...settings, pickup: { enabled: true, bars: 13, mode: 'off' } });
+  const restored = normalizeCanvasDisplaySettings(JSON.parse(JSON.stringify(custom)));
+  assert.equal(getInnerClockPickupSteps(restored, 16), 208);
+  assert.equal(getEffectiveInnerClockMode(restored, 207, 16), 'off');
+  assert.equal(getEffectiveInnerClockMode(restored, 208, 16), 'full');
+  const legacy = normalizeCanvasDisplaySettings({
+    innerClockAutomation: { enabled: true, pickup: true, cycleBars: 8, modes: ['minimal', 'full'] },
+  });
+  assert.deepEqual(legacy.pickup, settings.pickup);
+  const disabled = normalizeCanvasDisplaySettings({ ...settings, pickup: { enabled: false, bars: 8, mode: 'meter' } });
+  assert.equal(getInnerClockRiffProgress(disabled, 100, 16), 100);
+  assert.equal(getEffectiveInnerClockMode(disabled, 0, 16), 'full');
 });
 
 class Param {
@@ -79,7 +83,9 @@ test('export keeps meter audio in the pickup and schedules the riff only after i
       referenceSoundEnabled: false, backbeatSoundEnabled: false, subdivisionSoundEnabled: false,
       showAlignmentMarkers: false,
     });
-    createRiffCycleExportAudioStream(study, 18, 0, settings);
+    // Even with the Full view visible, the riff remains silent during pickup.
+    const full = normalizeCanvasDisplaySettings({ ...settings, pickup: { enabled: true, bars: 8, mode: 'full' } });
+    createRiffCycleExportAudioStream(study, 18, 0, full);
     const notes = Context.current.oscillators;
     assert.ok(notes.length > 0);
     assert.ok(notes.every(node => node.started >= 16.12 - 1e-9));
