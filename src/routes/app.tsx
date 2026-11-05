@@ -15264,7 +15264,7 @@ function OrbitalPolymeter() {
       aria-label="Ending"
       aria-pressed={riffCycleStudy.landingEditEnabled}
       onClick={handleToggleRiffLandingEdit}
-      className="min-h-9 min-w-14 shrink-0 rounded-lg border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors hover:border-[#7FD7FF]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7FD7FF]/60"
+      className="min-h-8 min-w-11 shrink-0 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors hover:border-[#7FD7FF]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7FD7FF]/60"
       style={{
         background: riffCycleStudy.landingEditEnabled ? 'rgba(127,215,255,0.12)' : 'rgba(255,255,255,0.035)',
         borderColor: riffCycleStudy.landingEditEnabled ? 'rgba(127,215,255,0.3)' : 'rgba(255,255,255,0.12)',
