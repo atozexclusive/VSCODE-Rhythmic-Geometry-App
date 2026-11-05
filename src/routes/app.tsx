@@ -13,7 +13,7 @@ import LayerStepsIcon from '../components/LayerStepsIcon';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Dice5, Eraser, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Contrast, Dice5, Eraser, FlipHorizontal2, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, SlidersVertical, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -252,7 +252,16 @@ function RiffVoiceGlyph({ instrument, className = 'h-4 w-4' }: { instrument: Rif
 }
 
 function RiffVoiceLayerGlyph({ voice, className = 'h-4 w-4' }: { voice: 'riff' | RiffVoiceId; className?: string }) {
-  if (voice === 'riff') return <span className="leading-none">◆</span>;
+  if (voice === 'riff') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 17 12 7 20 13" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        <circle cx="4" cy="17" r="2.3" fill="currentColor" />
+        <circle cx="12" cy="7" r="2.3" fill="currentColor" />
+        <circle cx="20" cy="13" r="2.3" fill="currentColor" />
+      </svg>
+    );
+  }
   return <RiffVoiceGlyph instrument={voice === 'drums' ? 'snare' : 'guitar'} className={className} />;
 }
 
@@ -21320,9 +21329,9 @@ function OrbitalPolymeter() {
 
                 <div className="hidden">
                   <StudyShellButton
-                    tone="neutral"
+                    tone="blue"
                     highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
-                    icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
+                    icon={<SlidersVertical size={15} aria-hidden="true" />}
                     onClick={() => setRiffVoicesOpen((open) => !open)}
                     className="w-full !h-9 !rounded-xl !text-[9px]"
                   >
@@ -21332,9 +21341,9 @@ function OrbitalPolymeter() {
                     <div className="space-y-3 rounded-2xl border border-[#B6A0FF]/20 bg-[#B6A0FF]/[0.045] p-3">
                       <div className="grid grid-cols-3 gap-1.5">
                         {([
-                          ['riff', 'Riff', '◆'],
-                          ['drums', 'Drums', '🥁'],
-                          ['guitar', 'Guitar', '🎸'],
+                          ['riff', 'Riff'],
+                          ['drums', 'Drums'],
+                          ['guitar', 'Guitar'],
                         ] as const).map(([voice, label]) => (
                           <button
                             key={`mobile-voice-${voice}`}
@@ -21959,14 +21968,13 @@ function OrbitalPolymeter() {
                           <div className="mt-2 grid grid-cols-2 gap-2">
                             <StudyShellButton
                               size="compact"
-                              tone="red"
-                              highlighted={false}
-                              icon={<Trash2 size={13} />}
+                              tone="neutral"
+                              icon={<Eraser size={13} />}
                               onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
                               disabled={riffGuitarPitchMode}
                               className="w-full !h-8 !rounded-lg !text-[9px]"
                             >
-                              Clear Hits
+                              Clear
                             </StudyShellButton>
                             <StudyShellButton
                               size="compact"
@@ -21987,7 +21995,7 @@ function OrbitalPolymeter() {
                                   return !open;
                                 });
                               }}
-                              icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
+                              icon={<SlidersVertical size={15} aria-hidden="true" />}
                               className="w-full !h-8 !rounded-lg !text-[9px]"
                             >
                               Voices
@@ -21996,9 +22004,9 @@ function OrbitalPolymeter() {
                           {riffVoicesOpen ? (
                           <div className="mt-2 grid grid-cols-3 gap-1.5">
                             {([
-                              ['riff', 'Riff', '◆'],
-                              ['drums', 'Drums', '🥁'],
-                              ['guitar', 'Guitar', '🎸'],
+                              ['riff', 'Riff'],
+                              ['drums', 'Drums'],
+                              ['guitar', 'Guitar'],
                             ] as const).map(([voice, label]) => (
                               <StudyShellButton
                                 key={`pattern-roll-${voice}`}
@@ -22152,23 +22160,25 @@ function OrbitalPolymeter() {
                                 size="compact"
                                 tone="amber"
                                 highlighted={!riffPatternToolsLocked}
+                                icon={<Contrast size={13} aria-hidden="true" />}
                                 onClick={handleInvertRiffCycle}
                                 locked={riffPatternToolsLocked}
                                 onLockedClick={() => openProPrompt('riff-pattern-tools')}
                                 className="min-w-0"
                               >
-                                Invert Hits
+                                Invert
                               </StudyShellButton>
                               <StudyShellButton
                                 size="compact"
                                 tone="blue"
                                 highlighted={!riffPatternToolsLocked}
+                                icon={<FlipHorizontal2 size={13} aria-hidden="true" />}
                                 onClick={handleMirrorRiffCycle}
                                 locked={riffPatternToolsLocked}
                                 onLockedClick={() => openProPrompt('riff-pattern-tools')}
                                 className="min-w-0"
                               >
-                                Mirror Hits
+                                Mirror
                               </StudyShellButton>
                             </div>
                           </div>
@@ -23782,7 +23792,7 @@ function OrbitalPolymeter() {
                           return !open;
                         });
                       }}
-                      icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
+                      icon={<SlidersVertical size={15} aria-hidden="true" />}
                       className="w-full"
                     >
                       Voices
@@ -23791,9 +23801,9 @@ function OrbitalPolymeter() {
                       <>
                         <div className="grid grid-cols-3 gap-1">
                           {([
-                            ['riff', 'Riff', '◆'],
-                            ['drums', 'Drums', '🥁'],
-                            ['guitar', 'Guitar', '🎸'],
+                            ['riff', 'Riff'],
+                            ['drums', 'Drums'],
+                            ['guitar', 'Guitar'],
                           ] as const).map(([voice, label]) => (
                             <StudyShellButton
                               key={`riff-quick-voice-${voice}`}
@@ -23871,23 +23881,25 @@ function OrbitalPolymeter() {
                         size="compact"
                         tone="green"
                         highlighted={!riffPatternToolsLocked}
+                        icon={<Contrast size={13} aria-hidden="true" />}
                         onClick={handleInvertRiffCycle}
                         locked={riffPatternToolsLocked}
                         onLockedClick={() => openProPrompt('riff-pattern-tools')}
                         className="min-w-0 px-1 text-[7px]"
                       >
-                        Invert Hits
+                        Invert
                       </StudyShellButton>
                       <StudyShellButton
                         size="compact"
                         tone="blue"
                         highlighted={!riffPatternToolsLocked}
+                        icon={<FlipHorizontal2 size={13} aria-hidden="true" />}
                         onClick={handleMirrorRiffCycle}
                         locked={riffPatternToolsLocked}
                         onLockedClick={() => openProPrompt('riff-pattern-tools')}
                         className="min-w-0 px-1 text-[7px]"
                       >
-                        Mirror Hits
+                        Mirror
                       </StudyShellButton>
                     </div>
                   </div>
@@ -25371,9 +25383,9 @@ function OrbitalPolymeter() {
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
                     {([
-                      ['riff', 'Riff', '◆'],
-                      ['drums', 'Drums', '🥁'],
-                      ['guitar', 'Guitar', '🎸'],
+                      ['riff', 'Riff'],
+                      ['drums', 'Drums'],
+                      ['guitar', 'Guitar'],
                     ] as const).map(([voice, label]) => (
                       <StudyShellButton
                         key={`desktop-focus-voice-${voice}`}
@@ -25728,9 +25740,8 @@ function OrbitalPolymeter() {
                       </div>
                       <StudyShellButton
                         size="compact"
-                        tone="red"
-                        highlighted={riffRollActiveSteps.some(Boolean)}
-                        icon={<Trash2 size={12} />}
+                        tone="neutral"
+                        icon={<Eraser size={12} />}
                         onClick={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
                         disabled={riffGuitarPitchMode}
                         className="!h-9 justify-self-start rounded-lg px-3 text-[8px]"
@@ -26041,9 +26052,9 @@ function OrbitalPolymeter() {
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
                         {([
-                          ['riff', 'Riff', '◆'],
-                          ['drums', 'Drums', '🥁'],
-                          ['guitar', 'Guitar', '🎸'],
+                          ['riff', 'Riff'],
+                          ['drums', 'Drums'],
+                          ['guitar', 'Guitar'],
                         ] as const).map(([voice, label]) => (
                           <button
                             key={voice}
@@ -26157,9 +26168,9 @@ function OrbitalPolymeter() {
                     </StudyShellPanel>
                   ) : null}
                   <StudyShellButton
-                    tone="neutral"
-                    highlighted={activeRiffVoice !== 'riff'}
-                    icon={<RiffVoiceLayerGlyph voice={activeRiffVoice} className="h-5 w-5" />}
+                    tone="blue"
+                    highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
+                    icon={<SlidersVertical size={15} aria-hidden="true" />}
                     onClick={() => setRiffVoicesOpen((open) => !open)}
                   >
                     Voices
