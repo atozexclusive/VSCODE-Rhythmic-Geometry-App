@@ -729,8 +729,8 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
     body: 'This is the phrase order. Add cells to build sections like A B A, then use Global or Per Cell bars to decide how long the phrase resolves.',
   },
   riff_section_bars: {
-    title: 'Section Bars',
-    body: 'Global restarts the sequence after the chosen number of bars, without stretching the cells. Per Cell sets each slot’s length in full pattern plays or bars. These controls replace Riff Restart while Cell Sequencer is on.',
+    title: 'Riff Restart',
+    body: 'Restarts the whole sequence after this many bars in either mode. Per Cell also lets each slot play a set number of patterns or bars. Auto keeps a saved sequence’s full arranged length until you choose a restart.',
   },
   riff_steps: {
     title: 'Steps',
@@ -5022,7 +5022,7 @@ function RiffCellSequenceEditor({
               <div className="flex items-center justify-between gap-2">
                 <InlineInfoLabel
                   infoId="riff_section_bars"
-                  label="Section Bars"
+                  label="Riff Restart"
                   labelClassName="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42"
                 />
                 <div className="flex items-center gap-1">
@@ -5063,15 +5063,15 @@ function RiffCellSequenceEditor({
               </div>
 
 
-              {sequenceBarsMode === 'global' ? (
                 <div className="cell-bars-input flex overflow-hidden rounded-lg border border-white/10 bg-white/[0.045]">
                   <input
                     type="number"
                     inputMode="numeric"
                     min={1}
                     max={RIFF_MAX_RESET_BARS}
-                    value={sequenceResetBars}
-                    aria-label="Section length in bars"
+                    value={sequenceBarsMode === 'per-cell' ? study.riffSequenceRestartBars ?? '' : sequenceResetBars}
+                    placeholder="Auto"
+                    aria-label="Riff restart in bars"
                     onFocus={(event) => event.currentTarget.select()}
                     onChange={(event) => onSetSequenceBars(Number.parseInt(event.target.value, 10) || sequenceResetBars)}
                     className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-center text-[12px] font-light text-white outline-none"
@@ -5080,11 +5080,11 @@ function RiffCellSequenceEditor({
                     Bars
                   </span>
                 </div>
-              ) : (
-                <div className="rounded-lg border border-white/10 bg-white/[0.035] px-2 py-1.5 text-center text-[7px] font-mono uppercase tracking-[0.1em] text-white/36">
-                  Set each slot to Cell plays or Bar length
+              {sequenceBarsMode === 'per-cell' ? (
+                <div className="px-2 py-1 text-center text-[7px] leading-relaxed text-white/42">
+                  Each slot keeps its own length. Riff Restart returns the whole sequence to the first cell.
                 </div>
-              )}
+              ) : null}
               {chainEnabled ? (
                 <div className="rounded-md border border-sky-300/15 bg-sky-300/[0.05] px-2 py-1 text-center text-[6.5px] font-mono uppercase tracking-[0.1em] text-sky-100/55">
                   Linear · each phrase advances after its repeats

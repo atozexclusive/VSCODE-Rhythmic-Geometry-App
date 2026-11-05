@@ -31,22 +31,22 @@ export const CELL_SEQUENCER_GUIDE = [
   },
   {
     target: 'riff-cell-global-mode', title: 'Global: restart after a set number of bars',
-    text: 'Build your cell patterns and arrange them first. Global lets that order keep playing until the Section Bars limit, then starts again from the first cell.',
+    text: 'Build your cell patterns and arrange them first. Global lets that order keep playing until the Riff Restart limit, then starts again from the first cell.',
     notice: 'With Chain off, 4 bars means “restart the whole sequence every 4 bars.” It does not stretch the cells to fit: the last cell may be cut short.',
   },
   {
     target: 'riff-cell-per-cell-mode', title: 'Per Cell: give each slot its own length',
     text: 'Per Cell lets you choose how long each slot plays. Cell counts full plays of its pattern; Bar gives that slot a fixed number of bars.',
-    notice: 'Example: A set to 2 Cell plays its pattern twice, then moves to B. A set to 2 Bar plays for two bars, then moves on. After all phrases and repeats, the sequence starts again.',
+    notice: 'Example: A set to 2 Cell plays its pattern twice, then moves to B. A set to 2 Bar plays for two bars, then moves on. The order loops after all phrases and repeats; Riff Restart can bring it back to the first cell earlier.',
   },
   {
     target: 'riff-cell-timing', title: 'How this replaces Riff Restart',
     text: 'Riff Restart normally decides when the riff jumps back to its beginning. While Cell Sequencer is On, these timing controls take over that job.',
-    notice: 'Global restarts at the Section Bars limit. Per Cell restarts after the arranged slots and phrase repeats finish. Turn Cell Sequencer Off to use the Bar menu’s Riff Restart setting again.',
+    notice: 'Global restarts at the Riff Restart limit. Per Cell also uses Riff Restart, while the small selectors under each slot control that slot’s length. Older saved sequences show Auto until you set a restart. Turn Cell Sequencer Off to use the Bar menu’s Riff Restart setting again.',
   },
   {
     target: 'riff-cell-chain', title: 'Chain: finish each phrase, then move on',
-    text: 'In Global mode, Chain gives each phrase the Section Bars length for each repeat. A phrase at ×2 with 4 Section Bars plays two four-bar passes, then advances.',
+    text: 'In Global mode, Chain gives each phrase the Riff Restart length for each repeat. A phrase at ×2 with 4 Riff Restart plays two four-bar passes, then advances.',
     notice: 'Per Cell already advances using each slot’s own length. Start with one phrase and Global; try Chain when you want several timed sections.',
   },
 ];
