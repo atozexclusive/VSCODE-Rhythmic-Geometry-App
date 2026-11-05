@@ -13,7 +13,7 @@ import LayerStepsIcon from '../components/LayerStepsIcon';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Dice5, Eraser, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -160,6 +160,7 @@ import {
   RIFF_CYCLE_PRESETS,
   RIFF_SEQUENCE_CELL_LABELS,
   addRiffSequencePhrase,
+  copyRiffSequenceCell,
   addRiffSequenceCell,
   appendRiffSequenceOrderCell,
   applyLandingStateToLastSlots,
@@ -730,8 +731,13 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
     body: 'This is the phrase order. Add cells to build sections like A B A, then use Global or Per Cell bars to decide how long the phrase resolves.',
   },
   riff_section_bars: {
-    title: 'Cell Timing',
-    body: 'Use Bar → Riff Restart to set the restart length. Per Cell also lets each slot play a set number of patterns or bars.',
+    title: 'Sequence Flow',
+    body: [
+      'Global loops the sequence until Riff Restart sends it back to the first cell.',
+      'Per Cell lets you choose how many times each slot plays its pattern, or how many bars it lasts, before moving on.',
+      'Chain works with Global. Each phrase gets the Riff Restart length for each repeat, then playback moves to the next phrase.',
+      'Set Riff Restart in the Bar tab.',
+    ].join('\n\n'),
   },
   riff_steps: {
     title: 'Steps',
@@ -3728,7 +3734,7 @@ function InlineInfoLabel({
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#DCEEFF]">
                 {copy.title}
               </div>
-              <div className="mt-2 text-[11px] leading-relaxed text-white/72">
+              <div className="mt-2 whitespace-pre-line text-[11px] leading-relaxed text-white/72">
                 {copy.body}
               </div>
             </div>,
@@ -4249,6 +4255,7 @@ function RiffCellSequenceEditor({
   onSelectCell,
   onSelectPhrase,
   onAddCell,
+  onCopyCell,
   onAppendCell,
   onAddPhrase,
   onDeletePhrase,
@@ -4269,6 +4276,7 @@ function RiffCellSequenceEditor({
   sequenceLocked = false,
   onLockedSequenceClick,
   onOpenGuide,
+  stepEditor,
   compact = false,
   contentCollapsed = false,
   onToggleContent,
@@ -4280,8 +4288,9 @@ function RiffCellSequenceEditor({
   onSelectCell: (label: RiffSequenceCellLabel) => void;
   onSelectPhrase: (phraseIndex: number) => void;
   onAddCell: () => void;
+  onCopyCell: (label: RiffSequenceCellLabel, variation: boolean) => void;
   onAppendCell: (label: RiffSequenceCellLabel, phraseIndex?: number) => void;
-  onAddPhrase: (label: RiffSequenceCellLabel) => void;
+  onAddPhrase: () => void;
   onDeletePhrase: (phraseIndex: number) => void;
   onSetPhraseRepeats: (phraseIndex: number, repeats: number) => void;
   onRemoveLastCell: () => void;
@@ -4300,6 +4309,7 @@ function RiffCellSequenceEditor({
   sequenceLocked?: boolean;
   onLockedSequenceClick?: () => void;
   onOpenGuide: () => void;
+  stepEditor?: ReactNode;
   compact?: boolean;
   contentCollapsed?: boolean;
   onToggleContent?: () => void;
@@ -4352,7 +4362,9 @@ function RiffCellSequenceEditor({
         }, 0)
       : chainEnabled
         ? phraseRanges.reduce(
-            (sum, range) => sum + sequenceResetBars * Math.max(1, range.phrase.repeatCount),
+            (sum, range) => range.indices.length === 0
+              ? sum
+              : sum + sequenceResetBars * Math.max(1, range.phrase.repeatCount),
             0,
           )
         : sequenceResetBars;
@@ -4394,6 +4406,7 @@ function RiffCellSequenceEditor({
   return (
     <div
       data-cell-sequencer
+      data-cell-sequencer-expanded={study.riffSequenceEnabled && !sequenceLocked && !contentCollapsed}
       className={`cell-sequencer rounded-xl border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${study.riffSequenceEnabled ? 'space-y-1.5' : 'space-y-0'}`}
       style={{
         background: study.riffSequenceEnabled
@@ -4483,15 +4496,16 @@ function RiffCellSequenceEditor({
                   <button
                     type="button"
                     onClick={onRandomizeCells}
-                    className="rounded-lg border px-2 py-1 text-[7px] font-mono uppercase tracking-[0.12em] transition-transform active:scale-[0.97]"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-transform active:scale-[0.97]"
                     style={{
                       background: 'rgba(127,215,255,0.07)',
                       borderColor: 'rgba(127,215,255,0.2)',
                       color: '#BFEAFF',
                     }}
                     aria-label="Randomize cell sequencer cells"
+                    title="Randomize cells"
                   >
-                    Random
+                    <Dice5 size={14} strokeWidth={1.5} aria-hidden="true" />
                   </button>
                   {cells.length > 1 ? (
                     <button
@@ -4520,58 +4534,6 @@ function RiffCellSequenceEditor({
               ) : null}
             </div>
 
-            {cellMenuLabel && selectedCell?.label === cellMenuLabel ? (
-              <div className="rounded-lg border border-white/10 bg-black/20 p-1.5">
-                {renamingCellLabel === cellMenuLabel ? (
-                  <form
-                    className="flex items-center gap-1.5"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      onSetCellName(cellMenuLabel, cellNameDraft);
-                      setRenamingCellLabel(null);
-                      setCellMenuLabel(null);
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      value={cellNameDraft}
-                      maxLength={32}
-                      onChange={(event) => setCellNameDraft(event.currentTarget.value)}
-                      placeholder={`Cell ${cellMenuLabel}`}
-                      aria-label={`Rename Cell ${cellMenuLabel}`}
-                      className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.045] px-2 text-[9px] font-mono text-white/78 outline-none focus:border-white/25"
-                    />
-                    <button
-                      type="submit"
-                      className="h-7 rounded-md border border-emerald-300/20 bg-emerald-300/[0.08] px-2 text-[7.5px] font-mono uppercase tracking-[0.1em] text-emerald-200"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRenamingCellLabel(null);
-                        setCellMenuLabel(null);
-                      }}
-                      className="h-7 rounded-md border border-white/10 px-2 text-[7.5px] font-mono uppercase tracking-[0.1em] text-white/45"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCellNameDraft(selectedCell.name ?? selectedCell.label);
-                      setRenamingCellLabel(cellMenuLabel);
-                    }}
-                    className="flex h-7 w-full items-center rounded-md px-2 text-left text-[8px] font-mono uppercase tracking-[0.12em] text-white/64 transition hover:bg-white/[0.05]"
-                  >
-                    Rename Cell {cellMenuLabel}
-                  </button>
-                )}
-              </div>
-            ) : null}
             <div className="-mx-0.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
               <div className="flex min-w-max gap-1 px-0.5">
                 {cells.map((cell) => {
@@ -4656,7 +4618,93 @@ function RiffCellSequenceEditor({
                 </button>
               </div>
             </div>
+            {cellMenuLabel && selectedCell?.label === cellMenuLabel ? (
+              <div
+                className="rounded-lg border border-white/12 bg-[#1b1e26] p-1.5"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setRenamingCellLabel(null);
+                    setCellMenuLabel(null);
+                  }
+                }}
+              >
+                {renamingCellLabel === cellMenuLabel ? (
+                  <form
+                    className="flex items-center gap-1.5"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      onSetCellName(cellMenuLabel, cellNameDraft);
+                      setRenamingCellLabel(null);
+                      setCellMenuLabel(null);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      value={cellNameDraft}
+                      maxLength={32}
+                      onChange={(event) => setCellNameDraft(event.currentTarget.value)}
+                      placeholder={`Cell ${cellMenuLabel}`}
+                      aria-label={`Rename Cell ${cellMenuLabel}`}
+                      className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.045] px-2 text-[9px] font-mono text-white/78 outline-none focus:border-white/25"
+                    />
+                    <button
+                      type="submit"
+                      className="h-7 rounded-md border border-emerald-300/20 bg-emerald-300/[0.08] px-2 text-[7.5px] font-mono uppercase tracking-[0.1em] text-emerald-200"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenamingCellLabel(null);
+                        setCellMenuLabel(null);
+                      }}
+                      className="h-7 rounded-md border border-white/10 px-2 text-[7.5px] font-mono uppercase tracking-[0.1em] text-white/45"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCellNameDraft(selectedCell.name ?? selectedCell.label);
+                        setRenamingCellLabel(cellMenuLabel);
+                      }}
+                      className="rounded-md px-2 text-[9px] text-white/75 hover:bg-white/[0.08]"
+                    >
+                      Rename
+                    </button>
+                    {([['Duplicate', false], ['Add Variation', true]] as const).map(([label, variation]) => (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={!canAddCell}
+                        title={canAddCell ? undefined : 'Cell library is full'}
+                        onClick={() => {
+                          onCopyCell(cellMenuLabel, variation);
+                          setCellMenuLabel(null);
+                        }}
+                        className="rounded-md px-2 text-[9px] text-white/75 hover:bg-white/[0.08] disabled:opacity-35"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
+
+          {stepEditor ? (
+            <div
+              className="cell-sequencer-step-editor min-w-0 rounded-lg border bg-black/15 px-2 py-1.5"
+              style={{ borderColor: `${selectedCellColor}25` }}
+            >
+              {stepEditor}
+            </div>
+          ) : null}
 
           <div className="cell-arrangement space-y-1.5 rounded-lg border border-white/10 bg-black/[0.12] px-2 py-2">
             <div className="flex items-center justify-between gap-3">
@@ -4799,10 +4847,7 @@ function RiffCellSequenceEditor({
                                     : 'rgba(255,255,255,0.24)',
                                 }}
                               >
-                                <span className="text-[7px] leading-none tracking-[0.08em] opacity-55">
-                                  {index + 1}
-                                </span>
-                                <span className="mt-0.5 max-w-20 truncate text-[10px] leading-none tracking-[0.08em]">{cellName}</span>
+                                <span className="max-w-20 truncate text-[10px] leading-none tracking-[0.08em]">{cellName}</span>
                                 {entrySpan != null ? (
                                   <span className="mt-0.5 text-[6.5px] leading-none tracking-[0.08em] opacity-56">
                                     {entrySpan}
@@ -4887,7 +4932,7 @@ function RiffCellSequenceEditor({
             <div className="cell-order-actions grid grid-cols-3 gap-1">
               <button
                 type="button"
-                onClick={() => onAddPhrase(selectedCell?.label ?? cells[0]?.label ?? 'A')}
+                onClick={onAddPhrase}
                 className="w-full rounded-lg border px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.13em] transition-transform active:scale-[0.98]"
                 style={{
                   background: 'rgba(255,255,255,0.035)',
@@ -4901,6 +4946,7 @@ function RiffCellSequenceEditor({
                 size="compact"
                 tone="neutral"
                 className="!h-[1.55rem] rounded-lg text-[8.5px]"
+                icon={<RotateCcw size={13} />}
                 onClick={onRemoveLastCell}
                 disabled={selectedPhraseEntryCount <= 0}
               >
@@ -4910,11 +4956,11 @@ function RiffCellSequenceEditor({
                 size="compact"
                 tone="neutral"
                 className="!h-[1.55rem] rounded-lg text-[8.5px]"
-                icon={<RotateCcw size={13} />}
+                icon={<Eraser size={13} />}
                 onClick={onResetSequence}
                 disabled={selectedPhraseEntryCount <= 0}
               >
-                Clear Order
+                Clear
               </StudyShellButton>
             </div>
 
@@ -4922,7 +4968,7 @@ function RiffCellSequenceEditor({
               <div className="flex items-center justify-between gap-2">
                 <InlineInfoLabel
                   infoId="riff_section_bars"
-                  label="Timing"
+                  label="Sequence Flow"
                   labelClassName="text-[9px] font-mono uppercase tracking-[0.15em] text-white/42"
                 />
                 <div className="flex items-center gap-1">
@@ -9841,6 +9887,21 @@ function OrbitalPolymeter() {
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy, riffCycleStudy.riffCells, selectedRiffSequenceCellLabel]);
 
+  const handleCopyRiffSequenceCell = useCallback((label: RiffSequenceCellLabel, variation: boolean) => {
+    if (!requireEditableRiffCycleStudy()) {
+      return;
+    }
+    const nextLabel = RIFF_SEQUENCE_CELL_LABELS.find((candidate) =>
+      !riffCycleStudy.riffCells.some((cell) => cell.label === candidate),
+    );
+    if (!nextLabel) {
+      return;
+    }
+    setRiffCycleStudy((current) => copyRiffSequenceCell(current, label, variation));
+    setSelectedRiffSequenceCellLabel(nextLabel);
+    setSelectedRiffCycleStep(null);
+  }, [requireEditableRiffCycleStudy, riffCycleStudy.riffCells]);
+
   const handleAppendRiffSequenceCell = useCallback((label: RiffSequenceCellLabel, phraseIndex?: number) => {
     if (!requireEditableRiffCycleStudy()) {
       return;
@@ -9850,14 +9911,14 @@ function OrbitalPolymeter() {
     setRiffCycleRestartToken((value) => value + 1);
   }, [requireEditableRiffCycleStudy]);
 
-  const handleAddRiffSequencePhrase = useCallback((label: RiffSequenceCellLabel) => {
+  const handleAddRiffSequencePhrase = useCallback(() => {
     if (!requireEditableRiffCycleStudy()) {
       return;
     }
-    setRiffCycleStudy((current) => addRiffSequencePhrase(current, label));
-    setSelectedRiffSequenceCellLabel(label);
-    setRiffCycleRestartToken((value) => value + 1);
-  }, [requireEditableRiffCycleStudy]);
+    setRiffCycleStudy(addRiffSequencePhrase);
+    setSelectedRiffSequencePhraseIndex(getRiffSequencePhrases(riffCycleStudy).length);
+    setSelectedRiffCycleStep(null);
+  }, [requireEditableRiffCycleStudy, riffCycleStudy]);
 
   const handleSetRiffSequencePhraseRepeats = useCallback((phraseIndex: number, repeats: number) => {
     if (!requireEditableRiffCycleStudy()) {
@@ -9902,7 +9963,9 @@ function OrbitalPolymeter() {
     const phraseStart = phrases
       .slice(0, nextPhraseIndex)
       .reduce((sum, phrase) => sum + phrase.entryCount, 0);
-    const firstLabel = riffCycleStudy.riffSequence[phraseStart];
+    const firstLabel = phrases[nextPhraseIndex]?.entryCount > 0
+      ? riffCycleStudy.riffSequence[phraseStart]
+      : undefined;
     setSelectedRiffSequencePhraseIndex(nextPhraseIndex);
     if (firstLabel) {
       setSelectedRiffSequenceCellLabel(firstLabel);
@@ -20348,6 +20411,7 @@ function OrbitalPolymeter() {
         };
       });
       const riffMobileEditorTab = riffMobileEditTab;
+      const inlineMobileCellSteps = Boolean(riffSelectedSequenceCell) && !riffCellSequencerLocked && activeRiffVoice === 'riff';
       const riffMobileEditorActionLabel =
         riffMobileEditorTab === 'bar' ? null : 'Clear';
       const riffMobileEditorWindowSummary =
@@ -20358,6 +20422,106 @@ function OrbitalPolymeter() {
           : riffMobileLaneBarsPerPage === 'pattern'
             ? 'Viewing full pattern'
             : `Viewing ${riffMobileLaneWindowLabel}`;
+
+      const mobileRiffStepEditor = (
+        <>
+          <div data-guide="riff-cell-steps" className={`${inlineMobileCellSteps ? 'cell-step-header' : 'mt-3 space-y-1.5'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <InlineInfoLabel
+                infoId="riff_steps"
+                label={`${riffRollLabel} Steps`}
+                labelClassName="text-[9px] font-medium tracking-wide"
+                labelStyle={{ color: 'rgba(255,255,255,.55)' }}
+              />
+            </div>
+            <div className={inlineMobileCellSteps ? 'cell-step-count flex items-center gap-1' : 'flex items-center gap-2'}>
+              <StudyShellButton
+                size="square"
+                className="!h-8 !w-8 !rounded-lg"
+                onClick={() =>
+                  handleSetRiffPhraseStepCount(Math.max(3, riffEditableStepCount - 1))
+                }
+              >
+                <Minus size={14} />
+              </StudyShellButton>
+              <label
+                className={`min-w-0 flex-1 rounded-lg border px-2 text-center text-[12px] font-light ${inlineMobileCellSteps ? 'py-0.5' : 'py-1.5'}`}
+                style={{
+                  background: `${riffEditableColor}12`,
+                  borderColor: `${riffEditableColor}30`,
+                  color: riffEditableColor,
+                }}
+              >
+                <span className="inline-flex items-center justify-center gap-1.5">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={riffPhraseStepDraft}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) =>
+                      setRiffPhraseStepDraft(event.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 2))
+                    }
+                    onBlur={commitRiffPhraseStepDraft}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    className={`${inlineMobileCellSteps ? 'w-5' : 'w-9'} bg-transparent text-center font-light outline-none`}
+                    style={{ color: riffEditableColor }}
+                    aria-label="Set riff steps"
+                  />
+                  <span>steps</span>
+                </span>
+              </label>
+              <StudyShellButton
+                size="square"
+                className="!h-8 !w-8 !rounded-lg"
+                onClick={() =>
+                  handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
+                }
+              >
+                <Plus size={14} />
+              </StudyShellButton>
+            </div>
+          </div>
+          <div data-guide="riff-cell-roll" className={inlineMobileCellSteps ? 'mt-1.5' : 'mt-3'}>
+            <RiffRollEditor
+              compact
+              activeSteps={riffRollActiveSteps}
+              accents={riffRollAccents}
+              color={riffRollColor}
+              stepBottomLabels={riffRollStepBottomLabels}
+              selectedStepIndex={selectedRiffCycleStep}
+              labelPrefix="riff"
+              onPressStep={(stepIndex) => {
+                handleSelectRiffCycleStep(stepIndex);
+                if (activeRiffVoice === 'riff') {
+                  handleSetRiffEditMode('phrase');
+                  handleToggleRiffCycleStep(stepIndex);
+                } else {
+                  handleToggleRiffVoiceSubdivision(stepIndex);
+                }
+                recordTutorialEvent('riff-editor-toggle-step');
+              }}
+              onLongPressStep={(stepIndex) => {
+                if (activeRiffVoice !== 'riff') {
+                  handleToggleRiffVoiceSubdivision(stepIndex);
+                  return;
+                }
+                handleSetRiffEditMode('phrase');
+                handleSelectRiffCycleStep(stepIndex);
+                if (!riffEditableActiveSteps[stepIndex]) {
+                  handleSetRiffCycleStepActive(stepIndex, true);
+                }
+                handleToggleRiffCycleAccent(stepIndex);
+                recordTutorialEvent('riff-editor-toggle-step');
+              }}
+            />
+          </div>
+        </>
+      );
 
       return (
         <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
@@ -21757,6 +21921,7 @@ function OrbitalPolymeter() {
                           {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
                           <div className="mt-3">
                             <RiffCellSequenceEditor
+                              stepEditor={inlineMobileCellSteps ? mobileRiffStepEditor : null}
                     onOpenGuide={() => openStartGuide('cell-sequencer')}
                               study={riffCycleStudy}
                               selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
@@ -21765,6 +21930,7 @@ function OrbitalPolymeter() {
                               onSelectCell={handleSelectRiffSequenceCell}
                               onSelectPhrase={handleSelectRiffSequencePhrase}
                               onAddCell={handleAddRiffSequenceCell}
+                              onCopyCell={handleCopyRiffSequenceCell}
                               onAppendCell={handleAppendRiffSequenceCell}
                               onAddPhrase={handleAddRiffSequencePhrase}
                               onDeletePhrase={handleDeleteRiffSequencePhrase}
@@ -21789,101 +21955,7 @@ function OrbitalPolymeter() {
                             />
                           </div>
                           ) : null}
-                          <div data-guide="riff-cell-steps" className="mt-3 space-y-1.5">
-                            <div className="flex items-center justify-between gap-3">
-                              <InlineInfoLabel
-                                infoId="riff_steps"
-                                label={`${riffRollLabel} Steps`}
-                                labelClassName="text-[9px] font-medium tracking-wide"
-                                labelStyle={{ color: 'rgba(255,255,255,.55)' }}
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <StudyShellButton
-                                size="square"
-                                className="!h-8 !w-8 !rounded-lg"
-                                onClick={() =>
-                                  handleSetRiffPhraseStepCount(Math.max(3, riffEditableStepCount - 1))
-                                }
-                              >
-                                <Minus size={14} />
-                              </StudyShellButton>
-                              <label
-                                className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-center text-[12px] font-light"
-                                style={{
-                                  background: `${riffEditableColor}12`,
-                                  borderColor: `${riffEditableColor}30`,
-                                  color: riffEditableColor,
-                                }}
-                              >
-                                <span className="inline-flex items-center justify-center gap-1.5">
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    value={riffPhraseStepDraft}
-                                    onFocus={(event) => event.currentTarget.select()}
-                                    onChange={(event) =>
-                                      setRiffPhraseStepDraft(event.currentTarget.value.replace(/[^0-9]/g, '').slice(0, 2))
-                                    }
-                                    onBlur={commitRiffPhraseStepDraft}
-                                    onKeyDown={(event) => {
-                                      if (event.key === 'Enter') {
-                                        event.currentTarget.blur();
-                                      }
-                                    }}
-                                    className="w-9 bg-transparent text-center font-light outline-none"
-                                    style={{ color: riffEditableColor }}
-                                    aria-label="Set riff steps"
-                                  />
-                                  <span>steps</span>
-                                </span>
-                              </label>
-                              <StudyShellButton
-                                size="square"
-                                className="!h-8 !w-8 !rounded-lg"
-                                onClick={() =>
-                                  handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
-                                }
-                              >
-                                <Plus size={14} />
-                              </StudyShellButton>
-                            </div>
-                          </div>
-                          <div data-guide="riff-cell-roll" className="mt-3">
-                            <RiffRollEditor
-                              compact
-                              activeSteps={riffRollActiveSteps}
-                              accents={riffRollAccents}
-                              color={riffRollColor}
-	                              stepBottomLabels={riffRollStepBottomLabels}
-	                              selectedStepIndex={selectedRiffCycleStep}
-	                              labelPrefix="riff"
-	                              onPressStep={(stepIndex) => {
-	                                handleSelectRiffCycleStep(stepIndex);
-                                  if (activeRiffVoice === 'riff') {
-	                                  handleSetRiffEditMode('phrase');
-	                                  handleToggleRiffCycleStep(stepIndex);
-                                  } else {
-                                    handleToggleRiffVoiceSubdivision(stepIndex);
-                                  }
-                                  recordTutorialEvent('riff-editor-toggle-step');
-	                              }}
-	                              onLongPressStep={(stepIndex) => {
-	                                if (activeRiffVoice !== 'riff') {
-                                    handleToggleRiffVoiceSubdivision(stepIndex);
-                                    return;
-                                  }
-	                                handleSetRiffEditMode('phrase');
-	                                handleSelectRiffCycleStep(stepIndex);
-	                                if (!riffEditableActiveSteps[stepIndex]) {
-	                                  handleSetRiffCycleStepActive(stepIndex, true);
-	                                }
-	                                handleToggleRiffCycleAccent(stepIndex);
-                                  recordTutorialEvent('riff-editor-toggle-step');
-	                              }}
-	                            />
-	                          </div>
+                          {!inlineMobileCellSteps ? mobileRiffStepEditor : null}
                           <div className="mt-2 grid grid-cols-2 gap-2">
                             <StudyShellButton
                               size="compact"
@@ -22977,6 +23049,128 @@ function OrbitalPolymeter() {
       );
     }
 
+    const inlineQuickCellSteps = Boolean(riffSelectedSequenceCell) && !riffCellSequencerLocked;
+    const quickRiffStepEditor = (
+      <div data-guide="riff-cell-steps-quick"
+        className={inlineQuickCellSteps ? undefined : 'rounded-xl border px-2.5 py-1.5'}
+        style={inlineQuickCellSteps ? undefined : {
+          background: `linear-gradient(180deg, ${riffEditableColor}12, ${riffEditableColor}07)`,
+          borderColor: `${riffEditableColor}2e`,
+          boxShadow: `0 0 0 1px ${riffEditableColor}0d inset`,
+        }}
+      >
+        <div className={inlineQuickCellSteps ? 'cell-step-header' : 'space-y-1.5'}>
+          <div className="flex min-h-7 items-center justify-between gap-2">
+            <InlineInfoLabel
+              infoId="riff_steps"
+              label={`${riffEditableLabel} Length`}
+              labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.16em] text-white/70"
+              labelStyle={desktopMenuSubheaderStyle}
+            />
+            <LimitedColorPickerButton
+              colors={RIFF_CYCLE_COLORS}
+              value={riffEditableColor}
+              onChange={handleSetRiffEditableColor}
+              label={`Pick ${riffEditableLabel.toLowerCase()} color`}
+              locked={colorEditingLocked}
+              onLockedClick={() => openProPrompt('color-editing')}
+            />
+          </div>
+          <div className={`grid grid-cols-[1.85rem_minmax(0,1fr)_1.85rem] items-center ${inlineQuickCellSteps ? 'cell-step-count gap-1' : 'gap-1.5'}`}>
+            <button
+              type="button"
+              onClick={() =>
+                handleSetRiffPhraseStepCount(Math.max(3, riffEditableStepCount - 1))
+              }
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-transform active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,255,255,0.045)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.72)',
+                }}
+              aria-label="Shorten phrase"
+            >
+              <Minus size={13} />
+            </button>
+            <div className="relative min-w-0 flex-1">
+              <input
+                type="number"
+                min="3"
+                max={RIFF_MAX_STEP_COUNT}
+                step="1"
+                value={riffEditableStepCount}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => {
+                  const next = parseInt(event.target.value, 10);
+                  if (Number.isNaN(next)) {
+                    return;
+                  }
+                  handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
+                }}
+                className={`h-7 w-full rounded-md border text-center font-light leading-none focus:outline-none ${inlineQuickCellSteps ? 'pl-1 pr-7 text-[12px]' : 'px-3 text-[20px]'}`}
+                style={{
+                  background: `${riffCycleStudy.riff.color}16`,
+                  borderColor: `${riffCycleStudy.riff.color}4a`,
+                  color: riffCycleStudy.riff.color,
+                  boxShadow: `0 0 18px ${riffCycleStudy.riff.color}12`,
+                }}
+                aria-label="Set riff phrase steps"
+              />
+              <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-[8px] text-white/44 ${inlineQuickCellSteps ? 'right-1' : 'left-[calc(50%+1.35rem)]'}`}>
+                steps
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
+              }
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-transform active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,255,255,0.045)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.72)',
+              }}
+              aria-label="Lengthen phrase"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          <div data-guide="riff-cell-roll-quick"
+            className={inlineQuickCellSteps ? 'w-full min-w-0' : 'rounded-lg border px-1.5 py-1.5'}
+            style={inlineQuickCellSteps ? undefined : {
+              background: 'rgba(0,0,0,0.12)',
+              borderColor: `${riffEditableColor}18`,
+            }}
+          >
+            <RiffRollEditor
+              activeSteps={riffEditableActiveSteps}
+              accents={riffEditableAccents}
+              color={riffEditableColor}
+              selectedStepIndex={selectedRiffCycleStep}
+              labelPrefix="riff-quick"
+              compact
+              onPressStep={(stepIndex) => {
+                handleSetRiffEditMode('phrase');
+                handleSelectRiffCycleStep(stepIndex);
+                handleToggleRiffCycleStep(stepIndex);
+                recordTutorialEvent('riff-editor-toggle-step');
+              }}
+              onLongPressStep={(stepIndex) => {
+                handleSetRiffEditMode('phrase');
+                handleSelectRiffCycleStep(stepIndex);
+                if (!riffEditableActiveSteps[stepIndex]) {
+                  handleSetRiffCycleStepActive(stepIndex, true);
+                }
+                handleToggleRiffCycleAccent(stepIndex);
+                recordTutorialEvent('riff-editor-toggle-step');
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+
     return (
       <div
         className={
@@ -23534,6 +23728,7 @@ function OrbitalPolymeter() {
                 <div className="space-y-2 pt-1">
                   {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
                   <RiffCellSequenceEditor
+                    stepEditor={inlineQuickCellSteps ? quickRiffStepEditor : null}
                     onOpenGuide={() => openStartGuide('cell-sequencer')}
                     study={riffCycleStudy}
                     selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
@@ -23542,6 +23737,7 @@ function OrbitalPolymeter() {
                     onSelectCell={handleSelectRiffSequenceCell}
                     onSelectPhrase={handleSelectRiffSequencePhrase}
                     onAddCell={handleAddRiffSequenceCell}
+                    onCopyCell={handleCopyRiffSequenceCell}
                     onAppendCell={handleAppendRiffSequenceCell}
                     onAddPhrase={handleAddRiffSequencePhrase}
                     onDeletePhrase={handleDeleteRiffSequencePhrase}
@@ -23565,124 +23761,7 @@ function OrbitalPolymeter() {
                     compact
                   />
                   ) : null}
-                  <div data-guide="riff-cell-steps-quick"
-                    className="rounded-xl border px-2.5 py-1.5"
-                    style={{
-                      background: `linear-gradient(180deg, ${riffEditableColor}12, ${riffEditableColor}07)`,
-                      borderColor: `${riffEditableColor}2e`,
-                      boxShadow: `0 0 0 1px ${riffEditableColor}0d inset`,
-                    }}
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex min-h-7 items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="riff_steps"
-                          label={`${riffEditableLabel} Length`}
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.16em] text-white/70"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <LimitedColorPickerButton
-                          colors={RIFF_CYCLE_COLORS}
-                          value={riffEditableColor}
-                          onChange={handleSetRiffEditableColor}
-                          label={`Pick ${riffEditableLabel.toLowerCase()} color`}
-                          locked={colorEditingLocked}
-                          onLockedClick={() => openProPrompt('color-editing')}
-                        />
-                      </div>
-                      <div className="grid grid-cols-[1.85rem_minmax(0,1fr)_1.85rem] items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleSetRiffPhraseStepCount(Math.max(3, riffEditableStepCount - 1))
-                          }
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-transform active:scale-[0.97]"
-                          style={{
-                            background: 'rgba(255,255,255,0.045)',
-                            borderColor: 'rgba(255,255,255,0.1)',
-                            color: 'rgba(255,255,255,0.72)',
-                            }}
-                          aria-label="Shorten phrase"
-                        >
-                          <Minus size={13} />
-                        </button>
-                        <div className="relative min-w-0 flex-1">
-                          <input
-                            type="number"
-                            min="3"
-                            max={RIFF_MAX_STEP_COUNT}
-                            step="1"
-                            value={riffEditableStepCount}
-                            onFocus={(event) => event.currentTarget.select()}
-                            onChange={(event) => {
-                              const next = parseInt(event.target.value, 10);
-                              if (Number.isNaN(next)) {
-                                return;
-                              }
-                              handleSetRiffPhraseStepCount(Math.max(3, Math.min(RIFF_MAX_STEP_COUNT, next)));
-                            }}
-                            className="h-7 w-full rounded-md border px-3 text-center text-[20px] font-light leading-none focus:outline-none"
-                            style={{
-                              background: `${riffCycleStudy.riff.color}16`,
-                              borderColor: `${riffCycleStudy.riff.color}4a`,
-                              color: riffCycleStudy.riff.color,
-                              boxShadow: `0 0 18px ${riffCycleStudy.riff.color}12`,
-                            }}
-                            aria-label="Set riff phrase steps"
-                          />
-                          <span className="pointer-events-none absolute left-[calc(50%+1.35rem)] top-1/2 -translate-y-1/2 text-[8px] text-white/44">
-                            steps
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleSetRiffPhraseStepCount(Math.min(RIFF_MAX_STEP_COUNT, riffEditableStepCount + 1))
-                          }
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-transform active:scale-[0.97]"
-                          style={{
-                            background: 'rgba(255,255,255,0.045)',
-                            borderColor: 'rgba(255,255,255,0.1)',
-                            color: 'rgba(255,255,255,0.72)',
-                          }}
-                          aria-label="Lengthen phrase"
-                        >
-                          <Plus size={13} />
-                        </button>
-                      </div>
-                      <div data-guide="riff-cell-roll-quick"
-                        className="rounded-lg border px-1.5 py-1.5"
-                        style={{
-                          background: 'rgba(0,0,0,0.12)',
-                          borderColor: `${riffEditableColor}18`,
-                        }}
-                      >
-                        <RiffRollEditor
-                          activeSteps={riffEditableActiveSteps}
-                          accents={riffEditableAccents}
-                          color={riffEditableColor}
-                          selectedStepIndex={selectedRiffCycleStep}
-                          labelPrefix="riff-quick"
-                          compact
-                          onPressStep={(stepIndex) => {
-                            handleSetRiffEditMode('phrase');
-                            handleSelectRiffCycleStep(stepIndex);
-                            handleToggleRiffCycleStep(stepIndex);
-                            recordTutorialEvent('riff-editor-toggle-step');
-                          }}
-                          onLongPressStep={(stepIndex) => {
-                            handleSetRiffEditMode('phrase');
-                            handleSelectRiffCycleStep(stepIndex);
-                            if (!riffEditableActiveSteps[stepIndex]) {
-                              handleSetRiffCycleStepActive(stepIndex, true);
-                            }
-                            handleToggleRiffCycleAccent(stepIndex);
-                            recordTutorialEvent('riff-editor-toggle-step');
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  {!inlineQuickCellSteps ? quickRiffStepEditor : null}
                   <div className="space-y-1.5 rounded-lg border border-[#B6A0FF]/12 bg-[#B6A0FF]/[0.035] p-1.5">
                     <StudyShellButton
                       size="compact"
@@ -25250,6 +25329,7 @@ function OrbitalPolymeter() {
                   onSelectCell={handleSelectRiffSequenceCell}
                   onSelectPhrase={handleSelectRiffSequencePhrase}
                   onAddCell={handleAddRiffSequenceCell}
+                  onCopyCell={handleCopyRiffSequenceCell}
                   onAppendCell={handleAppendRiffSequenceCell}
                   onAddPhrase={handleAddRiffSequencePhrase}
                   onDeletePhrase={handleDeleteRiffSequencePhrase}

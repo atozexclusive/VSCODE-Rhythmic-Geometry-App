@@ -728,11 +728,17 @@
 }
 
 /* Cell Sequencer uses one compact surface; color marks editable cells. */
-.cell-sequencer { padding: 12px !important; border-radius: 14px; display: flex; flex-direction: column; gap: 12px !important; }
+.cell-sequencer { padding: 7px 12px 12px !important; border-radius: 14px; display: flex; flex-direction: column; gap: 12px !important; }
+.cell-sequencer[data-cell-sequencer-expanded="false"] { padding-block: 6px !important; }
 .cell-sequencer > * { margin-top: 0 !important; }
 .cell-sequencer > div:first-child { flex-wrap: wrap; align-items: center; gap: 8px; }
 .cell-sequencer > div:first-child > div:first-child { flex: 1 1 150px; }
 .cell-sequencer > div:first-child > div:first-child > .mt-0\.5 { display: none; }
+.cell-sequencer .cell-step-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.cell-sequencer .cell-step-count { margin-left: auto; }
+.cell-sequencer [data-guide="riff-cell-steps-quick"] .cell-step-count { width: 7.5rem; }
+.cell-sequencer .cell-sequencer-step-editor [data-riff-step-control] { min-height: 44px; min-width: 44px; padding-block: 3px; }
+.cell-sequencer .cell-sequencer-step-editor [data-riff-step-control] > div + div { margin-top: 2px; }
 .cell-sequencer .cell-library, .cell-sequencer .cell-arrangement { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .cell-sequencer .cell-library { padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); }
 .cell-sequencer .cell-library > div:first-child, .cell-sequencer .cell-arrangement > div:first-child { margin-bottom: 7px; flex-wrap: wrap; gap: 6px; }

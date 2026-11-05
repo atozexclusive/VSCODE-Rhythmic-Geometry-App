@@ -2,8 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addRiffSequenceCell,
+  addRiffSequencePhrase,
+  appendRiffSequenceOrderCell,
+  getRiffSequencePhrases,
+  getRiffSequenceTimeline,
   RIFF_CATALOG_PRESETS,
   cloneRiffCycleStudy,
+  copyRiffSequenceCell,
   createRiffCycleStudy,
   setRiffSequenceEnabled,
   toggleRiffSequenceCellAccent,
@@ -103,4 +108,40 @@ test('bundled authored sequences keep their saved cells and order', () => {
     assert.deepEqual(enabled.riffCells, original.riffCells, preset.id);
     assert.deepEqual(enabled.riffSequence, original.riffSequence, preset.id);
   }
+});
+
+test('new phrases stay blank until a cell is added and do not extend Chain playback', () => {
+  const study = {
+    ...setRiffSequenceEnabled(createRiffCycleStudy(), true),
+    riffSequenceChainEnabled: true,
+  };
+  const withBlankPhrase = cloneRiffCycleStudy(addRiffSequencePhrase(study));
+  assert.deepEqual(getRiffSequencePhrases(withBlankPhrase).map((phrase) => phrase.entryCount), [1, 0]);
+  assert.deepEqual(withBlankPhrase.riffSequence, study.riffSequence);
+  assert.deepEqual(getRiffSequenceTimeline(withBlankPhrase), getRiffSequenceTimeline(study));
+
+  const withCell = appendRiffSequenceOrderCell(withBlankPhrase, 'A', 1);
+  assert.deepEqual(getRiffSequencePhrases(withCell).map((phrase) => phrase.entryCount), [1, 1]);
+  assert.deepEqual(withCell.riffSequence, ['A', 'A']);
+});
+
+test('duplicate and variation create independent library cells without changing the phrase order', () => {
+  const study = setRiffSequenceEnabled(createRiffCycleStudy(), true);
+  const source = study.riffCells[0];
+  const duplicated = copyRiffSequenceCell(study, source.label, false);
+  const copy = duplicated.riffCells[1];
+  assert.equal(copy.label, 'B');
+  assert.notEqual(copy.id, source.id);
+  assert.deepEqual(copy.activeSteps, source.activeSteps);
+  assert.deepEqual(copy.accents, source.accents);
+  assert.notEqual(copy.activeSteps, source.activeSteps);
+
+  const varied = copyRiffSequenceCell(duplicated, source.label, true);
+  const variation = varied.riffCells[2];
+  assert.equal(variation.label, 'C');
+  assert.equal(variation.stepCount, source.stepCount);
+  assert.equal(variation.activeSteps.filter((active, index) => active !== source.activeSteps[index]).length, 1);
+  assert.deepEqual(varied.riffCells[0], source);
+  assert.deepEqual(varied.riffSequence, study.riffSequence);
+  assert.deepEqual(varied.riffSequencePhrases, study.riffSequencePhrases);
 });

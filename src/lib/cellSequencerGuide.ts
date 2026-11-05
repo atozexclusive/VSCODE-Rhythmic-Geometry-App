@@ -7,7 +7,7 @@ export const CELL_SEQUENCER_GUIDE = [
   {
     target: 'riff-cell-library', title: 'Choose a cell to build',
     text: 'Tap A to select it. Use + to create B or another cell. Each cell keeps its own length, hits, accents, and color.',
-    notice: 'Start with A. The dots preview its pattern. Use ••• to rename a cell; Random refreshes the cell patterns.',
+    notice: 'Start with A. The dots preview its pattern. Use ••• to rename, duplicate, or make a variation of a cell. Random refreshes the cell patterns.',
   },
   {
     target: 'riff-cell-steps', title: 'Set the pattern length',
@@ -22,7 +22,7 @@ export const CELL_SEQUENCER_GUIDE = [
   {
     target: 'riff-cell-order', title: 'Put the cells in order',
     text: 'Tap +A or +B to add that cell to the selected phrase. A → B → A plays all of A, then B, then A again, from left to right.',
-    notice: '+ Phrase adds another group. Undo removes the selected phrase’s last slot; Clear Order clears that phrase.',
+    notice: '+ Phrase opens a blank phrase. Undo removes the selected phrase’s last slot. Clear clears that phrase.',
   },
   {
     target: 'riff-cell-phrase-repeats', title: '× repeats the whole phrase',
