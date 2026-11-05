@@ -14,6 +14,8 @@ import {
   DEFAULT_RIFF_DISPLAY_SETTINGS,
   drawCanvasDisplayBackground,
   getEffectiveInnerClockMode,
+  getInnerClockRiffProgress,
+  getInnerClockPickupSteps,
   getCanvasGlowMultiplier,
   getCanvasInactiveAlpha,
   getCanvasLineAlpha,
@@ -844,7 +846,9 @@ export default function RiffCycleCanvas({
 
     const playbackState = playbackStateHandleRef.current.current;
     const referenceProgress = playbackState.referenceProgress;
-    const currentAbsoluteReferenceStep = Math.floor(referenceProgress);
+    const meterAbsoluteReferenceStep = Math.floor(referenceProgress);
+    const riffReferenceProgress = getInnerClockRiffProgress(currentDisplaySettings, referenceProgress, getReferenceStepsPerBar(currentStudy.reference));
+    const currentAbsoluteReferenceStep = Math.floor(riffReferenceProgress);
     const visibleReference = getVisibleRiffReferenceAtReferenceStep(
       currentStudy,
       currentAbsoluteReferenceStep,
@@ -893,7 +897,7 @@ export default function RiffCycleCanvas({
       currentDisplaySettings.subdivisionGuide ??
       (currentDisplaySettings.subdivisionGrid ? 'subdivisions' : 'off');
     const subdivisionGuideAutomation = currentDisplaySettings.subdivisionGuideAutomation;
-    const currentSubdivisionGuideBar = Math.floor(currentAbsoluteReferenceStep / Math.max(1, stepsPerBar));
+    const currentSubdivisionGuideBar = Math.floor(meterAbsoluteReferenceStep / Math.max(1, stepsPerBar));
     const subdivisionGuideMode =
       subdivisionGuideAutomation?.enabled
         ? subdivisionGuideAutomation.modes[
@@ -908,8 +912,8 @@ export default function RiffCycleCanvas({
     const subdivisionSpokesVisible = subdivisionGuideMode === 'subdivisions';
     const innerClockMode = getEffectiveInnerClockMode(
       currentDisplaySettings,
-      currentAbsoluteReferenceStep,
-      stepsPerBar,
+      Math.floor(referenceProgress),
+      getReferenceStepsPerBar(currentStudy.reference),
     );
     const innerClockVisible = innerClockMode !== 'off';
     const innerClockMotionVisible = innerClockMode === 'full';
@@ -919,7 +923,7 @@ export default function RiffCycleCanvas({
       shouldUseAbsoluteLaneWindow(currentStudy) ? currentAbsoluteReferenceStep : currentReferenceStep;
     const stepWithinBar = ((referenceProgress % stepsPerBar) + stepsPerBar) % stepsPerBar;
     const referenceCursorPoint = getReferenceStepPoint(renderStudy, metrics, stepWithinBar);
-    const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, referenceProgress);
+    const phraseProgress = getPhraseProgressAtReferenceProgress(currentStudy, riffReferenceProgress);
     const visibleRiff = getVisibleRiffPhraseAtReferenceStep(
       currentStudy,
       currentAbsoluteReferenceStep,
@@ -1062,9 +1066,9 @@ export default function RiffCycleCanvas({
       typeof performance !== 'undefined' && performance.now() < resetFlashUntilRef.current;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const subdivisionStepWithinBar =
-      ((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
-    if (currentStudy.playing && subdivisionImpactStepRef.current !== currentAbsoluteReferenceStep) {
-      subdivisionImpactStepRef.current = currentAbsoluteReferenceStep;
+      ((meterAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar;
+    if (currentStudy.playing && subdivisionImpactStepRef.current !== meterAbsoluteReferenceStep) {
+      subdivisionImpactStepRef.current = meterAbsoluteReferenceStep;
       subdivisionImpactUntilRef.current.set(
         subdivisionStepWithinBar,
         now + SUBDIVISION_IMPACT_DURATION,
@@ -2433,12 +2437,12 @@ export default function RiffCycleCanvas({
     });
 
     // Repeating voices move with the last hit and disappear between attacks.
-    if (currentStudy.playing && getEffectiveInnerClockMode(displaySettingsRef.current, currentAbsoluteReferenceStep, stepsPerBar) === 'full') allVoiceEvents.forEach((event) => {
+    if (currentStudy.playing && getEffectiveInnerClockMode(displaySettingsRef.current, Math.floor(referenceProgress), getReferenceStepsPerBar(currentStudy.reference)) === 'full') allVoiceEvents.forEach((event) => {
       const showOnRiff = event.accentSurface != null ? event.accentSurface === 'riff' : event.surface === 'subdivision';
       if (event.accentCycleFlash) {
         const completedAt = getLastRiffVoiceCycleCompletion(currentStudy, event, currentAbsoluteReferenceStep);
         if (completedAt != null) {
-          const age = (referenceProgress - completedAt) / getReferenceStepsPerSecond(currentStudy.reference);
+          const age = (riffReferenceProgress - completedAt) / getReferenceStepsPerSecond(currentStudy.reference);
           const fade = Math.max(0, 1 - age / 0.35);
           const completionIndex = showOnRiff
             ? getEffectiveRiffStepStateAtReferenceStep(currentStudy, completedAt).phraseIndex
@@ -2455,7 +2459,7 @@ export default function RiffCycleCanvas({
       }
       const lastHit = getLastRiffVoiceRepeatStep(currentStudy, event, currentAbsoluteReferenceStep);
       if (lastHit == null) return;
-      const elapsedSeconds = (referenceProgress - lastHit) / getReferenceStepsPerSecond(currentStudy.reference);
+      const elapsedSeconds = (riffReferenceProgress - lastHit) / getReferenceStepsPerSecond(currentStudy.reference);
       const remaining = Math.max(0, 1 - elapsedSeconds / 0.5);
       if (remaining <= 0) return;
       const index = showOnRiff
@@ -3054,7 +3058,8 @@ export default function RiffCycleCanvas({
         playbackDriverRef.current &&
         currentAbsoluteReferenceStep !== playbackState.previousReferenceStep
       ) {
-        onReferenceStepChangeRef.current?.(currentAbsoluteReferenceStep);
+        onReferenceStepChangeRef.current?.(Math.floor(getInnerClockRiffProgress(displaySettingsRef.current,
+          playbackState.referenceProgress, getReferenceStepsPerBar(currentStudy.reference))));
       }
       if (
         playbackDriverRef.current &&
@@ -3107,9 +3112,13 @@ export default function RiffCycleCanvas({
           }
         }
 
+        const riffReferenceStep = Math.floor(getInnerClockRiffProgress(displaySettingsRef.current,
+          playbackState.referenceProgress, getReferenceStepsPerBar(currentStudy.reference)));
+        const pickupActive = playbackState.referenceProgress < getInnerClockPickupSteps(displaySettingsRef.current,
+          getReferenceStepsPerBar(currentStudy.reference));
         const riffStepState = getEffectiveRiffStepStateAtReferenceStep(
           currentStudy,
-          currentAbsoluteReferenceStep,
+          riffReferenceStep,
         );
         const innerClockAudioEnabled =
           getEffectiveInnerClockMode(
@@ -3121,15 +3130,15 @@ export default function RiffCycleCanvas({
         const stepsPerBar = getReferenceStepsPerBar(currentStudy.reference);
         const stepsPerBeat = getReferenceStepsPerBeat(currentStudy.reference);
         const beatIndex = Math.floor(
-          (((currentAbsoluteReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) /
+          (((riffReferenceStep % stepsPerBar) + stepsPerBar) % stepsPerBar) /
             Math.max(1, stepsPerBeat),
         );
         const voiceCellLabel = getRiffSequenceStateAtReferenceStep(
           currentStudy,
-          currentAbsoluteReferenceStep,
+          riffReferenceStep,
         )?.cell.label;
         if (innerClockAudioEnabled) getRiffVoiceEventsForCell(currentStudy, voiceCellLabel).forEach((event) => {
-          const shouldImpact = isRiffVoiceEventAtStep(currentStudy, event, currentAbsoluteReferenceStep);
+          const shouldImpact = isRiffVoiceEventAtStep(currentStudy, event, riffReferenceStep);
           if (shouldImpact) {
             voiceImpactUntilRef.current.set(getVoiceImpactKey(event), voiceImpactNow + 500);
             if (audioEnabledRef.current && currentStudy.soundEnabled) {
@@ -3137,13 +3146,13 @@ export default function RiffCycleCanvas({
             }
           }
         });
-        if (riffStepState.active) {
+        if (innerClockAudioEnabled && riffStepState.active) {
           const attackUntil =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) +
             (riffStepState.accented ? 320 : 220);
           riffAttackUntilRef.current[riffStepState.phraseIndex] =
             attackUntil;
-          laneAttackReferenceStepRef.current = currentAbsoluteReferenceStep;
+          laneAttackReferenceStepRef.current = riffReferenceStep;
           laneAttackUntilRef.current = attackUntil;
           if (innerClockAudioEnabled && audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.riff.soundEnabled) {
             triggerRiffPulse({
@@ -3157,15 +3166,15 @@ export default function RiffCycleCanvas({
         }
 
         if (
-          isForcedResetAtReferenceStep(currentStudy, currentAbsoluteReferenceStep) ||
-          isFreeResolutionAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)
+          !pickupActive && (isForcedResetAtReferenceStep(currentStudy, riffReferenceStep) ||
+          isFreeResolutionAtReferenceStep(currentStudy, riffReferenceStep))
         ) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
           if (audioEnabledRef.current && currentStudy.soundEnabled) {
             triggerResetCue(currentStudy.soundSettings);
           }
-        } else if (isRiffSequenceBarBoundaryAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)) {
+        } else if (!pickupActive && isRiffSequenceBarBoundaryAtReferenceStep(currentStudy, riffReferenceStep)) {
           resetFlashUntilRef.current =
             (typeof performance !== 'undefined' ? performance.now() : Date.now()) + 360;
         }
@@ -3523,7 +3532,7 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
         studyRef.current,
-        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))),
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
@@ -3546,7 +3555,7 @@ export default function RiffCycleCanvas({
       }
       const currentStudy = studyRef.current;
       const visiblePhrase = getVisibleRiffPhraseAtReferenceStep(currentStudy,
-        Math.floor(playbackStateHandleRef.current.current.referenceProgress));
+        Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))));
       if (isMobileRef.current && currentStudy.viewMode !== 'unwrapped' &&
           visiblePhrase.stepCount > 60 && !voiceEditModeRef.current &&
           !overlayEditModeRef.current && !currentStudy.landingEditEnabled &&
@@ -3731,7 +3740,7 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
         studyRef.current,
-        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))),
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
@@ -3775,7 +3784,7 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
         studyRef.current,
-        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))),
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
@@ -3880,7 +3889,7 @@ export default function RiffCycleCanvas({
       const rect = canvas.getBoundingClientRect();
       const effectiveLaneWindowStartStep = getEffectiveLaneWindowStartStep(
         studyRef.current,
-        Math.floor(playbackStateHandleRef.current.current.referenceProgress),
+        Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))),
         laneWindowStartStepRef.current,
         laneWindowStepCountRef.current,
       );
@@ -3918,7 +3927,7 @@ export default function RiffCycleCanvas({
   );
 
   const magnifiedRiff = getVisibleRiffPhraseAtReferenceStep(study,
-    Math.floor(playbackStateHandleRef.current.current.referenceProgress));
+    Math.floor(getInnerClockRiffProgress(displaySettingsRef.current, playbackStateHandleRef.current.current.referenceProgress, getReferenceStepsPerBar(studyRef.current.reference))));
   return (
     <>
     <canvas

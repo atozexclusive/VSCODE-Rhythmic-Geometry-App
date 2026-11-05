@@ -33,6 +33,7 @@ export interface CanvasSubdivisionGuideAutomation {
 
 export interface CanvasInnerClockAutomation {
   enabled: boolean;
+  pickup?: boolean;
   cycleBars: CanvasSubdivisionGuideCycleBars;
   modes: CanvasInnerClockMode[];
 }
@@ -53,6 +54,21 @@ export interface CanvasDisplaySettings {
   showMeterNumbers?: boolean;
 }
 
+/** Initial non-Full sections become a one-time meter pickup when enabled. */
+export function getInnerClockPickupSteps(settings: CanvasDisplaySettings | undefined, stepsPerBar: number): number {
+  const automation = settings?.innerClockAutomation;
+  if (!automation?.enabled || !automation.pickup || automation.modes.length === 0) return 0;
+  const firstFull = automation.modes.indexOf('full');
+  const leadingSections = firstFull < 0 ? automation.modes.length : firstFull;
+  return leadingSections * Math.max(1, automation.cycleBars) * Math.max(1, stepsPerBar);
+}
+
+export function getInnerClockRiffProgress(
+  settings: CanvasDisplaySettings | undefined, referenceProgress: number, stepsPerBar: number,
+): number {
+  return Math.max(0, referenceProgress - getInnerClockPickupSteps(settings, stepsPerBar));
+}
+
 export function getEffectiveInnerClockMode(
   settings: CanvasDisplaySettings | undefined,
   absoluteReferenceStep: number,
@@ -62,6 +78,10 @@ export function getEffectiveInnerClockMode(
   const automation = settings?.innerClockAutomation;
   if (!automation?.enabled || automation.modes.length === 0) {
     return manualMode;
+  }
+
+  if (automation.pickup && absoluteReferenceStep >= getInnerClockPickupSteps(settings, stepsPerBar)) {
+    return 'full';
   }
 
   const bar = Math.floor(absoluteReferenceStep / Math.max(1, stepsPerBar));
@@ -410,6 +430,7 @@ function normalizeInnerClockAutomation(
     );
   return {
     enabled: typeof value?.enabled === 'boolean' ? value.enabled : fallbackAutomation.enabled,
+    pickup: typeof value?.pickup === 'boolean' ? value.pickup : fallbackAutomation.pickup ?? false,
     cycleBars: clampSubdivisionGuideCycleBars(value?.cycleBars ?? fallbackAutomation.cycleBars),
     modes: normalizedModes.length > 0 ? normalizedModes : ['off', 'full'],
   };

@@ -1,6 +1,8 @@
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import {
   getEffectiveInnerClockMode,
+  getInnerClockRiffProgress,
+  getInnerClockPickupSteps,
   type CanvasDisplaySettings,
 } from './canvasDisplayThemes';
 import {
@@ -640,7 +642,9 @@ export function createRiffCycleExportAudioStream(
       triggerBarMarkerCue(study.soundSettings, atTime, target);
     }
 
-    const riffStepState = getEffectiveRiffStepStateAtReferenceStep(study, referenceStep);
+    const riffReferenceStep = Math.floor(getInnerClockRiffProgress(displaySettings, referenceStep, getReferenceStepsPerBar(study.reference)));
+    const pickupActive = referenceStep < getInnerClockPickupSteps(displaySettings, getReferenceStepsPerBar(study.reference));
+    const riffStepState = getEffectiveRiffStepStateAtReferenceStep(study, riffReferenceStep);
     const innerClockAudioEnabled =
       getEffectiveInnerClockMode(
         displaySettings,
@@ -659,9 +663,9 @@ export function createRiffCycleExportAudioStream(
       });
     }
 
-    const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, referenceStep)?.cell.label;
+    const activeCellLabel = getRiffSequenceStateAtReferenceStep(study, riffReferenceStep)?.cell.label;
     if (innerClockAudioEnabled) getRiffVoiceEventsForCell(study, activeCellLabel).forEach((event) => {
-      const shouldPlay = isRiffVoiceEventAtStep(study, event, referenceStep);
+      const shouldPlay = isRiffVoiceEventAtStep(study, event, riffReferenceStep);
       if (study.soundEnabled && shouldPlay) {
         triggerRiffVoiceInstrument(event.instrument, riffStepState.phraseIndex, atTime, target, event.midiNote);
       }
@@ -669,8 +673,9 @@ export function createRiffCycleExportAudioStream(
 
     if (
       study.soundEnabled &&
-      (isForcedResetAtReferenceStep(study, referenceStep) ||
-        isFreeResolutionAtReferenceStep(study, referenceStep))
+      !pickupActive &&
+      (isForcedResetAtReferenceStep(study, riffReferenceStep) ||
+        isFreeResolutionAtReferenceStep(study, riffReferenceStep))
     ) {
       triggerResetCue(study.soundSettings, atTime, target);
     }

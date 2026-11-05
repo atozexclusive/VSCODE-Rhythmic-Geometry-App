@@ -3242,6 +3242,21 @@ function CanvasDisplayControls({
           </div>
           {innerClockAutomation.enabled ? (
             <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[8px] leading-relaxed text-white/45">Meter first, then start the riff.</span>
+                <StudyShellButton
+                  size="compact" tone="blue"
+                  aria-label="Inner Clock Pickup"
+                  aria-pressed={Boolean(innerClockAutomation.pickup)}
+                  highlighted={Boolean(innerClockAutomation.pickup)}
+                  onClick={() => updateInnerClockAutomation({ pickup: !innerClockAutomation.pickup })}
+                >Pickup</StudyShellButton>
+              </div>
+              {innerClockAutomation.pickup ? (
+                <p className="text-[8px] leading-relaxed text-white/45">
+                  Minimal or Off sections play once before Full. The riff and cell order start at the first Full section.
+                </p>
+              ) : null}
               <div className="grid grid-cols-3 gap-1.5">
                 {([2, 4, 8, 16] as const).map((cycleBars) => (
                   <StudyShellButton
