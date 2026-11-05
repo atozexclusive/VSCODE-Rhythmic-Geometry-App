@@ -440,7 +440,7 @@ function drawRiffCarves(
 
   const labelCandidates: Array<{ angle: number; label: string; span: number }> = [];
 
-  if (options.fill && segments.length >= 3) {
+  if (options.fill && segments.length >= 2) {
     ctx.save();
     ctx.fillStyle = options.color;
     ctx.globalAlpha = 0.14;
