@@ -32,7 +32,13 @@ export interface PolyrhythmSoundSettings {
   reverbAmount: number;
 }
 
+export const STUDY_LAYER_VOICES = ['standard', 'snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block'] as const;
+export type StudyLayerVoice = typeof STUDY_LAYER_VOICES[number];
+
 export interface PolyrhythmLayer {
+  soundSettings?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
+  drumTune?: number;
+  voice?: StudyLayerVoice;
   id: string;
   beatCount: number;
   activeSteps: boolean[];
@@ -59,6 +65,8 @@ export interface PolyrhythmStudyPhrase {
 }
 
 export interface PolyrhythmStudy {
+  soundsLinked?: boolean;
+  ensembleView?: boolean;
   id: string;
   name: string;
   description: string;
@@ -378,6 +386,9 @@ export function createPolyrhythmLayer(
     radius: overrides.radius ?? 220,
     rotationOffset: normalizeRotationOffset(overrides.rotationOffset ?? 0),
     color: overrides.color ?? POLYRHYTHM_LAYER_COLORS[0],
+    soundSettings: overrides.soundSettings ? { ...overrides.soundSettings } : undefined,
+    drumTune: Math.max(-12, Math.min(12, overrides.drumTune ?? 0)),
+    voice: STUDY_LAYER_VOICES.includes(overrides.voice as StudyLayerVoice) ? overrides.voice : 'standard',
     soundEnabled: overrides.soundEnabled ?? true,
     pitchHz: normalizePitchHz(overrides.pitchHz ?? 220),
     gain: normalizeGain(overrides.gain ?? 0.12),

@@ -1,3 +1,4 @@
+import StudySoundGlyph from '../components/StudySoundGlyph';
 import DistantPlanetsControl from '../components/DistantPlanetsControl';
 import NoteOrderControl from '../components/NoteOrderControl';
 import OrbitReadAids from '../components/OrbitReadAids';
@@ -13,7 +14,7 @@ import LayerStepsIcon from '../components/LayerStepsIcon';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Contrast, Dice5, Eraser, FlipHorizontal2, Grid3X3, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, SlidersVertical, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Waves, AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Contrast, Dice5, Eraser, FlipHorizontal2, Grid3X3, Layers3, Link2, Unlink2, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, SlidersVertical, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -7879,6 +7880,7 @@ function OrbitalPolymeter() {
     useState<null | 'canvas'>(null);
   const [polyrhythmRestartToken, setPolyrhythmRestartToken] = useState(0);
   const [polyrhythmQuickPanel, setPolyrhythmQuickPanel] = useState<'layer' | 'stack' | 'shape'>('layer');
+  const [studySoundCategory, setStudySoundCategory] = useState(0);
   const [studyCanvasQuickPanel, setStudyCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [studyAudioPanelOpen, setStudyAudioPanelOpen] = useState(false);
   const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'overlay' | 'canvas'>(null);
@@ -8758,7 +8760,6 @@ function OrbitalPolymeter() {
     setPolyrhythmStudy((current) => ({
       ...current,
       showStepLabels: !current.showStepLabels,
-      showInactiveSteps: !current.showStepLabels,
     }));
   }, []);
 
@@ -8784,13 +8785,7 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleTogglePolyrhythmGrid = useCallback(() => {
-    setCanvasDisplayState((current) => {
-      const enabled = current.polyrhythm.squareGrid !== false && current.polyrhythm.centerAxes !== false;
-      return {
-        ...current,
-        polyrhythm: { ...current.polyrhythm, squareGrid: !enabled, centerAxes: !enabled },
-      };
-    });
+    setPolyrhythmStudy((current) => ({ ...current, showInactiveSteps: !current.showInactiveSteps }));
   }, []);
 
   const handleUpdatePolyrhythmDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
@@ -8968,7 +8963,8 @@ function OrbitalPolymeter() {
         return;
       }
       if (
-        (typeof updates.pitchHz === 'number' ||
+        (updates.soundSettings != null || typeof updates.drumTune === 'number' || typeof updates.voice === 'string' ||
+          typeof updates.pitchHz === 'number' ||
           typeof updates.gain === 'number' ||
           typeof updates.soundEnabled === 'boolean') &&
         !canUseProFeature(effectivePlan, 'sound-editing')
@@ -15257,6 +15253,242 @@ function OrbitalPolymeter() {
         : polyrhythmStudy.layers.every((layer) => layer.soundEnabled)
           ? 'stack'
           : 'stack';
+  const setStudyInstrumentForLayer = (layerId: string, instrument: string) => {
+    if (!requireEditablePolyrhythmStudy()) return;
+    if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+    const percussion = ['snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block'].includes(instrument);
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => current.soundsLinked || layer.id === layerId
+        ? { ...layer, voice: percussion ? instrument as NonNullable<PolyrhythmLayer['voice']> : 'standard',
+            soundSettings: percussion ? layer.soundSettings : { ...layer.soundSettings,
+              palette: instrument as PolyrhythmSoundSettings['palette'], pitchMode: layer.soundSettings?.pitchMode ?? 'keyed' } }
+        : layer),
+    }));
+  };
+  const selectedStudySound = { ...polyrhythmStudy.soundSettings, ...selectedPolyrhythmLayer?.soundSettings };
+  const selectedStudyPercussion = (selectedPolyrhythmLayer?.voice ?? 'standard') !== 'standard';
+  const updateStudyLayerSound = (updates: Partial<PolyrhythmSoundSettings>) => {
+    if (!selectedPolyrhythmLayer || !requireEditablePolyrhythmStudy()) return;
+    if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => current.soundsLinked || layer.id === selectedPolyrhythmLayer.id
+        ? { ...layer, soundSettings: { ...layer.soundSettings, ...updates } }
+        : layer),
+    }));
+  };
+  const setStudyLayerInstrument = (instrument: string, percussion: boolean) => {
+    if (!selectedPolyrhythmLayer || !requireEditablePolyrhythmStudy()) return;
+    if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+    setPolyrhythmStudy((current) => ({
+      ...current,
+      layers: current.layers.map((layer) => current.soundsLinked || layer.id === selectedPolyrhythmLayer.id
+        ? { ...layer,
+            voice: percussion ? instrument as NonNullable<PolyrhythmLayer['voice']> : 'standard',
+            soundSettings: percussion ? layer.soundSettings : {
+              ...layer.soundSettings, palette: instrument as PolyrhythmSoundSettings['palette'],
+              pitchMode: layer.soundSettings?.pitchMode ?? 'keyed',
+            } }
+        : layer),
+    }));
+  };
+  const toggleStudySoundLink = () => {
+    if (!selectedPolyrhythmLayer || !requireEditablePolyrhythmStudy()) return;
+    if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+    setPolyrhythmStudy((current) => {
+      const linked = !current.soundsLinked;
+      const source = current.layers.find((layer) => layer.id === selectedPolyrhythmLayer.id);
+      return { ...current, soundsLinked: linked,
+        layers: linked && source ? current.layers.map((layer) => ({
+          ...layer, voice: source.voice ?? 'standard',
+          soundSettings: { ...source.soundSettings, palette: source.soundSettings?.palette ?? current.soundSettings.palette },
+        })) : current.layers,
+      };
+    });
+  };
+  const studySoundSelectClass = "w-full min-h-9 rounded-xl border border-white/10 bg-[#181820] px-2 py-1.5 text-[11px] text-white/80 outline-none focus-visible:ring-2 focus-visible:ring-[#7FD7FF]/50";
+  const studySoundGroups = [
+          { name: 'Keys & Synths', sounds: [['soft-synth', 'Soft Synth'], ['chorus-keys', 'Chorus Keys'], ['velvet-keys', 'Velvet Keys'], ['warm-synth', 'Warm Synth'], ['meditation-pad', 'Meditation Pad'], ['ambient-bloom', 'Ambient Bloom']] },
+          { name: 'Pulses & Bells', sounds: [['study-pulse', 'Study Pulse'], ['wood', 'Wood'], ['bright-marker', 'Bright Marker'], ['chime', 'Chime'], ['crystal-bell', 'Crystal Bell']] },
+          { name: 'Drums & Percussion', sounds: [['snare', 'Snare'], ['cymbal', 'Cymbal'], ['hi-hat', 'Hi-hat'], ['tom', 'Tom'], ['kick', 'Kick'], ['wood-block', 'Wood Block']] },
+        ];
+  const selectedStudyInstrumentCategory = studySoundGroups.findIndex((group) =>
+    group.sounds.some(([id]) => id === (selectedStudyPercussion ? selectedPolyrhythmLayer?.voice : selectedStudySound.palette)),
+  );
+  useEffect(() => {
+    setStudySoundCategory(Math.max(0, selectedStudyInstrumentCategory));
+  }, [selectedPolyrhythmLayer?.id, selectedStudyInstrumentCategory]);
+  const studyLayerVoicePicker = selectedPolyrhythmLayer ? (
+    <div className="study-composer-sound space-y-2">
+      <div className="study-listening-controls" role="group" aria-label="Audio playback">
+        <span>Audio</span>
+        {(['layer', 'stack', 'mute'] as const).map((focus) => (
+          <button key={focus} type="button" aria-pressed={polyrhythmSoundFocus === focus}
+            title={focus === 'layer' ? 'Play only the selected layer' : focus === 'stack' ? 'Play every layer' : 'Mute all Study audio'}
+            onClick={() => handleSetPolyrhythmSoundFocus(focus)}>
+            {focus === 'layer' ? <CircleDot size={12} aria-hidden="true" /> : focus === 'stack' ? <Layers3 size={12} aria-hidden="true" /> : <VolumeX size={12} aria-hidden="true" />}
+            {focus === 'layer' ? 'Solo' : focus === 'stack' ? 'All' : 'Mute all'}
+          </button>
+        ))}
+      </div>
+      <section className="study-sound-section" aria-label="Layer selection">
+      <div className="study-sound-section-title"><span className="study-section-icon"><span className="study-layer-color" style={{ background: selectedPolyrhythmLayer.color }} aria-hidden="true" />Layer {selectedPolyrhythmLayerIndex + 1}</span><span className="study-sound-scope">Select layer</span></div>
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Choose layer sound">
+        {polyrhythmStudy.layers.map((layer, index) => (
+          <button key={layer.id} type="button"
+            aria-pressed={layer.id === selectedPolyrhythmLayer.id}
+            onClick={() => handleSelectPolyrhythmLayer(layer.id)}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2 text-[10px]"
+            style={{
+              color: layer.id === selectedPolyrhythmLayer.id ? layer.color : 'rgba(255,255,255,0.5)',
+              borderColor: layer.id === selectedPolyrhythmLayer.id ? `${layer.color}55` : 'rgba(255,255,255,0.08)',
+              background: layer.id === selectedPolyrhythmLayer.id ? `${layer.color}12` : 'transparent',
+            }}>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: layer.color }} aria-hidden="true" />
+            L{index + 1}
+          </button>
+        ))}
+      </div>
+      </section>
+      <section className="study-sound-section" aria-label="Instrument selection">
+      <div className="study-sound-section-title"><span>Sound</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
+      <div className="study-sounds-header">
+        <button type="button" aria-label="Link layer sounds" aria-pressed={Boolean(polyrhythmStudy.soundsLinked)}
+          title={polyrhythmStudy.soundsLinked ? 'Sounds linked · click to unlink' : 'Link all layers to this sound'}
+          onClick={toggleStudySoundLink} className="study-sound-link">
+          {polyrhythmStudy.soundsLinked ? <Link2 size={14} /> : <Unlink2 size={14} />}
+        </button>
+      <details className="study-sounds-menu" onToggle={(event) => {
+        if (event.currentTarget.open) setStudySoundCategory(Math.max(0, selectedStudyInstrumentCategory));
+      }}>
+        <summary><span className="study-instrument-icon"><StudySoundGlyph instrument={(selectedStudyPercussion ? selectedPolyrhythmLayer.voice : selectedStudySound.palette) ?? 'study-pulse'} /></span><span className="study-instrument-current">{(selectedStudyPercussion ? selectedPolyrhythmLayer.voice : selectedStudySound.palette)?.replace(/-/g, ' ')}</span><ChevronDown size={12} aria-hidden="true" /></summary>
+      <div className="study-instrument-groups">
+        <div className="study-sound-categories" role="group" aria-label="Sound categories">
+          {studySoundGroups.map((group, index) => (
+            <button key={group.name} type="button" aria-pressed={studySoundCategory === index}
+              onClick={() => setStudySoundCategory(index)}>{['Synths', 'Tones', 'Drums'][index]}</button>
+          ))}
+        </div>
+        {studySoundGroups.filter((_, index) => index === studySoundCategory).map((group) => {
+          const selected = group.sounds.find(([id]) => id === (selectedStudyPercussion ? selectedPolyrhythmLayer.voice : selectedStudySound.palette));
+          return (
+            <div key={group.name} className="study-instrument-group">
+              <div className="study-instrument-list" role="group" aria-label={group.name}>
+                {group.sounds.map(([voice, label]) => (
+                  <button key={voice} type="button" aria-pressed={selected?.[0] === voice}
+                    onClick={() => setStudyLayerInstrument(voice, group.name === 'Drums & Percussion')}>
+                    <span className="study-instrument-name"><span className="study-instrument-icon"><StudySoundGlyph instrument={voice} /></span>{label}</span><span className="study-sound-dot" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      </details>
+      </div>
+      </section>
+      {!selectedStudyPercussion ? (
+        <section className="study-sound-section space-y-2" aria-label="Pitch settings">
+          <div className="study-sound-section-title"><span className="study-section-icon"><Music2 size={12} aria-hidden="true" />Pitch</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
+          <div className="study-pitch-row">
+          <div className="study-pitch-mode">
+          <div className="study-control-caption">Tuning</div>
+          <div className="inline-flex rounded-lg border border-white/10 bg-black/15 p-0.5" role="group" aria-label="Layer pitch mode">
+            {(['free', 'keyed'] as const).map((mode) => (
+              <button key={mode} type="button" aria-pressed={selectedStudySound.pitchMode === mode}
+                onClick={() => updateStudyLayerSound({ pitchMode: mode })}
+                className="min-h-8 rounded-md px-4 text-[11px] text-white/45 transition-colors aria-pressed:bg-[#7FD7FF]/10 aria-pressed:text-[#BFEAFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7FD7FF]/50">
+                {mode === 'free' ? 'Standard' : 'In Key'}
+              </button>
+            ))}
+          </div>
+          </div>
+            <div className="study-octave" role="group" aria-label="Layer octave">
+              <span>Octave</span>
+              {([-1, 0, 1] as const).map((octave) => (
+                <button key={octave} type="button" aria-label={octave === -1 ? 'Octave down' : octave === 0 ? 'Original octave' : 'Octave up'}
+                  aria-pressed={selectedStudySound.octaveShift === octave}
+                  onClick={() => updateStudyLayerSound({ octaveShift: octave })}>{octave === -1 ? '−1' : octave === 0 ? '0' : '+1'}</button>
+              ))}
+            </div>
+          </div>
+          <p className="study-sound-help">{selectedStudySound.pitchMode === 'keyed'
+            ? 'In Key follows the shared key and scale.'
+            : 'Standard uses the layer’s original pitch.'}</p>
+      {selectedStudySound.pitchMode === 'keyed' ? (
+        <div className="space-y-1.5 border-t border-white/8 pt-2">
+          <div className="text-[9px] font-mono uppercase text-white/55">Shared Key &amp; Scale</div>
+          <div className="study-key-row">
+            <label className="study-key-label">Key
+              <select aria-label="Study key" className={studySoundSelectClass} value={polyrhythmStudy.soundSettings.rootNote}
+                onChange={(event) => handleUpdatePolyrhythmSoundSettings({ rootNote: event.target.value as RootNote })}>
+                {NOTE_NAMES.map((note) => <option key={note} value={note}>{note}</option>)}
+              </select>
+            </label>
+            <div className="min-w-0">
+              <span className="study-key-label">Scale</span>
+              <details className="study-scale-menu">
+                <summary><span>{getFriendlyScaleLabel(polyrhythmStudy.soundSettings.scaleName)}</span><ChevronDown size={12} aria-hidden="true" /></summary>
+                <div className="study-instrument-list" role="group" aria-label="Study scale">
+                  {Object.keys(SCALE_PRESETS).map((name) => (
+                    <button key={name} type="button" aria-pressed={polyrhythmStudy.soundSettings.scaleName === name}
+                      onClick={(event) => {
+                        handleUpdatePolyrhythmSoundSettings({ scaleName: name as ScaleName });
+                        event.currentTarget.closest('details')?.removeAttribute('open');
+                      }}>
+                      <span>{getFriendlyScaleLabel(name as ScaleName)}</span><span className="study-sound-dot" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      ) : null}
+          {selectedStudySound.pitchMode === 'keyed' ? (
+          <details className="rounded-lg border border-white/8 px-2 py-1">
+            <summary className="cursor-pointer py-1 text-[10px] text-white/55">Pattern &amp; Range</summary>
+            <div className="space-y-2 pb-1 pt-2">
+              {selectedStudySound.pitchMode === 'keyed' ? (
+                <NoteOrderControl mode="Study" value={selectedStudySound.noteOrder ?? 'standard'}
+                  onChange={(noteOrder) => updateStudyLayerSound({ noteOrder })} />
+              ) : null}
+              <div className={selectedStudySound.pitchMode === 'keyed' ? 'grid grid-cols-2 gap-2' : ''}>
+                {selectedStudySound.pitchMode === 'keyed' ? (
+                  <label className="text-[10px] text-white/50">Range
+                    <select className={studySoundSelectClass} value={selectedStudySound.register}
+                      onChange={(event) => updateStudyLayerSound({ register: event.target.value as 'tight' | 'wide' })}>
+                      <option value="tight">Tight</option><option value="wide">Wide</option>
+                    </select>
+                  </label>
+                ) : null}
+
+              </div>
+            </div>
+          </details>
+          ) : null}
+        </section>
+      ) : <p className="study-sound-help">Percussion keeps its own tuning.</p>}
+      <details className="study-sound-section study-mix-section">
+        <summary className="cursor-pointer py-1.5 text-[10px] text-white/55"><span className="study-section-icon"><SlidersVertical size={12} aria-hidden="true" />Mix</span><ChevronDown size={12} aria-hidden="true" /></summary>
+        <p className="study-sound-help">{polyrhythmStudy.soundsLinked ? 'Volume adjusts this layer. Reverb adjusts linked layers.' : 'Volume and reverb adjust this layer.'}</p>
+        <div className="grid grid-cols-2 gap-3 pb-1 pt-1">
+          <label className="block text-[10px] text-white/60"><span className="study-section-icon"><Volume2 size={11} aria-hidden="true" />Volume · {Math.round(selectedPolyrhythmLayer.gain / 0.28 * 100)}%</span>
+            <input type="range" min="0" max="0.28" step="0.005" value={selectedPolyrhythmLayer.gain}
+              onChange={(event) => handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { gain: Number(event.target.value) })}
+              className="block w-full accent-[#7FD7FF]" />
+          </label>
+          <label className="block text-[10px] text-white/60"><span className="study-section-icon"><Waves size={11} aria-hidden="true" />Reverb · {Math.round(selectedStudySound.reverbAmount * 100)}%</span>
+            <input type="range" min="0" max="1" step="0.01" value={selectedStudySound.reverbAmount}
+              onChange={(event) => updateStudyLayerSound({ reverbAmount: Number(event.target.value) })}
+              className="block w-full accent-[#7FD7FF]" />
+          </label>
+        </div>
+      </details>
+    </div>
+  ) : null;
   const riffEndingContentOpacity = riffCycleStudy.landingEditEnabled ? undefined : 0.48;
   const riffEndingToggle = (
     <button
@@ -16897,6 +17129,19 @@ function OrbitalPolymeter() {
                 displaySettings={canvasDisplayState.polyrhythm}
                 presentationMode={presentationMode}
                 audioEnabled={recordingVideo || !muted}
+                onSetLayerInstrument={setStudyInstrumentForLayer}
+                onToggleLayerSound={(id) => {
+                  const layer = polyrhythmStudy.layers.find((candidate) => candidate.id === id);
+                  if (layer) handleUpdatePolyrhythmLayer(id, { soundEnabled: !layer.soundEnabled });
+                }}
+                onSoloLayer={(id) => {
+                  if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+                  setPolyrhythmStudy((current) => {
+                    const soloed = current.layers.every((layer) => layer.soundEnabled === (layer.id === id));
+                    return { ...current, soundEnabled: true,
+                      layers: current.layers.map((layer) => ({ ...layer, soundEnabled: soloed || layer.id === id })) };
+                  });
+                }}
                 onSelectLayer={handleSelectPolyrhythmLayer}
                 onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                onSelectStep={handleSelectPolyrhythmStep}
@@ -16937,136 +17182,7 @@ function OrbitalPolymeter() {
 
                 {studyCanvasQuickPanel === 'audio' && !soundEditingLocked ? (
                   <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                    <div className="space-y-2">
-                      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Sound</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'layer'} onClick={() => handleSetPolyrhythmSoundFocus('layer')} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                          Solo
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'stack'} onClick={() => handleSetPolyrhythmSoundFocus('stack')} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                          All
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="blue" highlighted={polyrhythmSoundFocus === 'mute' && !soundEditingLocked} onClick={() => handleSetPolyrhythmSoundFocus('mute')} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                          Mute
-                        </StudyShellButton>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <InlineInfoLabel
-                        infoId="study_sound_mode"
-                        label="Sound Mode"
-                        labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'free' && !soundEditingLocked} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'free' })} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                          Original
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'keyed' && !soundEditingLocked} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'keyed' })} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                          In Key
-                        </StudyShellButton>
-                      </div>
-
-                      <select
-                        value={polyrhythmStudy.soundSettings.palette}
-                        onChange={(event) => handleUpdatePolyrhythmSoundSettings({ palette: event.target.value as PolyrhythmSoundSettings['palette'] })}
-                        className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                      >
-                        {[
-                          ['study-pulse', 'Study Pulse'],
-                          ['wood', 'Wood'],
-                          ['soft-synth', 'Soft Synth'],
-                          ['chorus-keys', 'Chorus Keys'],
-                          ['velvet-keys', 'Velvet Keys'],
-                          ['bright-marker', 'Bright Marker'],
-                          ['chime', 'Chime'],
-                          ['warm-synth', 'Warm Synth'],
-                          ['meditation-pad', 'Meditation Pad'],
-                          ['crystal-bell', 'Crystal Bell'],
-                          ['ambient-bloom', 'Ambient Bloom'],
-                        ].map(([id, label]) => (
-                          <option key={id} value={id} style={{ background: '#181820' }}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                      <NoteOrderControl
-                        mode="Study"
-                        value={polyrhythmStudy.soundSettings.noteOrder ?? 'standard'}
-                        onChange={noteOrder => handleUpdatePolyrhythmSoundSettings({ noteOrder, ...(noteOrder !== 'standard' ? { pitchMode: 'keyed' as const } : {}) })}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
-                          Tight
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
-                          Wide
-                        </StudyShellButton>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Octave</div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === -1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: -1 })}>
-                            Down
-                          </StudyShellButton>
-                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 0} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 0 })}>
-                            Original
-                          </StudyShellButton>
-                          <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 1 })}>
-                            Up
-                          </StudyShellButton>
-                        </div>
-                      </div>
-                      <div className="space-y-0 rounded-lg border border-white/8 bg-white/[0.025] px-2.5 py-1.5">
-                        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
-                          <span>Reverb</span>
-                          <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={polyrhythmStudy.soundSettings.reverbAmount ?? 0}
-                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
-                          className="touch-slider rg-compact-slider block w-full"
-                          style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
-                          aria-label="Study reverb amount"
-                        />
-                      </div>
-                      {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
-                        <div className="space-y-1.5">
-                          <div className="grid grid-cols-[82px,1fr] gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">
-                            <div>Key</div>
-                            <div>Note Family</div>
-                          </div>
-                          <div className="grid grid-cols-[82px,1fr] gap-2">
-                          <select
-                            value={polyrhythmStudy.soundSettings.rootNote}
-                            onChange={(event) => handleUpdatePolyrhythmSoundSettings({ rootNote: event.target.value as RootNote })}
-                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                          >
-                            {NOTE_NAMES.map((note) => (
-                              <option key={note} value={note} style={{ background: '#181820' }}>
-                                {note}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={polyrhythmStudy.soundSettings.scaleName}
-                            onChange={(event) => handleUpdatePolyrhythmSoundSettings({ scaleName: event.target.value as ScaleName })}
-                            className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                          >
-                            {Object.entries(SCALE_PRESETS).map(([name, scale]) => (
-                              <option key={name} value={name} style={{ background: '#181820' }}>
-                                {getFriendlyScaleLabel(name as ScaleName)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        </div>
-                      ) : null}
-                    </div>
+                    {studyLayerVoicePicker}
 
                   </div>
                 ) : null}
@@ -17089,13 +17205,20 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    highlighted={Boolean(polyrhythmStudy.showInactiveSteps)}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
-                                    title="Show the center reference grid"
-                                    aria-pressed={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    title="Show step nodes around the shared cycle"
+                                    aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
                                   >
                                     Grid
+                                  </StudyShellButton>
+                                  <StudyShellButton size="compact" tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.ensembleView)}
+                                    aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
+                                    icon={<Layers3 size={13} />}
+                                    onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
+                                    Ensemble
                                   </StudyShellButton>
                                   <StudyShellButton
                                     size="compact"
@@ -17104,7 +17227,7 @@ function OrbitalPolymeter() {
                                     onClick={handleTogglePolyrhythmStepLabels}
                                     icon={<Hash size={13} />}
                                   >
-                                    Shared Grid
+                                    Numbers
                                   </StudyShellButton>
                                   <StudyShellButton
                                     size="compact"
@@ -18040,6 +18163,19 @@ function OrbitalPolymeter() {
                     displaySettings={canvasDisplayState.polyrhythm}
                     presentationMode
                     audioEnabled={recordingVideo || !muted}
+                onSetLayerInstrument={setStudyInstrumentForLayer}
+                onToggleLayerSound={(id) => {
+                  const layer = polyrhythmStudy.layers.find((candidate) => candidate.id === id);
+                  if (layer) handleUpdatePolyrhythmLayer(id, { soundEnabled: !layer.soundEnabled });
+                }}
+                onSoloLayer={(id) => {
+                  if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+                  setPolyrhythmStudy((current) => {
+                    const soloed = current.layers.every((layer) => layer.soundEnabled === (layer.id === id));
+                    return { ...current, soundEnabled: true,
+                      layers: current.layers.map((layer) => ({ ...layer, soundEnabled: soloed || layer.id === id })) };
+                  });
+                }}
                     onSelectLayer={handleSelectPolyrhythmLayer}
                     onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                    onSelectStep={handleSelectPolyrhythmStep}
@@ -18443,6 +18579,19 @@ function OrbitalPolymeter() {
             displaySettings={canvasDisplayState.polyrhythm}
             presentationMode={presentationMode}
             audioEnabled={recordingVideo || !muted}
+                onSetLayerInstrument={setStudyInstrumentForLayer}
+                onToggleLayerSound={(id) => {
+                  const layer = polyrhythmStudy.layers.find((candidate) => candidate.id === id);
+                  if (layer) handleUpdatePolyrhythmLayer(id, { soundEnabled: !layer.soundEnabled });
+                }}
+                onSoloLayer={(id) => {
+                  if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+                  setPolyrhythmStudy((current) => {
+                    const soloed = current.layers.every((layer) => layer.soundEnabled === (layer.id === id));
+                    return { ...current, soundEnabled: true,
+                      layers: current.layers.map((layer) => ({ ...layer, soundEnabled: soloed || layer.id === id })) };
+                  });
+                }}
             onSelectLayer={handleSelectPolyrhythmLayer}
             onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	            onSelectStep={handleSelectPolyrhythmStep}
@@ -19356,113 +19505,7 @@ function OrbitalPolymeter() {
                       '#88CCFF',
                       'Use Original for raw pulse identity, or In Key when you want the structure to feel more musical and less percussive.',
                     )}
-                    <InlineInfoLabel
-                      infoId="study_sound_mode"
-                      label="Pitch Mode"
-                      labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                      labelStyle={desktopMenuSubheaderStyle}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'free' && !soundEditingLocked} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'free' })} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                        Original
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.pitchMode === 'keyed' && !soundEditingLocked} onClick={() => handleUpdatePolyrhythmSoundSettings({ pitchMode: 'keyed' })} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
-                        In Key
-                      </StudyShellButton>
-                    </div>
-                    <select
-                      value={polyrhythmStudy.soundSettings.palette}
-                      onChange={(event) => handleUpdatePolyrhythmSoundSettings({ palette: event.target.value as PolyrhythmSoundSettings['palette'] })}
-                      className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                    >
-                      <option value="study-pulse" style={{ background: '#181820' }}>Study Pulse</option>
-                      <option value="wood" style={{ background: '#181820' }}>Wood</option>
-                      <option value="soft-synth" style={{ background: '#181820' }}>Soft Synth</option>
-                      <option value="chorus-keys" style={{ background: '#181820' }}>Chorus Keys</option>
-                      <option value="velvet-keys" style={{ background: '#181820' }}>Velvet Keys</option>
-                      <option value="bright-marker" style={{ background: '#181820' }}>Bright Marker</option>
-                      <option value="chime" style={{ background: '#181820' }}>Chime</option>
-                      <option value="warm-synth" style={{ background: '#181820' }}>Warm Synth</option>
-                      <option value="meditation-pad" style={{ background: '#181820' }}>Meditation Pad</option>
-                      <option value="crystal-bell" style={{ background: '#181820' }}>Crystal Bell</option>
-                      <option value="ambient-bloom" style={{ background: '#181820' }}>Ambient Bloom</option>
-                    </select>
-                    <NoteOrderControl
-                      mode="Study"
-                      value={polyrhythmStudy.soundSettings.noteOrder ?? 'standard'}
-                      onChange={noteOrder => handleUpdatePolyrhythmSoundSettings({ noteOrder, ...(noteOrder !== 'standard' ? { pitchMode: 'keyed' as const } : {}) })}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'tight'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'tight' })}>
-                        Tight
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="amber" highlighted={polyrhythmStudy.soundSettings.register === 'wide'} onClick={() => handleUpdatePolyrhythmSoundSettings({ register: 'wide' })}>
-                        Wide
-                      </StudyShellButton>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Octave</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === -1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: -1 })}>
-                          Down
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 0} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 0 })}>
-                          Original
-                        </StudyShellButton>
-                        <StudyShellButton size="compact" tone="green" highlighted={polyrhythmStudy.soundSettings.octaveShift === 1} onClick={() => handleUpdatePolyrhythmSoundSettings({ octaveShift: 1 })}>
-                          Up
-                        </StudyShellButton>
-                      </div>
-                    </div>
-                    <div className="space-y-0 rounded-lg border border-white/8 bg-white/[0.025] px-2.5 py-1.5">
-                      <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
-                        <span>Reverb</span>
-                        <span>{Math.round((polyrhythmStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={polyrhythmStudy.soundSettings.reverbAmount ?? 0}
-                        onChange={(event) => handleUpdatePolyrhythmSoundSettings({ reverbAmount: Number(event.target.value) })}
-                        className="touch-slider rg-compact-slider block w-full"
-                        style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }}
-                        aria-label="Study reverb amount"
-                      />
-                    </div>
-                    {polyrhythmStudy.soundSettings.pitchMode === 'keyed' ? (
-                      <div className="space-y-1.5">
-                        <div className="grid grid-cols-[72px,1fr] gap-2 text-[8px] font-mono uppercase tracking-[0.16em]">
-                          <div style={desktopMenuSubheaderSecondaryStyle}>Key</div>
-                          <div style={desktopMenuSubheaderSecondaryStyle}>Note Family</div>
-                        </div>
-                        <div className="grid grid-cols-[72px,1fr] gap-2">
-                        <select
-                          value={polyrhythmStudy.soundSettings.rootNote}
-                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ rootNote: event.target.value as RootNote })}
-                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                        >
-                          {NOTE_NAMES.map((note) => (
-                            <option key={note} value={note} style={{ background: '#181820' }}>
-                              {note}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          value={polyrhythmStudy.soundSettings.scaleName}
-                          onChange={(event) => handleUpdatePolyrhythmSoundSettings({ scaleName: event.target.value as ScaleName })}
-                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                        >
-                          {Object.entries(SCALE_PRESETS).map(([name]) => (
-                            <option key={name} value={name} style={{ background: '#181820' }}>
-                              {getFriendlyScaleLabel(name as ScaleName)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      </div>
-                    ) : null}
+                    {studyLayerVoicePicker}
                   </div>
                 ) : null}
               </div>
@@ -19511,13 +19554,20 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    highlighted={Boolean(polyrhythmStudy.showInactiveSteps)}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
-                                    title="Show the center reference grid"
-                                    aria-pressed={canvasDisplayState.polyrhythm.squareGrid !== false && canvasDisplayState.polyrhythm.centerAxes !== false}
+                                    title="Show step nodes around the shared cycle"
+                                    aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
                                   >
                                     Grid
+                                  </StudyShellButton>
+                                  <StudyShellButton size="compact" tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.ensembleView)}
+                                    aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
+                                    icon={<Layers3 size={13} />}
+                                    onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
+                                    Ensemble
                                   </StudyShellButton>
                       <StudyShellButton
                         size="compact"
@@ -19526,7 +19576,7 @@ function OrbitalPolymeter() {
                         onClick={handleTogglePolyrhythmStepLabels}
                         className={utilityButtonClass}
                       >
-                        Shared Grid
+                        Numbers
                       </StudyShellButton>
                                   <StudyShellButton
                                     size="compact"
@@ -19798,6 +19848,19 @@ function OrbitalPolymeter() {
                   playbackDriver={false}
                   displaySettings={canvasDisplayState.polyrhythm}
                   audioEnabled={recordingVideo || !muted}
+                onSetLayerInstrument={setStudyInstrumentForLayer}
+                onToggleLayerSound={(id) => {
+                  const layer = polyrhythmStudy.layers.find((candidate) => candidate.id === id);
+                  if (layer) handleUpdatePolyrhythmLayer(id, { soundEnabled: !layer.soundEnabled });
+                }}
+                onSoloLayer={(id) => {
+                  if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
+                  setPolyrhythmStudy((current) => {
+                    const soloed = current.layers.every((layer) => layer.soundEnabled === (layer.id === id));
+                    return { ...current, soundEnabled: true,
+                      layers: current.layers.map((layer) => ({ ...layer, soundEnabled: soloed || layer.id === id })) };
+                  });
+                }}
                   onSelectLayer={handleSelectPolyrhythmLayer}
                   onOpenLayerMenu={handleCanvasPolyrhythmLayerMenu}
 	                  onSelectStep={handleSelectPolyrhythmStep}
@@ -19833,7 +19896,7 @@ function OrbitalPolymeter() {
               <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="space-y-3">
                 {selectedPolyrhythmLayer ? (
                   <>
-	                    <div className="grid gap-3 xl:grid-cols-[13rem_minmax(26rem,1fr)_13rem_15rem] xl:items-start xl:justify-center">
+	                      <div className="grid gap-3 xl:grid-cols-[13rem_minmax(26rem,1fr)_13rem_15rem] xl:items-start xl:justify-center">
 	                      <div className="min-w-0 xl:max-w-[13rem]">
 	                        <InlineInfoLabel
                             infoId="study_pattern_roll"

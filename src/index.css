@@ -771,3 +771,101 @@
 .cell-sequencer .cell-guide-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid rgba(127,215,255,.16); border-radius: 7px; padding: 4px 7px; font-size: 10px; color: #bfeaff; background: rgba(127,215,255,.04); }
 [data-guide="riff-mobile-focus-pattern"]:has(.cell-sequencer) { padding: 10px; background: rgba(255,255,255,.02) !important; box-shadow: none !important; }
 @media (min-width: 768px) { .cell-sequencer { max-height: 72dvh; overflow-y: auto; } }
+
+/* Study composer sound controls. */
+.study-composer-sound { font-size: 11px; }
+.study-composer-sound .study-sound-heading { font: 9px/1.5 monospace; letter-spacing: .12em; text-transform: uppercase; color: #ffffff70; }
+.study-composer-sound button, .study-composer-sound select { min-height: 30px !important; height: auto; font-size: 11px !important; padding-block: 4px !important; }
+.study-composer-sound > [role="group"] button { min-height: 28px !important; padding: 3px 9px !important; }
+.study-instrument-groups { border: 1px solid #ffffff14; border-radius: 10px; overflow: hidden; background: #080d131f; }
+.study-instrument-group + .study-instrument-group { border-top: 1px solid #ffffff0d; }
+.study-composer-sound .study-instrument-group > summary { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 9px; cursor: pointer; list-style: none; font-size: 11px; color: #ffffffa8; }
+.study-instrument-group > summary::-webkit-details-marker { display: none; }
+.study-instrument-current { margin-left: auto; color: #a9d7e8; font-size: 10px; }
+.study-instrument-group[open] > summary svg { transform: rotate(180deg); }
+.study-instrument-list { max-height: none; overflow: visible; padding: 3px 5px 5px; scrollbar-width: thin; scrollbar-color: #7fd7ff40 transparent; }
+.study-composer-sound .study-instrument-list button { display: flex; width: 100%; align-items: center; justify-content: space-between; text-align: left; border-radius: 5px; padding-inline: 8px; color: #ffffff8a; }
+.study-instrument-list button:hover { background: #ffffff07; }
+.study-instrument-list button[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff12; }
+.study-sound-dot { width: 4px; height: 4px; border-radius: 50%; }
+.study-instrument-list button[aria-pressed="true"] .study-sound-dot { background: #7fd7ff; box-shadow: 0 0 6px #7fd7ff66; }
+.study-listening-controls { display: flex; align-items: center; gap: 3px; padding-top: 7px; border-top: 1px solid #ffffff10; }
+.study-listening-controls > span { margin-right: auto; font-size: 10px; color: #ffffff55; }
+.study-composer-sound .study-listening-controls button { padding-inline: 7px; min-height: 28px !important; border-radius: 5px; color: #ffffff65; font-size: 10px !important; }
+.study-listening-controls button[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff0d; }
+.study-composer-sound input[type="range"] { appearance: none; -webkit-appearance: none; height: 24px; background: transparent; cursor: pointer; }
+.study-composer-sound input[type="range"]::-webkit-slider-runnable-track { height: 3px; background: #ffffff24; border-radius: 4px; }
+.study-composer-sound input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; margin-top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #bfeaff; border: 2px solid #243d4a; box-shadow: 0 0 5px #7fd7ff33; }
+.study-composer-sound input[type="range"]::-moz-range-track { height: 3px; background: #ffffff24; border-radius: 4px; }
+.study-composer-sound input[type="range"]::-moz-range-thumb { width: 8px; height: 8px; border-radius: 50%; background: #bfeaff; border: 2px solid #243d4a; }
+.study-composer-sound :is(button, summary, input):focus-visible { outline: 2px solid #7fd7ff80; outline-offset: 2px; }
+.study-composer-sound .study-listening-controls { border-top: 0; border-bottom: 1px solid #ffffff10; padding-top: 0; padding-bottom: 6px; }
+.study-sounds-menu { border: 1px solid #ffffff18; border-radius: 9px; background: #ffffff04; }
+.study-composer-sound .study-sounds-menu > summary, .study-composer-sound .study-scale-menu > summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 8px 10px; min-height: 34px; font-size: 11px; color: #ffffffbd; }
+.study-sounds-menu > summary::-webkit-details-marker, .study-scale-menu > summary::-webkit-details-marker { display: none; }
+.study-sounds-menu > summary .study-instrument-current { text-transform: capitalize; }
+.study-sounds-menu .study-instrument-groups { border: 0; border-top: 1px solid #ffffff10; border-radius: 0 0 9px 9px; max-height: none; overflow: visible; scrollbar-width: thin; }
+.study-pitch-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.study-octave { display: flex; align-items: center; gap: 2px; }
+.study-octave > span { font-size: 9px; color: #ffffff60; margin-right: 4px; }
+.study-composer-sound .study-octave button { padding-inline: 7px; min-height: 28px !important; border-radius: 5px; color: #ffffff60; font-variant-numeric: tabular-nums; }
+.study-octave button[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff12; }
+.study-key-row { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 8px; align-items: start; }
+.study-key-label { display: block; font-size: 9px; line-height: 1.6; color: #ffffff70; }
+.study-scale-menu { border: 1px solid #ffffff18; border-radius: 8px; background: #18182055; }
+.study-composer-sound .study-scale-menu > summary { padding: 5px 8px; min-height: 30px; }
+.study-scale-menu > summary > span { flex: 1; min-width: 0; }
+.study-scale-menu .study-instrument-list { max-height: none; }
+
+.study-sound-categories { display: flex; gap: 3px; padding: 7px; border-bottom: 1px solid #ffffff0a; }
+.study-composer-sound .study-sound-categories button { flex: 1; padding-inline: 4px; font-size: 10px !important; line-height: 1.4; color: #ffffff60; border-radius: 5px; }
+.study-sound-categories button[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff10; }
+.study-sounds-menu .study-instrument-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; padding: 7px; }
+.study-composer-sound .study-sounds-menu .study-instrument-list button { min-height: 36px !important; border: 1px solid #ffffff0a; padding: 5px 8px !important; }
+.study-sounds-header { display: flex; align-items: flex-start; gap: 5px; }
+.study-sounds-header > .study-sounds-menu { flex: 1; min-width: 0; }
+.study-composer-sound .study-sound-link { order: 1; display: flex; align-items: center; justify-content: center; flex: 0 0 30px; min-height: 34px !important; border: 1px solid #ffffff12; border-radius: 7px; color: #ffffff60; }
+.study-sound-link[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff12; border-color: #7fd7ff40; }
+.study-composer-sound .study-sound-section { padding-top: 9px; margin-top: 9px; border-top: 1px solid #ffffff10; }
+.study-sound-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 10px; font-weight: 600; color: #e0e9ed; }
+.study-composer-sound .study-sound-scope { font-size: 9px; font-weight: 400; color: #ffffff60; }
+.study-composer-sound .study-sound-help { font-size: 9px; line-height: 1.55; color: #ffffff70; margin-block: 4px; }
+.study-control-caption { font-size: 9px; color: #ffffff70; margin-bottom: 3px; }
+.study-pitch-row { align-items: flex-end; }
+.study-composer-sound .study-octave { display: grid; grid-template-columns: repeat(3, auto); gap: 2px; }
+.study-composer-sound .study-octave > span { grid-column: 1 / -1; margin: 0 0 1px; color: #ffffff70; }
+.study-composer-sound .study-mix-section > summary { display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #e0e9ed; }
+/* A compact instrument browser, with the current sound as its title. */
+.study-composer-sound .study-sounds-menu > summary { min-height: 30px; padding: 5px 8px; }
+.study-sounds-menu > summary .study-instrument-current { margin-left: 0; flex: 1; color: #c8e1ea; font-size: 11px; }
+.study-composer-sound .study-sound-categories { padding: 4px 6px; gap: 4px; }
+.study-composer-sound .study-sound-categories button { min-height: 26px !important; padding: 3px 7px !important; font-size: 10px !important; border-radius: 5px; }
+.study-sounds-menu .study-instrument-list { gap: 2px 6px; padding: 5px 7px 7px; }
+.study-composer-sound .study-sounds-menu .study-instrument-list button { min-height: 30px !important; border: 0; border-radius: 5px; padding: 4px 7px !important; font-size: 10px !important; line-height: 1.35; font-weight: 400; background: transparent; }
+.study-composer-sound .study-sounds-menu .study-instrument-list button:hover { background: #ffffff06; }
+.study-composer-sound .study-sounds-menu .study-instrument-list button[aria-pressed="true"] { background: #7fd7ff0d; color: #bfeaff; }
+.study-composer-sound .study-sounds-header .study-sound-link { min-height: 30px !important; flex-basis: 28px; }
+.study-instrument-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.study-instrument-icon { display: inline-flex; flex: 0 0 16px; align-items: center; justify-content: center; width: 16px; height: 16px; color: #a2c9d8; }
+.study-instrument-icon > svg { width: 15px; height: 15px; }
+.study-instrument-name .study-instrument-icon { opacity: .8; }
+.study-section-icon { display: inline-flex; align-items: center; gap: 5px; }
+.study-section-icon svg { opacity: .65; flex-shrink: 0; }
+.study-composer-sound .study-listening-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.study-listening-controls button svg { opacity: .7; }
+.study-mix-section[open] > summary > svg { transform: rotate(180deg); }
+.study-layer-color { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+.study-composer-sound .study-sound-link[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff1a; box-shadow: inset 0 0 0 1px #7fd7ff24; }
+.study-ensemble-header { position: absolute; display: flex; align-items: flex-start; gap: 2px; pointer-events: auto; }
+.study-ensemble-focus { flex: 1; min-width: 0; min-height: 34px; padding: 3px 5px; text-align: left; font: 10px/1.3 monospace; }
+.study-ensemble-focus > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+.study-ensemble-focus small { color: #ffffff65; font-size: 9px; }
+.study-ensemble-switch { flex: 0 0 28px; min-height: 32px; border-radius: 5px; font: 10px monospace; color: #ffffff70; background: #10151d70; }
+.study-ensemble-switch[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff22; box-shadow: inset 0 0 0 1px #7fd7ff33; }
+.study-ensemble-header button:focus-visible { outline: 2px solid #7fd7ff; outline-offset: 1px; }
+.study-ensemble-instrument { display: flex; align-items: center; justify-content: center; }
+.study-ensemble-instrument > svg { width: 16px; height: 16px; }
+.study-ensemble-instruments { position: fixed; z-index: 100; width: 240px; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 8px; border: 1px solid #7fd7ff33; border-radius: 12px; background: #131a24f5; box-shadow: 0 12px 36px #0009; }
+.study-ensemble-instruments button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 5px; border-radius: 5px; color: #ffffffab; font-size: 10px; text-align: left; }
+.study-ensemble-instruments button:hover { color: #bfeaff; background: #7fd7ff12; }
+.study-ensemble-instruments button:focus-visible { outline: 2px solid #7fd7ff88; }

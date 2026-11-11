@@ -1562,7 +1562,7 @@ export default function PolyrhythmSidebar({
                       color: study.showStepLabels ? '#FFAA00' : 'rgba(255,255,255,0.58)',
                     }}
                   >
-                    Shared Grid
+                    Numbers
                   </button>
                   <button
                     type="button"

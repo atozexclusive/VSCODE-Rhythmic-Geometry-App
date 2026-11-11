@@ -1,7 +1,7 @@
 import { SCALE_PRESETS } from './audioEngine';
 import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument, type StudyInstrument } from './studyInstruments';
 import { getStudyPitch } from './studyPitch';
-import { getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
+import { type StudyLayerVoice, getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
 let masterBus: StudyOutputBus | null = null;
@@ -511,7 +511,84 @@ export async function preparePolyrhythmAudioRecording(study: PolyrhythmStudy): P
   return getPolyrhythmAudioRecordingStream();
 }
 
+const drumNoiseCache = new WeakMap<AudioContext, AudioBuffer>();
+
+function triggerStudyDrum(voice: StudyLayerVoice, gain: number, atTime: number | undefined, target: VoiceTarget, tune = 0): void {
+  const tuning = 2 ** (tune / 12);
+  if (voice === 'wood-block') {
+    triggerPalettePulse('wood', 680 * tuning, gain, atTime, target);
+    return;
+  }
+  const context = target.context;
+  const now = atTime ?? context.currentTime;
+  if (voice === 'kick' || voice === 'tom') {
+    const kick = voice === 'kick';
+    withVoice({ type: 'sine', frequency: (kick ? 65 : 150) * tuning, gain, attack: 0.003,
+      release: kick ? 0.23 : 0.2, filterFrequency: kick ? 350 : 850, atTime: now }, target);
+    withVoice({ type: 'triangle', frequency: (kick ? 120 : 230) * tuning, gain: gain * 0.2,
+      attack: 0.002, release: 0.045, filterFrequency: 900, atTime: now }, target);
+    return;
+  }
+  let noise = drumNoiseCache.get(context);
+  if (!noise) {
+    noise = context.createBuffer(1, context.sampleRate, context.sampleRate);
+    const samples = noise.getChannelData(0);
+    for (let index = 0; index < samples.length; index++) samples[index] = Math.random() * 2 - 1;
+    drumNoiseCache.set(context, noise);
+  }
+  const source = context.createBufferSource();
+  source.buffer = noise;
+  const filter = context.createBiquadFilter();
+  filter.type = voice === 'snare' ? 'bandpass' : 'highpass';
+  filter.frequency.value = voice === 'snare' ? 1900 : 6500;
+  filter.Q.value = 0.7;
+  const output = context.createGain();
+  const duration = voice === 'cymbal' ? 0.6 : voice === 'hi-hat' ? 0.075 : 0.15;
+  output.gain.setValueAtTime(0, now);
+  output.gain.linearRampToValueAtTime(gain * (voice === 'snare' ? 1 : 0.65), now + 0.003);
+  output.gain.exponentialRampToValueAtTime(0.00001, now + duration);
+  source.connect(filter);
+  filter.connect(output);
+  const buses: StudyOutputBus[] = [];
+  if (target.outputToSpeakers) buses.push(getStudyOutputBus(context, context.destination));
+  if (target.destination) buses.push(getStudyOutputBus(context, target.destination));
+  const sends: GainNode[] = [];
+  for (const bus of buses) {
+    output.connect(bus.input);
+    if ((target.reverbAmount ?? 0) > 0.001) {
+      if (!bus.reverb) {
+        bus.reverb = context.createConvolver();
+        bus.reverb.buffer = getReverbImpulse(context);
+        bus.reverb.connect(bus.input);
+      }
+      const send = context.createGain();
+      send.gain.value = (target.reverbAmount ?? 0) * 0.24;
+      output.connect(send);
+      send.connect(bus.reverb);
+      sends.push(send);
+    }
+  }
+  const activeSample = { source, gain: output };
+  activeSamples.add(activeSample);
+  source.onended = () => {
+    activeSamples.delete(activeSample);
+    source.disconnect();
+    filter.disconnect();
+    output.disconnect();
+    sends.forEach((send) => send.disconnect());
+  };
+  source.start(now);
+  source.stop(now + duration + 0.01);
+  if (voice === 'snare') {
+    withVoice({ type: 'triangle', frequency: 185, gain: gain * 0.35, attack: 0.003,
+      release: 0.09, filterFrequency: 750, atTime: now }, target);
+  }
+}
+
 export function triggerPolyrhythmPulse(options: {
+  voice?: StudyLayerVoice;
+  layerSound?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
+  drumTune?: number;
   frequency: number;
   gain: number;
   sound: PolyrhythmSoundSettings;
@@ -522,9 +599,10 @@ export function triggerPolyrhythmPulse(options: {
   atTime?: number;
   target?: VoiceTarget;
 }): void {
+  const sound = { ...options.sound, ...options.layerSound, rootNote: options.sound.rootNote, scaleName: options.sound.scaleName };
   const frequency = getStudyPitch(
     options.frequency,
-    options.sound,
+    options.layerSound?.pitchMode === 'free' ? { ...sound, noteOrder: 'standard', register: 'tight' } : sound,
     options.layerIndex,
     options.hitIndex ?? 0,
   );
@@ -535,17 +613,22 @@ export function triggerPolyrhythmPulse(options: {
         context,
         destination: options.target?.destination,
         outputToSpeakers: options.target?.outputToSpeakers ?? true,
-        reverbAmount: options.sound.reverbAmount ?? 0,
+        reverbAmount: sound.reverbAmount ?? 0,
       }
     : options.target;
-  if (isStudyInstrument(options.sound.palette) && voiceTarget) {
+  if (options.voice && options.voice !== 'standard' && voiceTarget) {
     if (!Number.isFinite(options.gain) || options.gain <= 0) return;
-    triggerStudyKeys(options.sound.palette, frequency, peakGain, Boolean(options.accented), options.atTime, voiceTarget);
+    triggerStudyDrum(options.voice, peakGain, options.atTime, voiceTarget, options.drumTune);
     return;
   }
-  triggerPalettePulse(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
+  if (isStudyInstrument(sound.palette) && voiceTarget) {
+    if (!Number.isFinite(options.gain) || options.gain <= 0) return;
+    triggerStudyKeys(sound.palette, frequency, peakGain, Boolean(options.accented), options.atTime, voiceTarget);
+    return;
+  }
+  triggerPalettePulse(sound.palette, frequency, peakGain, options.atTime, voiceTarget);
   if (options.accented) {
-    triggerAccentLayer(options.sound.palette, frequency, peakGain, options.atTime, voiceTarget);
+    triggerAccentLayer(sound.palette, frequency, peakGain, options.atTime, voiceTarget);
   }
 }
 
@@ -656,6 +739,9 @@ export function createPolyrhythmExportAudioStream(
         noteOrderHits.set(layer.id, hitIndex + 1);
         triggerPolyrhythmPulse({
           hitIndex,
+          voice: layer.voice,
+          layerSound: layer.soundSettings,
+          drumTune: layer.drumTune,
           frequency: layer.pitchHz,
           gain: layer.gain,
           sound: study.soundSettings,

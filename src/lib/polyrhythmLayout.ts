@@ -50,17 +50,17 @@ export function getPolyrhythmCanvasMetrics(
   width: number,
   height: number,
   isMobile: boolean,
-  options: { sidePadding?: number } = {},
+  options: { sidePadding?: number; topPadding?: number; bottomPadding?: number; minScale?: number } = {},
 ): PolyrhythmCanvasMetrics {
   const sidePadding = options.sidePadding ?? (isMobile ? 24 : 56);
-  const topPadding = isMobile ? 74 : 48;
-  const bottomPadding = isMobile ? 94 : 116;
+  const topPadding = options.topPadding ?? (isMobile ? 74 : 48);
+  const bottomPadding = options.bottomPadding ?? (isMobile ? 94 : 116);
   const safeWidth = Math.max(1, width - sidePadding * 2);
   const safeHeight = Math.max(1, height - topPadding - bottomPadding);
   const centerX = width / 2;
   const centerY = topPadding + safeHeight / 2;
   const maxRadius = Math.max(1, ...study.layers.map((layer) => layer.radius));
-  const scale = Math.max(0.18, Math.min(safeWidth / 2, safeHeight / 2) / maxRadius);
+  const scale = Math.max(options.minScale ?? 0.18, Math.min(safeWidth / 2, safeHeight / 2) / maxRadius);
   const outerRadius = maxRadius * scale + (isMobile ? 18 : 24);
 
   return {
@@ -79,6 +79,28 @@ export function getPolyrhythmCanvasMetrics(
   };
 }
 
+export function getPolyrhythmEnsemblePanels(study: PolyrhythmStudy, width: number, height: number) {
+  const count = study.layers.length;
+  const columns = count <= 2 ? (width > height ? Math.max(1, count) : 1) : width > height * 1.3 ? Math.min(3, count) : 2;
+  const rows = Math.ceil(count / columns);
+  const gap = 10;
+  const padding = 16;
+  const panelWidth = Math.max(1, (width - padding * 2 - gap * (columns - 1)) / columns);
+  const panelHeight = Math.max(1, (height - padding * 2 - gap * (rows - 1)) / rows);
+  return study.layers.map((layer, index) => ({
+    layer,
+    x: padding + (index % columns) * (panelWidth + gap),
+    y: padding + Math.floor(index / columns) * (panelHeight + gap),
+    width: panelWidth, height: panelHeight,
+  }));
+}
+
+export function getPolyrhythmEnsembleMetrics(study: PolyrhythmStudy, width: number, height: number, isMobile: boolean) {
+  return getPolyrhythmCanvasMetrics(study, width, height, isMobile, {
+    sidePadding: 27, topPadding: 60, bottomPadding: 26, minScale: 0.01,
+  });
+}
+
 export function findPolyrhythmHit(
   study: PolyrhythmStudy,
   metrics: PolyrhythmCanvasMetrics,
@@ -86,6 +108,16 @@ export function findPolyrhythmHit(
   y: number,
   preferredLayerId?: string | null,
 ): PolyrhythmHitResult | null {
+  if (study.ensembleView && study.layers.length > 1) {
+    for (const panel of getPolyrhythmEnsemblePanels(study, metrics.width, metrics.height)) {
+      if (x < panel.x || x > panel.x + panel.width || y < panel.y || y > panel.y + panel.height) continue;
+      const singleStudy = { ...study, ensembleView: false, layers: [panel.layer] };
+      return findPolyrhythmHit(singleStudy,
+        getPolyrhythmEnsembleMetrics(singleStudy, panel.width, panel.height, metrics.isMobile),
+        x - panel.x, y - panel.y, preferredLayerId);
+    }
+    return null;
+  }
   const pointHitRadius = metrics.isMobile ? 30 : 18;
   const ringHitPadding = metrics.isMobile ? 10 : 14;
   const orderedLayers = [...study.layers].sort((a, b) => {

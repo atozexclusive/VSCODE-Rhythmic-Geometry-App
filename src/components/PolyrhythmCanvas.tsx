@@ -1,5 +1,7 @@
+import StudySoundGlyph from './StudySoundGlyph';
+import { createPortal } from 'react-dom';
 import { getStudyVideoViewport } from '../lib/studyVideoViewport';
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
   preparePolyrhythmAudioRecording,
@@ -16,6 +18,8 @@ import {
 } from '../lib/canvasDisplayThemes';
 import {
   findPolyrhythmHit,
+  getPolyrhythmEnsemblePanels,
+  getPolyrhythmEnsembleMetrics,
   getPolyrhythmCanvasMetrics,
 } from '../lib/polyrhythmLayout';
 import {
@@ -109,6 +113,9 @@ interface PolyrhythmCanvasProps {
   displaySettings?: CanvasDisplaySettings;
   presentationMode?: boolean;
   audioEnabled?: boolean;
+  onSetLayerInstrument?: (layerId: string, instrument: string) => void;
+  onToggleLayerSound?: (layerId: string) => void;
+  onSoloLayer?: (layerId: string) => void;
   onSelectLayer: (layerId: string) => void;
   onOpenLayerMenu?: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmCanvasSelection | null) => void;
@@ -134,6 +141,9 @@ export default function PolyrhythmCanvas({
   presentationMode = false,
   audioEnabled = true,
   onSelectLayer,
+  onSetLayerInstrument,
+  onToggleLayerSound,
+  onSoloLayer,
   onOpenLayerMenu,
   onSelectStep,
   onToggleStep,
@@ -142,6 +152,34 @@ export default function PolyrhythmCanvas({
   onBarBoundary,
   className,
 }: PolyrhythmCanvasProps) {
+  const [instrumentPicker, setInstrumentPicker] = useState<{ layerId: string; x: number; y: number } | null>(null);
+  const instrumentPickerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!instrumentPicker) return;
+    const close = (event: PointerEvent) => {
+      if (!instrumentPickerRef.current?.contains(event.target as Node) && !(event.target as Element).closest?.('[data-study-instrument-trigger]')) setInstrumentPicker(null);
+    };
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') setInstrumentPicker(null); };
+    window.addEventListener('pointerdown', close);
+    window.addEventListener('keydown', key);
+    const resize = () => setInstrumentPicker(null);
+    window.addEventListener('resize', resize);
+    return () => { window.removeEventListener('pointerdown', close); window.removeEventListener('keydown', key); window.removeEventListener('resize', resize); };
+  }, [instrumentPicker]);
+  const [ensembleFocus, setEnsembleFocus] = useState<string | null>(null);
+  const ensembleFocusRef = useRef<string | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const effectiveEnsembleFocus = study.ensembleView && study.layers.some((layer) => layer.id === ensembleFocus) ? ensembleFocus : null;
+  ensembleFocusRef.current = effectiveEnsembleFocus;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const studyRef = useRef(study);
   const localPlaybackStateRef = useRef<PolyrhythmPlaybackState>({
@@ -253,6 +291,7 @@ export default function PolyrhythmCanvas({
       seed: 31,
     });
 
+    const drawStudy = (currentStudy: PolyrhythmStudy, rect: { width: number; height: number }, ensemblePanel = false) => {
     const focusedLayerStudy =
       soloLayerDisplayRef.current && displayLayerIdRef.current
         ? {
@@ -266,7 +305,7 @@ export default function PolyrhythmCanvas({
       showReferenceLayersRef.current
         ? currentStudy
         : focusedLayerStudy;
-    const metrics = getPolyrhythmCanvasMetrics(
+    const metrics = (ensemblePanel ? getPolyrhythmEnsembleMetrics : getPolyrhythmCanvasMetrics)(
       focusedLayerStudy,
       rect.width,
       rect.height,
@@ -310,7 +349,7 @@ export default function PolyrhythmCanvas({
         return layerB.radius - layerA.radius;
       });
 
-    if (exportVideoSize || cleanExport) {
+    if (!ensemblePanel && (exportVideoSize || cleanExport)) {
       // Remove radial bloom only beneath filled shapes, retaining the same
       // stars and atmosphere. Guides and overlapping layers are drawn later.
       ctx.save();
@@ -343,20 +382,6 @@ export default function PolyrhythmCanvas({
           hideBackdropBloom: true,
         });
       }
-      ctx.restore();
-    }
-
-    if (currentDisplaySettings.squareGrid !== false && currentDisplaySettings.centerAxes !== false) {
-      const gridRadius = Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
-      ctx.save();
-      ctx.strokeStyle = `rgba(255,255,255,${0.04 * lineAlpha})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(metrics.centerX, metrics.centerY - gridRadius);
-      ctx.lineTo(metrics.centerX, metrics.centerY + gridRadius);
-      ctx.moveTo(metrics.centerX - gridRadius, metrics.centerY);
-      ctx.lineTo(metrics.centerX + gridRadius, metrics.centerY);
-      ctx.stroke();
       ctx.restore();
     }
 
@@ -405,7 +430,7 @@ export default function PolyrhythmCanvas({
       sharedDisplay &&
       displayStudy.layers.length > 1 &&
       sharedCycleStepCount <= 192 &&
-      currentStudy.showStepLabels
+      (currentStudy.showStepLabels || currentStudy.showInactiveSteps)
     ) {
       const gridRadius = sharedCycleRadius + (renderAsMobile ? 13 : 18) * exportLabelScale;
       ctx.save();
@@ -413,6 +438,15 @@ export default function PolyrhythmCanvas({
         const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
         const gridStep = getSharedGridStepState(displayStudy.layers, index, sharedCycleStepCount, currentSelectedLayerId);
         const onLayerBoundary = gridStep.editable;
+        if (currentStudy.showInactiveSteps) {
+          ctx.globalAlpha = onLayerBoundary ? 0.6 : 0.25;
+          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.65)';
+          ctx.beginPath();
+          ctx.arc(metrics.centerX + Math.cos(angle) * gridRadius,
+            metrics.centerY + Math.sin(angle) * gridRadius,
+            (onLayerBoundary ? 2.4 : 1.5) * exportLabelScale, 0, TAU);
+          ctx.fill();
+        }
         if (currentStudy.showStepLabels) {
           const denseGrid = sharedCycleStepCount > 48;
           const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;
@@ -469,7 +503,7 @@ export default function PolyrhythmCanvas({
           showReferenceLayersRef.current &&
           displayLayerIdRef.current != null &&
           layer.id !== displayLayerIdRef.current;
-        const showLayerRing = !sharedDisplay || isSelectedLayer;
+        const showLayerRing = ensemblePanel || !sharedDisplay || isSelectedLayer;
 
         if (showLayerRing) {
           ctx.save();
@@ -567,7 +601,7 @@ export default function PolyrhythmCanvas({
           const labelStride = getPolyrhythmLabelStride(layer.beatCount);
           const shouldDrawLabel =
             point.index % labelStride === 0 || point.index === layer.beatCount - 1;
-          const drawInnerNumbers = Boolean(currentStudy.showInnerNumbers) && isSelectedLayer && !isReferenceLayer;
+          const drawInnerNumbers = Boolean(currentStudy.showInnerNumbers) && (ensemblePanel || isSelectedLayer) && !isReferenceLayer;
           if (
             !isReferenceLayer && shouldDrawLabel &&
             (drawInnerNumbers || (
@@ -783,6 +817,37 @@ export default function PolyrhythmCanvas({
           ctx.restore();
         }
       });
+    };
+    const focusedEnsembleLayer = !exportVideoSize && !cleanExport
+      ? currentStudy.layers.find((layer) => layer.id === ensembleFocusRef.current) : undefined;
+    if (focusedEnsembleLayer && !soloLayerDisplayRef.current) {
+      drawStudy({ ...currentStudy, ensembleView: false, layers: [focusedEnsembleLayer] }, rect);
+    } else if (currentStudy.ensembleView && currentStudy.layers.length > 1 && !soloLayerDisplayRef.current) {
+      getPolyrhythmEnsemblePanels(currentStudy, rect.width, rect.height).forEach((panel, index) => {
+        ctx.save();
+        ctx.translate(panel.x, panel.y);
+        ctx.beginPath();
+        ctx.rect(0, 0, panel.width, panel.height);
+        ctx.clip();
+        ctx.fillStyle = panel.layer.id === selectedLayerIdRef.current ? `${panel.layer.color}09` : 'rgba(255,255,255,0.015)';
+        ctx.fillRect(0, 0, panel.width, panel.height);
+        ctx.strokeStyle = panel.layer.id === selectedLayerIdRef.current ? `${panel.layer.color}44` : 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, panel.width - 1, panel.height - 1);
+        ctx.fillStyle = panel.layer.color;
+        ctx.font = '11px "SF Mono", monospace';
+        ctx.textAlign = 'left';
+        if (exportVideoSize || cleanExport) {
+          const instrument = panel.layer.voice && panel.layer.voice !== 'standard'
+            ? panel.layer.voice : panel.layer.soundSettings?.palette ?? currentStudy.soundSettings.palette;
+          ctx.fillText(`L${index + 1} · ${instrument.replace(/-/g, ' ')} · ${panel.layer.beatCount}`, 10, 19);
+        }
+        drawStudy({ ...currentStudy, ensembleView: false, layers: [panel.layer] }, panel, true);
+        ctx.restore();
+      });
+    } else {
+      drawStudy(currentStudy, rect);
+    }
   }, []);
 
   useEffect(() => {
@@ -868,6 +933,9 @@ export default function PolyrhythmCanvas({
 
           if (audioEnabledRef.current && activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
             triggerPolyrhythmPulse({
+              voice: layer.voice,
+              layerSound: layer.soundSettings,
+              drumTune: layer.drumTune,
               frequency: layer.pitchHz,
               gain: layer.gain,
               sound: currentStudy.soundSettings,
@@ -1080,6 +1148,12 @@ export default function PolyrhythmCanvas({
     };
   }, []);
 
+  const getInteractiveStudy = () => {
+    const current = studyRef.current;
+    const focusId = soloLayerDisplayRef.current ? displayLayerIdRef.current : ensembleFocusRef.current;
+    return focusId ? { ...current, ensembleView: false, layers: current.layers.filter((layer) => layer.id === focusId) } : current;
+  };
+
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
@@ -1092,24 +1166,10 @@ export default function PolyrhythmCanvas({
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
+      const interactiveStudy = getInteractiveStudy();
       const hit = findPolyrhythmHit(
-        soloLayerDisplayRef.current && displayLayerIdRef.current
-          ? {
-              ...studyRef.current,
-              layers: studyRef.current.layers.filter((layer) => layer.id === displayLayerIdRef.current),
-            }
-          : studyRef.current,
-        getPolyrhythmCanvasMetrics(
-          soloLayerDisplayRef.current && displayLayerIdRef.current
-            ? {
-                ...studyRef.current,
-                layers: studyRef.current.layers.filter((layer) => layer.id === displayLayerIdRef.current),
-              }
-            : studyRef.current,
-          rect.width,
-          rect.height,
-          isMobileRef.current,
-        ),
+        interactiveStudy,
+        getPolyrhythmCanvasMetrics(interactiveStudy, rect.width, rect.height, isMobileRef.current),
         x,
         y,
         selectedLayerIdRef.current,
@@ -1224,13 +1284,7 @@ export default function PolyrhythmCanvas({
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const currentStudy =
-      soloLayerDisplayRef.current && displayLayerIdRef.current
-        ? {
-            ...studyRef.current,
-            layers: studyRef.current.layers.filter((layer) => layer.id === displayLayerIdRef.current),
-          }
-        : studyRef.current;
+    const currentStudy = getInteractiveStudy();
     const hit = findPolyrhythmHit(
       currentStudy,
       getPolyrhythmCanvasMetrics(currentStudy, rect.width, rect.height, isMobileRef.current),
@@ -1264,7 +1318,10 @@ export default function PolyrhythmCanvas({
     }
   }, [clearLongPress]);
 
+  const ensemblePanels = study.ensembleView && study.layers.length > 1 && !soloLayerDisplay
+    ? getPolyrhythmEnsemblePanels(study, canvasSize.width, canvasSize.height) : [];
   return (
+    <div className={`relative ${className ?? 'absolute inset-0 h-full w-full'}`}>
     <canvas
       ref={(node) => {
         canvasRef.current = node;
@@ -1277,7 +1334,65 @@ export default function PolyrhythmCanvas({
       onPointerCancel={handlePointerCancel}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
-      className={className ?? 'absolute inset-0 h-full w-full'}
+      className="absolute inset-0 h-full w-full"
     />
+    {ensemblePanels.length > 0 && canvasSize.width > 0 ? (
+      effectiveEnsembleFocus ? (
+        <button type="button" className="absolute left-4 top-3 rounded-lg border border-white/15 bg-[#111820]/90 px-3 py-2 text-[11px] text-white/75"
+          onClick={() => setEnsembleFocus(null)}>← Ensemble</button>
+      ) : ensemblePanels.map((panel, index) => {
+        const instrument = panel.layer.voice && panel.layer.voice !== 'standard'
+          ? panel.layer.voice : panel.layer.soundSettings?.palette ?? study.soundSettings.palette;
+        const soloed = study.layers.every((layer) => layer.soundEnabled === (layer.id === panel.layer.id));
+        return (
+          <div key={panel.layer.id} className="study-ensemble-header"
+            style={{ left: panel.x + 4, top: panel.y + 3, width: panel.width - 8, color: panel.layer.color }}>
+            <button type="button" className="study-ensemble-focus" aria-label={`Focus layer ${index + 1}`}
+              onClick={() => { onSelectLayer(panel.layer.id); setEnsembleFocus(panel.layer.id); }}>
+              <span>L{index + 1}</span>
+              <small>{panel.layer.beatCount} steps</small>
+            </button>
+            {onSetLayerInstrument ? (
+              <button type="button" data-study-instrument-trigger
+                className="study-ensemble-switch study-ensemble-instrument"
+                aria-label={`Change layer ${index + 1} instrument: ${instrument.replace(/-/g, ' ')}`}
+                aria-expanded={instrumentPicker?.layerId === panel.layer.id}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setInstrumentPicker((current) => current?.layerId === panel.layer.id ? null : {
+                    layerId: panel.layer.id,
+                    x: Math.max(8, Math.min(window.innerWidth - 248, rect.left)),
+                    y: Math.max(8, Math.min(window.innerHeight - 310, rect.bottom + 5)),
+                  });
+                }}><StudySoundGlyph instrument={instrument} /></button>
+            ) : <span className="study-instrument-icon"><StudySoundGlyph instrument={instrument} /></span>}
+            {onSoloLayer ? <button type="button" aria-label={`Solo layer ${index + 1}`} aria-pressed={soloed}
+              className="study-ensemble-switch" onClick={() => onSoloLayer(panel.layer.id)}>S</button> : null}
+            {onToggleLayerSound ? <button type="button" aria-label={`Mute layer ${index + 1}`} aria-pressed={!panel.layer.soundEnabled}
+              className="study-ensemble-switch" onClick={() => onToggleLayerSound(panel.layer.id)}>M</button> : null}
+          </div>
+        );
+      })
+    ) : null}
+    {instrumentPicker && onSetLayerInstrument ? createPortal(
+      <div ref={instrumentPickerRef} className="study-ensemble-instruments" role="dialog" aria-label="Choose layer instrument"
+        style={{ left: instrumentPicker.x, top: instrumentPicker.y }}>
+        <div className="flex items-center justify-between px-1 pb-1 text-[10px] text-white/60">
+          <span>Layer {study.layers.findIndex((layer) => layer.id === instrumentPicker.layerId) + 1} · Sound</span>
+          <button type="button" aria-label="Close instruments" onClick={() => setInstrumentPicker(null)}>×</button>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          {([['soft-synth', 'Soft Synth'], ['chorus-keys', 'Chorus Keys'], ['velvet-keys', 'Velvet Keys'], ['warm-synth', 'Warm Synth'],
+            ['study-pulse', 'Study Pulse'], ['bright-marker', 'Bright Marker'], ['wood', 'Wood'], ['chime', 'Chime'], ['crystal-bell', 'Crystal Bell'],
+            ['meditation-pad', 'Meditation Pad'], ['ambient-bloom', 'Ambient Bloom'],
+            ['snare', 'Snare'], ['tom', 'Tom'], ['kick', 'Kick'], ['hi-hat', 'Hi-hat'], ['cymbal', 'Cymbal'], ['wood-block', 'Wood Block']] as const).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => {
+                onSetLayerInstrument(instrumentPicker.layerId, id);
+                setInstrumentPicker(null);
+              }}><span className="study-instrument-icon"><StudySoundGlyph instrument={id} /></span>{label}</button>
+            ))}
+        </div>
+      </div>, document.body) : null}
+    </div>
   );
 }
