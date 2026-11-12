@@ -15375,6 +15375,14 @@ function OrbitalPolymeter() {
       onLayer={(id, color) => id === 'riff' ? handleSetRiffPhraseColor(color) : handleSetRiffSequenceCellColor(id as RiffSequenceCellLabel, color)}
       locked={colorEditingLocked} onLocked={() => openProPrompt('color-editing')} />
   );
+  const orbitCanvasColors = (
+    <ShapeColorControls title="Orbit Colors"
+      layers={getGeometryModeOrbits(engineState.orbits, geometryMode, interferenceSettings).map((orbit, index) => ({
+        id: orbit.id, label: `Orbit ${index + 1}`, color: orbit.color,
+      }))}
+      onLayer={handleRadialColorChange} locked={colorEditingLocked}
+      onLocked={() => openProPrompt('color-editing')} />
+  );
   const studyLayerVoicePicker = selectedPolyrhythmLayer ? (
     <div className="study-composer-sound space-y-2">
       <div className="study-listening-controls" role="group" aria-label="Audio playback">
@@ -26726,6 +26734,7 @@ function OrbitalPolymeter() {
             onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
             onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
             onCanvasDisplayChange={handleUpdateOrbitDisplay}
+            canvasColorControls={orbitCanvasColors}
             lockedFeatures={{
               remix: remixLocked,
               randomPlus: randomPlusLocked,
@@ -26802,6 +26811,7 @@ function OrbitalPolymeter() {
                     soundModeLabel={<InlineInfoLabel infoId="study_sound_mode" label="Sound Mode" labelClassName="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42" />} />
                 </div>
  : orbitCanvasQuickPanel === 'canvas' ? <div data-guide="mobile-canvas" data-quick-panel="canvas"><div className="space-y-3 border-t px-4 pb-3 pt-2.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  {orbitCanvasColors}
                   <CanvasDisplayControls
                     settings={canvasDisplayState.orbit}
                     onChange={handleUpdateOrbitDisplay}
@@ -27737,6 +27747,7 @@ function OrbitalPolymeter() {
           onRootNoteChange={(rootNote) => handleHarmonyChange({ rootNote })}
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
           onCanvasDisplayChange={handleUpdateOrbitDisplay}
+            canvasColorControls={orbitCanvasColors}
           activeGuideTarget={activeOverlayStep?.target ?? null}
           lockedFeatures={{
             remix: remixLocked,

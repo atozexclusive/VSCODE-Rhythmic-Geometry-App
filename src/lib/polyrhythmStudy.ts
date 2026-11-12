@@ -1529,6 +1529,10 @@ const GROOVE_SUMMARIES: Record<string, string> = {
   'groove-liquid-keys': 'D&B drums with a mellow melody.',
   'groove-triplet-keys': 'Shuffle drums, chords, and melodic answers.',
   'groove-clave-keys': 'Layered percussion with chords and melody.',
+  'groove-velvet-breaks': 'Broken drums and rich minor-seventh stabs.',
+  'groove-halftime-stabs': 'Half-time drums with dark chord answers.',
+  'groove-dorian-shuffle-stabs': 'Bouncing triplets and warm chord changes.',
+  'groove-sunrise-stabs': 'Bright house chords and a moving bass.',
 };
 
 // Groove transcriptions and source notes: docs/study-grooves.md.
@@ -1589,11 +1593,16 @@ export const STUDY_GROOVE_PRESETS: PolyrhythmStudyPreset[] = [
 function addGrooveNotes(baseId: string, id: string, name: string, description: string,
   rootNote: RootNote, scaleName: ScaleName,
   parts: { palette: PolyrhythmSoundPalette; hits: number[]; notes: number[][]; gain: number; octave?: -1 | 0 | 1 }[],
+  variation: { bpm?: number; drumHits?: number[][] } = {},
 ): PolyrhythmStudyPreset {
   const base = STUDY_GROOVE_PRESETS.find((preset) => preset.id === baseId)!;
   const study = cloneStudy(base.study);
   const steps = study.layers[0].beatCount;
-  const layers = [...study.layers, ...parts.map((part) => createPolyrhythmLayer(steps, {
+  if (variation.bpm) study.bpm = variation.bpm;
+  const drums = study.layers.map((layer, index) => variation.drumHits?.[index]
+    ? { ...layer, activeSteps: createMaskFromIndices(steps, variation.drumHits[index].map(step => step - 1)),
+        accents: Array.from({ length: steps }, () => false) } : layer);
+  const layers = [...drums, ...parts.map((part) => createPolyrhythmLayer(steps, {
     voice: 'standard', gain: part.gain, noteSequence: part.notes,
     activeSteps: createMaskFromIndices(steps, part.hits.map((step) => step - 1)),
     soundSettings: { palette: part.palette, pitchMode: 'keyed', noteOrder: 'standard',
@@ -1630,6 +1639,30 @@ export const STUDY_MELODIC_GROOVES: PolyrhythmStudyPreset[] = [
       { palette: 'chorus-keys', hits: [7, 13, 23, 29], notes: [[0, 2, 4], [0, 2, 4], [3, 5, 7], [3, 5, 7]], gain: 0.06 },
       { palette: 'velvet-keys', hits: [3, 11, 19, 27], notes: [[7], [9], [8], [7]], gain: 0.05 },
     ]),
+  addGrooveNotes('groove-backbeat', 'groove-velvet-breaks', 'Velvet Breaks',
+    'An original broken-beat groove at 98 BPM. Chorus Keys alternates C minor seventh and A-flat major seventh, with a low Soft Synth bass. Five layers share 16 steps.',
+    'C', 'aeolian', [
+      { palette: 'chorus-keys', hits: [3, 6, 11, 15], notes: [[0, 2, 4, 6], [0, 2, 4, 6], [5, 7, 9, 11], [5, 7, 9, 11]], gain: 0.065 },
+      { palette: 'soft-synth', hits: [1, 7, 9, 15], notes: [[0], [4], [5], [7]], gain: 0.08, octave: -1 },
+    ], { bpm: 98, drumHits: [[1, 7, 11], [5, 13], [1, 3, 7, 9, 11, 15]] }),
+  addGrooveNotes('groove-dnb', 'groove-halftime-stabs', 'Half-Time Stabs',
+    'An original half-time groove at 154 BPM, with the snare on beat 3. D minor and B-flat major Chorus Keys stabs answer a syncopated kick and low synth bass. Five layers share 16 steps.',
+    'D', 'aeolian', [
+      { palette: 'chorus-keys', hits: [3, 7, 11, 15], notes: [[0, 2, 4], [0, 2, 4], [5, 7, 9], [5, 7, 9]], gain: 0.075 },
+      { palette: 'soft-synth', hits: [1, 7, 9, 15], notes: [[0], [4], [5], [7]], gain: 0.085, octave: -1 },
+    ], { bpm: 154, drumHits: [[1, 7, 11], [9], [1, 3, 5, 7, 9, 11, 13, 15]] }),
+  addGrooveNotes('groove-shuffle', 'groove-dorian-shuffle-stabs', 'Dorian Shuffle Stabs',
+    'An original triplet groove at 110 BPM. Chorus Keys plays A minor then D major on the last triplet of each beat, with low bass and a bouncing kick pattern. Five layers share 12 steps.',
+    'A', 'dorian', [
+      { palette: 'chorus-keys', hits: [3, 6, 9, 12], notes: [[0, 2, 4], [0, 2, 4], [3, 5, 7], [3, 5, 7]], gain: 0.075 },
+      { palette: 'soft-synth', hits: [1, 6, 7, 12], notes: [[0], [4], [3], [7]], gain: 0.08, octave: -1 },
+    ], { bpm: 110, drumHits: [[1, 7, 9], [4, 10], [1, 3, 4, 6, 7, 9, 10, 12]] }),
+  addGrooveNotes('groove-house', 'groove-sunrise-stabs', 'Sunrise Stabs',
+    'An original bright house groove at 122 BPM. F Lydian gives the Chorus Keys stabs F major and G major chords, with a moving Soft Synth bass underneath. Five layers share 16 steps.',
+    'F', 'lydian', [
+      { palette: 'chorus-keys', hits: [3, 7, 10, 15], notes: [[0, 2, 4], [0, 2, 4], [1, 3, 5], [1, 3, 5]], gain: 0.075 },
+      { palette: 'soft-synth', hits: [1, 7, 9, 15], notes: [[0], [4], [1], [5]], gain: 0.08, octave: -1 },
+    ], { bpm: 122 }),
 ];
 
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [

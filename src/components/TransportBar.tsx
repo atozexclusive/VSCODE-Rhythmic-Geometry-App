@@ -108,6 +108,7 @@ interface TransportBarProps {
   onRootNoteChange: (rootNote: RootNote) => void;
   onScaleChange: (scaleName: ScaleName) => void;
   onCanvasDisplayChange: (settings: Partial<CanvasDisplaySettings>) => void;
+  canvasColorControls?: ReactNode;
   activeGuideTarget?: string | null;
   lockedFeatures?: {
     remix?: boolean;
@@ -254,6 +255,7 @@ export default function TransportBar({
   onRemixPattern,
   onRandomPatternPlus,
   onCanvasDisplayChange,
+  canvasColorControls,
   activeGuideTarget = null,
   lockedFeatures = {},
   onLockedFeature,
@@ -1178,6 +1180,7 @@ export default function TransportBar({
                     onToggle: () => toggleDesktopUtilitySection('canvas'),
                     children: (
                       <>
+                        {canvasColorControls}
                         <div className={standardUtilityGroupClass}>
                           <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
                             Background

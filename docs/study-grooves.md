@@ -1,6 +1,6 @@
 # Study groove scenes
 
-The six drum scenes and four musical scenes are free presets in Study → Scenes → Grooves. Each part has the
+The six drum scenes and eight musical scenes are free presets in Study → Scenes → Grooves. Each part has the
 same number of steps and zero rotation, so the layers share a grid and loop.
 They start in Split View with unlinked instruments and dry, balanced levels.
 No recorded loops or external samples are included.
@@ -64,3 +64,15 @@ Live and exported audio share the phrase renderer; MIDI includes every chord
 tone. Chords distribute gain across their notes instead of multiplying the layer
 level. Key samples are silently prepared on scene load / Play to keep the first
 chord from having to generate samples on the animation frame.
+
+
+## More chord-stab arrangements
+
+- **Velvet Breaks** — 98 BPM broken beat, Cm7 → A♭maj7; four-note Chorus Keys voicings.
+- **Half-Time Stabs** — 154 BPM with snare on beat 3, Dm → B♭; a spacious half-time feel.
+- **Dorian Shuffle Stabs** — 110 BPM triplets, Am → D; stabs on each beat's final triplet.
+- **Sunrise Stabs** — 122 BPM house, F → G in F Lydian; brighter major chords.
+
+These are original arrangements using the existing drum voices, Chorus Keys and
+Soft Synth bass. Their four-hit note phrases repeat once per shared loop.
+Deep House Stabs is unchanged.

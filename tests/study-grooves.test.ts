@@ -109,7 +109,7 @@ test('new percussion schedules bounded voices and shaker reuses one noise buffer
 
 
 test('musical grooves keep shared timing and transpose all authored notes with the key', () => {
-  assert.equal(STUDY_MELODIC_GROOVES.length, 4);
+  assert.equal(STUDY_MELODIC_GROOVES.length, 8);
   for (const preset of STUDY_MELODIC_GROOVES) {
     assert.ok(preset.study.layers.length <= 6);
     assert.equal(new Set(preset.study.layers.map(layer => layer.beatCount)).size, 1);
@@ -152,4 +152,23 @@ test('one authored hit schedules simultaneous chord voices without scheduling a 
   assert.equal(context.sources.length, 3);
   assert.equal(context.oscillators.length, 0);
   assert.ok(context.sources.every(source => source.started === 2));
+});
+
+
+test('new stab scenes vary their groove and use the intended chord qualities', () => {
+  const midi = (hz: number) => Math.round(69 + 12 * Math.log2(hz / 440));
+  const chords = (id: string) => {
+    const study = STUDY_MELODIC_GROOVES.find(p => p.id === id)!.study;
+    const layer = study.layers[3];
+    const sound = { ...study.soundSettings, ...layer.soundSettings };
+    assert.equal(sound.palette, 'chorus-keys');
+    return [0, 2].map(hit => getStudySequencePitches(layer.noteSequence, sound, hit)!.map(midi));
+  };
+  assert.deepEqual(chords('groove-velvet-breaks'), [[48, 51, 55, 58], [56, 60, 63, 67]]);
+  assert.deepEqual(chords('groove-halftime-stabs'), [[50, 53, 57], [58, 62, 65]]);
+  assert.deepEqual(chords('groove-dorian-shuffle-stabs'), [[57, 60, 64], [62, 66, 69]]);
+  assert.deepEqual(chords('groove-sunrise-stabs'), [[53, 57, 60], [55, 59, 62]]);
+  const halftime = STUDY_MELODIC_GROOVES.find(p => p.id === 'groove-halftime-stabs')!.study;
+  assert.deepEqual(positions(halftime.layers[1].activeSteps), [9]);
+  assert.equal(halftime.bpm, 154);
 });
