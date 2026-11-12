@@ -598,6 +598,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
   });
   return {
     ...study,
+    soundsLinked: study.soundsLinked ?? true,
     id: generateStudyId(),
     soundSettings: { ...study.soundSettings },
     layers: study.layers.map((layer) => ({
@@ -740,6 +741,7 @@ function createSingleLayerStudy(options: {
     playing: true,
     bpm: options.bpm,
     soundEnabled: true,
+    soundsLinked: true,
     showInactiveSteps: true,
     showStepLabels: options.showStepLabels ?? false,
     barMarkerSoundEnabled: false,
@@ -784,6 +786,7 @@ function createSharedCycleStudy(options: {
     playing: true,
     bpm: options.bpm,
     soundEnabled: true,
+    soundsLinked: true,
     showInactiveSteps: true,
     showStepLabels: options.showStepLabels ?? false,
     barMarkerSoundEnabled: false,

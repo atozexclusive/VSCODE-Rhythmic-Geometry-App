@@ -459,10 +459,11 @@ export default function PolyrhythmCanvas({
           const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;
           const labelX = metrics.centerX + Math.cos(angle) * labelRadius;
           const labelY = metrics.centerY + Math.sin(angle) * labelRadius;
-          ctx.globalAlpha = gridStep.active ? 1 : onLayerBoundary ? 0.68 : 0.2;
-          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.65)';
-          const labelSize = denseGrid ? (onLayerBoundary ? 8 : 7) : (gridStep.active ? 11 : onLayerBoundary ? 10 : 8);
-          ctx.font = `${onLayerBoundary ? 600 : 400} ${labelSize * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = gridStep.active ? 0.82 : onLayerBoundary ? 0.68 : 0.58;
+          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.82)';
+          const labelSize = denseGrid ? (onLayerBoundary ? 8 : 7.5) : (gridStep.active ? 11 : 10);
+          ctx.font = `${gridStep.active ? 500 : 400} ${labelSize * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(
@@ -619,7 +620,8 @@ export default function PolyrhythmCanvas({
           ) {
             const labelRadius = Math.max(0, layer.radius * metrics.scale + (drawInnerNumbers ? -22 : 14) * exportLabelScale);
             ctx.save();
-            ctx.globalAlpha = point.active || isSelectedStep ? 1 : 0.5;
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = point.active || isSelectedStep ? 0.86 : 0.65;
             ctx.fillStyle = drawInnerNumbers ? layer.color : 'rgba(255,255,255,0.88)';
             ctx.font = `${drawInnerNumbers ? 600 : 400} ${10 * exportLabelScale}px "SF Mono", "Fira Code", monospace`;
             ctx.textAlign = 'center';

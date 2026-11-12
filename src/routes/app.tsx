@@ -15302,7 +15302,7 @@ function OrbitalPolymeter() {
     const percussion = ['snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block', 'clave', 'cascara', 'cowbell', 'shaker'].includes(instrument);
     setPolyrhythmStudy((current) => ({
       ...current,
-      layers: current.layers.map((layer) => current.soundsLinked || layer.id === layerId
+      layers: current.layers.map((layer) => current.soundsLinked !== false || layer.id === layerId
         ? { ...layer, voice: percussion ? instrument as NonNullable<PolyrhythmLayer['voice']> : 'standard',
             soundSettings: percussion ? layer.soundSettings : { ...layer.soundSettings,
               palette: instrument as PolyrhythmSoundSettings['palette'], pitchMode: layer.soundSettings?.pitchMode ?? 'keyed' } }
@@ -15316,7 +15316,7 @@ function OrbitalPolymeter() {
     if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
     setPolyrhythmStudy((current) => ({
       ...current,
-      layers: current.layers.map((layer) => current.soundsLinked || layer.id === selectedPolyrhythmLayer.id
+      layers: current.layers.map((layer) => current.soundsLinked !== false || layer.id === selectedPolyrhythmLayer.id
         ? { ...layer, soundSettings: { ...layer.soundSettings, ...updates } }
         : layer),
     }));
@@ -15326,7 +15326,7 @@ function OrbitalPolymeter() {
     if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
     setPolyrhythmStudy((current) => ({
       ...current,
-      layers: current.layers.map((layer) => current.soundsLinked || layer.id === selectedPolyrhythmLayer.id
+      layers: current.layers.map((layer) => current.soundsLinked !== false || layer.id === selectedPolyrhythmLayer.id
         ? { ...layer,
             voice: percussion ? instrument as NonNullable<PolyrhythmLayer['voice']> : 'standard',
             soundSettings: percussion ? layer.soundSettings : {
@@ -15340,7 +15340,7 @@ function OrbitalPolymeter() {
     if (!selectedPolyrhythmLayer || !requireEditablePolyrhythmStudy()) return;
     if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
     setPolyrhythmStudy((current) => {
-      const linked = !current.soundsLinked;
+      const linked = current.soundsLinked === false;
       const source = current.layers.find((layer) => layer.id === selectedPolyrhythmLayer.id);
       return { ...current, soundsLinked: linked,
         layers: linked && source ? current.layers.map((layer) => ({
@@ -15408,12 +15408,12 @@ function OrbitalPolymeter() {
       </div>
       </section>
       <section className="study-sound-section" aria-label="Instrument selection">
-      <div className="study-sound-section-title"><span>Sound</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
+      <div className="study-sound-section-title"><span>Sound</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked !== false ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
       <div className="study-sounds-header">
-        <button type="button" aria-label="Link layer sounds" aria-pressed={Boolean(polyrhythmStudy.soundsLinked)}
-          title={polyrhythmStudy.soundsLinked ? 'Sounds linked · click to unlink' : 'Link all layers to this sound'}
+        <button type="button" aria-label="Link layer sounds" aria-pressed={polyrhythmStudy.soundsLinked !== false}
+          title={polyrhythmStudy.soundsLinked !== false ? 'Sounds linked · click to unlink' : 'Link all layers to this sound'}
           onClick={toggleStudySoundLink} className="study-sound-link">
-          {polyrhythmStudy.soundsLinked ? <Link2 size={14} /> : <Unlink2 size={14} />}
+          {polyrhythmStudy.soundsLinked !== false ? <Link2 size={14} /> : <Unlink2 size={14} />}
         </button>
       <details className="study-sounds-menu" onToggle={(event) => {
         if (event.currentTarget.open) setStudySoundCategory(Math.max(0, selectedStudyInstrumentCategory));
@@ -15447,7 +15447,7 @@ function OrbitalPolymeter() {
       </section>
       {!selectedStudyPercussion ? (
         <section className="study-sound-section space-y-2" aria-label="Pitch settings">
-          <div className="study-sound-section-title"><span className="study-section-icon"><Music2 size={12} aria-hidden="true" />Pitch</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
+          <div className="study-sound-section-title"><span className="study-section-icon"><Music2 size={12} aria-hidden="true" />Pitch</span><span className="study-sound-scope">{polyrhythmStudy.soundsLinked !== false ? 'All layers' : `Layer ${selectedPolyrhythmLayerIndex + 1}`}</span></div>
           <div className="study-pitch-row">
           <div className="study-pitch-mode">
           <div className="study-control-caption">Tuning</div>
@@ -15536,7 +15536,7 @@ function OrbitalPolymeter() {
       ) : <p className="study-sound-help">Percussion keeps its own tuning.</p>}
       <details className="study-sound-section study-mix-section">
         <summary className="cursor-pointer py-1.5 text-[10px] text-white/55"><span className="study-section-icon"><SlidersVertical size={12} aria-hidden="true" />Mix</span><ChevronDown size={12} aria-hidden="true" /></summary>
-        <p className="study-sound-help">{polyrhythmStudy.soundsLinked ? 'Volume adjusts this layer. Reverb adjusts linked layers.' : 'Volume and reverb adjust this layer.'}</p>
+        <p className="study-sound-help">{polyrhythmStudy.soundsLinked !== false ? 'Volume adjusts this layer. Reverb adjusts linked layers.' : 'Volume and reverb adjust this layer.'}</p>
         <div className="grid grid-cols-2 gap-3 pb-1 pt-1">
           <label className="block text-[10px] text-white/60"><span className="study-section-icon"><Volume2 size={11} aria-hidden="true" />Volume · {Math.round(selectedPolyrhythmLayer.gain / 0.28 * 100)}%</span>
             <input type="range" min="0" max="0.28" step="0.005" value={selectedPolyrhythmLayer.gain}
@@ -20248,10 +20248,18 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                 </div>
-            <button type="button" onClick={handleTogglePolyrhythmStepLabels} aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
-              className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-xs text-white/65 hover:bg-white/[0.07] aria-pressed:bg-white/[0.08] aria-pressed:text-sky-200/80">
-              <Hash size={14} />Labels
-            </button>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Read Aids</div>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: Boolean(polyrhythmStudy.showInactiveSteps), toggle: handleTogglePolyrhythmGrid },
+                { label: 'Split View', icon: <Layers3 size={14} />, active: Boolean(polyrhythmStudy.ensembleView), toggle: () => setPolyrhythmStudy(current => ({ ...current, ensembleView: !current.ensembleView })) },
+                { label: 'Numbers', icon: <Hash size={14} />, active: Boolean(polyrhythmStudy.showStepLabels), toggle: handleTogglePolyrhythmStepLabels },
+                { label: 'Bar Cue', icon: <CircleDot size={14} />, active: Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled), toggle: handleTogglePolyrhythmBarCue },
+              ].map(aid => <button key={aid.label} type="button" onClick={aid.toggle} aria-pressed={aid.active}
+                className="flex min-h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[11px] text-white/65 hover:bg-white/[0.07] aria-pressed:border-sky-200/25 aria-pressed:bg-sky-200/10 aria-pressed:text-sky-200/90">
+                {aid.icon}{aid.label}
+              </button>)}
+            </div>
           </FullscreenControls>
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
