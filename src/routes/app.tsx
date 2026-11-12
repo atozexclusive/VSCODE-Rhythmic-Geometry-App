@@ -120,6 +120,8 @@ import {
   createPolyrhythmStudyCell,
   createPolyrhythmStudyPhrase,
   getSharedCycleStepCount,
+  setStudySharedGrid,
+  MAX_STUDY_SHARED_STEPS,
   invertLayerSteps,
   mirrorLayerSteps,
   remixPolyrhythmStudy,
@@ -1535,7 +1537,7 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-read-aids-button',
     title: 'Read Aids',
     kicker: 'Study Guide',
-    text: 'The eye icon opens Read Aids. Shared Grid shows the cycle’s step nodes. Numbers adds the step counts, and Split View separates the layers.',
+    text: 'The eye icon opens Read Aids. Shared Grid gives every layer the same editable step count. Numbers adds the step counts, and Split View separates the layers.',
     doThis: 'Open the eye button to choose Shared Grid, Numbers, Split View, or Bar Cue.',
     notice: 'These controls are for readability.',
   },
@@ -8828,8 +8830,22 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleTogglePolyrhythmGrid = useCallback(() => {
-    setPolyrhythmStudy((current) => ({ ...current, showInactiveSteps: !current.showInactiveSteps }));
-  }, []);
+    if (!requireEditablePolyrhythmStudy()) return;
+    if (!polyrhythmStudy.sharedGridEnabled) {
+      const grids = [polyrhythmStudy.layers, ...(polyrhythmStudy.chainCells ?? []).map(cell => cell.layers)];
+      const steps = Math.max(...grids.map(getSharedCycleStepCount));
+      if (!Number.isSafeInteger(steps) || steps > MAX_STUDY_SHARED_STEPS) {
+        toast.error(`This shared grid needs ${steps.toLocaleString()} steps. Use smaller layer counts to stay within ${MAX_STUDY_SHARED_STEPS}.`);
+        return;
+      }
+      if (steps > FREE_STUDY_STEP_LIMIT && !canUseProFeature(effectivePlan, 'study-extended-steps')) {
+        showProPrompt('study-extended-steps'); return;
+      }
+    }
+    setSelectedPolyrhythmStep(null);
+    setPolyrhythmStudy(current => setStudySharedGrid(current, !current.sharedGridEnabled));
+    setPolyrhythmRestartToken(value => value + 1);
+  }, [polyrhythmStudy, effectivePlan, requireEditablePolyrhythmStudy]);
 
   const handleUpdatePolyrhythmDisplay = useCallback((updates: Partial<CanvasDisplaySettings>) => {
     if (!canUseProFeature(effectivePlan, 'canvas-options')) {
@@ -17277,11 +17293,11 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.showInactiveSteps)}
+                                    highlighted={Boolean(polyrhythmStudy.sharedGridEnabled)}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
-                                    title="Show step nodes around the shared cycle"
-                                    aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
+                                    title="Give every layer the same editable shared step grid"
+                                    aria-pressed={Boolean(polyrhythmStudy.sharedGridEnabled)}
                                   >
                                     Shared Grid
                                   </StudyShellButton>
@@ -19592,7 +19608,7 @@ function OrbitalPolymeter() {
                       'Overlays',
                       'Reveal the hidden grid when your eye needs help finding where pulses agree.',
                       '#FFB86B',
-                      'Shared Grid shows the cycle’s step nodes. Numbers adds step counts. Split View separates layers, and Bar Cue marks each bar with sound and visuals.',
+                      'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Bar Cue marks each bar with sound and visuals.',
                     )}
                     <div className={utilityGroupCardClass}>
                       <div className="mb-2 flex items-center justify-between gap-2">
@@ -19607,11 +19623,11 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.showInactiveSteps)}
+                                    highlighted={Boolean(polyrhythmStudy.sharedGridEnabled)}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
-                                    title="Show step nodes around the shared cycle"
-                                    aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
+                                    title="Give every layer the same editable shared step grid"
+                                    aria-pressed={Boolean(polyrhythmStudy.sharedGridEnabled)}
                                   >
                                     Shared Grid
                                   </StudyShellButton>
@@ -20259,7 +20275,7 @@ function OrbitalPolymeter() {
             <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Read Aids</div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: Boolean(polyrhythmStudy.showInactiveSteps), toggle: handleTogglePolyrhythmGrid },
+                { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: Boolean(polyrhythmStudy.sharedGridEnabled), toggle: handleTogglePolyrhythmGrid },
                 { label: 'Split View', icon: <Layers3 size={14} />, active: Boolean(polyrhythmStudy.ensembleView), toggle: () => setPolyrhythmStudy(current => ({ ...current, ensembleView: !current.ensembleView })) },
                 { label: 'Numbers', icon: <Hash size={14} />, active: Boolean(polyrhythmStudy.showStepLabels), toggle: handleTogglePolyrhythmStepLabels },
                 { label: 'Bar Cue', icon: <CircleDot size={14} />, active: Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled), toggle: handleTogglePolyrhythmBarCue },

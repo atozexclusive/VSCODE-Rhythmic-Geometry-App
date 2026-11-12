@@ -437,7 +437,7 @@ export default function PolyrhythmCanvas({
       sharedDisplay &&
       displayStudy.layers.length > 1 &&
       sharedCycleStepCount <= 192 &&
-      (currentStudy.showStepLabels || currentStudy.showInactiveSteps)
+      currentStudy.showStepLabels
     ) {
       const gridRadius = sharedCycleRadius + (renderAsMobile ? 13 : 18) * exportLabelScale;
       ctx.save();
@@ -445,15 +445,6 @@ export default function PolyrhythmCanvas({
         const angle = -Math.PI / 2 + (index / sharedCycleStepCount) * TAU;
         const gridStep = getSharedGridStepState(displayStudy.layers, index, sharedCycleStepCount, currentSelectedLayerId);
         const onLayerBoundary = gridStep.editable;
-        if (currentStudy.showInactiveSteps) {
-          ctx.globalAlpha = onLayerBoundary ? 0.6 : 0.25;
-          ctx.fillStyle = gridStep.color ?? 'rgba(255,255,255,0.65)';
-          ctx.beginPath();
-          ctx.arc(metrics.centerX + Math.cos(angle) * gridRadius,
-            metrics.centerY + Math.sin(angle) * gridRadius,
-            (onLayerBoundary ? 2.4 : 1.5) * exportLabelScale, 0, TAU);
-          ctx.fill();
-        }
         if (currentStudy.showStepLabels) {
           const denseGrid = sharedCycleStepCount > 48;
           const labelRadius = gridRadius + (denseGrid ? 9 : 13) * exportLabelScale;
@@ -634,8 +625,7 @@ export default function PolyrhythmCanvas({
             ctx.restore();
           }
 
-          // Actual layer positions stay visible when silent. Ghost Steps only
-          // controls the extra shared-grid guides, not these editable nodes.
+          // Actual layer positions, including rests on a shared grid, remain editable.
 
           const accented = point.accented;
           const isHoveredStep =

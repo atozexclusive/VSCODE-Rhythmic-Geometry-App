@@ -36,6 +36,7 @@ export const STUDY_LAYER_VOICES = ['standard', 'snare', 'cymbal', 'hi-hat', 'tom
 export type StudyLayerVoice = typeof STUDY_LAYER_VOICES[number];
 
 export interface PolyrhythmLayer {
+  sharedGridSourceCount?: number;
   noteSequence?: number[][]; // Zero-based scale degrees per hit; multiple degrees form a chord.
   soundSettings?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
   drumTune?: number;
@@ -66,6 +67,7 @@ export interface PolyrhythmStudyPhrase {
 }
 
 export interface PolyrhythmStudy {
+  sharedGridEnabled?: boolean;
   soundsLinked?: boolean;
   ensembleView?: boolean;
   id: string;
@@ -435,7 +437,7 @@ function lcm(a: number, b: number): number {
 
 export function getSharedCycleStepCount(layers: readonly Pick<PolyrhythmLayer, 'beatCount'>[]): number {
   const counts = layers
-    .map((layer) => normalizeBeatCount(layer.beatCount))
+    .map((layer) => Math.max(1, Math.round(layer.beatCount || 1)))
     .filter((count) => count > 0);
 
   if (counts.length === 0) {
@@ -443,6 +445,46 @@ export function getSharedCycleStepCount(layers: readonly Pick<PolyrhythmLayer, '
   }
 
   return counts.reduce((sharedCount, count) => lcm(sharedCount, count), counts[0] ?? 1);
+}
+
+export const MAX_STUDY_SHARED_STEPS = 1024;
+
+/** Expand onto a common lattice without changing hit positions or layer voices. */
+export function setStudySharedGrid(study: PolyrhythmStudy, enabled: boolean): PolyrhythmStudy {
+  if (Boolean(study.sharedGridEnabled) === enabled) return study;
+  const convert = (layers: readonly PolyrhythmLayer[]) => {
+    const sharedCount = getSharedCycleStepCount(layers);
+    if (enabled && (!Number.isSafeInteger(sharedCount) || sharedCount > MAX_STUDY_SHARED_STEPS)) {
+      throw new RangeError(`Shared grid exceeds ${MAX_STUDY_SHARED_STEPS} steps`);
+    }
+    return layers.map((layer) => {
+      if (enabled) {
+        const factor = sharedCount / layer.beatCount;
+        const activeSteps = Array.from({ length: sharedCount }, () => false);
+        const accents = Array.from({ length: sharedCount }, () => false);
+        layer.activeSteps.forEach((active, index) => {
+          activeSteps[index * factor] = active;
+          accents[index * factor] = active && Boolean(layer.accents[index]);
+        });
+        return { ...layer, sharedGridSourceCount: layer.beatCount, beatCount: sharedCount, activeSteps, accents };
+      }
+      const originalCount = layer.sharedGridSourceCount ?? layer.beatCount;
+      const factor = layer.beatCount / originalCount;
+      const canRestore = Number.isInteger(factor) && factor >= 1
+        && layer.activeSteps.every((active, index) => !active || index % factor === 0);
+      // Newly written subdivisions must survive switching the aid off.
+      return { ...layer, sharedGridSourceCount: undefined,
+        ...(canRestore ? { beatCount: originalCount,
+          activeSteps: Array.from({ length: originalCount }, (_, index) => Boolean(layer.activeSteps[index * factor])),
+          accents: Array.from({ length: originalCount }, (_, index) => Boolean(layer.accents[index * factor])),
+        } : {}),
+      };
+    });
+  };
+  return { ...study, sharedGridEnabled: enabled, showInactiveSteps: false,
+    layers: convert(study.layers),
+    chainCells: study.chainCells?.map(cell => ({ ...cell, layers: convert(cell.layers) })),
+  };
 }
 
 export function toggleLayerStep(layer: PolyrhythmLayer, index: number): PolyrhythmLayer {
@@ -1543,7 +1585,7 @@ function createGroove(id: string, name: string, description: string, steps: numb
     activeIndices: [], color: POLYRHYTHM_LAYER_COLORS[0], bpm,
     soundSettings: { pitchMode: 'free', reverbAmount: 0, noteOrder: 'standard' } });
   return { id, name, description, summary: GROOVE_SUMMARIES[id], group: 'grooves', study: {
-    ...study, cycleBeats, soundsLinked: false, ensembleView: true, playing: false,
+    ...study, cycleBeats, sharedGridEnabled: true, soundsLinked: false, ensembleView: true, playing: false,
     layers: parts.map((part, index) => createPolyrhythmLayer(steps, {
       voice: part.voice, gain: part.gain, color: POLYRHYTHM_LAYER_COLORS[index],
       radius: getStudyLayerRadius(index, parts.length, 'shared'),
