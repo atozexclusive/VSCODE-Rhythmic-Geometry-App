@@ -1,9 +1,9 @@
-import { getStudyPitch } from './studyPitch';
+import { getStudyPitch, getStudySequencePitches } from './studyPitch';
 import { NOTE_NAMES, SCALE_PRESETS } from './audioEngine';
 import type { PolyrhythmLayer, PolyrhythmSoundSettings, PolyrhythmStudy } from './polyrhythmStudy';
 
 const MIDI_PPQ = 480;
-const CYCLE_BEATS = 4;
+
 
 export type PolyrhythmMidiExportMode = 'per-layer' | 'merged' | 'selected-layer';
 
@@ -101,39 +101,47 @@ function getLayerEvents(
   layerIndex: number,
   standardNote: number,
   sound: PolyrhythmSoundSettings,
+  cycleBeats: number,
 ): TimedMidiEvent[] {
-  const totalTicksPerCycle = MIDI_PPQ * CYCLE_BEATS;
+  sound = { ...sound, ...layer.soundSettings };
+  const totalTicksPerCycle = MIDI_PPQ * cycleBeats;
   const offsetFraction = (((layer.rotationOffset / 360) % 1) + 1) % 1;
   const stepTicks = totalTicksPerCycle / Math.max(1, layer.beatCount);
   const noteLengthTicks = Math.max(30, Math.floor(stepTicks * 0.78));
   const events: TimedMidiEvent[] = [];
 
+  const drumNotes: Record<string, number> = { kick: 36, snare: 38, 'hi-hat': 42, tom: 45, cymbal: 49, 'wood-block': 76, clave: 75, cascara: 37, cowbell: 56, shaker: 70 };
+  const drumNote = drumNotes[layer.voice ?? 'standard'];
   const steps = layer.activeSteps.flatMap((active, stepIndex) => {
     if (!active) return [];
     const stepFraction = (((stepIndex / layer.beatCount) + offsetFraction) % 1 + 1) % 1;
     return [{ stepIndex, tick: Math.round(stepFraction * totalTicksPerCycle) }];
   }).sort((a, b) => a.tick - b.tick);
   steps.forEach(({ stepIndex, tick }, hitIndex) => {
-    const note = !sound.noteOrder || sound.noteOrder === 'standard'
+    const note = drumNote ?? (!sound.noteOrder || sound.noteOrder === 'standard'
       ? standardNote
-      : clamp(frequencyToMidi(getStudyPitch(layer.pitchHz, sound, layerIndex, hitIndex)), 0, 127);
+      : clamp(frequencyToMidi(getStudyPitch(layer.pitchHz, sound, layerIndex, hitIndex)), 0, 127));
     const velocity = clamp(
       Math.round(layer.gain * 1000 * (layer.accents?.[stepIndex] ? 1.32 : 1)),
       48,
       124,
     );
-    const channel = clamp(layerIndex, 0, 15);
+    const channel = drumNote != null ? 9 : clamp(layerIndex >= 9 ? layerIndex + 1 : layerIndex, 0, 15);
 
-    events.push({
-      tick,
-      order: 2,
-      bytes: [0x90 + channel, note, velocity],
-    });
-    events.push({
-      tick: tick + noteLengthTicks,
-      order: 1,
-      bytes: [0x80 + channel, note, 0],
-    });
+    const phrase = drumNote == null ? getStudySequencePitches(layer.noteSequence, sound, hitIndex) : null;
+    const notes = phrase ? phrase.map(frequencyToMidi) : [note];
+    for (const phraseNote of notes) {
+      events.push({
+        tick,
+        order: 2,
+        bytes: [0x90 + channel, phraseNote, Math.max(1, Math.round(velocity / Math.sqrt(notes.length)))],
+      });
+      events.push({
+        tick: tick + noteLengthTicks,
+        order: 1,
+        bytes: [0x80 + channel, phraseNote, 0],
+      });
+    }
   });
 
   return events;
@@ -224,7 +232,7 @@ export function buildPolyrhythmMidiFile(
     layersToExport.forEach((layer) => {
       const layerIndex = study.layers.findIndex((entry) => entry.id === layer.id);
       const note = getLayerMidiNote(layer, study.soundSettings, Math.max(0, layerIndex));
-      mergedEvents.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings));
+      mergedEvents.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings, study.cycleBeats ?? 4));
     });
 
     tracks.push(buildTrackChunk(mergedEvents));
@@ -242,7 +250,7 @@ export function buildPolyrhythmMidiFile(
           ),
         },
       ];
-      events.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings));
+      events.push(...getLayerEvents(layer, Math.max(0, layerIndex), note, study.soundSettings, study.cycleBeats ?? 4));
       tracks.push(buildTrackChunk(events));
     });
   }

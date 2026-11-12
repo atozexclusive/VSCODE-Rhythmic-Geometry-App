@@ -1,4 +1,3 @@
-import LayerStepsIcon from './LayerStepsIcon';
 import { useEffect, useRef, useState } from 'react';
 import {
   Lock,
@@ -63,7 +62,6 @@ interface PolyrhythmSidebarProps {
   onSetSoundFocus: (focus: 'layer' | 'stack' | 'mute') => void;
   onToggleInactiveSteps: () => void;
   onToggleStepLabels: () => void;
-  onToggleInnerNumbers: () => void;
   onAddLayer: () => void;
   onSelectLayer: (layerId: string) => void;
   onSelectStep: (selection: PolyrhythmStepSelection | null) => void;
@@ -261,7 +259,6 @@ export default function PolyrhythmSidebar({
   onUpdateSoundSettings,
   onSetSoundFocus,
   onToggleStepLabels,
-  onToggleInnerNumbers,
   onAddLayer,
   onSelectLayer,
   onSelectStep,
@@ -289,6 +286,7 @@ export default function PolyrhythmSidebar({
     'one-layer': false,
     'two-layer': false,
     advanced: false,
+    grooves: false,
   });
   const [exportAspect, setExportAspect] =
     useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
@@ -385,7 +383,7 @@ export default function PolyrhythmSidebar({
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
-  const groupedPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
+  const groupedPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
     presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && !preset.pro),
   }));
@@ -667,7 +665,9 @@ export default function PolyrhythmSidebar({
                           {POLYRHYTHM_PRESET_GROUP_META[group].label}
                         </div>
                         <div className="mt-1 text-[11px] leading-relaxed text-white/50">
-                          {group === 'one-layer'
+                          {group === 'grooves'
+                            ? 'Drum parts sharing one grid. Solo a layer, then build your own beat.'
+                            : group === 'one-layer'
                             ? 'Start with one editable rhythm layer.'
                             : group === 'two-layer'
                               ? 'Hear two layers lock, drift, and resolve.'
@@ -694,7 +694,7 @@ export default function PolyrhythmSidebar({
                         }}
                       >
                         <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
+                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile || preset.group === 'grooves' ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
                           <div className="min-w-0 flex-1">
                             <div
                               className={`${isMobile ? "text-[10px] tracking-[0.1em]" : "text-xs tracking-[0.16em]"} font-mono uppercase`}
@@ -703,10 +703,11 @@ export default function PolyrhythmSidebar({
                               {preset.name}
                             </div>
                             <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
-                              {preset.study.displayStyle === 'shared' ? 'Shared' : 'Nested'} · {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
+                              {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.displayStyle === 'shared' ? 'Shared' : 'Nested'} · ${preset.study.layers.map((layer) => layer.beatCount).join(' · ')}`}
                             </div>
                             <div className={`${isMobile ? "mt-1 text-[9px] leading-snug" : "mt-2 text-[11px] leading-relaxed"} text-white/46`}>
-                              {preset.description}
+                              {preset.summary ?? preset.description}
+                              {preset.summary ? <span className="ml-1.5"><InfoTip text={preset.description} /></span> : null}
                             </div>
                           </div>
                           <button
@@ -803,7 +804,7 @@ export default function PolyrhythmSidebar({
                           </span>
                         ) : null}
                         <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
+                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile || preset.group === 'grooves' ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
                           <div className="min-w-0 flex-1">
                             <div className={`${isMobile ? "text-[10px] tracking-[0.1em]" : "text-xs tracking-[0.16em]"} font-mono uppercase`} style={{ color: active ? '#FFAA00' : 'rgba(255,255,255,0.84)' }}>
                               {preset.name}
@@ -1563,20 +1564,6 @@ export default function PolyrhythmSidebar({
                     }}
                   >
                     Numbers
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onToggleInnerNumbers}
-                    aria-pressed={Boolean(study.showInnerNumbers)}
-                    title="Show the selected layer’s count inside its shape"
-                    className="rounded-xl border px-3 py-2 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: study.showInnerNumbers ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.03)',
-                      borderColor: study.showInnerNumbers ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.08)',
-                      color: study.showInnerNumbers ? '#7FD7FF' : 'rgba(255,255,255,0.58)',
-                    }}
-                  >
-                    <span className="inline-flex items-center justify-center gap-2"><LayerStepsIcon />Layer Steps</span>
                   </button>
                 </div>
               </div>

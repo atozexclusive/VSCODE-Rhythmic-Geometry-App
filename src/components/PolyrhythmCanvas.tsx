@@ -80,6 +80,12 @@ function drawDiamondMarker(
 }
 
 
+const instrumentGroups = [
+    { label: 'Synths', sounds: [['soft-synth', 'Soft Synth'], ['chorus-keys', 'Chorus Keys'], ['velvet-keys', 'Velvet Keys'], ['warm-synth', 'Warm Synth'], ['meditation-pad', 'Meditation Pad'], ['ambient-bloom', 'Ambient Bloom']] },
+    { label: 'Tones', sounds: [['study-pulse', 'Study Pulse'], ['wood', 'Wood'], ['bright-marker', 'Bright Marker'], ['chime', 'Chime'], ['crystal-bell', 'Crystal Bell']] },
+    { label: 'Drums', sounds: [['snare', 'Snare'], ['tom', 'Tom'], ['kick', 'Kick'], ['hi-hat', 'Hi-hat'], ['cymbal', 'Cymbal'], ['wood-block', 'Wood Block'], ['clave', 'Clave'], ['cascara', 'Cáscara'], ['cowbell', 'Cowbell'], ['shaker', 'Shaker']] },
+  ];
+
 interface PolyrhythmCanvasSelection {
   layerId: string;
   stepIndex: number;
@@ -153,6 +159,7 @@ export default function PolyrhythmCanvas({
   className,
 }: PolyrhythmCanvasProps) {
   const [instrumentPicker, setInstrumentPicker] = useState<{ layerId: string; x: number; y: number } | null>(null);
+  const [instrumentCategory, setInstrumentCategory] = useState(0);
   const instrumentPickerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!instrumentPicker) return;
@@ -890,7 +897,7 @@ export default function PolyrhythmCanvas({
             0.05,
             (timestamp - playbackState.lastTimestamp) / 1000,
           );
-          const cyclesPerSecond = currentStudy.bpm / 60 / 4;
+          const cyclesPerSecond = currentStudy.bpm / 60 / (currentStudy.cycleBeats ?? 4);
           playbackState.progress =
             (playbackState.progress + deltaSeconds * cyclesPerSecond) % 1;
           playbackState.lastTimestamp = timestamp;
@@ -934,6 +941,7 @@ export default function PolyrhythmCanvas({
           if (audioEnabledRef.current && activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
             triggerPolyrhythmPulse({
               voice: layer.voice,
+              noteSequence: layer.noteSequence,
               layerSound: layer.soundSettings,
               drumTune: layer.drumTune,
               frequency: layer.pitchHz,
@@ -1339,7 +1347,7 @@ export default function PolyrhythmCanvas({
     {ensemblePanels.length > 0 && canvasSize.width > 0 ? (
       effectiveEnsembleFocus ? (
         <button type="button" className="absolute left-4 top-3 rounded-lg border border-white/15 bg-[#111820]/90 px-3 py-2 text-[11px] text-white/75"
-          onClick={() => setEnsembleFocus(null)}>← Ensemble</button>
+          onClick={() => setEnsembleFocus(null)}>← Split View</button>
       ) : ensemblePanels.map((panel, index) => {
         const instrument = panel.layer.voice && panel.layer.voice !== 'standard'
           ? panel.layer.voice : panel.layer.soundSettings?.palette ?? study.soundSettings.palette;
@@ -1359,6 +1367,7 @@ export default function PolyrhythmCanvas({
                 aria-expanded={instrumentPicker?.layerId === panel.layer.id}
                 onClick={(event) => {
                   const rect = event.currentTarget.getBoundingClientRect();
+                  setInstrumentCategory(Math.max(0, instrumentGroups.findIndex((group) => group.sounds.some(([id]) => id === instrument))));
                   setInstrumentPicker((current) => current?.layerId === panel.layer.id ? null : {
                     layerId: panel.layer.id,
                     x: Math.max(8, Math.min(window.innerWidth - 248, rect.left)),
@@ -1381,11 +1390,15 @@ export default function PolyrhythmCanvas({
           <span>Layer {study.layers.findIndex((layer) => layer.id === instrumentPicker.layerId) + 1} · Sound</span>
           <button type="button" aria-label="Close instruments" onClick={() => setInstrumentPicker(null)}>×</button>
         </div>
+        <div className="flex gap-1 border-b border-white/10 pb-2" role="tablist" aria-label="Instrument groups">
+          {instrumentGroups.map((group, index) => (
+            <button key={group.label} type="button" role="tab" aria-selected={instrumentCategory === index}
+              style={{ justifyContent: 'center', background: instrumentCategory === index ? 'rgba(127,215,255,0.12)' : 'transparent', color: instrumentCategory === index ? '#bceaff' : undefined }}
+              className="flex-1" onClick={() => setInstrumentCategory(index)}>{group.label}</button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-1">
-          {([['soft-synth', 'Soft Synth'], ['chorus-keys', 'Chorus Keys'], ['velvet-keys', 'Velvet Keys'], ['warm-synth', 'Warm Synth'],
-            ['study-pulse', 'Study Pulse'], ['bright-marker', 'Bright Marker'], ['wood', 'Wood'], ['chime', 'Chime'], ['crystal-bell', 'Crystal Bell'],
-            ['meditation-pad', 'Meditation Pad'], ['ambient-bloom', 'Ambient Bloom'],
-            ['snare', 'Snare'], ['tom', 'Tom'], ['kick', 'Kick'], ['hi-hat', 'Hi-hat'], ['cymbal', 'Cymbal'], ['wood-block', 'Wood Block']] as const).map(([id, label]) => (
+          {instrumentGroups[instrumentCategory].sounds.map(([id, label]) => (
               <button key={id} type="button" onClick={() => {
                 onSetLayerInstrument(instrumentPicker.layerId, id);
                 setInstrumentPicker(null);

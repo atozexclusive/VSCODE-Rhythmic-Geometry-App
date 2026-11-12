@@ -1,6 +1,6 @@
 import { SCALE_PRESETS } from './audioEngine';
 import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument, type StudyInstrument } from './studyInstruments';
-import { getStudyPitch } from './studyPitch';
+import { getStudyPitch, getStudySequencePitches } from './studyPitch';
 import { type StudyLayerVoice, getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
@@ -487,19 +487,30 @@ function triggerStudyKeys(instrument: StudyInstrument, frequency: number, gain: 
 }
 
 function prepareStudyKeys(context: AudioContext, study: PolyrhythmStudy): void {
-  const instrument = study.soundSettings.palette;
-  if (!study.soundEnabled || !isStudyInstrument(instrument)) return;
+  if (!study.soundEnabled) return;
   const groups = [study.layers, ...(study.chainEnabled ? study.chainCells ?? [] : []).map(cell => cell.layers)];
   for (const layers of groups) layers.forEach((layer, index) => {
-    if (!layer.soundEnabled) return;
-    const noteCount = !study.soundSettings.noteOrder || study.soundSettings.noteOrder === 'standard'
-      ? 1 : SCALE_PRESETS[study.soundSettings.scaleName].intervals.length * 2;
+    if (!layer.soundEnabled || (layer.voice && layer.voice !== 'standard')) return;
+    const sound = { ...study.soundSettings, ...layer.soundSettings };
+    if (!isStudyInstrument(sound.palette)) return;
+    const noteCount = layer.noteSequence?.length ?? ((!sound.noteOrder || sound.noteOrder === 'standard')
+      ? 1 : SCALE_PRESETS[sound.scaleName].intervals.length * 2);
     for (let hit = 0; hit < noteCount; hit++) {
-      const frequency = getStudyPitch(layer.pitchHz, study.soundSettings, index, hit);
-      getStudyInstrumentSample(context, instrument, frequency, false);
-      if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, instrument, frequency, true);
+      const frequencies = getStudySequencePitches(layer.noteSequence, sound, hit)
+        ?? [getStudyPitch(layer.pitchHz, sound, index, hit)];
+      for (const frequency of frequencies) {
+        getStudyInstrumentSample(context, sound.palette, frequency, false);
+        if (layer.accents?.some(Boolean)) getStudyInstrumentSample(context, sound.palette, frequency, true);
+      }
     }
   });
+}
+
+/** Warm composed keys before starting the transport; this schedules no sound. */
+export function preparePolyrhythmNotePhrases(study: PolyrhythmStudy): void {
+  if (!study.layers.some(layer => layer.noteSequence?.length)) return;
+  const context = getAudioContext();
+  if (context) prepareStudyKeys(context, study);
 }
 
 export async function preparePolyrhythmAudioRecording(study: PolyrhythmStudy): Promise<MediaStream | null> {
@@ -521,6 +532,20 @@ function triggerStudyDrum(voice: StudyLayerVoice, gain: number, atTime: number |
   }
   const context = target.context;
   const now = atTime ?? context.currentTime;
+  // Short modal percussion: no samples, long tails, or per-hit effect graphs.
+  if (voice === 'clave' || voice === 'cascara' || voice === 'cowbell') {
+    const partials = voice === 'clave'
+      ? [{ hz: 2300, level: 0.85, decay: 0.038 }, { hz: 3600, level: 0.18, decay: 0.018 }]
+      : voice === 'cascara'
+        ? [{ hz: 860, level: 0.5, decay: 0.045 }, { hz: 1470, level: 0.32, decay: 0.032 }, { hz: 2380, level: 0.12, decay: 0.019 }]
+        : [{ hz: 540, level: 0.62, decay: 0.15 }, { hz: 800, level: 0.36, decay: 0.11 }];
+    for (const partial of partials) withVoice({
+      type: voice === 'cowbell' ? 'square' : 'sine', frequency: partial.hz * tuning,
+      gain: gain * partial.level, attack: 0.0025, release: partial.decay,
+      filterFrequency: voice === 'cowbell' ? 2800 : 6500, atTime: now,
+    }, target);
+    return;
+  }
   if (voice === 'kick' || voice === 'tom') {
     const kick = voice === 'kick';
     withVoice({ type: 'sine', frequency: (kick ? 65 : 150) * tuning, gain, attack: 0.003,
@@ -539,13 +564,13 @@ function triggerStudyDrum(voice: StudyLayerVoice, gain: number, atTime: number |
   const source = context.createBufferSource();
   source.buffer = noise;
   const filter = context.createBiquadFilter();
-  filter.type = voice === 'snare' ? 'bandpass' : 'highpass';
-  filter.frequency.value = voice === 'snare' ? 1900 : 6500;
+  filter.type = voice === 'snare' || voice === 'shaker' ? 'bandpass' : 'highpass';
+  filter.frequency.value = voice === 'snare' ? 1900 : voice === 'shaker' ? 7200 : 6500;
   filter.Q.value = 0.7;
   const output = context.createGain();
-  const duration = voice === 'cymbal' ? 0.6 : voice === 'hi-hat' ? 0.075 : 0.15;
+  const duration = voice === 'cymbal' ? 0.6 : voice === 'hi-hat' ? 0.075 : voice === 'shaker' ? 0.105 : 0.15;
   output.gain.setValueAtTime(0, now);
-  output.gain.linearRampToValueAtTime(gain * (voice === 'snare' ? 1 : 0.65), now + 0.003);
+  output.gain.linearRampToValueAtTime(gain * (voice === 'snare' ? 1 : 0.65), now + (voice === 'shaker' ? 0.012 : 0.003));
   output.gain.exponentialRampToValueAtTime(0.00001, now + duration);
   source.connect(filter);
   filter.connect(output);
@@ -586,6 +611,7 @@ function triggerStudyDrum(voice: StudyLayerVoice, gain: number, atTime: number |
 }
 
 export function triggerPolyrhythmPulse(options: {
+  noteSequence?: number[][];
   voice?: StudyLayerVoice;
   layerSound?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
   drumTune?: number;
@@ -606,6 +632,17 @@ export function triggerPolyrhythmPulse(options: {
     options.layerIndex,
     options.hitIndex ?? 0,
   );
+  const phrase = !options.voice || options.voice === 'standard'
+    ? getStudySequencePitches(options.noteSequence, sound, options.hitIndex ?? 0) : null;
+  if (phrase) {
+    for (const note of phrase) triggerPolyrhythmPulse({
+      ...options, noteSequence: undefined, frequency: note,
+      gain: options.gain / Math.sqrt(phrase.length) * (phrase.length > 1 ? 0.8 : 1),
+      sound: { ...sound, pitchMode: 'free', noteOrder: 'standard', register: 'tight', octaveShift: 0 },
+      layerSound: { pitchMode: 'free', noteOrder: 'standard', register: 'tight', octaveShift: 0 },
+    });
+    return;
+  }
   const peakGain = Math.max(0.008, Math.min(0.18, options.gain * (options.accented ? 1.18 : 0.82)));
   const context = options.target?.context ?? getAudioContext();
   const voiceTarget = context
@@ -676,7 +713,7 @@ export function createPolyrhythmExportAudioStream(
   getStudyOutputBus(context, destination);
   prepareStudyKeys(context, study);
   const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
-  const cyclesPerSecond = study.bpm / 60 / 4;
+  const cyclesPerSecond = study.bpm / 60 / (study.cycleBeats ?? 4);
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
 
   if (study.soundEnabled && study.barMarkerSoundEnabled && cyclesPerSecond > 0) {
@@ -740,6 +777,7 @@ export function createPolyrhythmExportAudioStream(
         triggerPolyrhythmPulse({
           hitIndex,
           voice: layer.voice,
+          noteSequence: layer.noteSequence,
           layerSound: layer.soundSettings,
           drumTune: layer.drumTune,
           frequency: layer.pitchHz,

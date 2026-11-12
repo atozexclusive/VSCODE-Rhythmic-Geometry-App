@@ -5,7 +5,6 @@ import OrbitReadAids from '../components/OrbitReadAids';
 import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
 import FullscreenControls from '../components/FullscreenControls';
 import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
-import LayerStepsIcon from '../components/LayerStepsIcon';
 // ============================================================
 // Rhythmic Geometry — Main Application Route
 // Orchestrates engine state, canvas, sidebar, transport bar
@@ -14,7 +13,7 @@ import LayerStepsIcon from '../components/LayerStepsIcon';
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Waves, AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Contrast, Dice5, Eraser, FlipHorizontal2, Grid3X3, Layers3, Link2, Unlink2, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, SlidersVertical, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
+import { Copy, Pencil, Sparkles, Waves, AudioLines, ScanEye, PaintBucket, Hash, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, CircleHelp, Contrast, Dice5, Eraser, FlipHorizontal2, Grid3X3, Layers3, Link2, Unlink2, Lock, Maximize2, Menu, Minimize2, Minus, MoreHorizontal, Music2, Palette, Pause, Play, Plus, RotateCcw, Shuffle, SlidersVertical, Trash2, Volume2, VolumeX, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import OrbitalCanvas from '../components/OrbitalCanvas';
 import OrbitSidebar from '../components/OrbitSidebar';
@@ -27,6 +26,7 @@ import RiffCycleCanvas from '../components/RiffCycleCanvas';
 import { canMoveSceneFolder, getSceneFolderParent, loadRiffSceneFolders, loadStudySceneFolders, mergeSceneLibraryEntries, normalizeSceneFolder, removeSceneFolder, RIFF_FOLDERS_STORAGE_KEY, STUDY_FOLDERS_STORAGE_KEY, type SceneFolder } from '../lib/sceneFolders';
 import { RiffVoiceAccentControl } from '../components/RiffVoiceAccentControl';
 import RiffCycleSidebar, { RiffSceneThumbnail } from '../components/RiffCycleSidebar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import InfoTip from '../components/InfoTip';
 import QuickCanvasControls from '../components/QuickCanvasControls';
 import CompactAudioMix from '../components/CompactAudioMix';
@@ -135,7 +135,7 @@ import {
   type PolyrhythmStudyCell,
   type PolyrhythmStudyPhrase,
 } from '../lib/polyrhythmStudy';
-import { resumePolyrhythmAudio } from '../lib/polyrhythmAudio';
+import { resumePolyrhythmAudio, preparePolyrhythmNotePhrases } from '../lib/polyrhythmAudio';
 import {
   DEFAULT_FLOW_SCENE_ID,
   FLOW_SCENES,
@@ -1535,8 +1535,8 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     target: 'study-mobile-read-aids-button',
     title: 'Read Aids',
     kicker: 'Study Guide',
-    text: 'The eye icon opens Read Aids. Shared Grid shows the full cycle, while Layer Steps shows the selected layer’s own count.',
-    doThis: 'Open the eye button to choose Shared Grid, Layer Steps, or bar cues.',
+    text: 'The eye icon opens Read Aids. Shared Grid shows the cycle’s step nodes. Numbers adds the step counts, and Split View separates the layers.',
+    doThis: 'Open the eye button to choose Shared Grid, Numbers, Split View, or Bar Cue.',
     notice: 'These controls are for readability.',
   },
   {
@@ -3123,6 +3123,84 @@ function PolyrhythmRollEditor({
   );
 }
 
+function StudyNotePhraseEditor({ sequence, onChange }: { sequence: number[][]; onChange: (sequence: number[][] | undefined) => void }) {
+  const format = (notes: number[][]) => notes.map(chord => chord.map(degree => degree + 1).join('+')).join(' | ');
+  const [draft, setDraft] = useState(() => format(sequence));
+  const [invalid, setInvalid] = useState(false);
+  useEffect(() => { setDraft(format(sequence)); setInvalid(false); }, [sequence]);
+  const apply = () => {
+    const groups = draft.trim().split('|').map(group => group.trim());
+    const valid = groups.length <= 64 && groups.every(group => /^\d+(?:\s*\+\s*\d+){0,3}$/.test(group)
+      && group.split('+').every(note => Number(note) >= 1 && Number(note) <= 21));
+    setInvalid(!valid);
+    if (valid) onChange(groups.map(group => group.split('+').map(note => Number(note) - 1)));
+  };
+  return <div className="space-y-1.5">
+    <div className="flex items-center justify-between text-[10px] text-white/55"><span>Note Phrase</span>
+      <button type="button" className="text-sky-200/70 hover:text-sky-100" onClick={() => onChange(undefined)}>Use Note Order</button>
+    </div>
+    <input aria-label="Note phrase in scale degrees" aria-invalid={invalid} value={draft}
+      onChange={(event) => setDraft(event.currentTarget.value)} onBlur={apply}
+      onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+      className="w-full rounded-lg border border-white/10 bg-black/15 px-2 py-2 font-mono text-[11px] text-sky-100 outline-none focus:border-sky-300/50" />
+    <p className="text-[9px] leading-relaxed text-white/40">One group per hit. 1 is the key’s root; + plays a chord. Example: 1+3+5 | 4+6+8</p>
+    {invalid ? <p role="alert" className="text-[9px] text-rose-200">Use notes 1–21, up to four notes per chord, separated by |.</p> : null}
+  </div>;
+}
+
+function ShapeColorControls({ layers, onLayer, locked, onLocked, title = 'Layer Colors' }: {
+  layers: readonly { id: string; color: string; label?: string }[];
+  title?: string;
+  onLayer: (id: string, color: string) => void;
+  locked: boolean;
+  onLocked: () => void;
+}) {
+  const [target, setTarget] = useState<string | null>(null);
+  const layer = layers.find((item) => item.id === target) ?? layers[0];
+  const value = layer?.color ?? '#72F1B8';
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value.toUpperCase()), [value]);
+  const change = (color: string) => {
+    if (!layer) return;
+    if (locked) { onLocked(); return; }
+    onLayer(layer.id, color);
+  };
+  return <details className="group rounded-xl border border-white/10 bg-white/[0.025] px-3">
+    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 text-[11px] text-white/75 [&::-webkit-details-marker]:hidden">
+      <span>{title}</span>
+      <span className="flex items-center gap-1.5">
+        {layers.map((item) => <span key={item.id} className="h-2 w-2 rounded-full" style={{ background: item.color }} />)}
+        <ChevronDown size={13} className="ml-1 transition-transform group-open:rotate-180" />
+      </span>
+    </summary>
+    <div className="space-y-2 border-t border-white/8 py-2">
+      {layers.length > 1 ? (
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Choose shape">
+        {layers.map((item, index) => <button key={item.id} type="button" aria-pressed={item.id === layer?.id}
+          onClick={() => setTarget(item.id)}
+          className="inline-flex min-h-7 items-center gap-1.5 rounded-md px-2 text-[10px] focus-visible:outline focus-visible:outline-sky-300"
+          style={{ background: item.id === layer?.id ? 'rgba(127,215,255,0.13)' : 'transparent', color: item.id === layer?.id ? '#c5edff' : 'rgba(255,255,255,0.5)' }}>
+          <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />{item.label ?? `L${index + 1}`}
+        </button>)}
+      </div>
+      ) : null}
+      <div className="grid grid-cols-7 gap-1.5" role="group" aria-label="Layer color palette">
+        {POLYRHYTHM_LAYER_COLORS.map((color) => <button key={color} type="button" aria-label={`Use ${color}`} aria-pressed={value.toUpperCase() === color.toUpperCase()}
+          onClick={() => change(color)} className="h-5 rounded border hover:brightness-110 focus-visible:outline focus-visible:outline-white"
+          style={{ background: color, borderColor: value.toUpperCase() === color.toUpperCase() ? '#fff' : 'transparent' }} />)}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="mr-auto text-[10px] text-white/45">Custom</span>
+        <input type="color" value={value} aria-label="Custom layer color" onChange={(event) => change(event.currentTarget.value)} className="h-6 w-6 cursor-pointer border-0 bg-transparent p-0" />
+        <input value={draft} aria-label="Custom layer hex color" spellCheck={false} maxLength={7}
+          onChange={(event) => { const next = event.currentTarget.value; setDraft(next); const color = normalizeHexColorDraft(next); if (color) change(color); }}
+          onBlur={() => setDraft(value.toUpperCase())}
+          className="h-6 w-20 rounded border border-white/10 bg-black/15 px-1.5 font-mono text-[10px] uppercase text-white/70 outline-none focus:border-sky-300/60" />
+      </div>
+    </div>
+  </details>;
+}
+
 function CanvasDisplayControls({
   settings,
   onChange,
@@ -4391,7 +4469,7 @@ function RiffCellSequenceEditor({
         : 'A';
   const selectedCell =
     cells.find((cell) => cell.label === selectedCellLabel) ?? cells[0] ?? null;
-  const [cellMenuLabel, setCellMenuLabel] = useState<RiffSequenceCellLabel | null>(null);
+  const pendingCellAction = useRef<(() => void) | null>(null);
   const [renamingCellLabel, setRenamingCellLabel] = useState<RiffSequenceCellLabel | null>(null);
   const [cellNameDraft, setCellNameDraft] = useState('');
   const selectedCellColor = selectedCell?.color ?? study.riff.color;
@@ -4596,19 +4674,35 @@ function RiffCellSequenceEditor({
                           {hitCount} hit{hitCount === 1 ? '' : 's'}{accentCount > 0 ? ` / ${accentCount} accent` : ''}
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onSelectCell(cell.label);
-                          setRenamingCellLabel(null);
-                          setCellMenuLabel((current) => current === cell.label ? null : cell.label);
-                        }}
-                        aria-label={`Cell ${cell.label} options`}
-                        aria-expanded={cellMenuLabel === cell.label}
-                        className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md text-white/42 transition hover:bg-white/[0.08] hover:text-white/75"
-                      >
-                        <MoreHorizontal size={12} />
-                      </button>
+                      <DropdownMenu onOpenChange={(open) => {
+                        if (open) { onSelectCell(cell.label); setRenamingCellLabel(null); }
+                      }}>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" aria-label={`Cell ${cell.label} options`} title="Cell options"
+                            className="absolute right-0.5 top-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/15 text-white/60 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300">
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" sideOffset={5}
+                          onCloseAutoFocus={(event) => {
+                            const action = pendingCellAction.current;
+                            pendingCellAction.current = null;
+                            if (action) { event.preventDefault(); action(); }
+                          }}
+                          className="z-[100] w-40 rounded-xl border-white/15 bg-[#181b24]/95 p-1 text-white shadow-xl backdrop-blur-xl">
+                          <DropdownMenuItem className="min-h-8 cursor-pointer gap-2 rounded-lg px-2 text-[11px] text-white/75 focus:bg-white/10 focus:text-white"
+                            onSelect={() => { pendingCellAction.current = () => {
+                              setCellNameDraft(cell.name ?? cell.label);
+                              setRenamingCellLabel(cell.label);
+                            }; }}><Pencil size={13} />Rename</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!canAddCell}
+                            className="min-h-8 cursor-pointer gap-2 rounded-lg px-2 text-[11px] text-white/75 focus:bg-white/10 focus:text-white"
+                            onSelect={() => { pendingCellAction.current = () => onCopyCell(cell.label, false); }}><Copy size={13} />Duplicate</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!canAddCell}
+                            className="min-h-8 cursor-pointer gap-2 rounded-lg px-2 text-[11px] text-white/75 focus:bg-white/10 focus:text-white"
+                            onSelect={() => { pendingCellAction.current = () => onCopyCell(cell.label, true); }}><Sparkles size={13} />Add Variation</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   );
                 })}
@@ -4628,24 +4722,15 @@ function RiffCellSequenceEditor({
                 </button>
               </div>
             </div>
-            {cellMenuLabel && selectedCell?.label === cellMenuLabel ? (
-              <div
-                className="rounded-lg border border-white/12 bg-[#1b1e26] p-1.5"
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    setRenamingCellLabel(null);
-                    setCellMenuLabel(null);
-                  }
-                }}
-              >
-                {renamingCellLabel === cellMenuLabel ? (
+            {renamingCellLabel && selectedCell?.label === renamingCellLabel ? (
+              <div className="rounded-lg border border-white/12 bg-[#1b1e26] p-1.5"
+                onKeyDown={(event) => { if (event.key === 'Escape') setRenamingCellLabel(null); }}>
                   <form
                     className="flex items-center gap-1.5"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      onSetCellName(cellMenuLabel, cellNameDraft);
+                      onSetCellName(renamingCellLabel, cellNameDraft);
                       setRenamingCellLabel(null);
-                      setCellMenuLabel(null);
                     }}
                   >
                     <input
@@ -4653,8 +4738,8 @@ function RiffCellSequenceEditor({
                       value={cellNameDraft}
                       maxLength={32}
                       onChange={(event) => setCellNameDraft(event.currentTarget.value)}
-                      placeholder={`Cell ${cellMenuLabel}`}
-                      aria-label={`Rename Cell ${cellMenuLabel}`}
+                      placeholder={`Cell ${renamingCellLabel}`}
+                      aria-label={`Rename Cell ${renamingCellLabel}`}
                       className="h-7 min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.045] px-2 text-[9px] font-mono text-white/78 outline-none focus:border-white/25"
                     />
                     <button
@@ -4667,42 +4752,12 @@ function RiffCellSequenceEditor({
                       type="button"
                       onClick={() => {
                         setRenamingCellLabel(null);
-                        setCellMenuLabel(null);
-                      }}
+                        }}
                       className="h-7 rounded-md border border-white/10 px-2 text-[7.5px] font-mono uppercase tracking-[0.1em] text-white/45"
                     >
                       Cancel
                     </button>
                   </form>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCellNameDraft(selectedCell.name ?? selectedCell.label);
-                        setRenamingCellLabel(cellMenuLabel);
-                      }}
-                      className="rounded-md px-2 text-[9px] text-white/75 hover:bg-white/[0.08]"
-                    >
-                      Rename
-                    </button>
-                    {([['Duplicate', false], ['Add Variation', true]] as const).map(([label, variation]) => (
-                      <button
-                        key={label}
-                        type="button"
-                        disabled={!canAddCell}
-                        title={canAddCell ? undefined : 'Cell library is full'}
-                        onClick={() => {
-                          onCopyCell(cellMenuLabel, variation);
-                          setCellMenuLabel(null);
-                        }}
-                        className="rounded-md px-2 text-[9px] text-white/75 hover:bg-white/[0.08] disabled:opacity-35"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             ) : null}
           </div>
@@ -8497,6 +8552,7 @@ function OrbitalPolymeter() {
       ...cloneStudy(preset.study),
       playing: polyrhythmStudy.playing,
     };
+    preparePolyrhythmNotePhrases(nextStudy);
     setPolyrhythmStudy(nextStudy);
     setActivePolyrhythmPresetId(preset.id);
     setActivePolyrhythmSavedSceneId(null);
@@ -8732,6 +8788,7 @@ function OrbitalPolymeter() {
 
   const handleTogglePolyrhythmPlayback = useCallback(() => {
     resumePolyrhythmAudio();
+    if (!polyrhythmStudy.playing) preparePolyrhythmNotePhrases(polyrhythmStudy);
     if (polyrhythmStudy.playing) {
       setPolyrhythmRestartToken((value) => value + 1);
     }
@@ -8739,7 +8796,7 @@ function OrbitalPolymeter() {
       ...current,
       playing: !current.playing,
     }));
-  }, [polyrhythmStudy.playing]);
+  }, [polyrhythmStudy]);
 
   const handlePolyrhythmBpmChange = useCallback((bpm: number) => {
     const nextBpm = Math.max(40, Math.min(180, Math.round(bpm || 40)));
@@ -8763,25 +8820,11 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
-  const handleTogglePolyrhythmInnerNumbers = useCallback(() => {
-    setPolyrhythmStudy((current) => ({
-      ...current,
-      showInnerNumbers: !current.showInnerNumbers,
-    }));
-  }, []);
-
-  const handleTogglePolyrhythmBarMarkerSound = useCallback(() => {
-    setPolyrhythmStudy((current) => ({
-      ...current,
-      barMarkerSoundEnabled: !current.barMarkerSoundEnabled,
-    }));
-  }, []);
-
-  const handleTogglePolyrhythmBarMarkerVisual = useCallback(() => {
-    setPolyrhythmStudy((current) => ({
-      ...current,
-      barMarkerVisualEnabled: !current.barMarkerVisualEnabled,
-    }));
+  const handleTogglePolyrhythmBarCue = useCallback(() => {
+    setPolyrhythmStudy((current) => {
+      const enabled = !(current.barMarkerSoundEnabled && current.barMarkerVisualEnabled);
+      return { ...current, barMarkerSoundEnabled: enabled, barMarkerVisualEnabled: enabled };
+    });
   }, []);
 
   const handleTogglePolyrhythmGrid = useCallback(() => {
@@ -8963,7 +9006,7 @@ function OrbitalPolymeter() {
         return;
       }
       if (
-        (updates.soundSettings != null || typeof updates.drumTune === 'number' || typeof updates.voice === 'string' ||
+        ('noteSequence' in updates || updates.soundSettings != null || typeof updates.drumTune === 'number' || typeof updates.voice === 'string' ||
           typeof updates.pitchHz === 'number' ||
           typeof updates.gain === 'number' ||
           typeof updates.soundEnabled === 'boolean') &&
@@ -15235,7 +15278,7 @@ function OrbitalPolymeter() {
   const polyrhythmSharedCycleSteps = lcmForPulseCounts(
     polyrhythmStudy.layers.map((layer) => layer.beatCount),
   );
-  const groupedPolyrhythmDesktopPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
+  const groupedPolyrhythmDesktopPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
     presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && !preset.pro),
   }));
@@ -15256,7 +15299,7 @@ function OrbitalPolymeter() {
   const setStudyInstrumentForLayer = (layerId: string, instrument: string) => {
     if (!requireEditablePolyrhythmStudy()) return;
     if (soundEditingLocked) { openProPrompt('sound-editing'); return; }
-    const percussion = ['snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block'].includes(instrument);
+    const percussion = ['snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block', 'clave', 'cascara', 'cowbell', 'shaker'].includes(instrument);
     setPolyrhythmStudy((current) => ({
       ...current,
       layers: current.layers.map((layer) => current.soundsLinked || layer.id === layerId
@@ -15311,7 +15354,7 @@ function OrbitalPolymeter() {
   const studySoundGroups = [
           { name: 'Keys & Synths', sounds: [['soft-synth', 'Soft Synth'], ['chorus-keys', 'Chorus Keys'], ['velvet-keys', 'Velvet Keys'], ['warm-synth', 'Warm Synth'], ['meditation-pad', 'Meditation Pad'], ['ambient-bloom', 'Ambient Bloom']] },
           { name: 'Pulses & Bells', sounds: [['study-pulse', 'Study Pulse'], ['wood', 'Wood'], ['bright-marker', 'Bright Marker'], ['chime', 'Chime'], ['crystal-bell', 'Crystal Bell']] },
-          { name: 'Drums & Percussion', sounds: [['snare', 'Snare'], ['cymbal', 'Cymbal'], ['hi-hat', 'Hi-hat'], ['tom', 'Tom'], ['kick', 'Kick'], ['wood-block', 'Wood Block']] },
+          { name: 'Drums & Percussion', sounds: [['snare', 'Snare'], ['cymbal', 'Cymbal'], ['hi-hat', 'Hi-hat'], ['tom', 'Tom'], ['kick', 'Kick'], ['wood-block', 'Wood Block'], ['clave', 'Clave'], ['cascara', 'Cáscara'], ['cowbell', 'Cowbell'], ['shaker', 'Shaker']] },
         ];
   const selectedStudyInstrumentCategory = studySoundGroups.findIndex((group) =>
     group.sounds.some(([id]) => id === (selectedStudyPercussion ? selectedPolyrhythmLayer?.voice : selectedStudySound.palette)),
@@ -15319,6 +15362,19 @@ function OrbitalPolymeter() {
   useEffect(() => {
     setStudySoundCategory(Math.max(0, selectedStudyInstrumentCategory));
   }, [selectedPolyrhythmLayer?.id, selectedStudyInstrumentCategory]);
+  const studyCanvasColors = (
+    <ShapeColorControls layers={polyrhythmStudy.layers}
+      onLayer={handleSetPolyrhythmLayerColor} locked={colorEditingLocked}
+      onLocked={() => openProPrompt('color-editing')} />
+  );
+  const riffCanvasColors = (
+    <ShapeColorControls title="Riff Color"
+      layers={riffCycleStudy.riffSequenceEnabled && riffCycleStudy.riffCells.length
+        ? riffCycleStudy.riffCells.map(cell => ({ id: cell.label, label: `Cell ${cell.label}`, color: cell.color }))
+        : [{ id: 'riff', label: 'Riff', color: riffCycleStudy.riff.color }]}
+      onLayer={(id, color) => id === 'riff' ? handleSetRiffPhraseColor(color) : handleSetRiffSequenceCellColor(id as RiffSequenceCellLabel, color)}
+      locked={colorEditingLocked} onLocked={() => openProPrompt('color-editing')} />
+  );
   const studyLayerVoicePicker = selectedPolyrhythmLayer ? (
     <div className="study-composer-sound space-y-2">
       <div className="study-listening-controls" role="group" aria-label="Audio playback">
@@ -15452,8 +15508,15 @@ function OrbitalPolymeter() {
             <summary className="cursor-pointer py-1 text-[10px] text-white/55">Pattern &amp; Range</summary>
             <div className="space-y-2 pb-1 pt-2">
               {selectedStudySound.pitchMode === 'keyed' ? (
-                <NoteOrderControl mode="Study" value={selectedStudySound.noteOrder ?? 'standard'}
-                  onChange={(noteOrder) => updateStudyLayerSound({ noteOrder })} />
+                selectedPolyrhythmLayer.noteSequence?.length ? (
+                  <StudyNotePhraseEditor sequence={selectedPolyrhythmLayer.noteSequence}
+                    onChange={(noteSequence) => handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { noteSequence })} />
+                ) : <div className="space-y-2">
+                  <NoteOrderControl mode="Study" value={selectedStudySound.noteOrder ?? 'standard'}
+                    onChange={(noteOrder) => updateStudyLayerSound({ noteOrder })} />
+                  <button type="button" className="text-[10px] text-sky-200/70 hover:text-sky-100"
+                    onClick={() => handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { noteSequence: [[0]] })}>Write a note phrase</button>
+                </div>
               ) : null}
               <div className={selectedStudySound.pitchMode === 'keyed' ? 'grid grid-cols-2 gap-2' : ''}>
                 {selectedStudySound.pitchMode === 'keyed' ? (
@@ -16889,7 +16952,7 @@ function OrbitalPolymeter() {
       polyrhythmStudy.layers.some((layer) => layer.beatCount > 20)
         ? 'Tap the layer or roll to write. Landscape gives longer strips more room.'
         : 'Tap the layer or roll to write. Switch layers with the chips above.';
-    const groupedPolyrhythmPresets = (['one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
+    const groupedPolyrhythmPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
       group,
       presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && !preset.pro),
     }));
@@ -17191,6 +17254,7 @@ function OrbitalPolymeter() {
 
                 {studyCanvasQuickPanel === 'canvas' && !canvasOptionsLocked ? (
                   <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    {studyCanvasColors}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.polyrhythm}
                       onChange={handleUpdatePolyrhythmDisplay}
@@ -17211,14 +17275,14 @@ function OrbitalPolymeter() {
                                     title="Show step nodes around the shared cycle"
                                     aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
                                   >
-                                    Grid
+                                    Shared Grid
                                   </StudyShellButton>
                                   <StudyShellButton size="compact" tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.ensembleView)}
                                     aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
                                     icon={<Layers3 size={13} />}
                                     onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
-                                    Ensemble
+                                    Split View
                                   </StudyShellButton>
                                   <StudyShellButton
                                     size="compact"
@@ -17229,35 +17293,14 @@ function OrbitalPolymeter() {
                                   >
                                     Numbers
                                   </StudyShellButton>
-                                  <StudyShellButton
-                                    size="compact"
-                                    tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.showInnerNumbers)}
-                                    onClick={handleTogglePolyrhythmInnerNumbers}
-                                    icon={<LayerStepsIcon />}
-                                    title="Show the selected layer’s count inside its shape"
-                                  >
-                                    Layer Steps
-                                  </StudyShellButton>
 
-                                  <StudyShellButton
-                                    size="compact"
-                                    tone="green"
-                                    highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled)}
-                                    onClick={handleTogglePolyrhythmBarMarkerSound}
-                                    icon={<Volume2 size={13} />}
-                                  >
-                                    Bar Sound
-                                  </StudyShellButton>
-                                  <StudyShellButton
-                                    size="compact"
-                                    tone="green"
-                                    highlighted={Boolean(polyrhythmStudy.barMarkerVisualEnabled)}
-                                    onClick={handleTogglePolyrhythmBarMarkerVisual}
-                                    icon={<CircleDot size={13} />}
-                                  >
-                                    Bar Visual
-                                  </StudyShellButton>
+                                  <StudyShellButton size="compact" tone="green"
+                        highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
+                        aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
+                        onClick={handleTogglePolyrhythmBarCue} icon={<CircleDot size={13} />}
+                        title="Toggle bar sound and visual cues together">
+                        Bar Cue
+                      </StudyShellButton>
                                 </div>
                               </div>) : <p className="text-[10px] text-white/50">Select a layer to adjust read aids.</p>}
               </QuickCanvasControls>
@@ -17899,15 +17942,15 @@ function OrbitalPolymeter() {
                                   />
                                 </div>
                                 <div className="mt-2">
-                                  <StudyShellButton
+                                  <StudyShellButton icon={<Eraser size={13} aria-hidden="true" />}
                                       data-study-action
                                     size="compact"
                                     tone="neutral"
                                     onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}
                                     className="w-full !h-6 !rounded-lg !text-[8px]"
                                   >
-                                    Clear Hits
-                                  </StudyShellButton>
+                                      Clear
+                                    </StudyShellButton>
                                 </div>
                               </div>
 
@@ -17981,7 +18024,7 @@ function OrbitalPolymeter() {
                                     </StudyShellButton>
                                   </div>
                                   <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                                    <StudyShellButton
+                                    <StudyShellButton icon={<Contrast size={13} aria-hidden="true" />}
                                       data-study-action
                                       size="compact"
                                       tone="amber"
@@ -17991,11 +18034,13 @@ function OrbitalPolymeter() {
                                       onLockedClick={() => openProPrompt('study-pattern-tools')}
                                       className="w-full !h-6 !rounded-lg !text-[8px]"
                                     >
-                                      Invert Hits
+                                      Invert
                                     </StudyShellButton>
-                                    <StudyShellButton data-study-action size="compact" tone="blue" highlighted={!studyPatternToolsLocked}
+                                    <StudyShellButton icon={<FlipHorizontal2 size={13} aria-hidden="true" />} data-study-action size="compact" tone="blue" highlighted={!studyPatternToolsLocked}
                                       onClick={() => handleMirrorPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)} locked={studyPatternToolsLocked}
-                                      onLockedClick={() => openProPrompt('study-pattern-tools')} className="w-full !h-6 !rounded-lg !text-[8px]">Mirror Hits</StudyShellButton>
+                                      onLockedClick={() => openProPrompt('study-pattern-tools')} className="w-full !h-6 !rounded-lg !text-[8px]">
+                                      Mirror
+                                    </StudyShellButton>
                                   </div>
                                 </div>
                                 {studyPatternToolsLocked ? (
@@ -18454,7 +18499,7 @@ function OrbitalPolymeter() {
 	                      </div>
 
 	                      <div className="grid grid-cols-2 gap-2">
-	                        <StudyShellButton
+	                        <StudyShellButton icon={<Contrast size={13} aria-hidden="true" />}
                               data-guide="study-editor-invert"
 	                          size="compact"
 	                          tone="amber"
@@ -18464,17 +18509,17 @@ function OrbitalPolymeter() {
                               recordTutorialEvent('study-editor-invert');
                             }}
 	                        >
-	                          Invert Hits
-	                        </StudyShellButton>
-	                        <StudyShellButton
+                                      Invert
+                                    </StudyShellButton>
+	                        <StudyShellButton icon={<Eraser size={13} aria-hidden="true" />}
                               data-guide="study-editor-clear"
 	                          size="compact"
 	                          tone="red"
 	                          highlighted
 	                          onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}
 	                        >
-	                          Clear Hits
-	                        </StudyShellButton>
+                                      Clear
+                                    </StudyShellButton>
 	                      </div>
                     </div>
                   ) : null}
@@ -18485,7 +18530,7 @@ function OrbitalPolymeter() {
             </div>
           ) : null}
 
-          {!presentationMode ? (
+          {!presentationMode && !polyrhythmStudy.ensembleView ? (
             <div className="fixed left-5 top-4 z-20">
               <Link to="/" className="group inline-block">
                 <div>
@@ -18533,7 +18578,6 @@ function OrbitalPolymeter() {
             onSetSoundFocus={handleSetPolyrhythmSoundFocus}
             onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
             onToggleStepLabels={handleTogglePolyrhythmStepLabels}
-            onToggleInnerNumbers={handleTogglePolyrhythmInnerNumbers}
             onAddLayer={handleAddPolyrhythmLayer}
             onSelectLayer={handleSelectPolyrhythmLayer}
             onSelectStep={handleSelectPolyrhythmStep}
@@ -18568,6 +18612,7 @@ function OrbitalPolymeter() {
       >
         <div
           className={isMobile ? 'absolute inset-0' : 'absolute inset-x-0 bottom-0 top-6'}
+          style={presentationMode && polyrhythmStudy.ensembleView ? { bottom: 'calc(104px + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
           <PolyrhythmCanvas
             study={polyrhythmPlaybackStudy}
@@ -18622,7 +18667,7 @@ function OrbitalPolymeter() {
         <div className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-gradient-to-b from-black/35 via-black/12 to-transparent" />
         <div className="pointer-events-none fixed inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111116] via-[#111116]/90 to-transparent" />
 
-        {!presentationMode ? (
+        {!presentationMode && !polyrhythmStudy.ensembleView ? (
           <div className="fixed left-5 top-4 z-20">
             <Link to="/" className="group inline-block">
               <div>
@@ -19154,7 +19199,7 @@ function OrbitalPolymeter() {
                           ))}
                         </div>
                         <div className="space-y-1.5">
-                          {filteredPolyrhythmDesktopPresets.slice(0, 5).map((preset) => {
+                          {filteredPolyrhythmDesktopPresets.slice(0, polyrhythmMobileSceneGroup === 'grooves' ? undefined : 5).map((preset) => {
                             const active = preset.id === activePolyrhythmPresetId;
                             const locked = Boolean(preset.pro && proScenesLocked);
                             return (
@@ -19196,7 +19241,7 @@ function OrbitalPolymeter() {
                                       ) : null}
                                     </div>
                                     <div className="mt-1 text-[9px] text-white/42">
-                                      {preset.study.layers.map((layer) => layer.beatCount).join(':')} · {preset.study.layers.length} layers
+                                      {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.layers.map((layer) => layer.beatCount).join(':')} · ${preset.study.layers.length} layers`}
                                     </div>
                                   </div>
                                 </div>
@@ -19302,7 +19347,7 @@ function OrbitalPolymeter() {
                                     ) : null}
                                   </div>
                                   <div className="mt-1 text-[9px] text-white/42">
-                                    {preset.study.layers.map((layer) => layer.beatCount).join(':')} · {preset.study.layers.length} layers
+                                    {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.layers.map((layer) => layer.beatCount).join(':')} · ${preset.study.layers.length} layers`}
                                   </div>
                                 </div>
                               </div>
@@ -19539,7 +19584,7 @@ function OrbitalPolymeter() {
                       'Overlays',
                       'Reveal the hidden grid when your eye needs help finding where pulses agree.',
                       '#FFB86B',
-                      'Shared Grid shows the complete cycle. Layer Steps shows the selected layer’s own count.',
+                      'Shared Grid shows the cycle’s step nodes. Numbers adds step counts. Split View separates layers, and Bar Cue marks each bar with sound and visuals.',
                     )}
                     <div className={utilityGroupCardClass}>
                       <div className="mb-2 flex items-center justify-between gap-2">
@@ -19560,14 +19605,14 @@ function OrbitalPolymeter() {
                                     title="Show step nodes around the shared cycle"
                                     aria-pressed={Boolean(polyrhythmStudy.showInactiveSteps)}
                                   >
-                                    Grid
+                                    Shared Grid
                                   </StudyShellButton>
                                   <StudyShellButton size="compact" tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.ensembleView)}
                                     aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
                                     icon={<Layers3 size={13} />}
                                     onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
-                                    Ensemble
+                                    Split View
                                   </StudyShellButton>
                       <StudyShellButton
                         size="compact"
@@ -19578,26 +19623,17 @@ function OrbitalPolymeter() {
                       >
                         Numbers
                       </StudyShellButton>
-                                  <StudyShellButton
-                                    size="compact"
-                                    tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.showInnerNumbers)}
-                                    onClick={handleTogglePolyrhythmInnerNumbers}
-                                    icon={<LayerStepsIcon />}
-                                    title="Show the selected layer’s count inside its shape"
-                                  >
-                                    Layer Steps
-                                  </StudyShellButton>
                                   {polyrhythmStudy.showStepLabels ? (
                                     <p className="col-span-2 text-[9px] leading-relaxed text-sky-100/55" role="status">
                                       {studySharedGridNotice}
                                     </p>
                                   ) : null}
-                      <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled)} onClick={handleTogglePolyrhythmBarMarkerSound}>
-                        Bar Sound
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.barMarkerVisualEnabled)} onClick={handleTogglePolyrhythmBarMarkerVisual}>
-                        Bar Visual
+                      <StudyShellButton size="compact" tone="green"
+                        highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
+                        aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
+                        onClick={handleTogglePolyrhythmBarCue} icon={<CircleDot size={13} />}
+                        title="Toggle bar sound and visual cues together">
+                        Bar Cue
                       </StudyShellButton>
                       </div>
                     </div>
@@ -19642,6 +19678,7 @@ function OrbitalPolymeter() {
                       '#88CCFF',
                       'Use this when a dense study needs more separation, less glow, or a quieter background for recording.',
                     )}
+                    {studyCanvasColors}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.polyrhythm}
                       onChange={handleUpdatePolyrhythmDisplay}
@@ -20375,7 +20412,6 @@ function OrbitalPolymeter() {
           onSetSoundFocus={handleSetPolyrhythmSoundFocus}
           onToggleInactiveSteps={handleTogglePolyrhythmInactiveSteps}
           onToggleStepLabels={handleTogglePolyrhythmStepLabels}
-            onToggleInnerNumbers={handleTogglePolyrhythmInnerNumbers}
           onAddLayer={handleAddPolyrhythmLayer}
           onSelectLayer={handleSelectPolyrhythmLayer}
           onSelectStep={handleSelectPolyrhythmStep}
@@ -21047,6 +21083,7 @@ function OrbitalPolymeter() {
 
                 {riffCanvasQuickPanel === 'canvas' && !canvasOptionsLocked ? (
                   <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                    {riffCanvasColors}
                     <CanvasDisplayControls
                       hideGlow
                       hideGuides
@@ -24810,6 +24847,7 @@ function OrbitalPolymeter() {
                       '#88CCFF',
                       'Use background and glow to keep the phrase readable for writing, watching, or recording.',
                     )}
+                    {riffCanvasColors}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}

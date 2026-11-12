@@ -17,3 +17,20 @@ export function getStudyPitch(baseFrequency: number, sound: PolyrhythmSoundSetti
   const midi = clamp(baseMidi + rootSemitone + scale.intervals[degree] + octave * 12 + sound.octaveShift * 12, 20, 104);
   return 440 * 2 ** ((midi - 69) / 12);
 }
+
+/** Authored phrases start on the shared tonic, independent of layer ordering. */
+export function getStudySequencePitches(sequence: number[][] | undefined, sound: PolyrhythmSoundSettings, hitIndex = 0): number[] | null {
+  if (sound.pitchMode !== 'keyed' || !sequence?.length) return null;
+  const degrees = sequence[Math.max(0, Math.floor(hitIndex)) % sequence.length];
+  if (!degrees?.length) return null;
+  const scale = SCALE_PRESETS[sound.scaleName].intervals;
+  const root = NOTE_NAMES.indexOf(sound.rootNote);
+  return degrees.slice(0, 4).map((degree, index) => {
+    const bounded = clamp(Math.round(Number.isFinite(degree) ? degree : 0), -7, 20);
+    const note = ((bounded % scale.length) + scale.length) % scale.length;
+    const octave = Math.floor(bounded / scale.length);
+    const spread = sound.register === 'wide' && (degrees.length > 1 ? index > 0 : hitIndex % 2 === 1) ? 12 : 0;
+    const midi = clamp(48 + root + scale[note] + octave * 12 + sound.octaveShift * 12 + spread, 24, 96);
+    return 440 * 2 ** ((midi - 69) / 12);
+  });
+}

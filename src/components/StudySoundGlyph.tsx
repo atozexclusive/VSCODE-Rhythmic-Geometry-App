@@ -1,6 +1,10 @@
 import { Bell, Piano, Waves, AudioWaveform } from 'lucide-react';
 
 export default function StudySoundGlyph({ instrument }: { instrument: string }) {
+  if (instrument === 'clave') return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m4 3 11 12m-9 2L16 5M3 4l2-2m9 14 2-2M5 16l2 2m8-14 2 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
+  if (instrument === 'cowbell') return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 4h6l4 12H3L7 4Zm0 0V2h6v2M3 16q7 3 14 0" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>;
+  if (instrument === 'shaker') return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="5" y="3" width="10" height="14" rx="4" transform="rotate(30 10 10)" stroke="currentColor" strokeWidth="1.3" /><path d="m6 8 8 4M3 3l-1 2m15 10 1 2" stroke="currentColor" strokeWidth="1.3" /><circle cx="9" cy="12" r=".6" fill="currentColor" /></svg>;
+  if (instrument === 'cascara') return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><ellipse cx="10" cy="6" rx="7" ry="2.5" stroke="currentColor" strokeWidth="1.3" /><path d="M3 6v8c0 3 14 3 14 0V6M6 9v6m8-6v6M2 2l10 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>;
   if (instrument === 'snare') {
     return (
       <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">

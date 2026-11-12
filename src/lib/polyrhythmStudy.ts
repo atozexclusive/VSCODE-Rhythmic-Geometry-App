@@ -18,7 +18,7 @@ export type PolyrhythmSoundPalette =
 export type PolyrhythmPitchMode = 'free' | 'keyed';
 export type PolyrhythmRegister = 'tight' | 'wide';
 export type PolyrhythmDisplayStyle = 'shared' | 'nested';
-export type PolyrhythmPresetGroup = 'one-layer' | 'two-layer' | 'advanced';
+export type PolyrhythmPresetGroup = 'one-layer' | 'two-layer' | 'advanced' | 'grooves';
 export const MAX_POLYRHYTHM_LAYERS = 6;
 
 export interface PolyrhythmSoundSettings {
@@ -32,10 +32,11 @@ export interface PolyrhythmSoundSettings {
   reverbAmount: number;
 }
 
-export const STUDY_LAYER_VOICES = ['standard', 'snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block'] as const;
+export const STUDY_LAYER_VOICES = ['standard', 'snare', 'cymbal', 'hi-hat', 'tom', 'kick', 'wood-block', 'clave', 'cascara', 'cowbell', 'shaker'] as const;
 export type StudyLayerVoice = typeof STUDY_LAYER_VOICES[number];
 
 export interface PolyrhythmLayer {
+  noteSequence?: number[][]; // Zero-based scale degrees per hit; multiple degrees form a chord.
   soundSettings?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
   drumTune?: number;
   voice?: StudyLayerVoice;
@@ -74,6 +75,7 @@ export interface PolyrhythmStudy {
   layers: PolyrhythmLayer[];
   playing: boolean;
   bpm: number;
+  cycleBeats?: 4 | 8; // Quarter-note beats per shared loop; existing studies use four.
   soundEnabled: boolean;
   showInactiveSteps: boolean;
   showStepLabels: boolean;
@@ -91,6 +93,7 @@ export interface PolyrhythmStudyPreset {
   name: string;
   description: string;
   group: PolyrhythmPresetGroup;
+  summary?: string;
   pro?: boolean;
   study: PolyrhythmStudy;
 }
@@ -132,6 +135,7 @@ export const POLYRHYTHM_PRESET_GROUP_META: Record<
     label: '2 Layers',
     description: 'Compare two pulse families on the same cycle.',
   },
+  grooves: { label: 'Grooves', description: 'Real drum grooves, stacked on one shared grid.' },
   advanced: {
     label: 'Advanced',
     description: 'Denser stacks, wider ratios, and nested studies.',
@@ -366,6 +370,14 @@ function resizeAccents(accents: boolean[] | undefined, activeSteps: boolean[], n
   );
 }
 
+export function normalizeStudyNoteSequence(sequence: number[][] | undefined): number[][] | undefined {
+  if (!Array.isArray(sequence) || !sequence.length) return undefined;
+  const notes = sequence.slice(0, 64).filter(Array.isArray).map((chord) =>
+    [...new Set(chord.filter(Number.isFinite).map((degree) => clamp(Math.round(degree), -7, 20)))].slice(0, 4),
+  ).filter((chord) => chord.length);
+  return notes.length ? notes : undefined;
+}
+
 export function createPolyrhythmLayer(
   beatCount: number,
   overrides: Partial<Omit<PolyrhythmLayer, 'id' | 'beatCount' | 'activeSteps' | 'accents'>> & {
@@ -387,6 +399,7 @@ export function createPolyrhythmLayer(
     rotationOffset: normalizeRotationOffset(overrides.rotationOffset ?? 0),
     color: overrides.color ?? POLYRHYTHM_LAYER_COLORS[0],
     soundSettings: overrides.soundSettings ? { ...overrides.soundSettings } : undefined,
+    noteSequence: normalizeStudyNoteSequence(overrides.noteSequence),
     drumTune: Math.max(-12, Math.min(12, overrides.drumTune ?? 0)),
     voice: STUDY_LAYER_VOICES.includes(overrides.voice as StudyLayerVoice) ? overrides.voice : 'standard',
     soundEnabled: overrides.soundEnabled ?? true,
@@ -578,6 +591,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
         ...layer,
         id: generateStudyId(),
         activeSteps: [...layer.activeSteps],
+        noteSequence: normalizeStudyNoteSequence(layer.noteSequence),
         accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
       })),
     };
@@ -590,6 +604,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       ...layer,
       id: generateStudyId(),
       activeSteps: [...layer.activeSteps],
+      noteSequence: normalizeStudyNoteSequence(layer.noteSequence),
       accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
     })),
     chainCells,
@@ -610,6 +625,7 @@ export function clonePolyrhythmLayers(
     ...layer,
     id: regenerateIds ? generateStudyId() : layer.id,
     activeSteps: [...layer.activeSteps],
+    noteSequence: normalizeStudyNoteSequence(layer.noteSequence),
     accents: normalizeAccents(layer.accents, layer.activeSteps, layer.beatCount),
   }));
 }
@@ -1499,7 +1515,123 @@ const PRIME_TETRA_STUDY = createSharedCycleStudy({
   showStepLabels: false,
 });
 
+const GROOVE_SUMMARIES: Record<string, string> = {
+  'groove-backbeat': 'Kick, snare, and steady hats.',
+  'groove-house': 'Four-on-the-floor with offbeat hats.',
+  'groove-electronic': 'Driving drums and syncopated cowbell.',
+  'groove-dnb': 'Fast two-step with a steady backbeat.',
+  'groove-shuffle': 'A relaxed, triplet-based shuffle.',
+  'groove-son-clave': 'Four interlocking percussion parts.',
+  'groove-deep-house-keys': 'Chord stabs and low synth bass.',
+  'groove-liquid-keys': 'D&B drums with a mellow melody.',
+  'groove-triplet-keys': 'Shuffle drums, chords, and melodic answers.',
+  'groove-clave-keys': 'Layered percussion with chords and melody.',
+};
+
+// Groove transcriptions and source notes: docs/study-grooves.md.
+// All step positions below are one-based, matching the visible sequencer.
+function createGroove(id: string, name: string, description: string, steps: number, bpm: number,
+  parts: { voice: StudyLayerVoice; hits: number[]; accents?: number[]; gain: number }[], cycleBeats: 4 | 8 = 4): PolyrhythmStudyPreset {
+  const study = createSingleLayerStudy({ id, name, description, beatCount: steps,
+    activeIndices: [], color: POLYRHYTHM_LAYER_COLORS[0], bpm,
+    soundSettings: { pitchMode: 'free', reverbAmount: 0, noteOrder: 'standard' } });
+  return { id, name, description, summary: GROOVE_SUMMARIES[id], group: 'grooves', study: {
+    ...study, cycleBeats, soundsLinked: false, ensembleView: true, playing: false,
+    layers: parts.map((part, index) => createPolyrhythmLayer(steps, {
+      voice: part.voice, gain: part.gain, color: POLYRHYTHM_LAYER_COLORS[index],
+      radius: getStudyLayerRadius(index, parts.length, 'shared'),
+      activeSteps: createMaskFromIndices(steps, part.hits.map((step) => step - 1)),
+      accents: createMaskFromIndices(steps, (part.accents ?? []).map((step) => step - 1)),
+      soundSettings: { pitchMode: 'free', reverbAmount: 0, noteOrder: 'standard' },
+    })),
+  } };
+}
+
+export const STUDY_GROOVE_PRESETS: PolyrhythmStudyPreset[] = [
+  createGroove('groove-backbeat', 'Basic Backbeat', 'Kick on beats 1 and 3, snare on 2 and 4, and eighth-note hats. Three layers share one 16-step bar. Solo each part to hear its role.', 16, 100, [
+    { voice: 'kick', hits: [1, 9], gain: 0.16 },
+    { voice: 'snare', hits: [5, 13], gain: 0.11 },
+    { voice: 'hi-hat', hits: [1, 3, 5, 7, 9, 11, 13, 15], accents: [1, 5, 9, 13], gain: 0.065 },
+  ]),
+  createGroove('groove-house', 'Four on the Floor', 'A kick on every beat, snare backbeats, and offbeat hats. A classic house foundation on one shared 16-step bar.', 16, 124, [
+    { voice: 'kick', hits: [1, 5, 9, 13], gain: 0.16 },
+    { voice: 'snare', hits: [5, 13], gain: 0.105 },
+    { voice: 'hi-hat', hits: [3, 7, 11, 15], gain: 0.085 },
+  ]),
+  createGroove('groove-electronic', 'Electronic Drive', 'An original electronic groove: steady kick, backbeat snare, sixteenth-note hats, and a syncopated cowbell. All four layers share 16 steps.', 16, 126, [
+    { voice: 'kick', hits: [1, 5, 9, 13], gain: 0.15 },
+    { voice: 'snare', hits: [5, 13], gain: 0.1 },
+    { voice: 'hi-hat', hits: Array.from({ length: 16 }, (_, i) => i + 1), accents: [3, 7, 11, 15], gain: 0.045 },
+    { voice: 'cowbell', hits: [4, 7, 12, 15], gain: 0.06 },
+  ]),
+  createGroove('groove-dnb', 'Drum & Bass Two-Step', 'Kick on steps 1 and 11, snare on 5 and 13, and eighth-note hats at 174 BPM. A simple D&B foundation on a shared 16-step bar.', 16, 174, [
+    { voice: 'kick', hits: [1, 11], gain: 0.16 },
+    { voice: 'snare', hits: [5, 13], gain: 0.12 },
+    { voice: 'hi-hat', hits: [1, 3, 5, 7, 9, 11, 13, 15], accents: [3, 7, 11, 15], gain: 0.06 },
+  ]),
+  createGroove('groove-shuffle', 'Triplet Shuffle', 'Each beat has three steps. Hats play the first and third triplets, with kick on 1 and 3 and snare on 2 and 4. Three layers share 12 steps.', 12, 96, [
+    { voice: 'kick', hits: [1, 7], gain: 0.16 },
+    { voice: 'snare', hits: [4, 10], gain: 0.11 },
+    { voice: 'hi-hat', hits: [1, 3, 4, 6, 7, 9, 10, 12], accents: [1, 4, 7, 10], gain: 0.065 },
+  ]),
+  createGroove('groove-son-clave', 'Son Clave Groove', 'A two-bar 2–3 son clave with cáscara, quarter-note shaker, and kick on beats 1 and 3. Four parts share a 32-step grid; one full turn is two bars.', 32, 104, [
+    { voice: 'kick', hits: [1, 9, 17, 25], gain: 0.12 },
+    { voice: 'clave', hits: [5, 9, 17, 23, 29], gain: 0.085 },
+    { voice: 'cascara', hits: [1, 5, 9, 11, 15, 17, 21, 23, 27, 31], gain: 0.065 },
+    { voice: 'shaker', hits: [1, 5, 9, 13, 17, 21, 25, 29], accents: [1, 9, 17, 25], gain: 0.055 },
+  ], 8),
+];
+
+// Original musical arrangements layered over the researched groove foundations.
+function addGrooveNotes(baseId: string, id: string, name: string, description: string,
+  rootNote: RootNote, scaleName: ScaleName,
+  parts: { palette: PolyrhythmSoundPalette; hits: number[]; notes: number[][]; gain: number; octave?: -1 | 0 | 1 }[],
+): PolyrhythmStudyPreset {
+  const base = STUDY_GROOVE_PRESETS.find((preset) => preset.id === baseId)!;
+  const study = cloneStudy(base.study);
+  const steps = study.layers[0].beatCount;
+  const layers = [...study.layers, ...parts.map((part) => createPolyrhythmLayer(steps, {
+    voice: 'standard', gain: part.gain, noteSequence: part.notes,
+    activeSteps: createMaskFromIndices(steps, part.hits.map((step) => step - 1)),
+    soundSettings: { palette: part.palette, pitchMode: 'keyed', noteOrder: 'standard',
+      register: 'tight', octaveShift: part.octave ?? 0, reverbAmount: 0.08 },
+  }))].map((layer, index, all) => ({ ...layer,
+    color: POLYRHYTHM_LAYER_COLORS[index], radius: getStudyLayerRadius(index, all.length, 'shared'),
+  }));
+  return { id, name, description, summary: GROOVE_SUMMARIES[id], group: 'grooves', study: { ...study, id, name, description,
+    layers, soundSettings: { ...study.soundSettings, rootNote, scaleName } } };
+}
+
+export const STUDY_MELODIC_GROOVES: PolyrhythmStudyPreset[] = [
+  addGrooveNotes('groove-house', 'groove-deep-house-keys', 'Deep House Stabs',
+    'A four-on-the-floor groove with syncopated Chorus Keys chords and a low Soft Synth bass. C minor; five layers share 16 steps. Change the shared key to transpose the pitched parts together.',
+    'C', 'aeolian', [
+      { palette: 'chorus-keys', hits: [3, 7, 11, 15], notes: [[0, 2, 4], [0, 2, 4], [3, 5, 7], [3, 5, 7]], gain: 0.075 },
+      { palette: 'soft-synth', hits: [1, 7, 9, 15], notes: [[0], [4], [3], [2]], gain: 0.085, octave: -1 },
+    ]),
+  addGrooveNotes('groove-dnb', 'groove-liquid-keys', 'Liquid Keys',
+    'The D&B two-step with a gentle Velvet Keys melody and low Soft Synth answers. D minor; five layers share 16 steps. The melody and bass follow the shared key.',
+    'D', 'aeolian', [
+      { palette: 'velvet-keys', hits: [1, 4, 7, 11, 15], notes: [[7], [9], [11], [9], [8]], gain: 0.07 },
+      { palette: 'soft-synth', hits: [1, 11], notes: [[0], [4]], gain: 0.085, octave: -1 },
+    ]),
+  addGrooveNotes('groove-shuffle', 'groove-triplet-keys', 'Triplet Keys',
+    'A relaxed shuffle with Chorus Keys chord stabs and a short Velvet Keys answer. A Dorian; five layers share a 12-step triplet bar.',
+    'A', 'dorian', [
+      { palette: 'chorus-keys', hits: [4, 10], notes: [[0, 2, 4], [3, 5, 7]], gain: 0.07 },
+      { palette: 'velvet-keys', hits: [1, 3, 7, 9], notes: [[7], [9], [8], [7]], gain: 0.055 },
+    ]),
+  addGrooveNotes('groove-son-clave', 'groove-clave-keys', 'Clave & Keys',
+    'An original keys arrangement over the two-bar 2–3 son clave groove. C minor chords and a short answering melody sit above clave, cáscara, shaker, and kick. Six layers share 32 steps.',
+    'C', 'aeolian', [
+      { palette: 'chorus-keys', hits: [7, 13, 23, 29], notes: [[0, 2, 4], [0, 2, 4], [3, 5, 7], [3, 5, 7]], gain: 0.06 },
+      { palette: 'velvet-keys', hits: [3, 11, 19, 27], notes: [[7], [9], [8], [7]], gain: 0.05 },
+    ]),
+];
+
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
+  ...STUDY_GROOVE_PRESETS,
+  ...STUDY_MELODIC_GROOVES,
   {
     id: 'bo-diddley',
     name: 'Bo Diddley',
