@@ -1143,7 +1143,10 @@ export function remixPolyrhythmStudy(study: PolyrhythmStudy): PolyrhythmStudy {
 }
 
 export function createRandomPlusPolyrhythmStudy(): PolyrhythmStudy {
-  return Math.random() < 0.6 ? createGeneratedStudyGroove() : createRandomPolyrhythmStudy('plus');
+  const roll = Math.random();
+  if (roll < 0.3) return createGeneratedStudyGroove();
+  if (roll < 0.4) return createExperimentalStudy();
+  return createRandomPolyrhythmStudy('plus');
 }
 
 const BO_DIDDLEY_STUDY = createSingleLayerStudy({
@@ -1616,16 +1619,66 @@ function createGroove(id: string, name: string, description: string, steps: numb
   } };
 }
 
+const recentBeatFamilies: Record<'basic' | 'plus', string[]> = { basic: [], plus: [] };
+function chooseBeatFamily<T extends string>(mode: 'basic' | 'plus', families: readonly T[]): T {
+  const recent = recentBeatFamilies[mode];
+  const fresh = families.filter(family => !recent.includes(family));
+  const family = randomChoice(fresh.length ? fresh : families);
+  recent.push(family);
+  if (recent.length > 2) recent.shift();
+  return family;
+}
+
+/** Rare experiments, all using real editable notes rather than visual-only effects. */
+export function createExperimentalStudy(): PolyrhythmStudy {
+  const kind = randomChoice(['polymeter', 'hocket', 'euclidean', 'mirror'] as const);
+  const periods = randomChoice([[3, 4], [3, 5], [4, 7], [3, 4, 5]]);
+  const steps = kind === 'polymeter'
+    ? getSharedCycleStepCount(periods.map(beatCount => ({ beatCount })))
+    : randomChoice([16, 20, 24, 28, 32]);
+  const parts = kind === 'polymeter' ? periods.length : randomInt(3, 5);
+  const study = createGroove(`experimental-${generateStudyId()}`,
+    kind === 'polymeter' ? `Polymeter ${periods.join(':')}` : kind === 'hocket' ? 'Interlocking Sparks'
+      : kind === 'mirror' ? 'Mirror Machine' : 'Euclidean Constellation',
+    kind === 'polymeter' ? 'Different-length phrases repeat on one common pulse until they meet again.'
+      : 'An exploratory arrangement of interlocking hits, open spaces, and unusual accents.',
+    steps, randomInt(64, 104), [], steps > 32 ? 8 : 4).study;
+  study.soundSettings = { ...study.soundSettings, rootNote: randomChoice(['C', 'D', 'F', 'A'] as const),
+    scaleName: randomChoice(['dorian', 'aeolian', 'lydian'] as const), pitchMode: 'keyed' };
+  const seedMask = createEvenPulseMask(steps, randomInt(3, Math.max(4, Math.floor(steps / 3))));
+  const colorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
+  study.layers = Array.from({ length: parts }, (_, index) => {
+    const period = periods[index % periods.length];
+    const mask = kind === 'polymeter' ? Array.from({ length: steps }, (_, step) => step % period === 0)
+      : kind === 'hocket' ? Array.from({ length: steps }, (_, step) => step % parts === index && Math.random() < 0.8)
+      : kind === 'mirror' ? seedMask.map((_, step) => seedMask[(index % 2 ? steps - 1 - step : step + index * 2) % steps])
+      : createEvenPulseMask(steps, randomInt(3, Math.max(4, Math.floor(steps * 0.45))));
+    if (!mask.some(Boolean)) mask[index % steps] = true;
+    return createPolyrhythmLayer(steps, {
+      voice: 'standard', activeSteps: mask,
+      accents: mask.map((active, step) => active && step % period === 0),
+      noteSequence: mask.filter(Boolean).map((_, hit) => [([0, 2, 4, 6, 3][index] + hit % 3) % 7]),
+      soundSettings: { palette: randomChoice(['chorus-keys', 'velvet-keys', 'soft-synth', 'wood'] as const),
+        pitchMode: 'keyed', octaveShift: index === 0 ? -1 : 0, register: 'tight', reverbAmount: 0.08 },
+      gain: 0.08, color: POLYRHYTHM_LAYER_COLORS[(index + colorOffset) % POLYRHYTHM_LAYER_COLORS.length],
+      radius: getStudyLayerRadius(index, parts, 'shared'),
+    });
+  });
+  return study;
+}
+
 /** Familiar one-bar beats for regular Random, without melodic or busy extra parts. */
 export function createBasicStudyBeat(): PolyrhythmStudy {
-  const family = randomChoice(['backbeat', 'house', 'half-time', 'shuffle'] as const);
+  const family = chooseBeatFamily('basic', ['backbeat', 'house', 'half-time', 'shuffle'] as const);
   const steps = family === 'shuffle' ? 12 : 16;
-  const kicks = family === 'house' ? [1, 5, 9, 13] : family === 'shuffle' ? [1, 7]
-    : family === 'half-time' ? [1, 11] : randomChoice([[1, 9], [1, 9, 11], [1, 7, 9]]);
+  const kicks = family === 'house' ? [1, 5, 9, 13] : family === 'shuffle' ? randomChoice([[1, 7], [1, 6, 7], [1, 7, 12]])
+    : family === 'half-time' ? randomChoice([[1, 11], [1, 7], [1, 4, 11], [1, 12]])
+    : randomChoice([[1, 9], [1, 9, 11], [1, 7, 9], [1, 8, 9], [1, 9, 15], [1, 4, 9]]);
   const snares = family === 'half-time' ? [9] : family === 'shuffle' ? [4, 10] : [5, 13];
-  const hats = family === 'shuffle' ? [1, 3, 4, 6, 7, 9, 10, 12]
-    : family === 'house' ? [3, 7, 11, 15] : randomChoice([[1, 5, 9, 13], [1, 3, 5, 7, 9, 11, 13, 15]]);
-  return createGroove(`basic-beat-${generateStudyId()}`,
+  const hats = family === 'shuffle' ? randomChoice([[1, 3, 4, 6, 7, 9, 10, 12], [1, 4, 6, 7, 10, 12], [1, 4, 7, 10]])
+    : family === 'house' ? randomChoice([[3, 7, 11, 15], [1, 3, 7, 9, 11, 15]])
+    : randomChoice([[1, 5, 9, 13], [1, 3, 5, 7, 9, 11, 13, 15], [1, 3, 5, 9, 11, 13], [3, 7, 11, 15]]);
+  const study = createGroove(`basic-beat-${generateStudyId()}`,
     family === 'house' ? 'Simple House' : family === 'half-time' ? 'Simple Half-Time'
       : family === 'shuffle' ? 'Simple Shuffle' : 'Simple Backbeat',
     'A simple one-bar drum beat. Kick, snare, and hats share one editable grid.', steps, randomInt(88, 116), [
@@ -1633,14 +1686,21 @@ export function createBasicStudyBeat(): PolyrhythmStudy {
       { voice: 'snare', hits: snares, gain: 0.13 },
       { voice: 'hi-hat', hits: hats, gain: 0.075 },
     ]).study;
+  const offset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
+  study.layers = study.layers.map((layer, index) => ({ ...layer,
+    color: POLYRHYTHM_LAYER_COLORS[(index + offset) % POLYRHYTHM_LAYER_COLORS.length],
+    accents: layer.activeSteps.map((active, step) => active && step % (steps / 4) === 0),
+  }));
+  return study;
 }
 
 /** Original beat arrangements: fixed musical anchors, varied supporting rhythms and harmony. */
 export function createGeneratedStudyGroove(): PolyrhythmStudy {
-  const family = randomChoice(['house', 'broken', 'half-time', 'dnb', 'shuffle', 'electronic'] as const);
+  const family = chooseBeatFamily('plus', ['house', 'broken', 'half-time', 'dnb', 'shuffle', 'electronic', 'quintuplet', 'septuplet'] as const);
   const triplet = family === 'shuffle';
-  const bars = Math.random() < 0.55 ? 2 : 1;
-  const perBeat = triplet ? 3 : 4;
+  const tuplet = family === 'quintuplet' || family === 'septuplet';
+  const bars = !tuplet && Math.random() < 0.55 ? 2 : 1;
+  const perBeat = family === 'quintuplet' ? 5 : family === 'septuplet' ? 7 : triplet ? 3 : 4;
   const barSteps = perBeat * 4;
   const steps = barSteps * bars;
   const bpm = family === 'dnb' ? randomInt(160, 178) : family === 'half-time' ? randomInt(136, 158)
@@ -1649,21 +1709,22 @@ export function createGeneratedStudyGroove(): PolyrhythmStudy {
   const add = (part: number, step: number) => { if (!hits[part].includes(step)) hits[part].push(step); };
   for (let bar = 0; bar < bars; bar++) {
     const offset = bar * barSteps;
-    const kicks = family === 'house' || family === 'electronic' ? [0, 4, 8, 12]
+    const kicks = tuplet ? [0, perBeat * 2, perBeat * 3 - 1] : family === 'house' || family === 'electronic' ? [0, 4, 8, 12]
       : family === 'dnb' ? randomChoice([[0, 10], [0, 6, 10], [0, 9, 14]])
       : family === 'half-time' ? randomChoice([[0, 6, 11], [0, 3, 10], [0, 7, 14]])
       : triplet ? [0, 6] : randomChoice([[0, 7, 10], [0, 6, 11], [0, 3, 10]]);
     kicks.forEach(step => add(0, offset + step));
-    if (Math.random() < 0.5) add(0, offset + randomChoice(triplet ? [5, 8, 11] : [3, 7, 14, 15]));
+    if (Math.random() < 0.5) add(0, offset + randomChoice(tuplet ? [perBeat - 1, perBeat * 2 - 1, barSteps - 2] : triplet ? [5, 8, 11] : [3, 7, 14, 15]));
     (family === 'half-time' ? [8] : [perBeat, perBeat * 3]).forEach(step => add(1, offset + step));
     // Keep snare backbeats intact; occasional quiet-space pickups add movement.
     if (Math.random() < 0.35) add(1, offset + barSteps - 1);
-    const hats = triplet ? [0, 2, 3, 5, 6, 8, 9, 11]
-      : family === 'house' ? [2, 6, 10, 14] : [0, 2, 4, 6, 8, 10, 12, 14];
+    const hats = tuplet ? Array.from({ length: 4 }, (_, beat) => [beat * perBeat, beat * perBeat + randomChoice([2, perBeat - 1])]).flat() : triplet ? randomChoice([[0, 2, 3, 5, 6, 8, 9, 11], [0, 3, 5, 6, 9, 11], [2, 5, 8, 11]])
+      : family === 'house' ? randomChoice([[2, 6, 10, 14], [0, 2, 6, 8, 10, 14]])
+      : randomChoice([[0, 2, 4, 6, 8, 10, 12, 14], [0, 4, 8, 12], [2, 4, 6, 10, 12, 14], [0, 3, 6, 8, 11, 14]]);
     hats.forEach(step => add(2, offset + step));
-    if (!triplet) for (const step of [3, 7, 11, 15]) if (Math.random() < 0.35) add(2, offset + step);
+    if (!triplet && !tuplet) for (const step of [3, 7, 11, 15]) if (Math.random() < 0.35) add(2, offset + step);
   }
-  const name = `${family === 'dnb' ? 'Liquid' : family === 'half-time' ? 'Half-Time' : family === 'broken' ? 'Broken Beat' : family === 'shuffle' ? 'Shuffle' : family === 'house' ? 'House' : 'Electronic'} ${randomChoice(['Stabs', 'Keys', 'Motion', 'Groove'])}`;
+  const name = `${family === 'dnb' ? 'Liquid' : family === 'half-time' ? 'Half-Time' : family === 'broken' ? 'Broken Beat' : family === 'shuffle' ? 'Shuffle' : family === 'house' ? 'House' : family === 'quintuplet' ? 'Quintuplet' : family === 'septuplet' ? 'Septuplet' : 'Electronic'} ${randomChoice(['Stabs', 'Keys', 'Motion', 'Groove'])}`;
   const study = createGroove(`generated-groove-${generateStudyId()}`, name,
     'An original generated groove with shared-grid drums and harmonically connected keys and bass.', steps, bpm,
     hits.map((part, index) => ({ voice: (['kick', 'snare', 'hi-hat'] as const)[index],
@@ -1673,7 +1734,7 @@ export function createGeneratedStudyGroove(): PolyrhythmStudy {
   study.soundSettings = { ...study.soundSettings,
     rootNote: randomChoice(['C', 'D', 'E', 'F', 'G', 'A', 'A#'] as const),
     scaleName: randomChoice(['aeolian', 'dorian', 'lydian'] as const), pitchMode: 'keyed' };
-  const progression = randomChoice([[0, 5, 3, 4], [0, 3, 5, 4], [0, 4, 5, 3], [0, 0, 3, 4], [0, 5, 0, 3]]);
+  const progression = randomChoice([[0, 5, 3, 4], [0, 3, 5, 4], [0, 4, 5, 3], [0, 0, 3, 4], [0, 5, 0, 3], [0, 3, 1, 4], [0, 6, 5, 3], [0, 2, 3, 4], [0, 4, 3, 0]]);
   const chordAt = (step: number) => progression[Math.min(3, Math.floor(step / steps * 4))];
   const addNotes = (positions: number[], palette: PolyrhythmSoundPalette, gain: number,
     octave: -1 | 0 | 1, notes: (step: number, index: number) => number[]) => {
@@ -1688,24 +1749,36 @@ export function createGeneratedStudyGroove(): PolyrhythmStudy {
   const stabs: number[] = [];
   const bass: number[] = [];
   const melody: number[] = [];
-  const motif = randomChoice([[0, 2, 4, 2], [4, 2, 1, 0], [0, 1, 2, 4], [2, 4, 2, 0]]);
+  // Reuse a short generated motif, with a small answer in the second bar.
+  const motif = [randomChoice([0, 2, 4])];
+  const motifLength = randomInt(4, 6);
+  for (let i = 1; i < motifLength; i++) {
+    motif.push(clamp(motif[i - 1] + randomChoice([-2, -1, 1, 2]), 0, 6));
+  }
+  const answerShift = randomChoice([-1, 0, 1, 2]);
   for (let bar = 0; bar < bars; bar++) {
     const offset = bar * barSteps;
-    const stabPattern = randomChoice(triplet ? [[2, 5, 8, 11], [0, 5, 9], [2, 6, 11]]
+    const stabPattern = tuplet ? [perBeat - 1, perBeat + 2, perBeat * 3 - 1, barSteps - 2] : randomChoice(triplet ? [[2, 5, 8, 11], [0, 5, 9], [2, 6, 11]]
       : [[2, 6, 10, 14], [0, 6, 11], [3, 7, 10, 14], [0, 7, 12], [2, 8, 14]]);
     stabs.push(...stabPattern.map(step => offset + step));
-    bass.push(offset, offset + perBeat * 2);
+    bass.push(offset, offset + perBeat * randomChoice([1, 2, 3]));
     if (Math.random() < 0.75) bass.push(offset + perBeat * 2 - 1, offset + barSteps - 1);
-    const melodyPattern = randomChoice(triplet ? [[0, 4, 7, 10], [2, 5, 8], [3, 7, 11]]
+    const melodyPattern = tuplet ? [1, perBeat + 1, perBeat * 2 + 2, barSteps - 1] : randomChoice(triplet ? [[0, 4, 7, 10], [2, 5, 8], [3, 7, 11]]
       : [[1, 5, 9, 13], [0, 3, 8, 11], [3, 6, 10, 15], [2, 7, 12]]);
     melody.push(...melodyPattern.map(step => offset + step));
   }
   const seventh = Math.random() < 0.45;
+  const inversion = randomInt(0, 2);
+  const bassFifth = Math.random() < 0.4;
   addNotes(stabs, randomChoice(['chorus-keys', 'velvet-keys'] as const), seventh ? 0.055 : 0.07, 0,
-    step => { const root = chordAt(step); return seventh ? [root, root + 2, root + 4, root + 6] : [root, root + 2, root + 4]; });
-  addNotes(bass, 'soft-synth', 0.085, -1, step => [chordAt(step) % 7]);
+    step => {
+      const root = chordAt(step);
+      const chord = seventh ? [root, root + 2, root + 4, root + 6] : [root, root + 2, root + 4];
+      return chord.map((degree, index) => degree + (index < inversion ? 7 : 0)).sort((a, b) => a - b);
+    });
+  addNotes(bass, 'soft-synth', 0.085, -1, (step, index) => [(chordAt(step) + (bassFifth && index % 2 ? 4 : 0)) % 7]);
   if (Math.random() < 0.72) addNotes(melody, randomChoice(['velvet-keys', 'chorus-keys', 'soft-synth'] as const), 0.06, 0,
-    (step, index) => [chordAt(step) + motif[index % motif.length]]);
+    (step, index) => [chordAt(step) + clamp(motif[index % motif.length] + (step >= barSteps ? answerShift : 0), 0, 6)]);
   const randomColorOffset = randomInt(0, POLYRHYTHM_LAYER_COLORS.length - 1);
   study.layers = study.layers.map((layer, index, all) => ({ ...layer,
     color: POLYRHYTHM_LAYER_COLORS[(index + randomColorOffset) % POLYRHYTHM_LAYER_COLORS.length],
