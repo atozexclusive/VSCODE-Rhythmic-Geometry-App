@@ -482,6 +482,17 @@ export default function PolyrhythmCanvas({
       ctx.restore();
     }
 
+    // A rest on one shared layer must not hollow out another layer's hit.
+    const sharedActivePositions = new Set<string>();
+    const nodePositionKey = (x: number, y: number) => `${x.toFixed(2)},${y.toFixed(2)}`;
+    if (sharedDisplay) {
+      for (const layer of orderedLayers) {
+        for (const point of getLayerStepPoints(layer, metrics.centerX, metrics.centerY, metrics.scale)) {
+          if (point.active) sharedActivePositions.add(nodePositionKey(point.x, point.y));
+        }
+      }
+    }
+
     orderedLayers.forEach((layer) => {
         const points = getLayerStepPoints(
           layer,
@@ -758,7 +769,7 @@ export default function PolyrhythmCanvas({
               ctx.fill();
               ctx.stroke();
             }
-          } else {
+          } else if (!sharedDisplay || !sharedActivePositions.has(nodePositionKey(point.x, point.y))) {
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 0.95;
             ctx.fillStyle = '#101923';

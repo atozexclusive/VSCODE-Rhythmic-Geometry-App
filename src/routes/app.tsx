@@ -9280,6 +9280,7 @@ function OrbitalPolymeter() {
         ? generatedStudy
         : clampPolyrhythmStudyToFreeRandomLimits(generatedStudy)),
       playing: polyrhythmStudy.playing,
+      ensembleView: polyrhythmStudy.ensembleView,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
       showInnerNumbers: polyrhythmStudy.showInnerNumbers,
@@ -9292,7 +9293,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
+  }, [effectivePlan, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
 
   const handleRemixPolyrhythmStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -9303,6 +9304,7 @@ function OrbitalPolymeter() {
       const remixed = {
         ...remixPolyrhythmStudy(current),
         playing: current.playing,
+        ensembleView: current.ensembleView,
         showInactiveSteps: current.showInactiveSteps,
         showStepLabels: current.showStepLabels,
         showInnerNumbers: current.showInnerNumbers,
@@ -9329,6 +9331,7 @@ function OrbitalPolymeter() {
     const nextStudy = {
       ...createRandomPlusPolyrhythmStudy(),
       playing: polyrhythmStudy.playing,
+      ensembleView: polyrhythmStudy.ensembleView,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
       showInnerNumbers: polyrhythmStudy.showInnerNumbers,
@@ -9341,7 +9344,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
+  }, [effectivePlan, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
 
   const handleLoadRiffCyclePreset = useCallback((presetId: string) => {
     const preset = RIFF_CYCLE_PRESETS.find((entry) => entry.id === presetId);

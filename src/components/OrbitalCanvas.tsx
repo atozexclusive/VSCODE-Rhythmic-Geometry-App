@@ -1,3 +1,4 @@
+import { drawInterferenceOutline, INTERFERENCE_TRACE_WEIGHTS } from '../lib/orbitInterferenceOutline';
 import { drawOrbitTraceContours, invalidateOrbitTraceContours } from '../lib/orbitTraceContours';
 import { drawOrbitTraceAura, invalidateOrbitTraceAura } from '../lib/orbitTraceAura';
 // ============================================================
@@ -69,7 +70,7 @@ const SWEEP_TRIAD_MAX_MODEL_RADIUS = SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS + S
 const SWEEP_QUAD_MAX_MODEL_RADIUS =
   SWEEP_INNER_RADIUS + SWEEP_OUTER_RADIUS + SWEEP_THIRD_RADIUS + SWEEP_FOURTH_RADIUS;
 const MAX_BLOOM_SPEED = 3;
-const INTERFERENCE_WEIGHTS = [-1, 1, 1, -1] as const;
+const INTERFERENCE_WEIGHTS = INTERFERENCE_TRACE_WEIGHTS;
 
 function blendHexColors(colorA?: string, colorB?: string): string {
   const fallback = colorA ?? colorB ?? INTERFERENCE_TRACE_COLOR;
@@ -1344,6 +1345,17 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.restore();
+        }
+
+        if (isInterferenceMode && outlineOnlyRef.current) {
+          const outlineOrbits = state.orbits.filter(orbit => selectedInterferenceOrbitIds.has(orbit.id));
+          // Preserve source ordering: the first and fourth sources are subtracted.
+          const ordered = [normalizedInterferenceSettings.sourceOrbitAId, normalizedInterferenceSettings.sourceOrbitBId,
+            normalizedInterferenceSettings.sourceOrbitCId, normalizedInterferenceSettings.sourceOrbitDId]
+            .map(id => outlineOrbits.find(orbit => orbit.id === id))
+            .filter((orbit, index, all): orbit is Orbit => Boolean(orbit) && all.findIndex(item => item?.id === orbit?.id) === index);
+          drawInterferenceOutline(ctx, canvas, ordered, w, h, cx, cy, orbitScale,
+            blendMultipleHexColors(...ordered.map(orbit => orbit.color)));
         }
 
         const outlineView = geometryModeRef.current === 'standard-trace' && outlineOnlyRef.current;

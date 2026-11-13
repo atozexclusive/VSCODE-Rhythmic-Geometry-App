@@ -707,7 +707,6 @@ export default function PolyrhythmSidebar({
                             </div>
                             <div className={`${isMobile ? "mt-1 text-[9px] leading-snug" : "mt-2 text-[11px] leading-relaxed"} text-white/46`}>
                               {preset.summary ?? preset.description}
-                              {preset.summary ? <span className="ml-1.5"><InfoTip text={preset.description} /></span> : null}
                             </div>
                           </div>
                           <button
