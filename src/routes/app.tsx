@@ -121,6 +121,9 @@ import {
   createPolyrhythmStudyPhrase,
   getSharedCycleStepCount,
   setStudySharedGrid,
+  hasStudySharedGrid,
+  matchNewLayerToStudyGrid,
+  canRestoreStudyIndividualGrids,
   MAX_STUDY_SHARED_STEPS,
   invertLayerSteps,
   mirrorLayerSteps,
@@ -8830,8 +8833,15 @@ function OrbitalPolymeter() {
   }, []);
 
   const handleTogglePolyrhythmGrid = useCallback(() => {
+    if (hasStudySharedGrid(polyrhythmStudy.layers)) {
+      if (!canRestoreStudyIndividualGrids(polyrhythmStudy.layers) || !requireEditablePolyrhythmStudy()) return;
+      setSelectedPolyrhythmStep(null);
+      setPolyrhythmStudy(current => setStudySharedGrid({ ...current, sharedGridEnabled: true }, false));
+      setPolyrhythmRestartToken(value => value + 1);
+      return;
+    }
     if (!requireEditablePolyrhythmStudy()) return;
-    if (!polyrhythmStudy.sharedGridEnabled) {
+    {
       const grids = [polyrhythmStudy.layers, ...(polyrhythmStudy.chainCells ?? []).map(cell => cell.layers)];
       const steps = Math.max(...grids.map(getSharedCycleStepCount));
       if (!Number.isSafeInteger(steps) || steps > MAX_STUDY_SHARED_STEPS) {
@@ -8843,7 +8853,7 @@ function OrbitalPolymeter() {
       }
     }
     setSelectedPolyrhythmStep(null);
-    setPolyrhythmStudy(current => setStudySharedGrid(current, !current.sharedGridEnabled));
+    setPolyrhythmStudy(current => hasStudySharedGrid(current.layers) ? current : setStudySharedGrid({ ...current, sharedGridEnabled: false }, true));
     setPolyrhythmRestartToken(value => value + 1);
   }, [polyrhythmStudy, effectivePlan, requireEditablePolyrhythmStudy]);
 
@@ -8964,14 +8974,14 @@ function OrbitalPolymeter() {
       const nextRadius = Math.max(78, (lastLayer?.radius ?? 230) - 34);
       const nextColor =
         POLYRHYTHM_LAYER_COLORS[nextLayerIndex % POLYRHYTHM_LAYER_COLORS.length];
-      const nextLayer = createPolyrhythmLayer(nextBeatCount, {
+      const nextLayer = matchNewLayerToStudyGrid(current, createPolyrhythmLayer(nextBeatCount, {
         radius: nextRadius,
         rotationOffset: 0,
         color: nextColor,
         activeSteps: createEvenPulseMask(nextBeatCount, nextBeatCount),
         pitchHz: Math.min(960, 180 + nextLayerIndex * 66),
         gain: Math.max(0.04, 0.12 - nextLayerIndex * 0.01),
-      });
+      }));
       nextLayerId = nextLayer.id;
 
       return {
@@ -14978,13 +14988,19 @@ function OrbitalPolymeter() {
   );
   const polyrhythmSharedCycleStepCount = getSharedCycleStepCount(polyrhythmStudy.layers);
   const polyrhythmCountHelpText = getStudyCountHelpText(polyrhythmStudy.layers, polyrhythmSharedCycleStepCount);
-  const studyLayerCounts = polyrhythmStudy.layers.map((layer) => String(layer.beatCount));
-  const studyLayerCountList = studyLayerCounts.length > 1
-    ? `${studyLayerCounts.slice(0, -1).join(', ')} and ${studyLayerCounts[studyLayerCounts.length - 1]}`
-    : studyLayerCounts[0];
-  const studySharedGridNotice = polyrhythmStudy.layers.length > 1
-    ? `${studyLayerCountList} share a ${polyrhythmSharedCycleStepCount}-note cycle.`
-    : `A ${polyrhythmSharedCycleStepCount}-note cycle.`;
+  const studyGridIsShared = hasStudySharedGrid(polyrhythmStudy.layers);
+  const studyGridCanRestore = canRestoreStudyIndividualGrids(polyrhythmStudy.layers);
+  const studyGridLocked = studyGridIsShared && !studyGridCanRestore;
+  const studyGridLayerList = polyrhythmStudy.layers.length === 2
+    ? 'Layers 1 and 2'
+    : polyrhythmStudy.layers.length > 2
+      ? `Layers 1 through ${polyrhythmStudy.layers.length}`
+      : 'Layer 1';
+  const studySharedGridInfo = studyGridIsShared ? (
+    <InlineInfoLabel infoId="study_shared_cycle" label=""
+      labelClassName="text-[10px]" popoverAlign="right" infoTitle="Shared Grid"
+      infoBody={`${studyGridLayerList} ${polyrhythmStudy.layers.length === 1 ? 'uses' : 'share'} a ${polyrhythmSharedCycleStepCount}-note grid. Tap a node to add or remove a hit in the selected layer. ${studyGridCanRestore ? 'Turn Shared Grid off to return to their individual grids.' : 'These layers already use the same grid, so Shared Grid stays on.'}`} />
+  ) : null;
   const selectedPolyrhythmLayer =
     polyrhythmStudy.layers.find((layer) => layer.id === selectedPolyrhythmLayerId) ??
     polyrhythmStudy.layers[0] ??
@@ -17246,20 +17262,8 @@ function OrbitalPolymeter() {
 
 
               <QuickCanvasControls prefix="study-mobile" panel={studyCanvasQuickPanel} onPanelChange={(panel) => { setStudyCanvasQuickPanel(panel); if (panel) { setStudyAudioPanelOpen(false); setPolyrhythmLayerMenuAnchor(null); } }}
-                headerAccessory={studyCanvasQuickPanel === 'read' && polyrhythmStudy.showStepLabels ? (
-                  <div className="inline-flex items-center gap-1 rounded-lg bg-white/[0.025] px-1.5 py-0.5 text-[8px] text-white/45">
-                    <InlineInfoLabel
-                      infoId="study_shared_cycle"
-                      label=""
-                      labelClassName="text-[8px] font-mono uppercase tracking-[0.14em]"
-                      labelStyle={mobileRiffWhiteTitleStyle}
-                      popoverAlign="right"
-                      infoTitle="Shared Cycle"
-                      infoBody={studySharedGridNotice}
-                    />
-                    <span className="whitespace-nowrap">{polyrhythmSharedCycleStepCount} steps</span>
-                  </div>
-                ) : null}
+                headerAccessory={studyCanvasQuickPanel === 'read' ? studySharedGridInfo : null}
+                headerAccessoryInline
                 soundLocked={soundEditingLocked} canvasLocked={canvasOptionsLocked} randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
                 onLocked={openProPrompt} onRandom={() => { handleRandomPolyrhythmStudy(); recordTutorialEvent('study-random'); }}
                 onRandomPlus={handleRandomPlusPolyrhythmStudy} onRemix={handleRemixPolyrhythmStudy}
@@ -17293,11 +17297,12 @@ function OrbitalPolymeter() {
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.sharedGridEnabled)}
+                                    highlighted={studyGridIsShared}
+                                    aria-disabled={studyGridLocked}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
                                     title="Give every layer the same editable shared step grid"
-                                    aria-pressed={Boolean(polyrhythmStudy.sharedGridEnabled)}
+                                    aria-pressed={studyGridIsShared}
                                   >
                                     Shared Grid
                                   </StudyShellButton>
@@ -19611,23 +19616,20 @@ function OrbitalPolymeter() {
                       'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Bar Cue marks each bar with sound and visuals.',
                     )}
                     <div className={utilityGroupCardClass}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="study_overlay_labels"
-                          label="Overlays"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64" style={desktopMenuSubheaderStyle}>Read Aids</span>
+                        {studySharedGridInfo}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                                   <StudyShellButton
                                     size="compact"
                                     tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.sharedGridEnabled)}
+                                    highlighted={studyGridIsShared}
+                                    aria-disabled={studyGridLocked}
                                     onClick={handleTogglePolyrhythmGrid}
                                     icon={<Grid3X3 size={13} />}
                                     title="Give every layer the same editable shared step grid"
-                                    aria-pressed={Boolean(polyrhythmStudy.sharedGridEnabled)}
+                                    aria-pressed={studyGridIsShared}
                                   >
                                     Shared Grid
                                   </StudyShellButton>
@@ -19647,11 +19649,6 @@ function OrbitalPolymeter() {
                       >
                         Numbers
                       </StudyShellButton>
-                                  {polyrhythmStudy.showStepLabels ? (
-                                    <p className="col-span-2 text-[9px] leading-relaxed text-sky-100/55" role="status">
-                                      {studySharedGridNotice}
-                                    </p>
-                                  ) : null}
                       <StudyShellButton size="compact" tone="green"
                         highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
                         aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
@@ -20272,14 +20269,14 @@ function OrbitalPolymeter() {
                     </div>
                   </div>
                 </div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-white/40">Read Aids</div>
+            <div className="flex items-center gap-2"><span className="text-[10px] font-mono uppercase tracking-wider text-white/40">Read Aids</span>{studySharedGridInfo}</div>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: Boolean(polyrhythmStudy.sharedGridEnabled), toggle: handleTogglePolyrhythmGrid },
+                { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: studyGridIsShared, toggle: handleTogglePolyrhythmGrid },
                 { label: 'Split View', icon: <Layers3 size={14} />, active: Boolean(polyrhythmStudy.ensembleView), toggle: () => setPolyrhythmStudy(current => ({ ...current, ensembleView: !current.ensembleView })) },
                 { label: 'Numbers', icon: <Hash size={14} />, active: Boolean(polyrhythmStudy.showStepLabels), toggle: handleTogglePolyrhythmStepLabels },
                 { label: 'Bar Cue', icon: <CircleDot size={14} />, active: Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled), toggle: handleTogglePolyrhythmBarCue },
-              ].map(aid => <button key={aid.label} type="button" onClick={aid.toggle} aria-pressed={aid.active}
+              ].map(aid => <button key={aid.label} type="button" onClick={aid.toggle} aria-pressed={aid.active} aria-disabled={aid.label === 'Shared Grid' && studyGridLocked}
                 className="flex min-h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[11px] text-white/65 hover:bg-white/[0.07] aria-pressed:border-sky-200/25 aria-pressed:bg-sky-200/10 aria-pressed:text-sky-200/90">
                 {aid.icon}{aid.label}
               </button>)}

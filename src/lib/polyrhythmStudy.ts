@@ -447,6 +447,25 @@ export function getSharedCycleStepCount(layers: readonly Pick<PolyrhythmLayer, '
   return counts.reduce((sharedCount, count) => lcm(sharedCount, count), counts[0] ?? 1);
 }
 
+/** The indicator reflects actual layer grids, including scenes authored that way. */
+export function hasStudySharedGrid(layers: readonly Pick<PolyrhythmLayer, 'beatCount'>[]): boolean {
+  return layers.length > 0 && layers.every(layer => layer.beatCount === layers[0].beatCount);
+}
+
+/** New layers join the existing shared lattice instead of introducing a new ratio. */
+export function matchNewLayerToStudyGrid(study: PolyrhythmStudy, layer: PolyrhythmLayer): PolyrhythmLayer {
+  if (!hasStudySharedGrid(study.layers)) return layer;
+  const beatCount = study.layers[0].beatCount;
+  return { ...layer, beatCount,
+    activeSteps: Array.from({ length: beatCount }, () => true),
+    accents: Array.from({ length: beatCount }, () => false),
+  };
+}
+
+export function canRestoreStudyIndividualGrids(layers: readonly PolyrhythmLayer[]): boolean {
+  return layers.some(layer => layer.sharedGridSourceCount != null && layer.sharedGridSourceCount !== layer.beatCount);
+}
+
 export const MAX_STUDY_SHARED_STEPS = 1024;
 
 /** Expand onto a common lattice without changing hit positions or layer voices. */

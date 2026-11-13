@@ -16,10 +16,11 @@ interface Props {
   onRandomPlus: () => void;
   onRemix: () => void;
   headerAccessory?: ReactNode;
+  headerAccessoryInline?: boolean;
   children: ReactNode;
 }
 
-export default function QuickCanvasControls({ prefix, panel, onPanelChange, soundLocked, canvasLocked, randomPlusLocked, remixLocked, onLocked, onRandom, onRandomPlus, onRemix, headerAccessory, children }: Props) {
+export default function QuickCanvasControls({ prefix, panel, onPanelChange, soundLocked, canvasLocked, randomPlusLocked, remixLocked, onLocked, onRandom, onRandomPlus, onRemix, headerAccessory, headerAccessoryInline = false, children }: Props) {
   return <>
     <div className="absolute left-3 bottom-2 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-0.5 backdrop-blur-md" role="toolbar" aria-label="Pattern quick actions">
       {[
@@ -48,8 +49,8 @@ export default function QuickCanvasControls({ prefix, panel, onPanelChange, soun
       onKeyDown={(event) => { if (event.key === 'Escape') onPanelChange(null); }}>
       <div className="mb-2 flex items-center justify-between gap-2 border-b border-white/[0.06] pb-1">
         <span className="flex shrink-0 items-center gap-2 text-[11px] font-medium tracking-wide text-white/80">{panel === 'audio' ? <AudioLines size={13} className="text-emerald-200/60" /> : panel === 'canvas' ? <Palette size={13} className="text-amber-200/60" /> : <ScanEye size={13} className="text-sky-200/60" />}{panel === 'audio' ? 'Sound' : panel === 'canvas' ? 'Canvas' : 'Read Aids'}</span>
-        {headerAccessory ? <div className="ml-auto shrink-0">{headerAccessory}</div> : null}
-        <button type="button" aria-label="Close quick settings" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/50 hover:bg-white/10" onClick={() => onPanelChange(null)}><Plus size={14} className="rotate-45" /></button>
+        {headerAccessory ? <div className={headerAccessoryInline ? "shrink-0" : "ml-auto shrink-0"}>{headerAccessory}</div> : null}
+        <button type="button" aria-label="Close quick settings" className={`${headerAccessoryInline ? 'ml-auto ' : ''}flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/50 hover:bg-white/10`} onClick={() => onPanelChange(null)}><Plus size={14} className="rotate-45" /></button>
       </div>
       {children}
     </section> : null}

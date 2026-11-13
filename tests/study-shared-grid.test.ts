@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createDefaultPolyrhythmStudy, createPolyrhythmLayer, setStudySharedGrid, cloneStudy, getSharedCycleStepCount, getLayerStepPoints, toggleLayerStep } from '../src/lib/polyrhythmStudy';
+import { createDefaultPolyrhythmStudy, createPolyrhythmLayer, setStudySharedGrid, hasStudySharedGrid, canRestoreStudyIndividualGrids, matchNewLayerToStudyGrid, cloneStudy, getSharedCycleStepCount, getLayerStepPoints, toggleLayerStep } from '../src/lib/polyrhythmStudy';
 import { getPolyrhythmCanvasMetrics, findPolyrhythmHit } from '../src/lib/polyrhythmLayout';
 
 function example() {
@@ -54,4 +54,38 @@ test('shared grid supports larger LCMs, restores after cloning, and rejects expl
   assert.deepEqual(setStudySharedGrid(cloneStudy(shared), false).layers.map(layer => layer.beatCount), [3, 5, 7]);
   original.layers = [61, 59].map(count => createPolyrhythmLayer(count));
   assert.throws(() => setStudySharedGrid(original, true), RangeError);
+});
+
+
+test('shared grid indicator follows matching layer counts rather than a saved toggle', () => {
+  assert.equal(hasStudySharedGrid([12, 12, 12].map(beatCount => ({beatCount}))), true);
+  assert.equal(hasStudySharedGrid([3, 3, 4].map(beatCount => ({beatCount}))), false);
+  assert.equal(hasStudySharedGrid([]), false);
+  const converted = setStudySharedGrid(example(), true);
+  assert.equal(hasStudySharedGrid(converted.layers), true);
+  converted.layers[0] = createPolyrhythmLayer(5);
+  assert.equal(hasStudySharedGrid(converted.layers), false);
+});
+
+
+test('only converted grids offer a return to individual counts', () => {
+  const original = example();
+  assert.equal(canRestoreStudyIndividualGrids(original.layers), false);
+  assert.equal(canRestoreStudyIndividualGrids(setStudySharedGrid(original, true).layers), true);
+  assert.equal(canRestoreStudyIndividualGrids([createPolyrhythmLayer(16), createPolyrhythmLayer(16)]), false);
+});
+
+
+test('new layers join shared grids, including grids above the ordinary layer step limit', () => {
+  for (const count of [12, 60, 105]) {
+    const study = example();
+    study.layers = study.layers.map(layer => ({ ...layer, beatCount: count, activeSteps: Array(count).fill(false), accents: Array(count).fill(false) }));
+    const layer = matchNewLayerToStudyGrid(study, createPolyrhythmLayer(5));
+    assert.equal(layer.beatCount, count);
+    assert.equal(layer.activeSteps.length, count);
+    assert.equal(layer.accents.length, count);
+    assert.ok(layer.activeSteps.every(Boolean));
+  }
+  const independent = createPolyrhythmLayer(5);
+  assert.equal(matchNewLayerToStudyGrid(example(), independent), independent);
 });
