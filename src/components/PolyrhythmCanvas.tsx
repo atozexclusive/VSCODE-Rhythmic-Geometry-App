@@ -1,3 +1,5 @@
+import { drawStudySoundGlyph, prepareStudySoundGlyph } from './studySoundCanvasGlyph';
+import { appendRhythmContourPath, drawRhythmContour } from '../lib/rhythmContour';
 import StudySoundGlyph from './StudySoundGlyph';
 import { createPortal } from 'react-dom';
 import { getStudyVideoViewport } from '../lib/studyVideoViewport';
@@ -197,6 +199,14 @@ export default function PolyrhythmCanvas({
   });
   const isMobile = useIsMobile();
   const isMobileRef = useRef(isMobile);
+  useEffect(() => {
+    const layers = [...study.layers, ...(study.chainCells ?? []).flatMap(cell => cell.layers)];
+    layers.forEach(layer => prepareStudySoundGlyph(
+      layer.voice && layer.voice !== 'standard' ? layer.voice : layer.soundSettings?.palette ?? study.soundSettings.palette,
+      layer.color,
+    ));
+  }, [study.layers, study.chainCells, study.soundSettings.palette]);
+
   const selectedLayerIdRef = useRef(selectedLayerId);
   const selectedStepRef = useRef(selectedStep);
   const hoveredLayerIdRef = useRef<string | null>(null);
@@ -370,6 +380,14 @@ export default function PolyrhythmCanvas({
         if (isReferenceLayer) continue;
         const activePoints = getLayerStepPoints(layer, metrics.centerX, metrics.centerY, metrics.scale)
           .filter((point) => point.active);
+        if (currentStudy.showContour) {
+          hasFilledShape = appendRhythmContourPath(ctx, activePoints, {
+            centerX: metrics.centerX, centerY: metrics.centerY, radius: layer.radius * metrics.scale,
+            stepCount: layer.beatCount, pointScale,
+            intensity: layer.beatCount >= 33 ? 1 : layer.beatCount >= 16 ? 0.72 : 0.54,
+          }) || hasFilledShape;
+          continue;
+        }
         if (activePoints.length < 3) continue;
         hasFilledShape = true;
         ctx.moveTo(activePoints[0].x, activePoints[0].y);
@@ -545,7 +563,16 @@ export default function PolyrhythmCanvas({
           ctx.restore();
         }
 
-        if (activePoints.length >= 2) {
+        if (currentStudy.showContour && activePoints.length >= 2) {
+          drawRhythmContour(ctx, points, {
+            centerX: metrics.centerX, centerY: metrics.centerY,
+            radius: layer.radius * metrics.scale, stepCount: layer.beatCount,
+            color: layer.color, glowMultiplier: glowMultiplier * shadowScale, pointScale,
+            showLabels: false, intensity: layer.beatCount >= 33 ? 1 : layer.beatCount >= 16 ? 0.72 : 0.54,
+            fill: !isReferenceLayer,
+          });
+        }
+        if (!currentStudy.showContour && activePoints.length >= 2) {
           if (!isReferenceLayer) {
             ctx.save();
             ctx.globalAlpha = (isSelectedLayer ? 0.16 : sharedDisplay ? 0.09 : 0.05) * lineAlpha;
@@ -850,9 +877,32 @@ export default function PolyrhythmCanvas({
         if (exportVideoSize || cleanExport) {
           const instrument = panel.layer.voice && panel.layer.voice !== 'standard'
             ? panel.layer.voice : panel.layer.soundSettings?.palette ?? currentStudy.soundSettings.palette;
-          ctx.fillText(`L${index + 1} · ${instrument.replace(/-/g, ' ')} · ${panel.layer.beatCount}`, 10, 19);
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'left';
+          ctx.font = '600 12px system-ui, -apple-system, sans-serif';
+          ctx.fillStyle = panel.layer.color;
+          ctx.fillText(`L${index + 1}`, 12, 20);
+          drawStudySoundGlyph(ctx, instrument, panel.layer.color, 42, 11, 18);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = 'rgba(231,239,246,0.65)';
+          ctx.font = '400 10px system-ui, -apple-system, sans-serif';
+          ctx.fillText(`${panel.layer.beatCount} steps`, panel.width - 12, 20);
+          ctx.restore();
         }
+        // Artwork applies its own export scale. Restore panel coordinates before
+        // fading so the fade also covers the unscaled header and outer border.
+        ctx.save();
         drawStudy({ ...currentStudy, ensembleView: false, layers: [panel.layer] }, panel, true);
+        ctx.restore();
+        if (!panel.layer.soundEnabled) {
+          ctx.save();
+          ctx.globalAlpha = 0.48;
+          ctx.fillStyle = '#080d14';
+          ctx.fillRect(0, 0, panel.width, panel.height);
+          ctx.restore();
+        }
         ctx.restore();
       });
     } else {
@@ -907,7 +957,9 @@ export default function PolyrhythmCanvas({
         }
 
         let incomingCellLayers: readonly PolyrhythmLayer[] | null = null;
-        if (playbackState.progress < previousProgress) {
+        const barsPerCycle = (currentStudy.cycleBeats ?? 4) / 4;
+        if (playbackState.progress < previousProgress ||
+          Math.floor(playbackState.progress * barsPerCycle) !== Math.floor(previousProgress * barsPerCycle)) {
           if (currentStudy.barMarkerVisualEnabled) {
             barMarkerFlashStartedAtRef.current = timestamp;
           }
@@ -920,7 +972,7 @@ export default function PolyrhythmCanvas({
         const playbackLayers = incomingCellLayers?.length
           ? incomingCellLayers
           : currentStudy.layers;
-        const layerProgress = incomingCellLayers?.length ? 0 : playbackState.progress;
+        const layerProgress = playbackState.progress;
         playbackLayers.forEach((layer, layerIndex) => {
           const currentStepIndex = getPlaybackStepIndex(layer, layerProgress);
           const previousStepIndex = incomingCellLayers?.length
@@ -932,8 +984,8 @@ export default function PolyrhythmCanvas({
 
           const noteOrderHits = playbackState.noteOrderHits ??= new Map();
           const hitIndex = noteOrderHits.get(layer.id) ?? 0;
-          if (activeStepHit) noteOrderHits.set(layer.id, hitIndex + 1);
-          if (activeStepHit) {
+          if (activeStepHit && layer.soundEnabled) noteOrderHits.set(layer.id, hitIndex + 1);
+          if (activeStepHit && layer.soundEnabled) {
             hitPulsesRef.current.push({
               layerId: layer.id,
               stepIndex: currentStepIndex,
@@ -1357,11 +1409,11 @@ export default function PolyrhythmCanvas({
         const soloed = study.layers.every((layer) => layer.soundEnabled === (layer.id === panel.layer.id));
         return (
           <div key={panel.layer.id} className="study-ensemble-header"
-            style={{ left: panel.x + 4, top: panel.y + 3, width: panel.width - 8, color: panel.layer.color }}>
+            style={{ left: panel.x + 4, top: panel.y + 3, width: panel.width - 8, color: panel.layer.color, opacity: panel.layer.soundEnabled ? 1 : 0.52 }}>
             <button type="button" className="study-ensemble-focus" aria-label={`Focus layer ${index + 1}`}
               onClick={() => { onSelectLayer(panel.layer.id); setEnsembleFocus(panel.layer.id); }}>
               <span>L{index + 1}</span>
-              <small>{panel.layer.beatCount} steps</small>
+              <small>{panel.layer.label ?? `${panel.layer.beatCount} steps`}</small>
             </button>
             {onSetLayerInstrument ? (
               <button type="button" data-study-instrument-trigger

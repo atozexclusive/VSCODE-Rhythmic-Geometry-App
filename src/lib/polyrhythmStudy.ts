@@ -1,3 +1,4 @@
+import { STUDY_PERCUSSION_ENSEMBLE_SCORES } from './studyPercussionEnsembles';
 import { normalizeNoteOrder, type NoteOrder } from './noteOrder';
 import type { RootNote, ScaleName } from './audioEngine';
 
@@ -36,6 +37,7 @@ export const STUDY_LAYER_VOICES = ['standard', 'snare', 'cymbal', 'hi-hat', 'tom
 export type StudyLayerVoice = typeof STUDY_LAYER_VOICES[number];
 
 export interface PolyrhythmLayer {
+  label?: string;
   sharedGridSourceCount?: number;
   noteSequence?: number[][]; // Zero-based scale degrees per hit; multiple degrees form a chord.
   soundSettings?: Partial<Omit<PolyrhythmSoundSettings, 'rootNote' | 'scaleName'>>;
@@ -61,15 +63,25 @@ export interface PolyrhythmStudyCell {
 }
 
 export interface PolyrhythmStudyPhrase {
+  enabledLayerIndices?: number[]; // Omitted means all layers; [] is a silent section.
   id: string;
   cellId: string;
   bars: number;
+}
+
+/** Preserve every layer visually while gating its sound for this section. */
+export function getStudySectionLayers(layers: readonly PolyrhythmLayer[], phrase?: Pick<PolyrhythmStudyPhrase, 'enabledLayerIndices'>): PolyrhythmLayer[] {
+  const enabled = phrase?.enabledLayerIndices;
+  return layers.map((layer, index) => ({ ...layer,
+    soundEnabled: layer.soundEnabled && (enabled === undefined || enabled.includes(index)),
+  }));
 }
 
 export interface PolyrhythmStudy {
   sharedGridEnabled?: boolean;
   soundsLinked?: boolean;
   ensembleView?: boolean;
+  showContour?: boolean;
   id: string;
   name: string;
   description: string;
@@ -395,6 +407,7 @@ export function createPolyrhythmLayer(
   return {
     id: generateStudyId(),
     beatCount: normalizedBeatCount,
+    label: overrides.label,
     activeSteps,
     accents: normalizeAccents(overrides.accents, activeSteps, normalizedBeatCount),
     radius: overrides.radius ?? 220,
@@ -674,6 +687,7 @@ export function cloneStudy(study: PolyrhythmStudy): PolyrhythmStudy {
       ...phrase,
       id: generateStudyId(),
       cellId: cellIdMap.get(phrase.cellId) ?? phrase.cellId,
+      enabledLayerIndices: phrase.enabledLayerIndices ? [...phrase.enabledLayerIndices] : undefined,
       bars: clamp(Math.round(phrase.bars || 1), 1, 64),
     })),
   };
@@ -1146,6 +1160,7 @@ export function createRandomPlusPolyrhythmStudy(): PolyrhythmStudy {
   const roll = Math.random();
   if (roll < 0.3) return createGeneratedStudyGroove();
   if (roll < 0.4) return createExperimentalStudy();
+  if (roll < 0.5) return createGeometryStudy();
   return createRandomPolyrhythmStudy('plus');
 }
 
@@ -1600,6 +1615,14 @@ const GROOVE_SUMMARIES: Record<string, string> = {
   'groove-sunrise-stabs': 'Bright house chords and a moving bass.',
 };
 
+// Keep core beats, a chord-stab example, and Brazilian/Cuban introductions free.
+const PRO_STUDY_GROOVE_IDS = new Set([
+  'groove-electronic', 'groove-son-clave',
+  'groove-liquid-keys', 'groove-clave-keys', 'groove-velvet-breaks',
+  'groove-halftime-stabs', 'groove-dorian-shuffle-stabs',
+  'ensemble-samba-surdo-three', 'ensemble-son-32', 'ensemble-bembe-pulse',
+]);
+
 // Groove transcriptions and source notes: docs/study-grooves.md.
 // All step positions below are one-based, matching the visible sequencer.
 function createGroove(id: string, name: string, description: string, steps: number, bpm: number,
@@ -1607,7 +1630,7 @@ function createGroove(id: string, name: string, description: string, steps: numb
   const study = createSingleLayerStudy({ id, name, description, beatCount: steps,
     activeIndices: [], color: POLYRHYTHM_LAYER_COLORS[0], bpm,
     soundSettings: { pitchMode: 'free', reverbAmount: 0, noteOrder: 'standard' } });
-  return { id, name, description, summary: GROOVE_SUMMARIES[id], group: 'grooves', study: {
+  return { id, name, description, summary: GROOVE_SUMMARIES[id], pro: PRO_STUDY_GROOVE_IDS.has(id), group: 'grooves', study: {
     ...study, cycleBeats, sharedGridEnabled: true, soundsLinked: false, ensembleView: true, playing: false,
     layers: parts.map((part, index) => createPolyrhythmLayer(steps, {
       voice: part.voice, gain: part.gain, color: POLYRHYTHM_LAYER_COLORS[index],
@@ -1627,6 +1650,43 @@ function chooseBeatFamily<T extends string>(mode: 'basic' | 'plus', families: re
   recent.push(family);
   if (recent.length > 2) recent.shift();
   return family;
+}
+
+/** Visually composed studies: regular geometry, restrained color and musical spacing. */
+export function createGeometryStudy(): PolyrhythmStudy {
+  const template = randomChoice([
+    { name: 'Prism Bloom', grid: 24, counts: [3, 4, 6], nested: false },
+    { name: 'Rose Window', grid: 24, counts: [6, 6, 6], nested: false },
+    { name: 'Crystal Stair', grid: 20, counts: [5, 5, 10], nested: true },
+    { name: 'Moon Garden', grid: 32, counts: [4, 8, 8, 16], nested: true },
+    { name: 'Sevenfold Light', grid: 28, counts: [7, 7, 14], nested: false },
+  ]);
+  const colors = randomChoice([
+    ['#72F1B8', '#7FD7FF', '#B5A3FF', '#C4E8FF'],
+    ['#FFD166', '#FFAD7A', '#FF8AC6', '#C1A3FF'],
+    ['#80E6D5', '#A8DEFF', '#D4BAFF', '#F4D2FF'],
+    ['#FFCF8A', '#F5EBBD', '#9ED8DB', '#8FB2E8'],
+  ]);
+  const study = createGroove(`geometry-${generateStudyId()}`, template.name,
+    'A composed geometric study with regular polygons, related colors, and gently interlocking notes.',
+    template.grid, randomInt(54, 82), []).study;
+  study.displayStyle = template.nested ? 'nested' : 'shared';
+  const rotation = randomChoice([0, 1, 2]);
+  study.soundSettings = { ...study.soundSettings, pitchMode: 'keyed',
+    rootNote: randomChoice(['C', 'D', 'F', 'G', 'A'] as const), scaleName: randomChoice(['majorPentatonic', 'dorian', 'lydian'] as const) };
+  study.layers = template.counts.map((count, index, all) => createPolyrhythmLayer(template.grid, {
+    label: ['Foundation', 'Prism', 'Halo', 'Crown'][index],
+    activeSteps: createEvenPulseMask(template.grid, count),
+    // Shift by exact grid divisions, preserving symmetry and editable positions.
+    rotationOffset: (rotation + (template.name === 'Rose Window' ? index : index % 2)) / template.grid * 360,
+    color: colors[index], radius: getStudyLayerRadius(index, all.length, study.displayStyle),
+    voice: 'standard', gain: index === 0 ? 0.085 : 0.06,
+    noteSequence: Array.from({ length: count }, (_, hit) => [[0, 2, 4, 2][(hit + index) % 4] + (index > 1 ? 2 : 0)]),
+    soundSettings: { palette: index % 2 ? 'velvet-keys' : 'chorus-keys', pitchMode: 'keyed',
+      octaveShift: index === 0 ? -1 : 0, register: 'tight', reverbAmount: 0.12, noteOrder: 'standard' },
+    accents: Array.from({ length: template.grid }, () => false),
+  }));
+  return study;
 }
 
 /** Rare experiments, all using real editable notes rather than visual-only effects. */
@@ -1696,10 +1756,14 @@ export function createBasicStudyBeat(): PolyrhythmStudy {
 
 /** Original beat arrangements: fixed musical anchors, varied supporting rhythms and harmony. */
 export function createGeneratedStudyGroove(): PolyrhythmStudy {
-  const family = chooseBeatFamily('plus', ['house', 'broken', 'half-time', 'dnb', 'shuffle', 'electronic', 'quintuplet', 'septuplet'] as const);
+  // Favor familiar sixteenth-note grooves without excluding other subdivisions.
+  const families = Math.random() < 0.75
+    ? (['house', 'broken', 'half-time', 'dnb', 'electronic'] as const)
+    : (['shuffle', 'quintuplet', 'septuplet'] as const);
+  const family = chooseBeatFamily<'house' | 'broken' | 'half-time' | 'dnb' | 'electronic' | 'shuffle' | 'quintuplet' | 'septuplet'>('plus', families);
   const triplet = family === 'shuffle';
   const tuplet = family === 'quintuplet' || family === 'septuplet';
-  const bars = !tuplet && Math.random() < 0.55 ? 2 : 1;
+  const bars = !tuplet && Math.random() < 0.25 ? 2 : 1;
   const perBeat = family === 'quintuplet' ? 5 : family === 'septuplet' ? 7 : triplet ? 3 : 4;
   const barSteps = perBeat * 4;
   const steps = barSteps * bars;
@@ -1822,6 +1886,15 @@ export const STUDY_GROOVE_PRESETS: PolyrhythmStudyPreset[] = [
   ], 8),
 ];
 
+export const STUDY_PERCUSSION_ENSEMBLES: PolyrhythmStudyPreset[] = STUDY_PERCUSSION_ENSEMBLE_SCORES.map(score => {
+  const preset = createGroove(score.id, score.name, score.description, score.steps, score.bpm, score.parts, score.cycleBeats);
+  preset.summary = score.summary;
+  preset.study.layers = preset.study.layers.map((layer, index) => ({ ...layer,
+    label: score.parts[index].label, drumTune: score.parts[index].tune ?? 0,
+  }));
+  return preset;
+});
+
 // Original musical arrangements layered over the researched groove foundations.
 function addGrooveNotes(baseId: string, id: string, name: string, description: string,
   rootNote: RootNote, scaleName: ScaleName,
@@ -1843,7 +1916,7 @@ function addGrooveNotes(baseId: string, id: string, name: string, description: s
   }))].map((layer, index, all) => ({ ...layer,
     color: POLYRHYTHM_LAYER_COLORS[index], radius: getStudyLayerRadius(index, all.length, 'shared'),
   }));
-  return { id, name, description, summary: GROOVE_SUMMARIES[id], group: 'grooves', study: { ...study, id, name, description,
+  return { id, name, description, summary: GROOVE_SUMMARIES[id], pro: PRO_STUDY_GROOVE_IDS.has(id), group: 'grooves', study: { ...study, id, name, description,
     layers, soundSettings: { ...study.soundSettings, rootNote, scaleName } } };
 }
 
@@ -1901,6 +1974,7 @@ export const STUDY_MELODIC_GROOVES: PolyrhythmStudyPreset[] = [
 export const POLYRHYTHM_PRESETS: PolyrhythmStudyPreset[] = [
   ...STUDY_GROOVE_PRESETS,
   ...STUDY_MELODIC_GROOVES,
+  ...STUDY_PERCUSSION_ENSEMBLES,
   {
     id: 'bo-diddley',
     name: 'Bo Diddley',

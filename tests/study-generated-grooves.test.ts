@@ -9,10 +9,12 @@ test('generated beats retain drum anchors and aligned, editable melodic parts ac
   try {
     const families = new Set<string>();
     const arrangements = new Set<string>();
+    let sixteenStepGrooves = 0;
     for (let i = 0; i < 300; i++) {
       const study = createGeneratedStudyGroove();
       families.add(study.name.split(' ').slice(0, -1).join(' '));
       const steps = study.layers[0].beatCount;
+      if (steps === 16) sixteenStepGrooves++;
       const barSteps = steps / ((study.cycleBeats ?? 4) / 4);
       const perBeat = barSteps / 4;
       assert.ok([12, 16, 20, 24, 28, 32].includes(steps));
@@ -39,6 +41,7 @@ test('generated beats retain drum anchors and aligned, editable melodic parts ac
       arrangements.add(JSON.stringify([study.bpm, study.soundSettings, study.layers.map(l => [l.activeSteps, l.noteSequence])]));
     }
     assert.equal(families.size, 8);
+    assert.ok(sixteenStepGrooves > 140, `Only ${sixteenStepGrooves}/300 grooves used 16 steps`);
     assert.ok(arrangements.size > 290);
     let grooves = 0;
     for (let i = 0; i < 150; i++) if (createRandomPlusPolyrhythmStudy().id.startsWith('generated-groove-')) grooves++;

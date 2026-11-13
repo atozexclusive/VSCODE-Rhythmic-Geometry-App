@@ -1,3 +1,4 @@
+import { getStudySectionLayers } from './polyrhythmStudy';
 import { SCALE_PRESETS } from './audioEngine';
 import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument, type StudyInstrument } from './studyInstruments';
 import { getStudyPitch, getStudySequencePitches } from './studyPitch';
@@ -717,9 +718,10 @@ export function createPolyrhythmExportAudioStream(
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
 
   if (study.soundEnabled && study.barMarkerSoundEnabled && cyclesPerSecond > 0) {
-    const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond);
-    for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
-      const seconds = cycleIndex / cyclesPerSecond;
+    const barsPerSecond = study.bpm / 240;
+    const barCount = Math.ceil(audibleDuration * barsPerSecond);
+    for (let barIndex = 0; barIndex <= barCount; barIndex += 1) {
+      const seconds = barIndex / barsPerSecond;
       if (seconds <= audibleDuration) {
         triggerPolyrhythmBarMarker(startTime + seconds, target);
       }
@@ -732,7 +734,7 @@ export function createPolyrhythmExportAudioStream(
   const chainPhrases = chainCells
     ? study.chainPhrases?.length
       ? study.chainPhrases
-      : chainCells.map((cell) => ({ id: cell.id, cellId: cell.id, bars: cell.bars }))
+      : chainCells.map((cell) => ({ id: cell.id, cellId: cell.id, bars: cell.bars, enabledLayerIndices: undefined }))
     : null;
   const chainBarCount = chainPhrases?.reduce(
     (total, phrase) => total + Math.max(1, Math.round(phrase.bars || 1)),
@@ -746,7 +748,7 @@ export function createPolyrhythmExportAudioStream(
     for (const phrase of chainPhrases ?? []) {
       const phraseBars = Math.max(1, Math.round(phrase.bars || 1));
       if (barInChain < phraseBars) {
-        return chainCells.find((cell) => cell.id === phrase.cellId)?.layers ?? study.layers;
+        return getStudySectionLayers(chainCells.find((cell) => cell.id === phrase.cellId)?.layers ?? study.layers, phrase);
       }
       barInChain -= phraseBars;
     }
@@ -755,9 +757,11 @@ export function createPolyrhythmExportAudioStream(
 
   if (study.soundEnabled && cyclesPerSecond > 0) {
     const noteOrderHits = new Map<string, number>();
-    const cycleCount = Math.ceil(audibleDuration * cyclesPerSecond) + 1;
-    for (let cycleIndex = 0; cycleIndex <= cycleCount; cycleIndex += 1) {
-      layersForCycle(cycleIndex).forEach((layer, layerIndex) => {
+    const barsPerCycle = (study.cycleBeats ?? 4) / 4;
+    const barCount = Math.ceil(audibleDuration * study.bpm / 240);
+    for (let barIndex = 0; barIndex <= barCount; barIndex += 1) {
+      const cycleIndex = Math.floor(barIndex / barsPerCycle);
+      layersForCycle(barIndex).forEach((layer, layerIndex) => {
         if (!layer.soundEnabled) {
           return;
         }
@@ -768,6 +772,8 @@ export function createPolyrhythmExportAudioStream(
         if (!layer.activeSteps[playbackStep]) {
           continue;
         }
+        const absoluteBars = (cycleIndex + progress) * barsPerCycle;
+        if (absoluteBars < barIndex || absoluteBars >= barIndex + 1) continue;
         const seconds = (cycleIndex + progress) / cyclesPerSecond;
         if (seconds > audibleDuration) {
           continue;

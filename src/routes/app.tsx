@@ -119,6 +119,7 @@ import {
   createPolyrhythmLayer,
   createPolyrhythmStudyCell,
   createPolyrhythmStudyPhrase,
+  getStudySectionLayers,
   getSharedCycleStepCount,
   setStudySharedGrid,
   hasStudySharedGrid,
@@ -8788,7 +8789,7 @@ function OrbitalPolymeter() {
     const nextPhrase = phrases[(currentIndex + 1) % phrases.length] ?? phrases[0];
     const nextCell = cells.find((cell) => cell.id === nextPhrase.cellId) ?? cells[0];
     setActivePolyrhythmChainPhraseId(nextPhrase.id);
-    return nextCell.layers;
+    return getStudySectionLayers(nextCell.layers, nextPhrase);
   }, [activePolyrhythmChainPhraseId, polyrhythmStudy.chainCells, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
 
   const handleTogglePolyrhythmPlayback = useCallback(() => {
@@ -9281,6 +9282,7 @@ function OrbitalPolymeter() {
         : clampPolyrhythmStudyToFreeRandomLimits(generatedStudy)),
       playing: polyrhythmStudy.playing,
       ensembleView: polyrhythmStudy.ensembleView,
+      showContour: polyrhythmStudy.showContour,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
       showInnerNumbers: polyrhythmStudy.showInnerNumbers,
@@ -9293,7 +9295,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
+  }, [effectivePlan, polyrhythmStudy.showContour, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
 
   const handleRemixPolyrhythmStudy = useCallback(() => {
     if (!canUseProFeature(effectivePlan, 'remix')) {
@@ -9305,6 +9307,7 @@ function OrbitalPolymeter() {
         ...remixPolyrhythmStudy(current),
         playing: current.playing,
         ensembleView: current.ensembleView,
+        showContour: current.showContour,
         showInactiveSteps: current.showInactiveSteps,
         showStepLabels: current.showStepLabels,
         showInnerNumbers: current.showInnerNumbers,
@@ -9332,6 +9335,7 @@ function OrbitalPolymeter() {
       ...createRandomPlusPolyrhythmStudy(),
       playing: polyrhythmStudy.playing,
       ensembleView: polyrhythmStudy.ensembleView,
+      showContour: polyrhythmStudy.showContour,
       showInactiveSteps: polyrhythmStudy.showInactiveSteps,
       showStepLabels: polyrhythmStudy.showStepLabels,
       showInnerNumbers: polyrhythmStudy.showInnerNumbers,
@@ -9344,7 +9348,7 @@ function OrbitalPolymeter() {
     setSelectedPolyrhythmLayerId(nextStudy.layers[0]?.id ?? null);
     setSelectedPolyrhythmStep(null);
     setPolyrhythmRestartToken((value) => value + 1);
-  }, [effectivePlan, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
+  }, [effectivePlan, polyrhythmStudy.showContour, polyrhythmStudy.ensembleView, polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled, polyrhythmStudy.playing, polyrhythmStudy.showInactiveSteps, polyrhythmStudy.showStepLabels, polyrhythmStudy.showInnerNumbers]);
 
   const handleLoadRiffCyclePreset = useCallback((presetId: string) => {
     const preset = RIFF_CYCLE_PRESETS.find((entry) => entry.id === presetId);
@@ -15026,7 +15030,7 @@ function OrbitalPolymeter() {
     const activePhrase =
       phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
     const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
-    return activeCell ? { ...polyrhythmStudy, layers: activeCell.layers } : polyrhythmStudy;
+    return activeCell ? { ...polyrhythmStudy, layers: getStudySectionLayers(activeCell.layers, activePhrase) } : polyrhythmStudy;
   }, [activePolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
   const polyrhythmPlaybackSelectedLayerId =
     (selectedPolyrhythmLayerIndex >= 0
@@ -15315,11 +15319,12 @@ function OrbitalPolymeter() {
   );
   const groupedPolyrhythmDesktopPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
-    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && !preset.pro),
-  }));
-  const proPolyrhythmPresets = POLYRHYTHM_PRESETS.filter((preset) => preset.pro);
+    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && Boolean(preset.pro) === (polyrhythmMobileSceneTab === 'pro')),
+  })).filter(({ presets }) => presets.length > 0);
+  const effectivePolyrhythmSceneGroup = groupedPolyrhythmDesktopPresets.some(({ group }) => group === polyrhythmMobileSceneGroup)
+    ? polyrhythmMobileSceneGroup : groupedPolyrhythmDesktopPresets[0]?.group;
   const filteredPolyrhythmDesktopPresets =
-    groupedPolyrhythmDesktopPresets.find(({ group }) => group === polyrhythmMobileSceneGroup)?.presets ?? [];
+    (groupedPolyrhythmDesktopPresets.find(({ group }) => group === polyrhythmMobileSceneGroup) ?? groupedPolyrhythmDesktopPresets[0])?.presets ?? [];
   const polyrhythmSoundFocus =
     !polyrhythmStudy.soundEnabled
       ? 'mute'
@@ -17036,178 +17041,110 @@ function OrbitalPolymeter() {
         document.body,
       ) : null;
 
-    const renderPolyrhythmChainPanel = (compact = false) => {
+    const renderPolyrhythmChainPanel = (_compact = false) => {
       const cells = polyrhythmStudy.chainCells ?? [];
       const phrases = polyrhythmStudy.chainPhrases ?? [];
-      const selectedCell = cells.find((cell) => cell.id === selectedPolyrhythmChainCellId) ?? cells[0] ?? null;
+      const selectedCell = cells.find(cell => cell.id === selectedPolyrhythmChainCellId) ?? cells[0];
+      const updateSectionLayers = (phrase: PolyrhythmStudyPhrase, enabledLayerIndices: number[]) => {
+        setPolyrhythmStudy(current => ({ ...current, chainPhrases: current.chainPhrases?.map(section =>
+          section.id === phrase.id ? { ...section, enabledLayerIndices } : section) }));
+      };
+      const addSection = () => {
+        if (!selectedCell) return;
+        handleAddPolyrhythmChainPhrase(selectedCell.id);
+      };
       return (
-        <div
-          className={`rounded-xl border ${compact ? 'px-2 py-1' : 'px-2.5 py-1.5'}`}
-          style={{
-            background: polyrhythmStudy.chainEnabled
-              ? 'linear-gradient(180deg, rgba(114,241,184,0.035), rgba(255,255,255,0.012))'
-              : 'rgba(255,255,255,0.012)',
-            borderColor: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.065)',
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setPolyrhythmChainPanelOpen((open) => !open)}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-              <span
-                className="text-[8px] font-mono uppercase tracking-[0.12em]"
-                style={{ color: polyrhythmStudy.chainEnabled ? '#72F1B8' : 'rgba(255,255,255,0.4)' }}
-              >
-                Study Chain
-              </span>
-              <span
-                className="inline-flex rounded-full border px-1 py-0 text-[6px] font-mono uppercase tracking-[0.14em]"
-                style={{
-                  borderColor: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.12)',
-                  color: polyrhythmStudy.chainEnabled ? '#72F1B8' : 'rgba(255,255,255,0.38)',
-                  background: polyrhythmStudy.chainEnabled ? 'rgba(114,241,184,0.07)' : 'rgba(255,255,255,0.035)',
-                }}
-              >
-                Beta
-              </span>
+        <section className="rounded-xl border border-white/10 bg-black/10 p-3">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setPolyrhythmChainPanelOpen(open => !open)}
+              aria-expanded={polyrhythmChainPanelOpen} className="flex min-h-9 flex-1 items-center gap-2 text-left text-[11px] font-mono uppercase tracking-wider text-white/75">
+              <Layers3 size={14} /> Sequencer
+              {polyrhythmChainPanelOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
-            <div className="flex items-center gap-1.5">
-              <StudyShellButton
-                size="compact"
-                className="!h-6 !rounded-lg !px-2 !text-[8px]"
-                tone="green"
-                highlighted={Boolean(polyrhythmStudy.chainEnabled)}
-                onClick={handleTogglePolyrhythmChain}
-              >
-                {polyrhythmStudy.chainEnabled ? 'On' : 'Off'}
-              </StudyShellButton>
-              <button
-                type="button"
-                onClick={() => setPolyrhythmChainPanelOpen((open) => !open)}
-                className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.065] bg-white/[0.02] text-white/40"
-                aria-label={polyrhythmChainPanelOpen ? 'Collapse Study Chain' : 'Open Study Chain'}
-              >
-                {polyrhythmChainPanelOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-            </div>
+            <StudyShellButton size="compact" tone="green" highlighted={Boolean(polyrhythmStudy.chainEnabled)}
+              aria-pressed={Boolean(polyrhythmStudy.chainEnabled)} onClick={handleTogglePolyrhythmChain}>
+              {polyrhythmStudy.chainEnabled ? 'On' : 'Off'}
+            </StudyShellButton>
           </div>
-
-          {polyrhythmChainPanelOpen ? (
-            <div className="mt-3 space-y-3 border-t border-white/8 pt-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">Cell Library</span>
-                {selectedCell ? (
-                  <div className="flex items-center gap-1">
-                    <StudyShellButton size="compact" className="!h-7 px-2 text-[7px]" onClick={handleDuplicatePolyrhythmChainCell}>Duplicate</StudyShellButton>
-                    <StudyShellButton size="square" tone="red" icon={<Trash2 size={12} />} onClick={() => handleRemovePolyrhythmChainCell(selectedCell.id)} disabled={cells.length <= 1} aria-label="Delete selected Study cell" />
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-                {cells.map((cell, index) => {
-                  const active = cell.id === selectedCell?.id;
-                  return (
-                    <button
-                      key={cell.id}
-                      type="button"
-                      onClick={() => handleSelectPolyrhythmChainCell(cell)}
-                      className="min-w-[6.4rem] shrink-0 rounded-xl border px-3 py-2 text-left transition active:scale-[0.98]"
-                      style={{
-                        background: active ? 'rgba(114,241,184,0.1)' : 'rgba(255,255,255,0.035)',
-                        borderColor: active ? 'rgba(114,241,184,0.32)' : 'rgba(255,255,255,0.09)',
-                        boxShadow: active ? '0 0 18px rgba(114,241,184,0.1)' : 'none',
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-mono uppercase tracking-[0.16em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)' }}>
-                          {cell.name || `Cell ${index + 1}`}
-                        </span>
-                        <span className="text-[7px] font-mono text-white/28">{String.fromCharCode(65 + index)}</span>
-                      </div>
-                      <div className="mt-1 text-[12px] font-mono tracking-[0.08em] text-white/88">
-                        {cell.layers.map((layer) => layer.beatCount).join(':')}
-                      </div>
+          {polyrhythmChainPanelOpen && polyrhythmStudy.chainEnabled ? <div className="mt-2 space-y-3 border-t border-white/8 pt-3">
+            <p className="text-[11px] leading-relaxed text-white/45">Choose the layers for each section. All shapes stay visible.</p>
+            <div className="space-y-2">
+              {phrases.map((phrase, index) => {
+                const cell = cells.find(candidate => candidate.id === phrase.cellId);
+                const layers = cell?.layers ?? [];
+                const enabled = phrase.enabledLayerIndices ?? layers.map((_, i) => i);
+                const playing = polyrhythmStudy.playing && activePolyrhythmChainPhraseId === phrase.id;
+                return <div key={phrase.id} className="rounded-xl border p-2.5" style={{
+                  borderColor: playing ? 'rgba(114,241,184,.45)' : 'rgba(255,255,255,.09)',
+                  background: playing ? 'rgba(114,241,184,.055)' : 'rgba(255,255,255,.02)',
+                }}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => handleSelectPolyrhythmChainPhrase(phrase)}
+                      className="mr-auto min-h-8 text-[11px] font-medium text-white/80">
+                      {playing ? '▶ ' : ''}Section {index + 1}
                     </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={handleAddPolyrhythmChainCell}
-                  className="flex min-h-[3.7rem] min-w-[3.7rem] shrink-0 items-center justify-center rounded-xl border border-[#7FD7FF]/20 bg-[#7FD7FF]/8 text-[#7FD7FF] transition active:scale-[0.97]"
-                  aria-label="Capture current stack as a new Study cell"
-                  title="Capture current stack"
-                >
-                  <Plus size={17} />
-                </button>
-              </div>
-
-              {!selectedCell ? (
-                <div className="text-[9px] leading-relaxed text-white/42">
-                  Turn Chain on to capture this complete layer stack as Cell A.
-                </div>
-              ) : null}
-
-              <div className="space-y-2 border-t border-white/8 pt-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-[8px] font-mono uppercase tracking-[0.16em] text-white/38">Sequence Order</span>
-                  <span className="text-[7px] font-mono uppercase tracking-[0.12em] text-white/28">
-                    {phrases.reduce((total, phrase) => total + phrase.bars, 0)} bars total
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {phrases.map((phrase, phraseIndex) => {
-                    const cell = cells.find((candidate) => candidate.id === phrase.cellId);
-                    const active = phrase.id === selectedPolyrhythmChainPhraseId;
-                    return (
-                      <div
-                        key={phrase.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleSelectPolyrhythmChainPhrase(phrase)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') handleSelectPolyrhythmChainPhrase(phrase);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl border p-1.5 text-left transition active:scale-[0.99]"
-                        style={{
-                          background: active ? 'rgba(114,241,184,0.08)' : 'rgba(255,255,255,0.025)',
-                          borderColor: active ? 'rgba(114,241,184,0.3)' : 'rgba(255,255,255,0.08)',
-                        }}
-                      >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/8 bg-white/[0.035] text-[9px] font-mono text-white/68">
-                          {cell?.name || `Cell ${phraseIndex + 1}`}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[7px] font-mono uppercase tracking-[0.12em] text-white/32">Phrase {phraseIndex + 1}</span>
-                          <span className="block truncate text-[10px] font-mono tracking-[0.08em] text-white/72">
-                            {cell?.layers.map((layer) => layer.beatCount).join(':') || 'Missing cell'}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 items-center rounded-lg border border-white/9 bg-black/10 p-0.5" onClick={(event) => event.stopPropagation()}>
-                          <button type="button" onClick={() => handleSetPolyrhythmChainPhraseBars(phrase.id, phrase.bars - 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/52" aria-label={`Reduce Phrase ${phraseIndex + 1} bars`}><Minus size={12} /></button>
-                          <span className="min-w-[3.7rem] text-center text-[8px] font-mono uppercase tracking-[0.1em] text-white/58">{phrase.bars} bar{phrase.bars === 1 ? '' : 's'}</span>
-                          <button type="button" onClick={() => handleSetPolyrhythmChainPhraseBars(phrase.id, phrase.bars + 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-white/52" aria-label={`Increase Phrase ${phraseIndex + 1} bars`}><Plus size={12} /></button>
-                        </span>
-                        <span onClick={(event) => event.stopPropagation()}>
-                          <StudyShellButton size="square" tone="red" icon={<Trash2 size={11} />} onClick={() => handleRemovePolyrhythmChainPhrase(phrase.id)} aria-label={`Delete Phrase ${phraseIndex + 1}`} />
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => selectedCell && handleAddPolyrhythmChainPhrase(selectedCell.id)}
-                  disabled={!selectedCell}
-                  className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/9 bg-white/[0.025] text-[8px] font-mono uppercase tracking-[0.14em] text-white/48 transition active:scale-[0.99] disabled:opacity-30"
-                >
-                  <Plus size={13} /> Add selected cell as phrase
-                </button>
-              </div>
+                    {cells.length > 1 ? <select aria-label={`Section ${index + 1} pattern`} value={phrase.cellId}
+                      onChange={event => setPolyrhythmStudy(current => ({ ...current, chainPhrases: current.chainPhrases?.map(item =>
+                        item.id === phrase.id ? { ...item, cellId: event.target.value, enabledLayerIndices: undefined } : item) }))}
+                      className="min-h-8 max-w-24 rounded-lg border border-white/10 bg-[#181b23] px-2 text-[11px] text-white/70">
+                      {cells.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select> : null}
+                    <label className="flex items-center gap-1.5 text-[10px] text-white/45">
+                      <input type="number" min={1} max={64} value={phrase.bars} aria-label={`Section ${index + 1} bars`}
+                        onChange={event => handleSetPolyrhythmChainPhraseBars(phrase.id, Number(event.target.value))}
+                        className="h-8 w-12 rounded-lg border border-white/10 bg-white/[.03] text-center text-[12px] text-white/80" /> bars
+                    </label>
+                    <button type="button" onClick={() => handleRemovePolyrhythmChainPhrase(phrase.id)} disabled={phrases.length <= 1}
+                      aria-label={`Delete section ${index + 1}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 hover:text-rose-300 disabled:opacity-20"><Trash2 size={13} /></button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {layers.map((layer, layerIndex) => <button key={layer.id} type="button"
+                      aria-label={`Section ${index + 1} layer ${layerIndex + 1}`} aria-pressed={enabled.includes(layerIndex)}
+                      onClick={() => updateSectionLayers(phrase, enabled.includes(layerIndex)
+                        ? enabled.filter(i => i !== layerIndex) : [...enabled, layerIndex])}
+                      className="flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-lg border px-2 text-[11px] transition-colors focus-visible:outline focus-visible:outline-sky-200"
+                      style={{ color: enabled.includes(layerIndex) ? layer.color : 'rgba(255,255,255,.3)',
+                        borderColor: enabled.includes(layerIndex) ? `${layer.color}60` : 'rgba(255,255,255,.07)',
+                        background: enabled.includes(layerIndex) ? `${layer.color}12` : 'transparent' }}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />L{layerIndex + 1}
+                    </button>)}
+                    <button type="button" onClick={() => updateSectionLayers(phrase, layers.map((_, i) => i))}
+                      className="min-h-10 px-2 text-[10px] text-white/45">All</button>
+                    <button type="button" onClick={() => updateSectionLayers(phrase, [])}
+                      className="min-h-10 px-2 text-[10px] text-white/45">None</button>
+                  </div>
+                </div>;
+              })}
             </div>
-          ) : null}
-        </div>
+            <div className="flex flex-wrap gap-2">
+              <StudyShellButton size="compact" tone="green" icon={<Plus size={13} />} onClick={addSection}>Section</StudyShellButton>
+              <StudyShellButton size="compact" onClick={() => {
+                if (!selectedCell) return;
+                const sections = selectedCell.layers.map((_, index) => ({
+                  ...createPolyrhythmStudyPhrase(selectedCell.id, 2),
+                  enabledLayerIndices: selectedCell.layers.slice(0, index + 1).map((_, i) => i),
+                }));
+                setPolyrhythmStudy(current => {
+                  const existing = current.chainPhrases ?? [];
+                  const untouched = existing.length === 1 && existing[0].enabledLayerIndices === undefined;
+                  return { ...current, chainPhrases: untouched ? sections : [...existing, ...sections] };
+                });
+              }}>Build up</StudyShellButton>
+              <span className="ml-auto self-center text-[10px] text-white/35">Loops · {phrases.reduce((sum, phrase) => sum + phrase.bars, 0)} {phrases.reduce((sum, phrase) => sum + phrase.bars, 0) === 1 ? 'bar' : 'bars'}</span>
+            </div>
+            <details className="border-t border-white/8 pt-2 text-[11px] text-white/50">
+              <summary className="cursor-pointer py-1">Patterns · {cells.length}</summary>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {cells.map(cell => <button key={cell.id} type="button" onClick={() => handleSelectPolyrhythmChainCell(cell)}
+                  aria-pressed={cell.id === selectedCell?.id} className="min-h-9 rounded-lg border border-white/10 px-3 aria-pressed:border-emerald-300/40 aria-pressed:text-emerald-200">{cell.name}</button>)}
+                <StudyShellButton size="compact" onClick={handleAddPolyrhythmChainCell}>+ Pattern</StudyShellButton>
+                <StudyShellButton size="compact" onClick={handleDuplicatePolyrhythmChainCell}>Duplicate</StudyShellButton>
+                {selectedCell ? <button type="button" disabled={cells.length <= 1} aria-label="Delete selected pattern"
+                  onClick={() => handleRemovePolyrhythmChainCell(selectedCell.id)} className="ml-auto p-2 text-rose-300/70 disabled:opacity-20"><Trash2 size={13} /></button> : null}
+              </div>
+            </details>
+          </div> : null}
+        </section>
       );
     };
 
@@ -17326,7 +17263,13 @@ function OrbitalPolymeter() {
                                     Numbers
                                   </StudyShellButton>
 
-                                  <StudyShellButton size="compact" tone="green"
+                                  <StudyShellButton size="compact" tone="blue"
+                        highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
+                        onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
+                        icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
+                        Contour
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="green"
                         highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
                         aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
                         onClick={handleTogglePolyrhythmBarCue} icon={<CircleDot size={13} />}
@@ -19209,7 +19152,7 @@ function OrbitalPolymeter() {
                         </button>
                       ))}
                     </div>
-                    {polyrhythmMobileSceneTab === 'standard' ? (
+                    {polyrhythmMobileSceneTab !== 'saved' ? (
                       <>
                         <div className="flex items-center gap-1.5 rounded-[1.15rem] border p-0.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}>
                           {groupedPolyrhythmDesktopPresets.map(({ group }) => (
@@ -19221,9 +19164,9 @@ function OrbitalPolymeter() {
                               }}
                               className="flex-1 rounded-[0.9rem] px-2 py-1.5 text-[8.5px] font-mono uppercase tracking-[0.11em]"
                               style={{
-                                background: polyrhythmMobileSceneGroup === group ? 'rgba(114,241,184,0.1)' : 'transparent',
-                                border: `1px solid ${polyrhythmMobileSceneGroup === group ? 'rgba(114,241,184,0.2)' : 'transparent'}`,
-                                color: polyrhythmMobileSceneGroup === group ? '#72F1B8' : 'rgba(255,255,255,0.42)',
+                                background: effectivePolyrhythmSceneGroup === group ? 'rgba(114,241,184,0.1)' : 'transparent',
+                                border: `1px solid ${effectivePolyrhythmSceneGroup === group ? 'rgba(114,241,184,0.2)' : 'transparent'}`,
+                                color: effectivePolyrhythmSceneGroup === group ? '#72F1B8' : 'rgba(255,255,255,0.42)',
                               }}
                             >
                               {POLYRHYTHM_PRESET_GROUP_META[group].label}
@@ -19231,7 +19174,7 @@ function OrbitalPolymeter() {
                           ))}
                         </div>
                         <div className="space-y-1.5">
-                          {filteredPolyrhythmDesktopPresets.slice(0, polyrhythmMobileSceneGroup === 'grooves' ? undefined : 5).map((preset) => {
+                          {filteredPolyrhythmDesktopPresets.slice(0, effectivePolyrhythmSceneGroup === 'grooves' ? undefined : 5).map((preset) => {
                             const active = preset.id === activePolyrhythmPresetId;
                             const locked = Boolean(preset.pro && proScenesLocked);
                             return (
@@ -19274,6 +19217,8 @@ function OrbitalPolymeter() {
                                     </div>
                                     <div className="mt-1 text-[9px] text-white/42">
                                       {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.layers.map((layer) => layer.beatCount).join(':')} · ${preset.study.layers.length} layers`}
+                                    </div>
+                                    <div className="mt-1 text-[10px] leading-snug text-white/50">{preset.summary ?? preset.description}
                                     </div>
                                   </div>
                                 </div>
@@ -19335,58 +19280,6 @@ function OrbitalPolymeter() {
                           No saved scenes yet.
                         </div>
                       )
-                    ) : null}
-                    {polyrhythmMobileSceneTab === 'pro' ? (
-                      <div className="space-y-1.5">
-                        {proPolyrhythmPresets.slice(0, 5).map((preset) => {
-                          const active = preset.id === activePolyrhythmPresetId;
-                          const locked = preset.pro && proScenesLocked;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => {
-                                if (locked) {
-                                  openProPrompt('pro-scenes');
-                                  return;
-                                }
-                                handleLoadPolyrhythmPreset(preset.id);
-                              }}
-                              className={`${utilitySceneRowClass} relative`}
-                              style={{
-                                background: active ? 'rgba(255,210,92,0.1)' : 'rgba(255,210,92,0.035)',
-                                borderColor: active ? 'rgba(255,210,92,0.24)' : 'rgba(255,210,92,0.1)',
-                              }}
-                            >
-                              {locked ? (
-                                <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full border border-[#FFD25C]/20 bg-black/45 px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#FFD25C]">
-                                  <Lock size={8} strokeWidth={2.4} /> Pro
-                                </span>
-                              ) : null}
-                              <div className="flex items-center gap-2.5">
-                                <div className={utilitySceneThumbClass}>
-                                  <PolyrhythmSceneThumbnail preset={preset} className="h-full w-full" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? '#FFD25C' : 'rgba(255,255,255,0.82)' }}>
-                                      {preset.name}
-                                    </div>
-                                    {active ? (
-                                      <span className="rounded-lg border border-[#FFD25C]/30 bg-[#FFD25C]/12 px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#FFD25C]">
-                                        Loaded
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-1 text-[9px] text-white/42">
-                                    {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.layers.map((layer) => layer.beatCount).join(':')} · ${preset.study.layers.length} layers`}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
                     ) : null}
                     <div className="grid grid-cols-3 gap-2">
                       <StudyShellButton size="compact" tone="blue" highlighted onClick={handleRandomPolyrhythmStudy}>
@@ -19651,6 +19544,12 @@ function OrbitalPolymeter() {
                         className={utilityButtonClass}
                       >
                         Numbers
+                      </StudyShellButton>
+                      <StudyShellButton size="compact" tone="blue"
+                        highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
+                        onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
+                        icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
+                        Contour
                       </StudyShellButton>
                       <StudyShellButton size="compact" tone="green"
                         highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
@@ -20278,6 +20177,7 @@ function OrbitalPolymeter() {
                 { label: 'Shared Grid', icon: <Grid3X3 size={14} />, active: studyGridIsShared, toggle: handleTogglePolyrhythmGrid },
                 { label: 'Split View', icon: <Layers3 size={14} />, active: Boolean(polyrhythmStudy.ensembleView), toggle: () => setPolyrhythmStudy(current => ({ ...current, ensembleView: !current.ensembleView })) },
                 { label: 'Numbers', icon: <Hash size={14} />, active: Boolean(polyrhythmStudy.showStepLabels), toggle: handleTogglePolyrhythmStepLabels },
+                { label: 'Contour', icon: <Zap size={14} />, active: Boolean(polyrhythmStudy.showContour), toggle: () => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour })) },
                 { label: 'Bar Cue', icon: <CircleDot size={14} />, active: Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled), toggle: handleTogglePolyrhythmBarCue },
               ].map(aid => <button key={aid.label} type="button" onClick={aid.toggle} aria-pressed={aid.active} aria-disabled={aid.label === 'Shared Grid' && studyGridLocked}
                 className="flex min-h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[11px] text-white/65 hover:bg-white/[0.07] aria-pressed:border-sky-200/25 aria-pressed:bg-sky-200/10 aria-pressed:text-sky-200/90">

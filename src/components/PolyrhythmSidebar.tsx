@@ -385,9 +385,8 @@ export default function PolyrhythmSidebar({
       ];
   const groupedPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
-    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && !preset.pro),
-  }));
-  const proPresets = POLYRHYTHM_PRESETS.filter((preset) => preset.pro);
+    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && Boolean(preset.pro) === (sceneTab === 'pro')),
+  })).filter(({ presets }) => presets.length > 0);
 
   useEffect(() => {
     if (isMobile && isOpen) {
@@ -651,7 +650,7 @@ export default function PolyrhythmSidebar({
                 {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
               </button>
 
-              {sceneTab === 'standard' ? groupedPresets.map(({ group, presets }) => {
+              {sceneTab !== 'saved' ? groupedPresets.map(({ group, presets }) => {
                 const expanded = expandedSceneGroups[group];
                 const visiblePresets = expanded ? presets : presets.slice(0, group === 'advanced' ? 1 : 2);
                 const hiddenCount = Math.max(0, presets.length - visiblePresets.length);
@@ -711,7 +710,7 @@ export default function PolyrhythmSidebar({
                           </div>
                           <button
                             type="button"
-                            onClick={() => onLoadPreset(preset.id)}
+                            onClick={() => { if (preset.pro && lockedFeatures.proScenes) { onLockedFeature?.('pro-scenes'); return; } onLoadPreset(preset.id); }}
                             className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em]"
                             style={{
                               background: active ? 'rgba(114,241,184,0.12)' : 'rgba(255,255,255,0.04)',
@@ -719,7 +718,7 @@ export default function PolyrhythmSidebar({
                               color: active ? '#72F1B8' : 'rgba(255,255,255,0.68)',
                             }}
                           >
-                            {active ? 'Loaded' : 'Load'}
+                            {active ? 'Loaded' : preset.pro && lockedFeatures.proScenes ? 'Pro' : 'Load'}
                           </button>
                         </div>
                       </div>
@@ -773,57 +772,7 @@ export default function PolyrhythmSidebar({
                   {...sceneLibraryActions} />
               ) : null}
 
-              {sceneTab === 'pro' ? (
-                <div className={isMobile ? "space-y-2" : "space-y-3"}>
-                  {proPresets.map((preset) => {
-                    const active = preset.id === activePresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          if (lockedFeatures.proScenes) {
-                            onLockedFeature?.('pro-scenes');
-                            return;
-                          }
-                          onLoadPreset(preset.id);
-                        }}
-                        className="relative w-full rounded-xl border p-3 text-left"
-                        style={{
-                          background: active
-                            ? 'linear-gradient(180deg, rgba(255,170,0,0.1), rgba(255,255,255,0.03))'
-                            : 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.028))',
-                          borderColor: active ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.1)',
-                          filter: lockedFeatures.proScenes ? 'grayscale(0.45)' : undefined,
-                        }}
-                      >
-                        {lockedFeatures.proScenes ? (
-                          <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full border border-white/12 bg-black/45 px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-white/70">
-                            <Lock size={8} strokeWidth={2.4} /> Pro
-                          </span>
-                        ) : null}
-                        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-                          <PolyrhythmSceneThumbnail preset={preset} className={isMobile || preset.group === 'grooves' ? "h-16 w-16 shrink-0" : "h-24 w-24"} />
-                          <div className="min-w-0 flex-1">
-                            <div className={`${isMobile ? "text-[10px] tracking-[0.1em]" : "text-xs tracking-[0.16em]"} font-mono uppercase`} style={{ color: active ? '#FFAA00' : 'rgba(255,255,255,0.84)' }}>
-                              {preset.name}
-                            </div>
-                            <div className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-white/34">
-                              {preset.study.layers.map((layer) => layer.beatCount).join(' · ')}
-                            </div>
-                            <div className={`${isMobile ? "mt-1 text-[9px] leading-snug" : "mt-2 text-[11px] leading-relaxed"} text-white/46`}>
-                              {preset.description}
-                            </div>
-                          </div>
-                          <span className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: active ? 'rgba(255,170,0,0.24)' : 'rgba(255,255,255,0.08)', color: active ? '#FFAA00' : 'rgba(255,255,255,0.68)' }}>
-                            {active ? 'Loaded' : lockedFeatures.proScenes ? 'Pro' : 'Load'}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
+
             </section>
           ) : null}
 

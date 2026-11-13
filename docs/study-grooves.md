@@ -1,6 +1,6 @@
 # Study groove scenes
 
-The six drum scenes and eight musical scenes are free presets in Study → Scenes → Grooves. Each part has the
+Study includes six drum scenes, eight musical scenes, and six percussion ensembles. Ten are free and ten are Pro. Core beats and Deep House Stabs remain free. Each part has the
 same number of steps and zero rotation, so the layers share a grid and loop.
 They start in Split View with unlinked instruments and dry, balanced levels.
 No recorded loops or external samples are included.
