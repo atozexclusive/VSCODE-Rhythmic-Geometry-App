@@ -2,7 +2,7 @@ import { drawStudySoundGlyph, prepareStudySoundGlyph } from './studySoundCanvasG
 import { appendRhythmContourPath, drawRhythmContour } from '../lib/rhythmContour';
 import StudySoundGlyph from './StudySoundGlyph';
 import { createPortal } from 'react-dom';
-import { getStudyVideoViewport } from '../lib/studyVideoViewport';
+import { getStudyVideoViewport, getStudyEnsembleExportFrame } from '../lib/studyVideoViewport';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useIsMobile } from '../hooks/use-mobile';
 import {
@@ -860,9 +860,12 @@ export default function PolyrhythmCanvas({
     if (focusedEnsembleLayer && !soloLayerDisplayRef.current) {
       drawStudy({ ...currentStudy, ensembleView: false, layers: [focusedEnsembleLayer] }, rect);
     } else if (currentStudy.ensembleView && currentStudy.layers.length > 1 && !soloLayerDisplayRef.current) {
-      getPolyrhythmEnsemblePanels(currentStudy, rect.width, rect.height).forEach((panel, index) => {
+      const frame = exportVideoSize
+        ? getStudyEnsembleExportFrame(rect.width, rect.height, currentStudy.layers.length)
+        : { x: 0, y: 0, width: rect.width, height: rect.height };
+      getPolyrhythmEnsemblePanels(currentStudy, frame.width, frame.height).forEach((panel, index) => {
         ctx.save();
-        ctx.translate(panel.x, panel.y);
+        ctx.translate(frame.x + panel.x, frame.y + panel.y);
         ctx.beginPath();
         ctx.rect(0, 0, panel.width, panel.height);
         ctx.clip();
