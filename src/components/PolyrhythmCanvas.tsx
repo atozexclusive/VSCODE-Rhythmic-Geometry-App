@@ -579,7 +579,9 @@ export default function PolyrhythmCanvas({
         if (!currentStudy.showContour && activePoints.length >= 2) {
           if (!isReferenceLayer) {
             ctx.save();
-            ctx.globalAlpha = (isSelectedLayer ? 0.16 : sharedDisplay ? 0.09 : 0.05) * lineAlpha;
+            // Keep unselected fills visible against the bloom-free export backdrop.
+            const fillAlpha = isSelectedLayer ? 0.16 : sharedDisplay ? 0.09 : 0.05;
+            ctx.globalAlpha = (exportVideoSize || cleanExport ? Math.max(0.16, fillAlpha) : fillAlpha) * lineAlpha;
             ctx.fillStyle = layer.color;
             ctx.beginPath();
             ctx.moveTo(activePoints[0].x, activePoints[0].y);

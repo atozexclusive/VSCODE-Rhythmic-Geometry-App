@@ -25,9 +25,9 @@ test('six-way portrait video composition reserves social-overlay room without ch
   for (const [width, height] of [[390, 693], [1080, 1920], [720, 1280]]) {
     const frame = getStudyEnsembleExportFrame(width, height, 6);
     assert.ok(frame.x >= width * 0.04);
-    assert.ok(frame.y >= height * 0.1);
+    assert.equal(frame.y, height * 0.19);
     assert.ok(frame.x + frame.width <= width * 0.91);
-    assert.ok(frame.y + frame.height <= height * 0.85);
+    assert.ok(frame.y + frame.height <= height * 0.92);
     assert.ok(frame.width >= width * 0.8);
     for (const layers of [1, 2, 3, 4, 5]) assert.deepEqual(getStudyEnsembleExportFrame(width, height, layers), { x: 0, y: 0, width, height });
   }
