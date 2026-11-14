@@ -2195,7 +2195,10 @@ export default function RiffCycleCanvas({
         ? selectedSequenceCellLabel
         : getRiffSequenceStateAtReferenceStep(currentStudy, currentAbsoluteReferenceStep)?.cell.label;
     const allVoiceEvents = getRiffVoiceEventsForCell(currentStudy, voiceCellLabel);
-    const voiceEvents = allVoiceEvents.filter((event) => currentStudy.playing
+    // Export preroll shows the same fixed voice assignments as playback, so
+    // instruments do not suddenly appear when recording leaves its first frame.
+    const showAssignedVoices = currentStudy.playing || exportLayoutMode || exportRecordingMode || exportSnapshot;
+    const voiceEvents = allVoiceEvents.filter((event) => showAssignedVoices
       ? getRiffVoiceRepeatInterval(event) == null
       : isRiffVoiceEventAtStep(currentStudy, event, 0));
     voiceEvents
