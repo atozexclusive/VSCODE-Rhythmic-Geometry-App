@@ -316,18 +316,25 @@ export default function PolyrhythmCanvas({
             layers: currentStudy.layers.filter((layer) => layer.id === displayLayerIdRef.current),
           }
         : currentStudy;
-    const displayStudy =
+    const sourceDisplayStudy =
       soloLayerDisplayRef.current &&
       displayLayerIdRef.current &&
       showReferenceLayersRef.current
         ? currentStudy
         : focusedLayerStudy;
+    // Keep layout metrics based on the full ensemble so entrances never resize
+    // the existing shapes; hide only the inactive stacked artwork.
+    const hideInactiveLayers = currentStudy.chainEnabled && !studyRef.current.ensembleView && !soloLayerDisplayRef.current;
+    const displayStudy = hideInactiveLayers
+      ? { ...sourceDisplayStudy, layers: sourceDisplayStudy.layers.filter(layer => layer.soundEnabled) }
+      : sourceDisplayStudy;
     const metrics = (ensemblePanel ? getPolyrhythmEnsembleMetrics : getPolyrhythmCanvasMetrics)(
       focusedLayerStudy,
       rect.width,
       rect.height,
       renderAsMobile,
     );
+    if (hideInactiveLayers && displayStudy.layers.length === 0) return;
     // Give portrait videos room for social-player overlays and edge labels.
     // Scale the complete artwork together, keeping the background full bleed.
     if (exportVideoSize && exportVideoSize.height > exportVideoSize.width) {
@@ -486,7 +493,7 @@ export default function PolyrhythmCanvas({
     }
 
     if (clockVisible) {
-      const handRadius = Math.max(1, ...focusedLayerStudy.layers.map((layer) => layer.radius)) * metrics.scale;
+      const handRadius = Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
       ctx.save();
       ctx.strokeStyle = `rgba(255,255,255,${0.14 * lineAlpha})`;
       ctx.lineWidth = 1.1;

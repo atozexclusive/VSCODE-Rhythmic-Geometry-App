@@ -15023,15 +15023,15 @@ function OrbitalPolymeter() {
     ? getPolyrhythmLayerOffsetSteps(selectedPolyrhythmLayer)
     : 0;
   const polyrhythmPlaybackStudy = useMemo(() => {
-    if ((!polyrhythmStudy.playing && !recordingVideo) || !polyrhythmStudy.chainEnabled) {
-      return polyrhythmStudy;
-    }
+    if (!polyrhythmStudy.chainEnabled) return polyrhythmStudy;
     const phrases = polyrhythmStudy.chainPhrases ?? [];
+    const previewPhraseId = polyrhythmStudy.playing || recordingVideo
+      ? activePolyrhythmChainPhraseId : selectedPolyrhythmChainPhraseId;
     const activePhrase =
-      phrases.find((phrase) => phrase.id === activePolyrhythmChainPhraseId) ?? phrases[0];
+      phrases.find((phrase) => phrase.id === previewPhraseId) ?? phrases[0];
     const activeCell = polyrhythmStudy.chainCells?.find((cell) => cell.id === activePhrase?.cellId);
     return activeCell ? { ...polyrhythmStudy, layers: getStudySectionLayers(activeCell.layers, activePhrase) } : polyrhythmStudy;
-  }, [activePolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
+  }, [activePolyrhythmChainPhraseId, selectedPolyrhythmChainPhraseId, polyrhythmStudy, recordingVideo]);
   const polyrhythmPlaybackSelectedLayerId =
     (selectedPolyrhythmLayerIndex >= 0
       ? polyrhythmPlaybackStudy.layers[selectedPolyrhythmLayerIndex]?.id
@@ -17067,7 +17067,7 @@ function OrbitalPolymeter() {
             </StudyShellButton>
           </div>
           {polyrhythmChainPanelOpen && polyrhythmStudy.chainEnabled ? <div className="mt-2 space-y-3 border-t border-white/8 pt-3">
-            <p className="text-[11px] leading-relaxed text-white/45">Choose the layers for each section. All shapes stay visible.</p>
+            <p className="text-[11px] leading-relaxed text-white/45">Choose the layers for each section. Split View keeps every part visible; stacked view shows only playing layers.</p>
             <div className="space-y-2">
               {phrases.map((phrase, index) => {
                 const cell = cells.find(candidate => candidate.id === phrase.cellId);
