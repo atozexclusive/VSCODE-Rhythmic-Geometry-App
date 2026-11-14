@@ -15,5 +15,5 @@ export function getStudyVideoViewport(
  */
 export function getStudyEnsembleExportFrame(width: number, height: number, layers: number) {
   if (layers !== 6 || height <= width) return { x: 0, y: 0, width, height };
-  return { x: width * 0.04, y: height * 0.10, width: width * 0.84, height: height * 0.72 };
+  return { x: width * 0.06, y: height * 0.12, width: width * 0.84, height: height * 0.72 };
 }

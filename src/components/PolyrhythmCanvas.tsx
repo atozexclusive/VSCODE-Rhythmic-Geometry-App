@@ -328,16 +328,13 @@ export default function PolyrhythmCanvas({
     const displayStudy = hideInactiveLayers
       ? { ...sourceDisplayStudy, layers: sourceDisplayStudy.layers.filter(layer => layer.soundEnabled) }
       : sourceDisplayStudy;
-    const metrics = (ensemblePanel ? getPolyrhythmEnsembleMetrics : getPolyrhythmCanvasMetrics)(
-      focusedLayerStudy,
-      rect.width,
-      rect.height,
-      renderAsMobile,
-    );
+    const metrics = ensemblePanel
+      ? getPolyrhythmEnsembleMetrics(focusedLayerStudy, rect.width, rect.height, renderAsMobile, Boolean(exportVideoSize))
+      : getPolyrhythmCanvasMetrics(focusedLayerStudy, rect.width, rect.height, renderAsMobile);
     if (hideInactiveLayers && displayStudy.layers.length === 0) return;
     // Give portrait videos room for social-player overlays and edge labels.
     // Scale the complete artwork together, keeping the background full bleed.
-    if (exportVideoSize && exportVideoSize.height > exportVideoSize.width) {
+    if (!ensemblePanel && exportVideoSize && exportVideoSize.height > exportVideoSize.width) {
       const artworkScale = 0.9;
       ctx.translate(metrics.centerX, metrics.centerY);
       ctx.scale(artworkScale, artworkScale);

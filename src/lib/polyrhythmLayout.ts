@@ -95,9 +95,9 @@ export function getPolyrhythmEnsemblePanels(study: PolyrhythmStudy, width: numbe
   }));
 }
 
-export function getPolyrhythmEnsembleMetrics(study: PolyrhythmStudy, width: number, height: number, isMobile: boolean) {
+export function getPolyrhythmEnsembleMetrics(study: PolyrhythmStudy, width: number, height: number, isMobile: boolean, exportPanel = false) {
   return getPolyrhythmCanvasMetrics(study, width, height, isMobile, {
-    sidePadding: 27, topPadding: 60, bottomPadding: 26, minScale: 0.01,
+    sidePadding: exportPanel ? 18 : 27, topPadding: exportPanel ? 42 : 60, bottomPadding: exportPanel ? 18 : 26, minScale: 0.01,
   });
 }
 
