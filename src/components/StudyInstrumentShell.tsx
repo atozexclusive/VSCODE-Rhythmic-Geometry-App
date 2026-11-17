@@ -173,6 +173,7 @@ interface StudyShellButtonProps
   icon?: ReactNode;
   tone?: ShellTone;
   highlighted?: boolean;
+  showStateDot?: boolean;
   size?: ShellButtonSize;
   locked?: boolean;
   onLockedClick?: () => void;
@@ -186,6 +187,7 @@ export function StudyShellButton({
   onLockedClick,
   tone = 'neutral',
   highlighted = false,
+  showStateDot = false,
   size = 'default',
   locked = false,
   style,
@@ -224,6 +226,10 @@ export function StudyShellButton({
     >
       {icon}
       {children}
+      {showStateDot ? (
+        <span aria-hidden="true" className="ml-auto h-1 w-1 shrink-0 rounded-full"
+          style={{ background: highlighted ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />
+      ) : null}
       {locked ? (
         <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-white/14 bg-black/35 text-white/66">
           <Lock size={9} strokeWidth={2.4} />

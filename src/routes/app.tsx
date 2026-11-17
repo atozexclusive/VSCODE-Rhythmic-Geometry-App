@@ -1,3 +1,5 @@
+import RiffSoundOptions from '../components/RiffSoundOptions';
+import { Fragment } from 'react';
 import StudySoundGlyph from '../components/StudySoundGlyph';
 import DistantPlanetsControl from '../components/DistantPlanetsControl';
 import NoteOrderControl from '../components/NoteOrderControl';
@@ -1542,7 +1544,7 @@ const MOBILE_STUDY_GUIDE: StartGuideStep[] = [
     title: 'Read Aids',
     kicker: 'Study Guide',
     text: 'The eye icon opens Read Aids. Shared Grid gives every layer the same editable step count. Numbers adds the step counts, and Split View separates the layers.',
-    doThis: 'Open the eye button to choose Shared Grid, Numbers, Split View, or Bar Cue.',
+    doThis: 'Open the eye button to choose Shared Grid, Numbers, Split View, or Contour.',
     notice: 'These controls are for readability.',
   },
   {
@@ -7856,7 +7858,7 @@ function OrbitalPolymeter() {
   const handleToggleOrbitAlignments = useCallback(() => setShowOrbitAlignments(value => !value), []);
   const [showOrbitImpactMarkers, setShowOrbitImpactMarkers] = useState(true);
   const handleToggleOrbitImpactMarkers = useCallback(() => setShowOrbitImpactMarkers(value => !value), []);
-  const [showOrbitStartMarkers, setShowOrbitStartMarkers] = useState(true);
+  const [showOrbitStartMarkers, setShowOrbitStartMarkers] = useState(false);
   const [showOrbitCenterSun, setShowOrbitCenterSun] = useState(false);
   const [orbitTraceAura, setOrbitTraceAura] = useState(false);
   const [orbitOutlineOnly, setOrbitOutlineOnly] = useState(false);
@@ -8826,12 +8828,12 @@ function OrbitalPolymeter() {
     }));
   }, []);
 
-  const handleTogglePolyrhythmBarCue = useCallback(() => {
-    setPolyrhythmStudy((current) => {
-      const enabled = !(current.barMarkerSoundEnabled && current.barMarkerVisualEnabled);
-      return { ...current, barMarkerSoundEnabled: enabled, barMarkerVisualEnabled: enabled };
-    });
-  }, []);
+  // Bar Cue is temporarily unavailable, including in previously saved scenes.
+  useEffect(() => {
+    if (polyrhythmStudy.barMarkerSoundEnabled || polyrhythmStudy.barMarkerVisualEnabled) {
+      setPolyrhythmStudy(current => ({ ...current, barMarkerSoundEnabled: false, barMarkerVisualEnabled: false }));
+    }
+  }, [polyrhythmStudy.barMarkerSoundEnabled, polyrhythmStudy.barMarkerVisualEnabled]);
 
   const handleTogglePolyrhythmGrid = useCallback(() => {
     if (hasStudySharedGrid(polyrhythmStudy.layers)) {
@@ -15425,17 +15427,6 @@ function OrbitalPolymeter() {
   );
   const studyLayerVoicePicker = selectedPolyrhythmLayer ? (
     <div className="study-composer-sound space-y-2">
-      <div className="study-listening-controls" role="group" aria-label="Audio playback">
-        <span>Audio</span>
-        {(['layer', 'stack', 'mute'] as const).map((focus) => (
-          <button key={focus} type="button" aria-pressed={polyrhythmSoundFocus === focus}
-            title={focus === 'layer' ? 'Play only the selected layer' : focus === 'stack' ? 'Play every layer' : 'Mute all Study audio'}
-            onClick={() => handleSetPolyrhythmSoundFocus(focus)}>
-            {focus === 'layer' ? <CircleDot size={12} aria-hidden="true" /> : focus === 'stack' ? <Layers3 size={12} aria-hidden="true" /> : <VolumeX size={12} aria-hidden="true" />}
-            {focus === 'layer' ? 'Solo' : focus === 'stack' ? 'All' : 'Mute all'}
-          </button>
-        ))}
-      </div>
       <section className="study-sound-section" aria-label="Layer selection">
       <div className="study-sound-section-title"><span className="study-section-icon"><span className="study-layer-color" style={{ background: selectedPolyrhythmLayer.color }} aria-hidden="true" />Layer {selectedPolyrhythmLayerIndex + 1}</span><span className="study-sound-scope">Select layer</span></div>
       <div className="flex flex-wrap gap-1" role="group" aria-label="Choose layer sound">
@@ -17234,7 +17225,8 @@ function OrbitalPolymeter() {
               </div>) : selectedPolyrhythmLayer ? (<div data-guide="study-mobile-visual-settings" data-quick-panel="read" className="rounded-xl border border-white/8 bg-white/[0.022] px-3 py-3">
 
                                 <div className="grid grid-cols-2 gap-2">
-                                  <StudyShellButton
+                                  <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3>
+<StudyShellButton showStateDot
                                     size="compact"
                                     tone="blue"
                                     highlighted={studyGridIsShared}
@@ -17246,35 +17238,29 @@ function OrbitalPolymeter() {
                                   >
                                     Shared Grid
                                   </StudyShellButton>
-                                  <StudyShellButton size="compact" tone="blue"
+                                  <StudyShellButton showStateDot size="compact" tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.ensembleView)}
                                     aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
                                     icon={<Layers3 size={13} />}
                                     onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
                                     Split View
                                   </StudyShellButton>
-                                  <StudyShellButton
+                                  <StudyShellButton showStateDot
                                     size="compact"
                                     tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.showStepLabels)}
+                        aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
                                     onClick={handleTogglePolyrhythmStepLabels}
                                     icon={<Hash size={13} />}
                                   >
                                     Numbers
                                   </StudyShellButton>
 
-                                  <StudyShellButton size="compact" tone="blue"
+                                  <StudyShellButton showStateDot size="compact" tone="blue"
                         highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
                         onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
                         icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
                         Contour
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="green"
-                        highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
-                        aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
-                        onClick={handleTogglePolyrhythmBarCue} icon={<CircleDot size={13} />}
-                        title="Toggle bar sound and visual cues together">
-                        Bar Cue
                       </StudyShellButton>
                                 </div>
                               </div>) : <p className="text-[10px] text-white/50">Select a layer to adjust read aids.</p>}
@@ -19509,7 +19495,7 @@ function OrbitalPolymeter() {
                       'Overlays',
                       'Reveal the hidden grid when your eye needs help finding where pulses agree.',
                       '#FFB86B',
-                      'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Bar Cue marks each bar with sound and visuals.',
+                      'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Contour curves the shapes between hits.',
                     )}
                     <div className={utilityGroupCardClass}>
                       <div className="mb-2 flex items-center gap-2">
@@ -19517,7 +19503,8 @@ function OrbitalPolymeter() {
                         {studySharedGridInfo}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                                  <StudyShellButton
+                                  <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3>
+<StudyShellButton showStateDot
                                     size="compact"
                                     tone="blue"
                                     highlighted={studyGridIsShared}
@@ -19529,34 +19516,28 @@ function OrbitalPolymeter() {
                                   >
                                     Shared Grid
                                   </StudyShellButton>
-                                  <StudyShellButton size="compact" tone="blue"
+                                  <StudyShellButton showStateDot size="compact" tone="blue"
                                     highlighted={Boolean(polyrhythmStudy.ensembleView)}
                                     aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
                                     icon={<Layers3 size={13} />}
                                     onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
                                     Split View
                                   </StudyShellButton>
-                      <StudyShellButton
+                      <StudyShellButton showStateDot
                         size="compact"
                         tone="amber"
                         highlighted={Boolean(polyrhythmStudy.showStepLabels)}
+                        aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
                         onClick={handleTogglePolyrhythmStepLabels}
                         className={utilityButtonClass}
                       >
                         Numbers
                       </StudyShellButton>
-                      <StudyShellButton size="compact" tone="blue"
+                      <StudyShellButton showStateDot size="compact" tone="blue"
                         highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
                         onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
                         icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
                         Contour
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="green"
-                        highlighted={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
-                        aria-pressed={Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled)}
-                        onClick={handleTogglePolyrhythmBarCue} icon={<CircleDot size={13} />}
-                        title="Toggle bar sound and visual cues together">
-                        Bar Cue
                       </StudyShellButton>
                       </div>
                     </div>
@@ -20178,11 +20159,12 @@ function OrbitalPolymeter() {
                 { label: 'Split View', icon: <Layers3 size={14} />, active: Boolean(polyrhythmStudy.ensembleView), toggle: () => setPolyrhythmStudy(current => ({ ...current, ensembleView: !current.ensembleView })) },
                 { label: 'Numbers', icon: <Hash size={14} />, active: Boolean(polyrhythmStudy.showStepLabels), toggle: handleTogglePolyrhythmStepLabels },
                 { label: 'Contour', icon: <Zap size={14} />, active: Boolean(polyrhythmStudy.showContour), toggle: () => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour })) },
-                { label: 'Bar Cue', icon: <CircleDot size={14} />, active: Boolean(polyrhythmStudy.barMarkerSoundEnabled && polyrhythmStudy.barMarkerVisualEnabled), toggle: handleTogglePolyrhythmBarCue },
-              ].map(aid => <button key={aid.label} type="button" onClick={aid.toggle} aria-pressed={aid.active} aria-disabled={aid.label === 'Shared Grid' && studyGridLocked}
+              ].map(aid => <Fragment key={aid.label}>{aid.label === 'Shared Grid' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3> : null}<button type="button" onClick={aid.toggle} aria-pressed={aid.active} aria-disabled={aid.label === 'Shared Grid' && studyGridLocked}
                 className="flex min-h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[11px] text-white/65 hover:bg-white/[0.07] aria-pressed:border-sky-200/25 aria-pressed:bg-sky-200/10 aria-pressed:text-sky-200/90">
                 {aid.icon}{aid.label}
-              </button>)}
+                <span aria-hidden="true" className="ml-auto h-1 w-1 shrink-0 rounded-full"
+                  style={{ background: aid.active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />
+              </button></Fragment>)}
             </div>
           </FullscreenControls>
         ) : (
@@ -20749,201 +20731,7 @@ function OrbitalPolymeter() {
                   </div>
                 </div>
 
-                {riffCanvasQuickPanel === 'audio' && !soundEditingLocked ? (
-                  <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="neutral"
-                          highlighted={riffCycleStudy.soundSettings.pitchMode === 'free' && !soundEditingLocked}
-                          onClick={() => handleUpdateRiffSoundSettings({ pitchMode: 'free' })}
-                          locked={soundEditingLocked}
-                          onLockedClick={() => openProPrompt('sound-editing')}
-                        >
-                          Original
-                        </StudyShellButton>
-                        <StudyShellButton
-                          size="compact"
-                          tone="green"
-                          highlighted={riffCycleStudy.soundSettings.pitchMode === 'keyed' && !soundEditingLocked}
-                          onClick={() => handleUpdateRiffSoundSettings({ pitchMode: 'keyed' })}
-                          locked={soundEditingLocked}
-                          onLockedClick={() => openProPrompt('sound-editing')}
-                        >
-                          In Key
-                        </StudyShellButton>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.025] px-3 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        {soundEditingLocked ? (
-                          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/58">
-                            <Lock size={10} strokeWidth={2.4} />
-                            Pro
-                          </div>
-                        ) : null}
-                      </div>
-                      {soundEditingLocked ? (
-                        <button
-                          type="button"
-                          onClick={() => openProPrompt('sound-editing')}
-                          className="w-full rounded-2xl border px-3 py-3 text-left active:scale-[0.99]"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(255,190,80,0.08), rgba(255,255,255,0.025))',
-                            borderColor: 'rgba(255,190,80,0.18)',
-                            color: 'rgba(255,255,255,0.72)',
-                          }}
-                        >
-                          <div className="text-[12px] font-mono uppercase tracking-[0.14em] text-[#FFD36A]">
-                            Upgrade For Voice Controls
-                          </div>
-                          <div className="mt-1 text-[11px] leading-relaxed text-white/45">
-                            Unlock palette, register, key, and note family.
-                          </div>
-                        </button>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-[1.1fr_0.9fr] gap-2">
-                            <div className="space-y-1.5">
-                              <InlineInfoLabel
-                                infoId="riff_sound_palette"
-                                label="Palette"
-                                labelClassName={mobileRiffMenuTitleClass}
-                                labelStyle={mobileRiffWhiteTitleStyle}
-                              />
-                              <select
-                                value={riffCycleStudy.soundSettings.palette}
-                                onChange={(event) =>
-                                  handleUpdateRiffSoundSettings({
-                                    palette: event.target.value as RiffCycleSoundSettings['palette'],
-                                  })
-                                }
-                                className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                              >
-                                <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
-                                <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
-                                <option value="muted-djent" style={{ background: '#181820' }}>Warm Pluck</option>
-                                <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
-                                <option value="metal-tick" style={{ background: '#181820' }}>Soft Mallet</option>
-                                <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
-                              </select>
-                            </div>
-                            <div className="space-y-1.5">
-                              <InlineInfoLabel
-                                infoId="riff_sound_register"
-                                label="Register"
-                                labelClassName={mobileRiffMenuTitleClass}
-                                labelStyle={mobileRiffWhiteTitleStyle}
-                              />
-                              <select
-                                value={riffCycleStudy.soundSettings.register}
-                                onChange={(event) =>
-                                  handleUpdateRiffSoundSettings({
-                                    register: event.target.value as RiffCycleSoundSettings['register'],
-                                  })
-                                }
-                                className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                              >
-                                <option value="low" style={{ background: '#181820' }}>Low</option>
-                                <option value="mid-low" style={{ background: '#181820' }}>Mid-Low</option>
-                                <option value="wide" style={{ background: '#181820' }}>Wide</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Octave</div>
-                            <div className="grid grid-cols-3 gap-2">
-                              {([-1, 0, 1] as const).map((octaveShift) => (
-                                <StudyShellButton
-                                  key={`riff-mobile-octave-${octaveShift}`}
-                                  size="compact"
-                                  tone="green"
-                                  highlighted={(riffCycleStudy.soundSettings.octaveShift ?? 0) === octaveShift}
-                                  onClick={() => handleUpdateRiffSoundSettings({ octaveShift })}
-                                >
-                                  {octaveShift === -1 ? 'Down' : octaveShift === 1 ? 'Up' : 'Normal'}
-                                </StudyShellButton>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.14em] text-white/58">
-                              <span>Reverb</span>
-                              <span>{Math.round((riffCycleStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min={0}
-                              max={1}
-                              step={0.01}
-                              value={riffCycleStudy.soundSettings.reverbAmount ?? 0}
-                              onChange={(event) => handleUpdateRiffSoundSettings({ reverbAmount: Number(event.target.value) })}
-                              className="w-full accent-[#72F1B8]"
-                              aria-label="Riff reverb amount"
-                            />
-                          </div>
-                          {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
-                            <div className="space-y-1.5">
-                              <div className="grid grid-cols-[64px_1fr] gap-2">
-                                <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Key</div>
-                                <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Note Family</div>
-                              </div>
-                              <div className="grid grid-cols-[64px_1fr] gap-2">
-                                <select
-                                  value={riffCycleStudy.soundSettings.rootNote}
-                                  onChange={(event) =>
-                                    handleUpdateRiffSoundSettings({
-                                      rootNote: event.target.value as RiffCycleSoundSettings['rootNote'],
-                                    })
-                                  }
-                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                                >
-                                  {NOTE_NAMES.map((note) => (
-                                    <option key={note} value={note} style={{ background: '#181820' }}>
-                                      {note}
-                                    </option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={riffCycleStudy.soundSettings.scaleName}
-                                  onChange={(event) =>
-                                    handleUpdateRiffSoundSettings({
-                                      scaleName: event.target.value as RiffCycleSoundSettings['scaleName'],
-                                    })
-                                  }
-                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                                >
-                                  {Object.entries(SCALE_PRESETS).map(([name]) => (
-                                    <option key={name} value={name} style={{ background: '#181820' }}>
-                                      {getFriendlyScaleLabel(name as ScaleName)}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div className="space-y-1.5">
-                                <div className={mobileRiffMenuTitleClass} style={mobileRiffWhiteTitleStyle}>Note Order</div>
-                                <select
-                                  value={riffCycleStudy.soundSettings.noteOrder ?? 'ascending'}
-                                  onChange={(event) => handleUpdateRiffSoundSettings({ noteOrder: event.target.value as RiffCycleSoundSettings['noteOrder'] })}
-                                  className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none"
-                                >
-                                  <option value="ascending" style={{ background: '#181820' }}>Ascending</option>
-                                  <option value="descending" style={{ background: '#181820' }}>Descending</option>
-                                  <option value="up-down" style={{ background: '#181820' }}>Ascending To Descending</option>
-                                  <option value="arpeggio" style={{ background: '#181820' }}>Arpeggio</option>
-                                  <option value="random" style={{ background: '#181820' }}>Random</option>
-                                </select>
-                              </div>
-                            </div>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-
-                  </div>
-                ) : null}
+                {riffCanvasQuickPanel === 'audio' && !soundEditingLocked ? <RiffSoundOptions settings={riffCycleStudy.soundSettings} onChange={handleUpdateRiffSoundSettings} /> : null}
               </div>) : riffCanvasQuickPanel === 'canvas' ? (<div
                 data-guide="riff-mobile-canvas" data-quick-panel="canvas"
                 className="rounded-[28px] border"
@@ -21035,19 +20823,19 @@ function OrbitalPolymeter() {
                 ) : null}
               </div>) : (<div data-guide="riff-mobile-lane-settings" data-quick-panel="read" className="grid grid-cols-2 gap-1.5">
                     {[
-                      { label: 'Numbers', icon: <Hash size={13} />, active: Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels, action: handleToggleRiffStepLabels },
-                      { label: 'Grouping', icon: <CircleDot size={13} />, active: Boolean(riffCycleStudy.showPhraseGroupings), action: handleToggleRiffPhraseGroupings },
                       { label: 'Fill', icon: <PaintBucket size={13} />, active: Boolean(riffCycleStudy.showPhraseFill), action: handleToggleRiffPhraseFill },
                       { label: 'Contour', icon: <Zap size={13} />, active: Boolean(riffCycleStudy.showStructureView), action: handleToggleRiffStructureView },
+                      { label: 'Numbers', icon: <Hash size={13} />, active: Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels, action: handleToggleRiffStepLabels },
+                      { label: 'Grouping', icon: <CircleDot size={13} />, active: Boolean(riffCycleStudy.showPhraseGroupings), action: handleToggleRiffPhraseGroupings },
                       { label: 'Subdivisions', icon: <Grid3X3 size={13} />, active: Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked, action: handleToggleRiffPulseLayer, locked: riffSubdivisionsLocked },
                     ].map((item) => (
-                      <button key={item.label} type="button" aria-pressed={item.active} aria-label={item.locked ? 'Unlock Subdivisions with Pro' : item.label}
+                      <Fragment key={item.label}>{item.label === 'Fill' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3> : item.label === 'Numbers' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Timing</h3> : null}<button type="button" aria-pressed={item.active} aria-label={item.locked ? 'Unlock Subdivisions with Pro' : item.label}
                         className={`flex items-center gap-2 border px-2.5 py-2 ${item.label === 'Subdivisions' ? 'col-span-2' : ''}`}
                         style={{ color: item.active ? '#B5DCEF' : 'rgba(255,255,255,.55)', background: item.active ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)', borderColor: item.active ? 'rgba(127,215,255,.18)' : 'rgba(255,255,255,.045)' }}
                         onClick={() => item.locked ? openProPrompt('riff-subdivisions') : item.action()}>
                         <span className="opacity-65">{item.icon}</span><span>{item.label}</span>
                         {item.locked ? <Lock size={10} className="ml-auto opacity-50" /> : <span className="ml-auto h-1 w-1 rounded-full" style={{ background: item.active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />}
-                      </button>
+                      </button></Fragment>
                     ))}
                     {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
                       <div className="col-span-2 grid grid-cols-2 gap-1.5 pt-1">
@@ -24373,219 +24161,7 @@ function OrbitalPolymeter() {
                     {riffUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
                 </button>
-                {riffUtilityPanel === 'sound' && !soundEditingLocked ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Sound',
-                      'Change the voice of the riff without rewriting the pattern.',
-                      '#88CCFF',
-                      'Use palette and register to keep fast or complex patterns clear. In Key can make the same rhythm feel more melodic.',
-                    )}
-                    <div
-                      className="space-y-2 rounded-xl border px-2.5 py-2"
-                      style={{
-                        background: 'rgba(255,255,255,0.028)',
-                        borderColor: 'rgba(255,255,255,0.08)',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-                      }}
-                    >
-                      <div className="space-y-1">
-                        <InlineInfoLabel
-                          infoId="riff_sound_palette"
-                          label="Palette"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <select
-                          value={riffCycleStudy.soundSettings.palette}
-                          onChange={(event) =>
-                            handleUpdateRiffSoundSettings({
-                              palette: event.target.value as RiffCycleSoundSettings['palette'],
-                            })
-                          }
-                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                        >
-                          <option value="architectural" style={{ background: '#181820' }}>Architectural</option>
-                          <option value="deep-architectural" style={{ background: '#181820' }}>Deep Arch</option>
-                          <option value="muted-djent" style={{ background: '#181820' }}>Warm Pluck</option>
-                          <option value="dry-synth" style={{ background: '#181820' }}>Dry Synth</option>
-                          <option value="metal-tick" style={{ background: '#181820' }}>Soft Mallet</option>
-                          <option value="low-pulse" style={{ background: '#181820' }}>Low Pulse</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div
-                      className="space-y-2 rounded-xl border px-2.5 py-2"
-                      style={{
-                        background: 'rgba(114,241,184,0.038)',
-                        borderColor: 'rgba(114,241,184,0.14)',
-                        boxShadow: 'inset 0 1px 0 rgba(114,241,184,0.04)',
-                      }}
-                    >
-                      <div className="space-y-1">
-                        <InlineInfoLabel
-                          infoId="riff_sound_mode"
-                          label="Sound Mode"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <StudyShellButton
-                            size="compact"
-                            tone="neutral"
-                            highlighted={riffCycleStudy.soundSettings.pitchMode === 'free' && !soundEditingLocked}
-                            onClick={() =>
-                              handleUpdateRiffSoundSettings({
-                                pitchMode: 'free',
-                              })
-                            }
-                            locked={soundEditingLocked}
-                            onLockedClick={() => openProPrompt('sound-editing')}
-                          >
-                            Original
-                          </StudyShellButton>
-                          <StudyShellButton
-                            size="compact"
-                            tone="green"
-                            highlighted={riffCycleStudy.soundSettings.pitchMode === 'keyed' && !soundEditingLocked}
-                            onClick={() =>
-                              handleUpdateRiffSoundSettings({
-                                pitchMode: 'keyed',
-                              })
-                            }
-                            locked={soundEditingLocked}
-                            onLockedClick={() => openProPrompt('sound-editing')}
-                          >
-                            In Key
-                          </StudyShellButton>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      className="space-y-2 rounded-xl border px-2.5 py-2"
-                      style={{
-                        background: 'rgba(136,204,255,0.045)',
-                        borderColor: 'rgba(136,204,255,0.14)',
-                        boxShadow: 'inset 0 1px 0 rgba(136,204,255,0.05)',
-                      }}
-                    >
-                      <div className="space-y-1">
-                        <InlineInfoLabel
-                          infoId="riff_sound_register"
-                          label="Register"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <select
-                          value={riffCycleStudy.soundSettings.register}
-                          onChange={(event) =>
-                            handleUpdateRiffSoundSettings({
-                              register: event.target.value as RiffCycleSoundSettings['register'],
-                            })
-                          }
-                          className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                        >
-                          <option value="low" style={{ background: '#181820' }}>Low</option>
-                          <option value="mid-low" style={{ background: '#181820' }}>Mid-Low</option>
-                          <option value="wide" style={{ background: '#181820' }}>Wide</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Octave</div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {([-1, 0, 1] as const).map((octaveShift) => (
-                            <StudyShellButton
-                              key={`riff-desktop-octave-${octaveShift}`}
-                              size="compact"
-                              tone="green"
-                              highlighted={(riffCycleStudy.soundSettings.octaveShift ?? 0) === octaveShift}
-                              onClick={() => handleUpdateRiffSoundSettings({ octaveShift })}
-                            >
-                              {octaveShift === -1 ? 'Down' : octaveShift === 1 ? 'Up' : 'Normal'}
-                            </StudyShellButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
-                          <span>Reverb</span>
-                          <span>{Math.round((riffCycleStudy.soundSettings.reverbAmount ?? 0) * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={riffCycleStudy.soundSettings.reverbAmount ?? 0}
-                          onChange={(event) => handleUpdateRiffSoundSettings({ reverbAmount: Number(event.target.value) })}
-                          className="w-full accent-[#72F1B8]"
-                          aria-label="Riff reverb amount"
-                        />
-                      </div>
-                      {riffCycleStudy.soundSettings.pitchMode === 'keyed' ? (
-                        <>
-                          <div className="h-px bg-white/6" />
-                          <div className="grid grid-cols-[72px,1fr] gap-2">
-                            <div className="space-y-1">
-                              <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
-                                Key
-                              </div>
-                              <select
-                                value={riffCycleStudy.soundSettings.rootNote}
-                                onChange={(event) =>
-                                  handleUpdateRiffSoundSettings({
-                                    rootNote: event.target.value as RiffCycleSoundSettings['rootNote'],
-                                  })
-                                }
-                                className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                              >
-                                {NOTE_NAMES.map((note) => (
-                                  <option key={note} value={note} style={{ background: '#181820' }}>
-                                    {note}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>
-                                Note Family
-                              </div>
-                              <select
-                                value={riffCycleStudy.soundSettings.scaleName}
-                                onChange={(event) =>
-                                  handleUpdateRiffSoundSettings({
-                                    scaleName: event.target.value as RiffCycleSoundSettings['scaleName'],
-                                  })
-                                }
-                                className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                              >
-                                {Object.entries(SCALE_PRESETS).map(([name]) => (
-                                  <option key={name} value={name} style={{ background: '#181820' }}>
-                                    {getFriendlyScaleLabel(name as ScaleName)}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-[8px] font-mono uppercase tracking-[0.16em]" style={desktopMenuSubheaderSecondaryStyle}>Note Order</div>
-                            <select
-                              value={riffCycleStudy.soundSettings.noteOrder ?? 'ascending'}
-                              onChange={(event) => handleUpdateRiffSoundSettings({ noteOrder: event.target.value as RiffCycleSoundSettings['noteOrder'] })}
-                              className="w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2.5 text-[11px] font-mono uppercase tracking-[0.14em] text-white outline-none"
-                            >
-                              <option value="ascending" style={{ background: '#181820' }}>Ascending</option>
-                              <option value="descending" style={{ background: '#181820' }}>Descending</option>
-                              <option value="up-down" style={{ background: '#181820' }}>Ascending To Descending</option>
-                              <option value="arpeggio" style={{ background: '#181820' }}>Arpeggio</option>
-                              <option value="random" style={{ background: '#181820' }}>Random</option>
-                            </select>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
+                {riffUtilityPanel === 'sound' && !soundEditingLocked ? <RiffSoundOptions settings={riffCycleStudy.soundSettings} onChange={handleUpdateRiffSoundSettings} /> : null}
               </div>
 
               <div
@@ -24626,13 +24202,10 @@ function OrbitalPolymeter() {
 	                      <div className="mb-2 flex items-center justify-between gap-2">
                           <InlineInfoLabel
                             infoId="riff_overlay_labels"
-                            label="Labels"
+                            label="Timing"
                             labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
                             labelStyle={desktopMenuSubheaderStyle}
                           />
-	                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
-	                          Orientation
-	                        </div>
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-2">
 	                        <StudyShellButton
@@ -24685,13 +24258,10 @@ function OrbitalPolymeter() {
 	                      <div className="mb-2 flex items-center justify-between gap-2">
                           <InlineInfoLabel
                             infoId="riff_pattern_shape"
-                            label="Pattern Shape"
+                            label="Visuals"
                             labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
                             labelStyle={desktopMenuSubheaderStyle}
                           />
-	                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
-	                          Visual Weight
-	                        </div>
 	                      </div>
 	                      <div className="grid grid-cols-2 gap-2">
 	                        <StudyShellButton

@@ -2,10 +2,9 @@ import NoteOrderControl from './NoteOrderControl';
 import type { ReactNode } from 'react';
 import { NOTE_NAMES, SCALE_PRESETS, ORBIT_SOUND_PALETTES, getFriendlyScaleLabel, type HarmonySettings, type OrbitSoundPalette, type RootNote, type ScaleName } from '../lib/audioEngine';
 import type { Orbit } from '../lib/orbitalEngine';
-import { StudyShellButton } from './StudyInstrumentShell';
-import InfoTip from './InfoTip';
+import ModeSoundPanel from './ModeSoundPanel';
 
-export default function OrbitSoundOptions({ settings, onChange, orbits, muted, onToggleMute, onOrbitChange, selectedOrbitId, soundModeLabel }: {
+export default function OrbitSoundOptions({ settings, onChange, orbits, muted, onToggleMute, onOrbitChange, selectedOrbitId }: {
   settings: HarmonySettings;
   onChange: (updates: Partial<HarmonySettings>) => void;
   orbits: Orbit[];
@@ -28,53 +27,26 @@ export default function OrbitSoundOptions({ settings, onChange, orbits, muted, o
     orbits.forEach((orbit) => onOrbitChange(orbit.id, { soundEnabled: next === 'all' || orbit.id === soloId }));
     if (muted) onToggleMute();
   };
-  const selectClass = 'w-full rounded-xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[12px] font-mono uppercase tracking-[0.12em] text-white outline-none';
-  return <div className="space-y-3 border-t px-4 pb-4 pt-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-    <div className="space-y-2">
-      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Sound</div>
-      <div className="grid grid-cols-3 gap-2">
-        <StudyShellButton size="compact" tone="blue" highlighted={focus === 'solo'} onClick={() => setFocus('solo')}>Solo</StudyShellButton>
-        <StudyShellButton size="compact" tone="blue" highlighted={focus === 'all'} onClick={() => setFocus('all')}>All</StudyShellButton>
-        <StudyShellButton size="compact" tone="blue" highlighted={focus === 'mute'} onClick={() => setFocus('mute')}>Mute</StudyShellButton>
-      </div>
-    </div>
-    <div className="space-y-2">
-      {soundModeLabel ?? <div className="flex items-center gap-1.5"><span className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Sound Mode</span><InfoTip text="Original keeps the raw sound. In Key keeps notes inside one note family so the rhythm feels more melodic." /></div>}
-      <div className="grid grid-cols-2 gap-2">
-        <StudyShellButton size="compact" tone="green" highlighted={!keyed} onClick={() => onChange({ tonePreset: 'original' })}>Original</StudyShellButton>
-        <StudyShellButton size="compact" tone="green" highlighted={keyed} onClick={() => onChange({ tonePreset: 'scale-quantized' })}>In Key</StudyShellButton>
-      </div>
-      <select aria-label="Orbit sound palette" className={selectClass} value={settings.soundPalette ?? 'standard'} onChange={(event) => onChange({ soundPalette: event.target.value as OrbitSoundPalette, ...((event.target.value === 'orbit-keys' || event.target.value === 'dusk-synth') ? { reverbAmount: 1 } : {}) })}>
-        {ORBIT_SOUND_PALETTES.map(([value, label]) => <option key={value} value={value} style={{ background: '#181820' }}>{label}</option>)}
-      </select>
-      <NoteOrderControl
-        mode="Orbit"
-        value={!settings.noteMotion || settings.noteMotion === 'fixed' ? 'standard' : settings.noteMotion}
-        onChange={value => onChange({ noteMotion: value === 'standard' ? 'fixed' : value, ...(value !== 'standard' ? { tonePreset: 'scale-quantized' as const } : {}) })}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <StudyShellButton size="compact" tone="amber" highlighted={settings.pitchSpacing !== 'wide'} onClick={() => onChange({ pitchSpacing: 'standard' })}>Tight</StudyShellButton>
-        <StudyShellButton size="compact" tone="amber" highlighted={settings.pitchSpacing === 'wide'} onClick={() => onChange({ pitchSpacing: 'wide', tonePreset: 'scale-quantized' })}>Wide</StudyShellButton>
-      </div>
-      <div className="space-y-1.5">
-        <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/42">Octave</div>
-        <div className="grid grid-cols-3 gap-2">
-          <StudyShellButton size="compact" tone="green" highlighted={settings.octaveShift === -1} onClick={() => onChange({ octaveShift: -1 })}>Down</StudyShellButton>
-          <StudyShellButton size="compact" tone="green" highlighted={(settings.octaveShift ?? 0) === 0} onClick={() => onChange({ octaveShift: 0 })}>Original</StudyShellButton>
-          <StudyShellButton size="compact" tone="green" highlighted={settings.octaveShift === 1} onClick={() => onChange({ octaveShift: 1 })}>Up</StudyShellButton>
-        </div>
-      </div>
-      <div className="space-y-0 rounded-lg border border-white/8 bg-white/[0.025] px-2.5 py-1.5">
-        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"><span>Reverb</span><span>{Math.round((settings.reverbAmount ?? 0) * 100)}%</span></div>
-        <input type="range" min="0" max="1" step="0.01" value={settings.reverbAmount ?? 0} onChange={(event) => onChange({ reverbAmount: Number(event.target.value) })} className="touch-slider rg-compact-slider block w-full" style={{ ['--slider-accent' as string]: '#88FFCC', accentColor: '#88FFCC' }} aria-label="Orbit reverb amount" />
-      </div>
-      {keyed && <div className="space-y-1.5">
-        <div className="grid grid-cols-[82px,1fr] gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-white/42"><div>Key</div><div>Note Family</div></div>
-        <div className="grid grid-cols-[82px,1fr] gap-2">
-          <select aria-label="Orbit key" className={selectClass} value={settings.rootNote} onChange={(event) => onChange({ rootNote: event.target.value as RootNote })}>{NOTE_NAMES.map((note) => <option key={note} value={note} style={{ background: '#181820' }}>{note}</option>)}</select>
-          <select aria-label="Orbit scale" className={selectClass} value={settings.scaleName} onChange={(event) => onChange({ scaleName: event.target.value as ScaleName })}>{Object.keys(SCALE_PRESETS).map((name) => <option key={name} value={name} style={{ background: '#181820' }}>{getFriendlyScaleLabel(name as ScaleName)}</option>)}</select>
-        </div>
+  return <ModeSoundPanel mode="Orbit" keyed={keyed}
+    onTuning={value => onChange({ tonePreset: value ? 'scale-quantized' : 'original' })}
+    octave={settings.octaveShift ?? 0} onOctave={octaveShift => onChange({ octaveShift })}
+    reverb={settings.reverbAmount ?? 0} onReverb={reverbAmount => onChange({ reverbAmount })}
+    playback={<div className="study-listening-controls" role="group" aria-label="Orbit playback"><span>Playback</span>
+      {(['solo', 'all', 'mute'] as const).map(value => <button key={value} type="button" aria-pressed={focus === value} onClick={() => setFocus(value)}>{value === 'solo' ? 'Solo' : value === 'all' ? 'All' : 'Mute'}</button>)}
+    </div>}
+    instrument={<select aria-label="Orbit instrument" value={settings.soundPalette ?? 'standard'} onChange={event => onChange({ soundPalette: event.target.value as OrbitSoundPalette, ...(['orbit-keys', 'dusk-synth'].includes(event.target.value) ? { reverbAmount: 1 } : {}) })}>
+      {ORBIT_SOUND_PALETTES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select>}
+    pitchOptions={<>
+      {keyed && <div className="mode-sound-key-row">
+        <label className="mode-sound-field">Key<select aria-label="Orbit key" value={settings.rootNote} onChange={event => onChange({ rootNote: event.target.value as RootNote })}>{NOTE_NAMES.map(note => <option key={note}>{note}</option>)}</select></label>
+        <label className="mode-sound-field">Scale<select aria-label="Orbit scale" value={settings.scaleName} onChange={event => onChange({ scaleName: event.target.value as ScaleName })}>{Object.keys(SCALE_PRESETS).map(name => <option key={name} value={name}>{getFriendlyScaleLabel(name as ScaleName)}</option>)}</select></label>
       </div>}
-    </div>
-  </div>;
+      <NoteOrderControl mode="Orbit" value={!settings.noteMotion || settings.noteMotion === 'fixed' ? 'standard' : settings.noteMotion}
+        onChange={value => onChange({ noteMotion: value === 'standard' ? 'fixed' : value, ...(value !== 'standard' ? { tonePreset: 'scale-quantized' as const } : {}) })} />
+      <div><div className="study-control-caption">Spacing</div><div className="mode-sound-segment" role="group" aria-label="Orbit pitch spacing">
+        <button type="button" aria-pressed={settings.pitchSpacing !== 'wide'} onClick={() => onChange({ pitchSpacing: 'standard' })}>Tight</button>
+        <button type="button" aria-pressed={settings.pitchSpacing === 'wide'} onClick={() => onChange({ pitchSpacing: 'wide', tonePreset: 'scale-quantized' })}>Wide</button>
+      </div></div>
+    </>} />;
 }

@@ -31,6 +31,7 @@ import {
   getPlaybackStepIndex,
   getSharedCycleStepCount,
   getSharedGridStepState,
+  hasStudySharedGrid,
   type PolyrhythmLayer,
   type PolyrhythmStudy,
 } from '../lib/polyrhythmStudy';
@@ -349,6 +350,7 @@ export default function PolyrhythmCanvas({
     const currentHoveredLayerId = isMobileRef.current ? null : hoveredLayerIdRef.current;
     const currentHoveredStep = isMobileRef.current ? null : hoveredStepRef.current;
     const sharedDisplay = displayStudy.displayStyle === 'shared' && !soloLayerDisplayRef.current;
+    const sharedNumberGrid = sharedDisplay && hasStudySharedGrid(displayStudy.layers);
     const sharedCycleRadius =
       Math.max(1, ...displayStudy.layers.map((layer) => layer.radius)) * metrics.scale;
     const sharedCycleStepCount = getSharedCycleStepCount(displayStudy.layers);
@@ -456,7 +458,7 @@ export default function PolyrhythmCanvas({
     ctx.restore();
 
     if (
-      sharedDisplay &&
+      sharedNumberGrid &&
       displayStudy.layers.length > 1 &&
       sharedCycleStepCount <= 192 &&
       currentStudy.showStepLabels
@@ -649,7 +651,7 @@ export default function PolyrhythmCanvas({
             !isReferenceLayer && shouldDrawLabel &&
             (drawInnerNumbers || (
               currentStudy.showStepLabels &&
-              (!sharedDisplay || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
+              (!sharedNumberGrid || soloLayerDisplayRef.current || displayStudy.layers.length === 1) &&
               (soloLayerDisplayRef.current || displayStudy.layers.length === 1 || isSelectedLayer)
             ))
           ) {

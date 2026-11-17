@@ -4,6 +4,17 @@ import { getOrbitCanvasNumbers, getOrbitTurnExplanation } from '../lib/orbitRead
 import type { OrbitCountMode } from '../lib/orbitalEngine';
 import { CircleDot, CircleHelp, Orbit, Zap, Hash, Circle, Sparkles, Spline, Sun } from 'lucide-react';
 
+function OrbitNodesIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="3" r="2" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="12" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 interface OrbitReadAidsProps {
   guidePrefix?: 'mobile' | 'desktop';
   counts?: number[];
@@ -40,7 +51,7 @@ export default function OrbitReadAids({
   const canvasNumbers = getOrbitCanvasNumbers(counts, numberMode);
   const items = [
     { label: 'Trace', Icon: Spline, active: trace, action: onToggleTrace, guide: guidePrefix === 'mobile' ? 'mobile-trail' : 'desktop-trace', title: 'Show the path left by the moving orbits' },
-    { label: 'Orbits', Icon: Circle, active: orbits, action: onToggleOrbits, title: 'Show the moving planets and nodes' },
+    { label: 'Orbits', Icon: OrbitNodesIcon, active: orbits, action: onToggleOrbits, title: 'Show the moving planets and nodes' },
     { label: 'Markers', Icon: CircleDot, active: markers, action: onToggleMarkers, guide: `${guidePrefix}-markers`, title: 'Show the 12 o’clock starting ticks' },
     { label: 'Alignments', Icon: Orbit, active: alignments, action: onToggleAlignments, title: 'Highlight shared returns; double gold halos mark the full-cycle restart' },
     { label: 'Impacts', Icon: Zap, active: impacts, action: onToggleImpacts, title: 'Show a flash when an orbit passes its starting point' },
@@ -52,8 +63,7 @@ export default function OrbitReadAids({
     { label: 'Numbers', Icon: Hash, active: ratioLabels, action: onToggleRatioLabels, title: 'Show the ratio numbers beside the orbit rings' },
   ];
   const groups = [
-    { label: 'Pattern', labels: ['Trace', 'Outline', 'Aura'] },
-    { label: 'Motion', labels: ['Orbits', 'Sun'] },
+    { label: 'Visuals', labels: ['Trace', 'Outline', 'Aura', 'Orbits', 'Sun'] },
     { label: 'Timing', labels: ['Markers', 'Impacts', 'Alignments', 'Numbers'] },
   ];
   return (
@@ -78,7 +88,6 @@ export default function OrbitReadAids({
         >
           <span className="opacity-65" aria-hidden="true"><Icon size={13} /></span>
           <span>{label}</span>
-          <span aria-hidden="true" className="ml-auto h-1 w-1 shrink-0 rounded-full" style={{ background: active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />
         </button>
         {label === 'Numbers' && explanation ? (
           <button

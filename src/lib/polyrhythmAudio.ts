@@ -670,25 +670,49 @@ export function triggerPolyrhythmPulse(options: {
   }
 }
 
+const barCueBuffers = new WeakMap<AudioContext, AudioBuffer>();
+
+/** A soft, unpitched downbeat: no fixed note to compete with the harmony. */
 export function triggerPolyrhythmBarMarker(atTime?: number, target?: VoiceTarget): void {
-  withVoice({
-    type: 'triangle',
-    frequency: 1046.5,
-    gain: 0.075,
-    attack: 0.003,
-    release: 0.16,
-    filterFrequency: 3200,
-    atTime,
-  }, target);
-  withVoice({
-    type: 'sine',
-    frequency: 1568,
-    gain: 0.025,
-    attack: 0.002,
-    release: 0.1,
-    filterFrequency: 4200,
-    atTime,
-  }, target);
+  const context = target?.context ?? getAudioContext();
+  if (!context) return;
+  let buffer = barCueBuffers.get(context);
+  if (!buffer) {
+    const duration = 0.085;
+    buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let seed = 73421;
+    let low = 0;
+    let body = 0;
+    const smoothing = 1 - Math.exp(-2 * Math.PI * 2400 / context.sampleRate);
+    const bodySmoothing = 1 - Math.exp(-2 * Math.PI * 650 / context.sampleRate);
+    for (let i = 0; i < data.length; i += 1) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      low += smoothing * ((seed / 4294967296 * 2 - 1) - low);
+      body += bodySmoothing * (low - body);
+      const time = i / context.sampleRate;
+      const attack = Math.min(1, time / 0.006);
+      const tail = Math.min(1, (duration - time) / 0.012);
+      data[i] = (low - body) * Math.sin(attack * Math.PI / 2) ** 2
+        * Math.exp(-time / 0.018) * tail;
+    }
+    barCueBuffers.set(context, buffer);
+  }
+  const source = context.createBufferSource();
+  const output = context.createGain();
+  source.buffer = buffer;
+  output.gain.value = 0.085;
+  source.connect(output);
+  if (target?.outputToSpeakers ?? true) output.connect(getStudyOutputBus(context, context.destination).input);
+  if (target?.destination) output.connect(getStudyOutputBus(context, target.destination).input);
+  const voice = { source, gain: output };
+  activeSamples.add(voice);
+  source.onended = () => {
+    activeSamples.delete(voice);
+    source.disconnect();
+    output.disconnect();
+  };
+  source.start(Math.max(atTime ?? 0, context.currentTime + 0.008));
 }
 
 export function createPolyrhythmExportAudioStream(

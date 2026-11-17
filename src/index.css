@@ -869,3 +869,44 @@
 .study-ensemble-instruments button { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 5px; border-radius: 5px; color: #ffffffab; font-size: 10px; text-align: left; }
 .study-ensemble-instruments button:hover { color: #bfeaff; background: #7fd7ff12; }
 .study-ensemble-instruments button:focus-visible { outline: 2px solid #7fd7ff88; }
+
+/* Shared sound hierarchy across modes: sound, pitch, then optional mix. */
+.mode-sound-panel { padding: 0 12px 12px; }
+.mode-sound-panel .study-sound-section { padding-top: 12px; margin-top: 12px; }
+.mode-sound-panel .study-sound-section-title { margin-bottom: 8px; }
+.mode-sound-panel select { display: block; width: 100%; min-width: 0; border: 1px solid #ffffff14; border-radius: 9px; background: #ffffff05; color: #c8e1ea; padding: 7px 10px !important; font-family: inherit; text-transform: none; letter-spacing: normal; outline: none; }
+.mode-sound-panel select option { background: #181820; color: #dce8ee; }
+.mode-sound-panel .mode-sound-segment { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid #ffffff12; border-radius: 9px; background: #00000015; }
+.mode-sound-panel .mode-sound-segment button { padding: 5px 13px !important; border-radius: 7px; color: #ffffff70; }
+.mode-sound-panel button[aria-pressed="true"] { color: #bfeaff; background: #7fd7ff14; }
+.mode-sound-panel .study-octave button { min-width: 28px; }
+.mode-sound-pitch-options { display: grid; gap: 9px; margin-top: 10px; }
+.mode-sound-key-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.6fr); gap: 9px; }
+.mode-sound-field { display: grid; gap: 5px; color: #ffffff70; font-size: 10px; min-width: 0; }
+.mode-sound-panel summary { cursor: pointer; list-style: none; min-height: 30px; }
+.mode-sound-panel summary::-webkit-details-marker { display: none; }
+.mode-sound-panel select:focus-visible { outline: 2px solid #7fd7ff80; outline-offset: 2px; }
+.mode-sound-panel .study-pitch-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.mode-sound-panel .mode-sound-segment button { padding-inline: 10px !important; }
+.mode-sound-panel .mode-sound-pitch-options > label > span { font-family: inherit; text-transform: none; letter-spacing: normal; font-size: 10px; }
+@media (max-width: 340px) {
+  .mode-sound-panel .study-pitch-row { grid-template-columns: 1fr; }
+}
+
+/* Keep sound popovers compact without shrinking the whole UI or nesting scroll areas. */
+.study-composer-sound { font-size: 10px; }
+.study-composer-sound .study-sound-section { margin-top: 7px; padding-top: 7px; }
+.study-composer-sound .study-sound-section-title { margin-bottom: 5px; }
+.study-composer-sound button,
+.study-composer-sound select { min-height: 28px !important; font-size: 10px !important; padding-block: 3px !important; }
+.study-composer-sound .study-sound-help { margin-block: 3px; line-height: 1.4; }
+.study-composer-sound .study-sounds-menu > summary,
+.study-composer-sound .study-scale-menu > summary { min-height: 28px; padding-block: 4px; }
+.study-composer-sound .study-sounds-menu .study-instrument-list button { min-height: 28px !important; padding-block: 3px !important; }
+.mode-sound-panel { padding: 0 10px 9px; }
+.mode-sound-panel select { padding: 5px 9px !important; border-radius: 8px; }
+.mode-sound-panel .mode-sound-segment { padding: 2px; }
+.mode-sound-panel .mode-sound-segment button { padding-block: 3px !important; }
+.mode-sound-panel .mode-sound-pitch-options { margin-top: 7px; gap: 7px; }
+.mode-sound-panel .mode-sound-field { gap: 4px; }
+.mode-sound-panel summary { min-height: 28px; }
