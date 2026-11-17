@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Lock,
-  RotateCcw,
-  RotateCw,
-  X,
-} from 'lucide-react';
+import { Lock, RotateCcw, RotateCw, X } from 'lucide-react';
 import AccountPanel from './AccountPanel';
 import SavedSceneLibrary, { type SceneLibraryActions } from './SavedSceneLibrary';
 import type { SceneFolder } from '../lib/sceneFolders';
@@ -1521,11 +1516,9 @@ export default function PolyrhythmSidebar({
           {activeTab === 'export' ? (
             <section data-scene-menu-export className={isMobile ? "space-y-2" : "space-y-3"}>
               <div className="space-y-1">
-                <div className="text-[12px] font-mono uppercase tracking-[0.22em]" style={mobilePrimaryTitleStyle}>
-                  Export
-                </div>
-                <p className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
-                  Export MIDI, record a video, or move the editable Study scene.
+                <div className="text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Export</div>
+                <p className="text-[11px] leading-relaxed text-white/48">
+                  Take the current study into video, MIDI, or another device.
                 </p>
               </div>
 
@@ -1611,7 +1604,7 @@ export default function PolyrhythmSidebar({
               >
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Motion Export
+                    Video
                   </div>
                   <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
                 </div>
@@ -1689,7 +1682,7 @@ export default function PolyrhythmSidebar({
               >
                 <div className="flex items-center gap-2">
                   <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Scene Files
+                    Scene file
                   </div>
                   <InfoTip text="Scene files save the editable setup, not just a picture. Use them to move a scene between devices." />
                 </div>
@@ -1764,8 +1757,9 @@ export default function PolyrhythmSidebar({
           ) : null}
 
           {activeTab === 'account' ? (
-            <section className="space-y-3">
-              <AccountPanel />
+            <section className="space-y-5">
+              <div className="border-b border-white/10 pb-4 text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Account</div>
+              <AccountPanel compact />
               </section>
           ) : null}
         </div>

@@ -14582,6 +14582,27 @@ function OrbitalPolymeter() {
     [effectivePlan, openProPrompt, recordExportForAccount, savedScenes],
   );
 
+  const handleExportCurrentScene = useCallback(() => {
+    if (!canUseProFeature(effectivePlan, 'export')) {
+      openProPrompt('export');
+      return;
+    }
+    const exportedAt = new Date().toISOString();
+    const snapshot = buildCurrentSceneSnapshot();
+    downloadSceneFile({
+      id: `current-${Date.now()}`,
+      name: 'Current Scene',
+      updatedAt: exportedAt,
+      snapshot,
+      thumbnailDataUrl: createScenePreviewDataUrl(snapshot),
+    });
+    void recordExportForAccount({
+      type: 'scene-json',
+      sceneName: 'Current Scene',
+      snapshot,
+    });
+  }, [buildCurrentSceneSnapshot, effectivePlan, openProPrompt, recordExportForAccount]);
+
   const handleExportMidi = useCallback(
     (options: { bars: 4 | 8 | 16 }) => {
       if (!canUseProFeature(effectivePlan, 'export')) {
@@ -26833,6 +26854,7 @@ function OrbitalPolymeter() {
           onEditScene={handleEditScene}
           onDeleteScene={handleDeleteScene}
           onExportScene={handleExportScene}
+          onExportCurrentScene={handleExportCurrentScene}
           onImportScene={handleImportScene}
           onExportPng={handleExportPng}
           onExportVideo={handleExportVideo}
@@ -27329,6 +27351,7 @@ function OrbitalPolymeter() {
         onEditScene={handleEditScene}
         onDeleteScene={handleDeleteScene}
         onExportScene={handleExportScene}
+        onExportCurrentScene={handleExportCurrentScene}
         onImportScene={handleImportScene}
         onExportPng={handleExportPng}
         onExportVideo={handleExportVideo}

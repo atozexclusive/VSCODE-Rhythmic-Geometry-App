@@ -3,7 +3,7 @@
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
 // ============================================================
 
-import { X, Plus, Trash2, ChevronDown, Lock, MoreHorizontal } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, Lock, MoreHorizontal, BookmarkPlus, ChevronRight, FileJson, Image, Music2, Video } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_ORBIT_COUNT_MODE,
@@ -91,6 +91,7 @@ interface OrbitSidebarProps {
   onEditScene: (sceneId: string) => void;
   onDeleteScene: (sceneId: string) => void;
   onExportScene: (sceneId: string) => void;
+  onExportCurrentScene: () => void;
   onImportScene: (file: File) => void;
   onExportPng: (options: { aspect: 'landscape' | 'square' | 'portrait' | 'story'; scale: 1 | 2 | 4 }) => void;
   onExportVideo: (options: { durationSeconds: VideoExportDuration; aspect: VideoExportAspect }) => Promise<void> | void;
@@ -155,7 +156,9 @@ export default function OrbitSidebar({
   onEditScene,
   onDeleteScene,
   onExportScene,
+  onExportCurrentScene,
   onImportScene,
+  onExportPng,
   onExportVideo,
   onExportMidi,
   isRecordingVideo,
@@ -179,6 +182,9 @@ export default function OrbitSidebar({
     onLockedFeature?.('export');
     setExportNotice('Export is a Pro feature.');
   };
+  const [imageAspect, setImageAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('portrait');
+  const [imageScale, setImageScale] = useState<1 | 2 | 4>(2);
+  const [expandedExport, setExpandedExport] = useState<'video' | 'image' | 'midi' | 'scene' | null>(null);
   const saveScenesLocked = Boolean(lockedFeatures.saveScenes);
   const promptLockedSaveScenes = () => {
     onLockedFeature?.('save-scenes');
@@ -532,8 +538,9 @@ export default function OrbitSidebar({
         {/* Content */}
         <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-2.5 py-2 pb-6' : 'px-4 py-4'}`}>
           {activeTab === 'account' && (
-            <div className="space-y-3">
-              <AccountPanel />
+            <div className="space-y-5">
+              <div className="border-b border-white/10 pb-4 text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Account</div>
+              <AccountPanel compact />
             </div>
           )}
 
@@ -1172,207 +1179,74 @@ export default function OrbitSidebar({
 
           {/* EXPORT TAB */}
           {activeTab === 'export' && (
-            <div data-scene-menu-export className="space-y-3">
-              <div className="space-y-1">
-                <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
-                  Export
-                </div>
-                <p className="text-[11px] leading-relaxed" style={sectionCopyStyle}>
-                  Export MIDI, record motion, or move the editable scene.
-                </p>
-              </div>
+            <div data-scene-menu-export className="space-y-0">
+              <div className="pb-4 text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Export</div>
 
-              <div
-                className={`border ${isMobile ? 'rounded-[14px] p-2.5 space-y-2' : 'rounded-[1.25rem] p-3.5 space-y-3'}`}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
-                    MIDI Export
-                  </div>
-                  <InfoTip text="Exports note triggers that match the orbit hits. Use this if you want to edit the rhythm in a DAW." />
-                </div>
-                <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
-                  Send Orbit hits to a DAW as notes. Choose how many bars to capture.
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {([4, 8, 16] as const).map((bars) => (
-                    <button
-                      key={bars}
-                      type="button"
-                      onClick={() => {
-                        if (exportLocked) {
-                          promptLockedExport();
-                          return;
-                        }
-                        setMidiBars(bars);
-                      }}
-                      className="rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                      style={{
-                        background: midiBars === bars ? 'rgba(127, 215, 255, 0.12)' : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${midiBars === bars ? 'rgba(127, 215, 255, 0.24)' : 'rgba(255,255,255,0.1)'}`,
-                        color: midiBars === bars ? '#7FD7FF' : 'rgba(255,255,255,0.68)',
-                        ...lockedExportStyle,
-                      }}
-                    >
-                      {bars} Bars
+              <div className="border-y border-white/10">
+                <button type="button" onClick={() => setExpandedExport((value) => value === 'video' ? null : 'video')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#12303d] text-[#8fd8ff]"><Video size={22} /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Video</strong><span className="mt-1 block text-[11px] text-white/50">Landscape, square, portrait, or Shorts</span></span>
+                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'video' ? 'rotate-90' : ''}`} />
+                </button>
+                {expandedExport === 'video' ? (
+                  <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+                    <select aria-label="Video duration" value={String(videoDuration)} onChange={(event) => setVideoDuration(Number(event.target.value) as VideoExportDuration)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
+                      {VIDEO_EXPORT_DURATIONS.map((duration) => <option key={duration.value} value={duration.value} style={{ background: '#11151c' }}>{duration.label}</option>)}
+                    </select>
+                    <select aria-label="Video format" value={videoAspect} onChange={(event) => setVideoAspect(event.target.value as VideoExportAspect)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
+                      {VIDEO_EXPORT_ASPECTS.map((aspect) => <option key={aspect.value} value={aspect.value} style={{ background: '#11151c' }}>{aspect.label}</option>)}
+                    </select>
+                    <button type="button" disabled={isRecordingVideo} onClick={() => { if (exportLocked) { promptLockedExport(); return; } void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect }); setExportNotice(isIOS ? 'Video recording support depends on your iPhone browser.' : 'Video recording started.'); }} className="col-span-2 min-h-11 rounded-lg border border-[#58e5b1]/25 bg-[#58e5b1]/10 text-[13px] font-medium text-[#b9f8dc] disabled:opacity-60">
+                      {exportLocked ? 'Unlock video export' : isRecordingVideo ? 'Recording…' : 'Export video'}
                     </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => {
-                    if (exportLocked) {
-                      promptLockedExport();
-                      return;
-                    }
-                    onExportMidi({ bars: midiBars });
-                    setExportNotice(`Orbit merged MIDI exported for ${midiBars} bars.`);
-                  }}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(127, 215, 255, 0.08)',
-                    border: '1px solid rgba(127, 215, 255, 0.2)',
-                    color: '#7FD7FF',
-                    ...lockedExportStyle,
-                  }}
-                >
-                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
-                </button>
-              </div>
-
-              <div
-                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
-                    Motion Export
                   </div>
-                  <InfoTip text="Exports the canvas motion as a short MP4 from the start of the cycle. If the browser records WebM first, the app converts it before download." />
-                </div>
-                <div className={isMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-[1fr,1fr,auto] gap-2'}>
-                  <select
-                    aria-label="Motion duration" value={String(videoDuration)}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoDuration(Number(e.target.value) as VideoExportDuration);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_DURATIONS.map((duration) => (
-                      <option key={duration.value} value={duration.value} style={{ background: '#181820' }}>
-                        {duration.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label="Motion format" value={videoAspect}
-                    onChange={(e) => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      setVideoAspect(e.target.value as VideoExportAspect);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-white/30"
-                    style={{ color: 'rgba(255, 255, 255, 0.8)', ...lockedExportStyle }}
-                  >
-                    {VIDEO_EXPORT_ASPECTS.map((aspect) => (
-                      <option key={aspect.value} value={aspect.value} style={{ background: '#181820' }}>
-                        {aspect.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      if (exportLocked) {
-                        promptLockedExport();
-                        return;
-                      }
-                      void onExportVideo({ durationSeconds: videoDuration, aspect: videoAspect });
-                      setExportNotice(
-                        isIOS
-                          ? 'Video recording support depends on your iPhone browser.'
-                          : 'Video recording started from reset.',
-                      );
-                    }}
-                    data-riff-video-export disabled={isRecordingVideo}
-                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
-                    style={{
-                      background: 'rgba(51, 136, 255, 0.08)',
-                    border: '1px solid rgba(51, 136, 255, 0.2)',
-                    color: '#88CCFF',
-                    ...lockedExportStyle,
-                  }}
-                >
-                    {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording…' : 'Export Video'}
-                  </button>
-                </div>
-              </div>
+                ) : null}
 
-
-
-              <div
-                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={mobileSubTitleClass} style={mobilePrimaryTitleStyle}>
-                    Scene Files
-                  </div>
-                  <InfoTip text="Scene files save the editable setup, not just a picture. Use them to move a scene between devices." />
-                </div>
-                <button
-                  onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    ...(saveScenesLocked
-                      ? {
-                          background: 'rgba(255,255,255,0.035)',
-                          borderColor: 'rgba(255,255,255,0.1)',
-                          color: 'rgba(255,255,255,0.5)',
-                          filter: 'grayscale(0.45)',
-                        }
-                      : {}),
-                  }}
-                >
-                  {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
+                <button type="button" onClick={() => setExpandedExport((value) => value === 'image' ? null : 'image')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#351925] text-[#ff76a8]"><Image size={22} /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Image</strong><span className="mt-1 block text-[11px] text-white/50">Save a high-resolution still</span></span>
+                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'image' ? 'rotate-90' : ''}`} />
                 </button>
-                <input
-                  ref={importInputRef}
-                  type="file"
-                  accept="application/json,.json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      onImportScene(file);
-                    }
-                    e.target.value = '';
-                  }}
-                />
+                {expandedExport === 'image' ? (
+                  <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+                    <select aria-label="Image format" value={imageAspect} onChange={(event) => setImageAspect(event.target.value as typeof imageAspect)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
+                      <option value="landscape" style={{ background: '#11151c' }}>Landscape</option><option value="square" style={{ background: '#11151c' }}>Square</option><option value="portrait" style={{ background: '#11151c' }}>Portrait</option><option value="story" style={{ background: '#11151c' }}>Shorts / Story</option>
+                    </select>
+                    <select aria-label="Image resolution" value={String(imageScale)} onChange={(event) => setImageScale(Number(event.target.value) as 1 | 2 | 4)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
+                      <option value="1" style={{ background: '#11151c' }}>HD</option><option value="2" style={{ background: '#11151c' }}>2K</option><option value="4" style={{ background: '#11151c' }}>4K</option>
+                    </select>
+                    <button type="button" onClick={() => { if (exportLocked) { promptLockedExport(); return; } onExportPng({ aspect: imageAspect, scale: imageScale }); setExportNotice('Image exported.'); }} className="col-span-2 min-h-11 rounded-lg border border-[#ff76a8]/25 bg-[#ff76a8]/10 text-[13px] font-medium text-[#ffb2ce]">
+                      {exportLocked ? 'Unlock image export' : 'Export image'}
+                    </button>
+                  </div>
+                ) : null}
+
+                <button type="button" onClick={() => setExpandedExport((value) => value === 'midi' ? null : 'midi')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#322a10] text-[#f0c75a]"><Music2 size={22} /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">MIDI</strong><span className="mt-1 block text-[11px] text-white/50">Send the rhythm to music software</span></span>
+                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'midi' ? 'rotate-90' : ''}`} />
+                </button>
+                {expandedExport === 'midi' ? (
+                  <div className="space-y-3 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+                    <div className="grid grid-cols-3 gap-2">{([4, 8, 16] as const).map((bars) => <button key={bars} type="button" onClick={() => setMidiBars(bars)} className="min-h-10 rounded-lg border text-[12px]" style={{ background: midiBars === bars ? 'rgba(240,199,90,0.12)' : 'rgba(255,255,255,0.03)', borderColor: midiBars === bars ? 'rgba(240,199,90,0.3)' : 'rgba(255,255,255,0.1)', color: midiBars === bars ? '#f0c75a' : 'rgba(255,255,255,0.6)' }}>{bars} bars</button>)}</div>
+                    <button type="button" onClick={() => { if (exportLocked) { promptLockedExport(); return; } onExportMidi({ bars: midiBars }); setExportNotice(`MIDI exported for ${midiBars} bars.`); }} className="min-h-11 w-full rounded-lg border border-[#f0c75a]/25 bg-[#f0c75a]/10 text-[13px] font-medium text-[#f0d889]">{exportLocked ? 'Unlock MIDI export' : 'Export MIDI'}</button>
+                  </div>
+                ) : null}
+
+                <button type="button" onClick={() => setExpandedExport((value) => value === 'scene' ? null : 'scene')} className="flex min-h-[74px] w-full items-center gap-4 py-3 text-left">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#123225] text-[#58e5b1]"><FileJson size={22} /></span>
+                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Editable scene</strong><span className="mt-1 block text-[11px] text-white/50">Move this setup to another device</span></span>
+                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'scene' ? 'rotate-90' : ''}`} />
+                </button>
+                {expandedExport === 'scene' ? (
+                  <div className="grid grid-cols-2 gap-2 border-t border-white/10 bg-white/[0.015] px-3 py-4">
+                    <button type="button" onClick={() => { if (exportLocked) { promptLockedExport(); return; } onExportCurrentScene(); setExportNotice('Editable scene exported.'); }} className="min-h-11 rounded-lg border border-[#58e5b1]/25 bg-[#58e5b1]/10 text-[12px] font-medium text-[#b9f8dc]">Export scene</button>
+                    <button type="button" onClick={() => importInputRef.current?.click()} className="min-h-11 rounded-lg border border-white/10 bg-white/[0.04] text-[12px] font-medium text-white/70">Import scene</button>
+                  </div>
+                ) : null}
               </div>
-
-              {exportNotice && (
-                <div
-                  className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: 'rgba(255,255,255,0.62)',
-                  }}
-                >
-                  {exportNotice}
-                </div>
-              )}
-
+              <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportScene(file); event.target.value = ''; }} />
+              {exportNotice ? <div className="pt-4 text-center text-[12px] text-white/45">{exportNotice}</div> : null}
               <div
                 className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
                 style={{
@@ -1437,7 +1311,6 @@ export default function OrbitSidebar({
                   </div>
                 )}
               </div>
-
             </div>
           )}
 

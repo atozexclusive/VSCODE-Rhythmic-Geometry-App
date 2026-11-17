@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Check, Crown, KeyRound, LogIn, LogOut, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
+import { Check, ChevronRight, Crown, HardDrive, KeyRound, LogIn, LogOut, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from './auth-provider';
 import { startStripeCheckout } from '../lib/billing-client';
 
-export default function AccountPanel() {
+interface AccountPanelProps {
+  compact?: boolean;
+}
+
+export default function AccountPanel({ compact = false }: AccountPanelProps) {
   const {
     enabled,
     loading,
@@ -22,6 +26,7 @@ export default function AccountPanel() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [billingSubmitting, setBillingSubmitting] = useState(false);
+  const [compactAuthOpen, setCompactAuthOpen] = useState(false);
 
   const accountPlanLabel =
     account?.plan === 'pro'
@@ -58,10 +63,9 @@ export default function AccountPanel() {
     textShadow: '0 0 14px rgba(136,204,255,0.24)',
   } as const;
   const shellStyle = {
-    background:
-      'radial-gradient(circle at 18% 0%, rgba(255,209,102,0.12), transparent 34%), radial-gradient(circle at 100% 6%, rgba(136,204,255,0.1), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.022))',
-    borderColor: 'rgba(255,209,102,0.14)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.055), 0 18px 40px rgba(0,0,0,0.16)',
+    background: 'rgba(255,255,255,0.018)',
+    borderColor: 'rgba(255,255,255,0.09)',
+    boxShadow: 'none',
   } as const;
   const subtleCardStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.022))',
@@ -180,6 +184,56 @@ export default function AccountPanel() {
     }
   };
 
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#58e5b1]/15 text-[#9df1d1]">
+            {user ? <UserRound size={20} /> : <HardDrive size={20} />}
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-[11px] font-mono uppercase tracking-[0.14em] text-white/85">
+              {user?.email ?? 'Working locally'}
+            </div>
+            <div className="mt-1 text-[11px] leading-relaxed text-white/52">
+              {user ? 'Your scenes and plan are connected to this account.' : 'Your scenes and settings are saved on this device.'}
+            </div>
+          </div>
+        </div>
+
+        {user ? (
+          <button type="button" onClick={() => void signOut()} className="min-h-14 w-full rounded-xl border border-white/10 bg-white/[0.04] text-[15px] font-medium text-white/80">
+            Sign out
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (!enabled) {
+                toast.message('Sign in is not available yet. Your work is still saved locally.');
+                return;
+              }
+              setCompactAuthOpen((open) => !open);
+            }}
+            className="min-h-11 w-full rounded-xl border border-[#58e5b1]/25 bg-[#58e5b1]/10 text-[11px] font-mono uppercase tracking-[0.14em] text-[#9df1d1]"
+          >
+            Sign in
+          </button>
+        )}
+
+        {!user && enabled && compactAuthOpen ? <AccountPanel /> : null}
+        <details className="rounded-xl border border-white/10 bg-white/[0.025]">
+          <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 text-[12px] text-white/75"><span>Plan</span><span>{planLabel}</span></summary>
+          <div className="border-t border-white/10 p-3"><AccountPanel /></div>
+        </details>
+        <details className="rounded-xl border border-white/10 bg-white/[0.025]">
+          <summary className="flex min-h-12 cursor-pointer items-center justify-between px-4 text-[12px] text-white/75"><span>Help</span><ChevronRight size={14} /></summary>
+          <p className="px-4 pb-3 text-[11px] leading-relaxed text-white/50">Open the Guide from Playback for a walkthrough. Scenes and settings are saved on this device; sign in to access your account and plan.</p>
+        </details>
+      </div>
+    );
+  }
+
   const renderPlanCards = () => (
     <div className="grid grid-cols-2 gap-2">
       <div
@@ -226,13 +280,13 @@ export default function AccountPanel() {
               }}
             />
             <div className="text-[12px] font-mono uppercase tracking-[0.22em]" style={amberTitleStyle}>
-              Account
+              {enabled ? 'Account' : 'Working locally'}
             </div>
           </div>
           <div className="mt-1 text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.54)' }}>
             {enabled
               ? 'Keep the free path focused, or unlock the full instrument with Pro.'
-              : 'Accounts are offline until Supabase is configured.'}
+              : 'Your scenes and exports stay on this device.'}
           </div>
         </div>
         <div
@@ -253,7 +307,7 @@ export default function AccountPanel() {
             color: enabled ? (isPro ? '#FFD166' : '#88CCFF') : '#FFAA00',
           }}
         >
-          {enabled ? planLabel : 'Offline'}
+          {enabled ? planLabel : 'Local'}
         </div>
       </div>
 
@@ -266,7 +320,7 @@ export default function AccountPanel() {
           className="rounded-2xl border px-3 py-3 text-[10px] leading-relaxed"
           style={{ ...subtleCardStyle, color: 'rgba(255,255,255,0.46)' }}
         >
-          Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to enable sign-in.
+          Sign in isn’t available yet. You can keep creating and saving locally.
         </div>
       ) : user ? (
         <div className="space-y-3">
