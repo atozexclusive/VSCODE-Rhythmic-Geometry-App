@@ -1,3 +1,4 @@
+import RiffShapeEditor from '../components/RiffShapeEditor';
 import RiffSoundOptions from '../components/RiffSoundOptions';
 import { Fragment } from 'react';
 import StudySoundGlyph from '../components/StudySoundGlyph';
@@ -2809,6 +2810,7 @@ function LimitedColorPickerButton({
   onChange,
   label,
   iconSize = 13,
+  popoverZIndex = 120,
   className = 'h-8 w-8',
   locked = false,
   onLockedClick,
@@ -2818,6 +2820,7 @@ function LimitedColorPickerButton({
   onChange: (color: string) => void;
   label: string;
   iconSize?: number;
+  popoverZIndex?: number;
   className?: string;
   locked?: boolean;
   onLockedClick?: () => void;
@@ -2915,6 +2918,7 @@ function LimitedColorPickerButton({
           ref={popoverRef}
           className="fixed z-[120] grid w-[11.5rem] grid-cols-4 gap-1.5 rounded-xl border p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl"
           style={{
+            zIndex: popoverZIndex,
             left: position.left,
             top: position.top,
             background: 'rgba(17,17,22,0.94)',
@@ -15417,6 +15421,35 @@ function OrbitalPolymeter() {
       onLayer={(id, color) => id === 'riff' ? handleSetRiffPhraseColor(color) : handleSetRiffSequenceCellColor(id as RiffSequenceCellLabel, color)}
       locked={colorEditingLocked} onLocked={() => openProPrompt('color-editing')} />
   );
+  const riffShapeColorControl = <LimitedColorPickerButton colors={RIFF_CYCLE_COLORS}
+    value={riffEditableColor} onChange={handleSetRiffEditableColor}
+    label="Edit riff color" popoverZIndex={180} locked={colorEditingLocked} onLockedClick={() => openProPrompt('color-editing')} />;
+  const riffShapeEditor = <RiffShapeEditor
+    study={riffSelectedSequenceCell ? { ...riffCycleStudy, reference: riffEditableReference, riff: { ...riffCycleStudy.riff, ...riffSelectedSequenceCell } } : riffCycleStudy}
+    onStepCount={handleSetRiffPhraseStepCount} onEndingLength={handleSetRiffLandingLength} onToggleEnding={handleToggleRiffLandingEdit}
+    endingSteps={<RiffRollEditor compact activeSteps={riffLandingRollSteps} accents={riffLandingRollAccents}
+      color="#7FD7FF" selectedStepIndex={null} labelPrefix="ending" onPressStep={index => handleSetRiffLandingStepActive(index, !riffLandingRollSteps[index])} onLongPressStep={handleToggleRiffLandingAccent} />}
+    riffSteps={<RiffRollEditor compact activeSteps={riffSelectedSequenceCell?.activeSteps ?? riffCycleStudy.riff.activeSteps}
+      accents={riffSelectedSequenceCell?.accents ?? riffCycleStudy.riff.accents} color={riffSelectedSequenceCell?.color ?? riffCycleStudy.riff.color}
+      selectedStepIndex={selectedRiffCycleStep} labelPrefix="riff" onPressStep={index => { handleSelectRiffCycleStep(index); handleToggleRiffCycleStep(index); }} onLongPressStep={handleToggleRiffCycleAccent} />}
+    bar={<div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2"><InlineInfoLabel infoId="riff_meter" label="Meter" labelClassName="text-[10px] text-white/60" />
+          <div className="flex items-center rounded-lg border border-white/10 bg-white/[.035] px-2">
+            <input aria-label="Meter beats" type="number" min="2" max={RIFF_MAX_METER_NUMERATOR} value={riffEditableReference.numerator} onChange={event => handleUpdateRiffReference({ numerator: Number(event.target.value) })} className="min-w-0 w-full bg-transparent py-2 text-center text-xs text-white/85 outline-none" />
+            <span className="text-white/30">/</span>
+            <select aria-label="Meter beat unit" value={riffEditableReference.denominator} onChange={event => handleUpdateRiffReference({ denominator: Number(event.target.value) })} className="min-w-0 w-full bg-transparent py-2 text-center text-xs text-white/85 outline-none">{[4,8].map(value => <option key={value} className="bg-[#202026]">{value}</option>)}</select>
+          </div>
+        </div>
+        <div className="space-y-2"><InlineInfoLabel infoId="riff_subdivision" label="Subdivision" labelClassName="text-[10px] text-white/60" />
+          <div className="flex items-center gap-1 rounded-lg border border-sky-200/15 bg-sky-200/[.04] px-2 text-sky-200/80">
+            <span className="w-8 shrink-0" aria-hidden="true"><RiffSubdivisionSymbol count={riffEditableReference.subdivision} /></span>
+            <select aria-label="Bar subdivision" value={riffEditableReference.subdivision} onChange={event => handleUpdateRiffReference({ subdivision: Number(event.target.value) as ReferenceMeter['subdivision'] })} className="min-w-0 flex-1 bg-transparent py-2 text-xs outline-none">{[8,12,16,20,32].map(value => <option key={value} value={value} className="bg-[#202026]">{getRiffSubdivisionButtonLabel(value)}</option>)}</select>
+          </div>
+        </div>
+      </div>
+      <RiffRestartSliderControl study={riffCycleStudy} onUpdateRiff={handleUpdateRiffPhrase} onSetSequenceRestartBars={handleSetRiffSequenceBars} compact />
+    </div>} />;
   const orbitCanvasColors = (
     <ShapeColorControls title="Orbit Colors"
       layers={getGeometryModeOrbits(engineState.orbits, geometryMode, interferenceSettings).map((orbit, index) => ({
@@ -20555,6 +20588,8 @@ function OrbitalPolymeter() {
             >
               <RiffCycleCanvas
                 study={riffCanvasStudy}
+                shapeEditor={riffShapeEditor}
+                shapeColorControl={riffShapeColorControl}
                 dockCellStripAboveControls
                 viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : 'circular'}
                 laneWindowStartStep={
@@ -22508,6 +22543,8 @@ function OrbitalPolymeter() {
                         >
                           <RiffCycleCanvas
                             study={riffCanvasStudy}
+                shapeEditor={riffShapeEditor}
+                shapeColorControl={riffShapeColorControl}
                             viewModeOverride="unwrapped"
                             laneWindowStartStep={
                               riffMobileLaneShouldFollowPlayback ? undefined : riffMobileLaneStartStep
@@ -23012,6 +23049,8 @@ function OrbitalPolymeter() {
         <div className="absolute inset-0">
           <RiffCycleCanvas
             study={riffCanvasStudy}
+                shapeEditor={riffShapeEditor}
+                shapeColorControl={riffShapeColorControl}
             selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
             selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
             viewModeOverride={
@@ -24800,6 +24839,8 @@ function OrbitalPolymeter() {
               >
                 <RiffCycleCanvas
                   study={riffCanvasStudy}
+                shapeEditor={riffShapeEditor}
+                shapeColorControl={riffShapeColorControl}
                   viewModeOverride="circular"
                   landingReferenceOverlayMode="auto"
                   playbackStateRef={riffCyclePlaybackStateRef}

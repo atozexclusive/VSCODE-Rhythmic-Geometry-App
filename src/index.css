@@ -910,3 +910,7 @@
 .mode-sound-panel .mode-sound-pitch-options { margin-top: 7px; gap: 7px; }
 .mode-sound-panel .mode-sound-field { gap: 4px; }
 .mode-sound-panel summary { min-height: 28px; }
+.riff-shape-editor .shape-color-controls { font-size: 10px; }
+.riff-shape-editor [data-mobile-editor-index] { min-width: 38px; min-height: 54px; padding: 5px; }
+.riff-shape-editor select option { background: #202630; }
+.riff-shape-editor svg[viewBox="0 0 64 42"] { width: 30px; height: 23px; }
