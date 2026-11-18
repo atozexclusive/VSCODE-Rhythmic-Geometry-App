@@ -18,11 +18,17 @@ interface Props {
   onRemix: () => void;
   headerAccessory?: ReactNode;
   headerAccessoryInline?: boolean;
+  aboveLeftAccessory?: ReactNode;
   children: ReactNode;
 }
 
-export default function QuickCanvasControls({ prefix, panel, onPanelChange, soundLocked, canvasLocked, randomPlusLocked, remixLocked, onLocked, onRandom, onRandomPlus, onRemix, headerAccessory, headerAccessoryInline = false, children }: Props) {
+export default function QuickCanvasControls({ prefix, panel, onPanelChange, soundLocked, canvasLocked, randomPlusLocked, remixLocked, onLocked, onRandom, onRandomPlus, onRemix, headerAccessory, headerAccessoryInline = false, aboveLeftAccessory, children }: Props) {
   return <>
+    {aboveLeftAccessory ? (
+      <div className="absolute bottom-14 left-3 z-30">
+        {aboveLeftAccessory}
+      </div>
+    ) : null}
     <div className="absolute left-3 bottom-2 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-0.5 backdrop-blur-md" role="toolbar" aria-label="Pattern quick actions">
       {[
         { id: 'random', label: 'Random', icon: <PatternActionIcon action="random" />, locked: false, action: onRandom },

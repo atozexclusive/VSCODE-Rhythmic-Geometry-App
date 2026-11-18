@@ -934,3 +934,194 @@ body:has([data-canvas-editor-dialog]) [data-radix-popper-content-wrapper] {
 .cell-sequencer > [data-guide="riff-cell-overview"] button { min-height: 24px; }
 .cell-sequencer > [data-guide="riff-cell-overview"] > div:first-child button { height: 22px; min-height: 22px; }
 [data-canvas-editor-dialog] .cell-sequencer { max-height: none; overflow: visible; }
+
+/* The canvas popup uses a tighter sequencer layout than the full edit panel. */
+[data-canvas-editor-dialog] .riff-shape-editor-panel:has(.cell-sequencer) {
+  padding: 6px;
+  margin-top: 8px;
+}
+[data-canvas-editor-dialog] .cell-sequencer {
+  padding: 6px 8px 8px !important;
+  gap: 8px !important;
+  border-radius: 10px;
+}
+[data-canvas-editor-dialog] .cell-sequencer .cell-library { padding-top: 6px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-library > div:first-child,
+[data-canvas-editor-dialog] .cell-sequencer .cell-arrangement > div:first-child { margin-bottom: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child {
+  min-height: 42px;
+  min-width: 80px;
+  padding: 6px 7px;
+}
+[data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child > span:nth-child(2) { margin-top: 5px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-library > div:first-child button {
+  min-height: 28px;
+  height: 28px;
+  min-width: 28px;
+  width: 28px;
+}
+[data-canvas-editor-dialog] .cell-sequencer-step-editor {
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+[data-canvas-editor-dialog] .cell-sequencer-step-editor .step-count-control { gap: 6px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor .step-count-control > label { padding-block: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] {
+  min-width: 36px;
+  min-height: 54px;
+  padding: 4px;
+  border-radius: 9px;
+}
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div { margin-top: 3px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:first-child { margin-top: 0; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:last-child { font-size: 7px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:nth-child(2) { gap: 2px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:nth-child(2) > span { flex-shrink: 0; }
+[data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] { padding: 6px; gap: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-timing { padding-top: 6px; margin-top: 6px; gap: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-order-actions { margin-top: 5px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-resolve { font-size: 9px; }
+@media (max-width: 420px) {
+  [data-canvas-editor-dialog]:has(.cell-sequencer) { padding: 10px; }
+  [data-canvas-editor-dialog]:has(.cell-sequencer) > div:first-child { padding-bottom: 7px; margin-bottom: 8px; }
+  [data-canvas-editor-dialog] .cell-sequencer > [data-guide="riff-cell-overview"] { gap: 4px; }
+  [data-canvas-editor-dialog] .cell-sequencer > [data-guide="riff-cell-overview"] > div:first-child > span { font-size: 7px; padding-inline: 4px; margin-left: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-guide-trigger { padding-inline: 5px; font-size: 9px; gap: 3px; }
+}
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:nth-child(2) > span:first-child:empty {
+  width: 10px;
+  height: 10px;
+}
+/* One more small density pass for the popup sequencer. */
+[data-canvas-editor-dialog] .cell-sequencer { gap: 6px !important; padding: 5px 7px 7px !important; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-library { padding-top: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child { min-height: 38px; padding-block: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor { padding: 6px; gap: 4px; }
+[data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] { min-height: 50px; }
+[data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] { padding: 5px; gap: 3px; }
+[data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] button.min-w-10 { min-height: 30px; padding-block: 3px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-phrase-slots { min-height: 30px; }
+[data-canvas-editor-dialog] .cell-sequencer .cell-timing { padding-top: 4px; margin-top: 4px; }
+
+.cell-sequencer .cell-options-trigger { width: 24px; height: 24px; min-width: 24px; min-height: 24px; padding: 0; }
+/* Small help badges with an invisible touch area around the visible circle. */
+.cell-sequencer button[aria-label^="What "],
+[data-canvas-editor-dialog] .cell-sequencer button[aria-label^="What "] {
+  position: relative;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  padding: 0;
+}
+.cell-sequencer button[aria-label^="What "]::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+}
+
+/* Keep cell-library tools aligned and let pills flow into clear rows. */
+.cell-sequencer .cell-library > div:first-child { flex-wrap: nowrap; }
+.cell-sequencer .cell-library > div:first-child > div:last-child { flex-shrink: 0; gap: 6px; }
+.cell-sequencer .cell-library > div:first-child button:not([aria-label^="What "]) {
+  width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; border-radius: 7px;
+}
+.cell-sequencer .cell-library-cells { gap: 6px; }
+.cell-sequencer .cell-library-item { flex: 0 1 100px; }
+.cell-sequencer .cell-library-item > button:first-child,
+[data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child {
+  width: 100%; min-width: 0; height: 42px; min-height: 42px; padding: 6px 7px;
+}
+.cell-sequencer .cell-library-item > button:first-child > span:first-child { gap: 6px; padding-right: 18px; }
+.cell-sequencer .cell-library-item > button:first-child > span:nth-child(2) { gap: 3px; }
+.cell-sequencer .cell-library-item > button:first-child > span:nth-child(2) > span { flex: 0 1 6px; min-width: 3px; }
+.cell-sequencer .cell-library-cells .cell-library-add { align-self: stretch; height: 42px; min-height: 42px; width: 32px; flex: 0 0 32px; }
+.cell-sequencer .cell-library-item .cell-options-trigger { right: 1px; top: 1px; width: 20px; min-width: 20px; height: 22px; min-height: 22px; }
+.cell-sequencer .cell-library-list { padding-top: 5px; }
+
+/* Study shares its existing sequencer controls with the canvas layer popup. */
+[data-canvas-editor-dialog] .study-layer-sequencer { padding: 6px 8px; border-radius: 10px; }
+[data-canvas-editor-dialog] .study-layer-sequencer > div:first-child > button:first-child { min-height: 28px; font-size: 10px; }
+[data-canvas-editor-dialog] .study-layer-sequencer > div:nth-child(2) { margin-top: 6px; padding-top: 6px; }
+[data-canvas-editor-dialog] .study-layer-sequencer > div:nth-child(2) > * + * { margin-top: 8px; }
+[data-canvas-editor-dialog] .study-layer-sequencer button[aria-label*=" layer "] { min-height: 32px; min-width: 32px; font-size: 10px; }
+
+.study-layer-sequencer[data-expanded="false"] { padding: 3px 8px !important; border-radius: 9px; }
+.study-sequencer-banner { min-height: 26px; }
+.study-sequencer-banner button { min-height: 24px; }
+.study-sequencer-banner button[aria-label^="What "] { width: 16px; height: 16px; min-width: 16px; min-height: 16px; padding: 0; }
+[data-canvas-editor-dialog] .study-layer-sequencer > .study-sequencer-banner > button:first-child { min-height: 24px; }
+
+/* Mobile canvas Edit dropdown: denser than the regular editor. */
+@media (max-width: 767px) {
+  [data-canvas-editor-dialog] .riff-shape-editor-panel:has(.cell-sequencer) {
+    padding: 4px;
+    margin-top: 5px;
+  }
+  [data-canvas-editor-dialog] .cell-sequencer {
+    padding: 4px 5px 5px !important;
+    gap: 4px !important;
+    border-radius: 9px;
+  }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library,
+  [data-canvas-editor-dialog] .cell-sequencer .cell-timing { padding-top: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library > div:first-child,
+  [data-canvas-editor-dialog] .cell-sequencer .cell-arrangement > div:first-child { margin-bottom: 3px; gap: 4px; }
+  [data-canvas-editor-dialog] .cell-sequencer .font-mono:not(.cell-sequencer-step-editor *) { font-size: 9px; line-height: 1.25; letter-spacing: .025em; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library-item { flex-basis: 84px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child { min-width: 72px; min-height: 32px; padding: 3px 5px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library-item > button:first-child > span:nth-child(2) { margin-top: 3px; gap: 2px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library-cells { gap: 4px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library-cells .cell-library-add { height: 32px; min-height: 32px; width: 28px; flex-basis: 28px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-library > div:first-child button:not([aria-label^="What "]) { width: 26px; min-width: 26px; height: 26px; min-height: 26px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor { padding: 4px; gap: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor .step-count-control { gap: 4px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor .step-count-control > button { height: 28px !important; width: 28px !important; min-height: 28px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor .step-count-control > label { padding: 2px 4px; font-size: 10px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] { min-width: 29px; min-height: 42px; padding: 3px; border-radius: 7px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div { margin-top: 2px; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:first-child { margin-top: 0; }
+  [data-canvas-editor-dialog] .cell-sequencer-step-editor [data-riff-step-control] > div:last-child { font-size: 6px; }
+  [data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] { padding: 4px; gap: 2px; margin-bottom: 4px; }
+  [data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] input { height: 24px; min-height: 24px; font-size: 10px; }
+  [data-canvas-editor-dialog] .cell-sequencer [data-cell-phrase] button.min-w-10 { min-width: 28px; min-height: 26px; padding: 2px 5px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-phrase-slots { min-height: 26px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-order-actions { margin-top: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-order-actions button,
+  [data-canvas-editor-dialog] .cell-sequencer .cell-timing button { min-height: 26px; padding: 3px 5px; font-size: 8px !important; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-timing { margin-top: 3px; gap: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-timing > div:first-child { flex-basis: 145px; row-gap: 3px; }
+  [data-canvas-editor-dialog] .cell-sequencer .cell-resolve { font-size: 8px; padding-top: 2px; }
+}
+
+/* Keep popup pattern tools inline with the step section heading. */
+[data-canvas-editor-dialog] [data-pattern-tools] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+[data-canvas-editor-dialog] [data-pattern-tools] > button {
+  height: 24px;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 9px;
+}
+[data-canvas-editor-dialog] [data-pattern-tools] > button svg { width: 11px; height: 11px; }
+[data-canvas-editor-dialog] [data-pattern-tools] { margin-top: 4px; }
+[data-canvas-editor-dialog] [data-pattern-tools] > button { color: white; }
+
+/* Match the popup footer's top gap to its bottom inset. */
+[data-canvas-editor-dialog] [data-pattern-tools] { margin-top: 16px; }
+@media (max-width: 420px) {
+  [data-canvas-editor-dialog] [data-pattern-tools] { margin-top: 10px; }
+}
+
+/* Align the standalone steps heading with the sequencer's inset title. */
+[data-canvas-editor-dialog] .riff-step-heading-with-sequencer { padding-left: 7px; }
+@media (max-width: 767px) {
+  [data-canvas-editor-dialog] .riff-step-heading-with-sequencer { padding-left: 5px; }
+}

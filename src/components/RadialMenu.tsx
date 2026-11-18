@@ -22,6 +22,7 @@ interface RadialMenuProps {
   harmonySettings?: HarmonySettings;
   entityLabel?: 'Orbit' | 'Layer';
   layerStepEditor?: ReactNode;
+  layerSequencer?: ReactNode;
   colorControl?: ReactNode;
   radius?: number;
   onChangeRadius?: (id: string, radius: number) => void;
@@ -58,6 +59,7 @@ export default function RadialMenu({
   orbitOptions = [],
   entityLabel = 'Orbit',
   layerStepEditor,
+  layerSequencer,
   colorControl,
   radius,
   onChangeRadius,
@@ -232,6 +234,7 @@ export default function RadialMenu({
         </div>
       ) : null}
 
+      {docked && layerSequencer ? <div className="mt-3">{layerSequencer}</div> : null}
       {docked && layerStepEditor ? layerStepEditor : onChangePulseCount ? (
         <div className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div className="mb-1 flex items-center justify-between gap-2">
