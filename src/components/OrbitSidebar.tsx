@@ -1,3 +1,4 @@
+import PlanetarySceneLibrary from './PlanetarySceneLibrary';
 import type { DesktopMenuRequest } from './DesktopHeader';
 import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu from './SceneExportMenu';
@@ -42,6 +43,7 @@ interface OrbitSidebarProps {
   standardTimingMode?: OrbitCountMode;
   interferenceSettings: InterferenceSettings;
   builtInScenes: Array<{
+    category?: 'planetary';
     id: string;
     name: string;
     description: string;
@@ -355,17 +357,18 @@ export default function OrbitSidebar({
     setActiveSceneTab(id === 'saved' ? 'saved' : 'built-in');
   };
   const savedPreview = savedScenes.find(scene => scene.thumbnailDataUrl);
-  const experimentPreview = builtInScenes.find(scene => scene.thumbnailDataUrl) ?? premiumScenes.find(scene => scene.thumbnailDataUrl);
+  const experimentPreview = builtInScenes.find(scene => !scene.category && scene.thumbnailDataUrl) ?? premiumScenes.find(scene => scene.thumbnailDataUrl);
   const sceneCategories: SceneCategory[] = [
     { id: 'saved', title: 'Saved Scenes', description: 'Your ideas, ready to revisit.', color: '#72F1B8', preview: savedPreview?.thumbnailDataUrl ? <img src={savedPreview.thumbnailDataUrl} alt="" className="h-full w-full object-cover" /> : undefined },
     { id: 'experiments', title: 'Experiments', description: 'Explore moving geometry and new relationships.', color: '#B6A0FF', preview: experimentPreview?.thumbnailDataUrl ? <img src={experimentPreview.thumbnailDataUrl} alt="" className="h-full w-full object-cover" /> : undefined },
+    { id: 'planetary', title: 'Planetary Orbits', description: 'Discover the rhythms of planets and moons.', color: '#7FD7FF', preview: builtInScenes.find(scene => scene.id === 'planetary_venus_earth')?.thumbnailDataUrl ? <img src={builtInScenes.find(scene => scene.id === 'planetary_venus_earth')?.thumbnailDataUrl} alt="" className="h-full w-full object-cover" /> : undefined },
   ];
   const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
     { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
     { key: 'interference-trace', label: 'Interference', color: '#88CCFF' },
     { key: 'sweep', label: 'Sweep', color: '#FFAA00' },
   ];
-  const filteredBuiltInScenes = builtInScenes.filter((scene) => scene.geometryMode === activeSceneMode);
+  const filteredBuiltInScenes = builtInScenes.filter((scene) => !scene.category && scene.geometryMode === activeSceneMode);
   const filteredSavedScenes = savedScenes.filter((scene) => scene.geometryMode === activeSceneMode);
   const filteredPremiumScenes = premiumScenes.filter((scene) => scene.geometryMode === activeSceneMode);
   const sceneModeLabel =
@@ -853,7 +856,7 @@ export default function OrbitSidebar({
                 }}
               >
                 Save Scene
-              </button>} categories={sceneCategories} active={sceneCategory} onSelect={openSceneCategory} onBack={() => setSceneCategory(null)}><>{sceneCategory !== 'saved' ? (<div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+              </button>} categories={sceneCategories} active={sceneCategory} onSelect={openSceneCategory} onBack={() => setSceneCategory(null)}>{sceneCategory === 'planetary' ? <PlanetarySceneLibrary scenes={builtInScenes} onLoad={onLoadBuiltInScene} /> : <>{sceneCategory !== 'saved' ? (<div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                 {[
                   { key: 'built-in' as const, label: 'Free', color: '#FFD166' },
                   { key: 'premium' as const, label: 'Pro', color: '#FF88C2' },
@@ -1167,7 +1170,7 @@ export default function OrbitSidebar({
                     </div>
                   ))}
                 </div>
-              )}</></SceneCategoryBrowser>
+              )}</>}</SceneCategoryBrowser>
           )}
 
           {/* EXPORT TAB */}

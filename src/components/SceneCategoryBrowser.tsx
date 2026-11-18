@@ -1,8 +1,9 @@
-import { ChevronLeft, ChevronRight, Drum, FlaskConical, Folder, GraduationCap, Music2, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Drum, FlaskConical, Folder, GraduationCap, Music2, Orbit, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 const categoryIcons: Record<string, LucideIcon> = {
   saved: Folder,
+  planetary: Orbit,
   songs: Music2,
   grooves: Drum,
   exercises: GraduationCap,

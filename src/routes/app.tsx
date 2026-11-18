@@ -1,3 +1,4 @@
+import { PLANETARY_SCENES } from '../lib/planetaryScenes';
 import RiffLaneOptions from '../components/RiffLaneOptions';
 import DesktopHeader, { type DesktopMenuRequest } from '../components/DesktopHeader';
 import DesktopSidePanel from '../components/DesktopSidePanel';
@@ -5516,6 +5517,7 @@ const FREE_DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
 };
 
 export interface BuiltInScene {
+  category?: 'planetary';
   id: string;
   name: string;
   description: string;
@@ -6756,7 +6758,35 @@ export function createScenePreviewDataUrl(
   return canvas.toDataURL('image/jpeg', 0.82);
 }
 
+const PLANETARY_BUILT_IN_SCENES: BuiltInScene[] = PLANETARY_SCENES.map(scene => ({
+  id: scene.id,
+  category: 'planetary',
+  name: scene.name,
+  description: scene.description,
+  thumbnailDataUrl: '',
+  snapshot: {
+    orbits: scene.bodies.map((body, index) => ({
+      pulseCount: scene.counts[index],
+      radius: 150 + index * (126 / Math.max(1, scene.bodies.length - 1)),
+      direction: scene.directions?.[index] ?? 1,
+      color: body.color,
+      harmonyDegree: [0, 2, 4, 1][index],
+      harmonyRegister: 0,
+    })),
+    speedMultiplier: orbitTempoBpmToSpeedMultiplier(16, DEFAULT_BASE_BPM, Math.max(...scene.counts)),
+    traceMode: true,
+    harmonySettings: {
+      tonePreset: 'scale-quantized', rootNote: 'C', scaleName: 'majorPentatonic',
+      mappingMode: 'orbit-index', manualOrbitRoles: true,
+    },
+    geometryMode: scene.geometryMode ?? 'standard-trace',
+    standardTimingMode: DEFAULT_ORBIT_COUNT_MODE,
+    interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, sourceOrbitCIndex: scene.bodies.length > 2 ? 2 : null, showConnectors: true },
+  },
+}));
+
 export const BUILT_IN_SCENES: BuiltInScene[] = [
+  ...PLANETARY_BUILT_IN_SCENES,
   {
     id: 'glass_cathedral',
     name: 'Glass Cathedral',
@@ -24144,7 +24174,7 @@ function OrbitalPolymeter() {
           geometryMode={geometryMode}
           standardTimingMode={standardTimingMode}
           interferenceSettings={interferenceSettings}
-          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+          builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot, category }) => ({ id, name, description, thumbnailDataUrl, category, geometryMode: snapshot.geometryMode }))}
           premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
           savedScenes={savedScenes.map(({ id, name, updatedAt, thumbnailDataUrl, snapshot }) => ({ id, name, updatedAt, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
           exportRecords={exportRecords}
@@ -24646,7 +24676,7 @@ function OrbitalPolymeter() {
         geometryMode={geometryMode}
         standardTimingMode={standardTimingMode}
         interferenceSettings={interferenceSettings}
-        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
+        builtInScenes={BUILT_IN_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot, category }) => ({ id, name, description, thumbnailDataUrl, category, geometryMode: snapshot.geometryMode }))}
         premiumScenes={PREMIUM_SCENES.map(({ id, name, description, thumbnailDataUrl, snapshot }) => ({ id, name, description, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
         savedScenes={savedScenes.map(({ id, name, updatedAt, thumbnailDataUrl, snapshot }) => ({ id, name, updatedAt, thumbnailDataUrl, geometryMode: snapshot.geometryMode }))}
         exportRecords={exportRecords}
