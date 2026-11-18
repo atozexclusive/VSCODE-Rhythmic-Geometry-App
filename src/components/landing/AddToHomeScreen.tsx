@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Download, PlusSquare, Share, Smartphone, X } from 'lucide-react';
+import { useIsMobile } from '../../hooks/use-mobile';
 
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -12,6 +13,7 @@ function isStandalone() {
 }
 
 export default function AddToHomeScreen() {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [installed, setInstalled] = useState(isStandalone);
   const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null);
@@ -80,7 +82,7 @@ export default function AddToHomeScreen() {
   ];
 
   return <>
-    {!installed && <button type="button" ref={triggerRef} className="rg-install-trigger" onClick={() => { setNotice(''); setOpen(true); }}><Smartphone size={16} aria-hidden="true" />Add to Home Screen</button>}
+    {isMobile && !installed && <button type="button" ref={triggerRef} className="rg-install-trigger" onClick={() => { setNotice(''); setOpen(true); }}><Smartphone size={16} aria-hidden="true" />Add to Home Screen</button>}
     {open && <dialog ref={dialogRef} className="rg-install-dialog" aria-labelledby="rg-install-title" aria-describedby="rg-install-description"
       onCancel={() => setOpen(false)} onClose={() => setOpen(false)}
       onClick={(event) => {

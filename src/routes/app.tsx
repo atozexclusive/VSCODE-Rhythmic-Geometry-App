@@ -16695,11 +16695,11 @@ function OrbitalPolymeter() {
   const mobileCanvasTapHintText =
     isMobile && !presentationMode && !helpOpen && !beginnerGuideSeen[appSurface]
       ? appSurface === 'polyrhythm-study'
-        ? 'Tap dots to edit.'
+        ? 'Tap canvas to edit'
         : appSurface === 'riff-cycle-study'
-          ? 'Tap dots to edit.'
+          ? 'Tap canvas to edit'
           : appSurface === 'orbital'
-            ? 'Tap orbit dots to edit.'
+            ? 'Tap canvas to edit'
             : null
       : null;
   const mobileCanvasTapHint = mobileCanvasTapHintText ? (
