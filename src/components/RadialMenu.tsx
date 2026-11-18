@@ -9,7 +9,28 @@ import { X, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 import { type HarmonySettings } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
 
+function OrbitCountInput({ value, max, label, color, onChange }: {
+  value: number; max: number; label: string; color: string; onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const parsed = Number(draft);
+    const next = draft.trim() && Number.isFinite(parsed) ? Math.max(1, Math.min(max, Math.round(parsed))) : value;
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
+  return <input type="number" inputMode="numeric" min={1} max={max} value={draft}
+    aria-label={`Type ${label} orbits`} className="orbit-count-input rounded-lg border px-2 py-0.5 text-center font-mono text-[10px]"
+    style={{ color, background: `${color}12`, borderColor: `${color}36`, width: `${Math.max(7, draft.length + 4)}ch` }}
+    onFocus={event => event.currentTarget.select()} onChange={event => setDraft(event.currentTarget.value)} onBlur={commit}
+    onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setDraft(String(value)); }} />;
+}
+
 interface RadialMenuProps {
+  embedded?: boolean;
+  defaultAllOrbits?: boolean;
+  selectionRequestVersion?: number;
   x: number;
   y: number;
   orbitId: string;
@@ -51,6 +72,9 @@ const QUICK_COLORS = [
 ];
 
 export default function RadialMenu({
+  embedded = false,
+  defaultAllOrbits = false,
+  selectionRequestVersion,
   x,
   y,
   orbitId,
@@ -79,15 +103,17 @@ export default function RadialMenu({
   const docked = entityLabel === 'Layer' || guideMode;
   // Layer contents stay compact from the first frame; mounting the viewport
   // hook must not resize or reposition the shared dialog after it opens.
-  const isMobile = docked || mobileViewport;
+  const isMobile = embedded || docked || mobileViewport;
   const menuRef = useRef<HTMLDivElement>(null);
-  const [allOrbits, setAllOrbits] = useState(false);
+  const [allOrbits, setAllOrbits] = useState(defaultAllOrbits);
+  useEffect(() => setAllOrbits(defaultAllOrbits), [defaultAllOrbits]);
+  useEffect(() => { if (selectionRequestVersion != null) setAllOrbits(false); }, [selectionRequestVersion]);
   const supportsAll = entityLabel === 'Orbit' && orbitOptions.some(orbit => orbit.pulseCount != null);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const selectedOrbitLabel =
     orbitOptions.find((orbit) => orbit.id === orbitId)?.label ?? entityLabel;
   const selectedOrbitNumber = Math.max(1, Math.round(orbitPulseCount ?? 1));
-  const ratioSliderMax = Math.max(1, orbitPulseMax);
+  const ratioSliderMax = Math.max(1, entityLabel === 'Orbit' ? Math.min(100, orbitPulseMax) : orbitPulseMax);
   const mobileViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
   const mobileViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 760;
   const mobileMenuWidth = Math.min(350, mobileViewportWidth - 24);
@@ -105,7 +131,7 @@ export default function RadialMenu({
   };
 
   useEffect(() => {
-    if (docked) return;
+    if (docked || embedded) return;
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
@@ -127,9 +153,9 @@ export default function RadialMenu({
       window.removeEventListener('keydown', handleKey);
       window.removeEventListener('touchstart', handleTouchOutside);
     };
-  }, [entityLabel, onClose, docked]);
+  }, [entityLabel, onClose, docked, embedded]);
 
-  const controls = <>{!docked ? <>      {isMobile && (
+  const controls = <>{!docked ? <>      {isMobile && !embedded && (
         <div className="flex justify-center mb-1.5">
           <div
             className="h-1.5 w-8 rounded-full"
@@ -256,16 +282,8 @@ export default function RadialMenu({
             >
               {allOrbits ? selectedOrbitLabel : entityLabel === 'Layer' ? 'Steps' : 'Orbits'}
             </div>
-            <div
-              className={`rounded-lg border px-2 py-0.5 ${entityLabel === 'Layer' ? 'text-[12px] font-semibold' : 'text-[10px]'} font-mono`}
-              style={{
-                color: orbitColor,
-                background: `${orbitColor}12`,
-                borderColor: `${orbitColor}36`,
-              }}
-            >
-              {selectedOrbitNumber}
-            </div>
+            <OrbitCountInput value={selectedOrbitNumber} max={orbitPulseMax ?? 1000} label={selectedOrbitLabel} color={orbitColor}
+              onChange={value => onChangePulseCount(orbitId, value)} />
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -392,7 +410,8 @@ export default function RadialMenu({
         </div>
       </div>) : null}
 </>;
-  if (docked) return <CanvasEditorDialog guideMode={guideMode} title={`Edit ${selectedOrbitLabel}`} color={orbitColor} colorControl={colorControl} onClose={onClose}
+  if (embedded && !docked) return <div className="space-y-2">{controls}</div>;
+  if (docked) return <CanvasEditorDialog embedded={embedded} guideMode={guideMode} title={`Edit ${selectedOrbitLabel}`} color={orbitColor} colorControl={colorControl} onClose={onClose}
     headerActions={<button type="button" onClick={() => { onDelete(orbitId); onClose(); }} aria-label={`Delete ${entityLabel.toLowerCase()}`} className="rounded-lg p-2 text-red-400 hover:bg-red-400/10"><Trash2 size={16} /></button>}>
     {controls}
   </CanvasEditorDialog>;

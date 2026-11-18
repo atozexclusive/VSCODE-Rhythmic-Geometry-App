@@ -1,3 +1,4 @@
+import type { DesktopMenuRequest } from './DesktopHeader';
 import { getStudySceneCategory } from '../lib/sceneCategories';
 import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu, { ExportImageOptions } from './SceneExportMenu';
@@ -31,6 +32,7 @@ interface PolyrhythmStepSelection {
 
 interface PolyrhythmSidebarProps {
   isOpen: boolean;
+  menuRequest?: DesktopMenuRequest;
   study: PolyrhythmStudy;
   currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   activePresetId: string | null;
@@ -236,6 +238,7 @@ export function PolyrhythmSceneThumbnail({
 
 export default function PolyrhythmSidebar({
   isOpen,
+  menuRequest,
   study,
   currentSurface,
   activePresetId,
@@ -280,6 +283,9 @@ export default function PolyrhythmSidebar({
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
+  useEffect(() => {
+    if (menuRequest) setActiveTab(menuRequest.tab);
+  }, [menuRequest]);
   const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [sceneTab, setSceneTab] = useState<PolyrhythmSidebarSceneTab>('standard');
   const [expandedSceneGroups, setExpandedSceneGroups] = useState<Record<PolyrhythmPresetGroup, boolean>>({

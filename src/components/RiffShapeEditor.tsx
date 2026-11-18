@@ -1,5 +1,5 @@
 import StepCountControl from './StepCountControl';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { StudyShellButton } from './StudyInstrumentShell';
 import type { RiffCycleStudy } from '../lib/riffCycleStudy';
 
@@ -11,6 +11,7 @@ export default function RiffShapeEditor({ study, onStepCount, onEndingLength, on
   sequencer?: (stepEditor: ReactNode) => ReactNode; riffStepLabel?: string;
   onToggleEnding: () => void; bar: ReactNode; riffSteps: ReactNode; endingSteps: ReactNode;
 }) {
+  const id = useId();
   const [selectedTab, setTab] = useState<'riff' | 'bar' | 'ending'>('riff');
   const tab = guideTab ?? selectedTab;
   const accent = tab === 'ending' ? '#7FD7FF' : tab === 'bar' ? '#FF88C2' : study.riff.color;
@@ -27,12 +28,14 @@ export default function RiffShapeEditor({ study, onStepCount, onEndingLength, on
 </>;
   return <div className="riff-shape-editor" style={{ ['--riff-editor-color' as string]: study.riff.color }}>
     <div role="tablist" aria-label="Edit pattern" className="flex gap-1 rounded-lg bg-white/[.03] p-1">
-      {(['bar', 'riff', 'ending'] as const).map(value => <button key={value} id={`shape-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls="shape-editor-panel" onClick={() => setTab(value)} className="flex-1 rounded-lg px-2 py-2 text-[10px] font-mono uppercase tracking-widest" style={{ color: tab === value ? accent : 'rgba(255,255,255,.45)', background: tab === value ? `${accent}16` : 'transparent', boxShadow: tab === value ? `inset 0 0 0 1px ${accent}38, 0 0 12px ${accent}0a` : 'none' }}>{value === 'riff' ? 'Riff' : value === 'bar' ? 'Bar' : 'Ending'}</button>)}
+      {(['bar', 'riff', 'ending'] as const).map(value => <button key={value} id={`${id}-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls={`${id}-panel`} onClick={() => setTab(value)} className="flex-1 rounded-lg px-2 py-2 text-[10px] font-mono uppercase tracking-widest" style={{ color: tab === value ? accent : 'rgba(255,255,255,.45)', background: tab === value ? `${accent}16` : 'transparent', boxShadow: tab === value ? `inset 0 0 0 1px ${accent}38, 0 0 12px ${accent}0a` : 'none' }}>{value === 'riff' ? 'Riff' : value === 'bar' ? 'Bar' : 'Ending'}</button>)}
     </div>
-    <div id="shape-editor-panel" data-guide={`canvas-editor-${tab}`} role="tabpanel" aria-labelledby={`shape-tab-${tab}`} className="riff-shape-editor-panel mt-3 space-y-3 rounded-xl border p-3" style={{ borderColor: `${accent}26`, background: `linear-gradient(145deg, ${accent}0d, rgba(17,17,22,.65))` }}>
-      {tab === 'bar' ? bar : <>
-        {tab === 'riff' && sequencer ? sequencer(stepControls) : stepControls}
-      </>}
+    <div id={`${id}-panel`} data-guide={`canvas-editor-${tab}`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`}
+      className={`riff-shape-editor-panel mt-3 space-y-3 ${tab === 'riff' && sequencer ? 'riff-shape-editor-sequence' : 'rounded-xl border p-3'}`}
+      style={tab === 'riff' && sequencer ? undefined : { borderColor: `${accent}26`, background: `linear-gradient(145deg, ${accent}0d, rgba(17,17,22,.65))` }}>
+      {tab === 'bar' ? bar : tab === 'riff' && sequencer ? sequencer(study.riffSequenceEnabled ? stepControls :
+        <div className="riff-standalone-step-editor space-y-3 rounded-xl border p-3" style={{ borderColor: `${accent}26`, background: `linear-gradient(145deg, ${accent}0d, rgba(17,17,22,.65))` }}>{stepControls}</div>
+      ) : stepControls}
     </div>
     {tab === 'riff' ? patternTools : null}
   </div>;

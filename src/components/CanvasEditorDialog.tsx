@@ -5,25 +5,26 @@ const CloseCanvasEditorContext = createContext<(() => void) | null>(null);
 export const useCanvasEditorClose = () => useContext(CloseCanvasEditorContext);
 
 /** The shared opening, placement and focus behavior for canvas editors. */
-export default function CanvasEditorDialog({ title, color, colorControl, headerActions, onClose, children, guideMode = false }: {
-  guideMode?: boolean;
+export default function CanvasEditorDialog({ title, color, colorControl, headerActions, onClose, children, embedded = false, guideMode = false }: {
+  guideMode?: boolean; embedded?: boolean;
   title: string; color: string; colorControl?: ReactNode; headerActions?: ReactNode;
   onClose: () => void; children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (embedded) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
     return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }); };
-  }, []);
+  }, [embedded]);
   return <CloseCanvasEditorContext.Provider value={onClose}>
-    <div data-canvas-editor-backdrop className="fixed inset-0 z-[150] flex items-end justify-end bg-black/10 p-3 pb-24 sm:p-6" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <div ref={dialogRef} data-canvas-editor-dialog data-guide="canvas-editor-dialog" tabIndex={-1} role="dialog" aria-modal={!guideMode} aria-label={title}
-        style={{ borderColor: `${color}30`, boxShadow: `0 0 0 1px ${color}0b inset, 0 20px 60px #0007` }}
-        className="w-full max-w-[420px] max-h-[70dvh] overflow-y-auto rounded-[24px] border bg-[#111116]/95 p-4 shadow-2xl outline-none backdrop-blur-xl"
+    <div data-canvas-editor-backdrop={embedded ? undefined : true} className={embedded ? undefined : "fixed inset-0 z-[150] flex items-end justify-end bg-black/10 p-3 pb-24 sm:p-6"} onPointerDown={event => { if (!embedded && event.target === event.currentTarget) onClose(); }}>
+      <div ref={dialogRef} data-canvas-editor-dialog={embedded ? undefined : true} data-canvas-editor-inline={embedded ? true : undefined} data-guide={embedded ? undefined : "canvas-editor-dialog"} tabIndex={embedded ? undefined : -1} role={embedded ? "region" : "dialog"} aria-modal={embedded ? undefined : !guideMode} aria-label={title}
+        style={embedded ? undefined : { borderColor: `${color}30`, boxShadow: `0 0 0 1px ${color}0b inset, 0 20px 60px #0007` }}
+        className={embedded ? "w-full outline-none" : "w-full max-w-[420px] max-h-[70dvh] overflow-y-auto rounded-[24px] border bg-[#111116]/95 p-4 shadow-2xl outline-none backdrop-blur-xl"}
         onKeyDown={event => {
           if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
-          if (event.key === 'Tab' && !guideMode) {
+          if (event.key === 'Tab' && !guideMode && !embedded) {
             const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, [tabindex="0"]')).filter(node => !node.closest('[inert]') && node.getClientRects().length);
             const first = controls[0], last = controls[controls.length - 1];
             if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }

@@ -88,6 +88,7 @@ export default function OrbitReadAids({
         >
           <span className="opacity-65" aria-hidden="true"><Icon size={13} /></span>
           <span>{label}</span>
+          {guidePrefix === 'desktop' ? <span aria-hidden="true" className="ml-auto h-[3px] w-[3px] shrink-0 rounded-full" style={{ background: active ? '#8ED8F1' : 'rgba(255,255,255,.2)' }} /> : null}
         </button>
         {label === 'Numbers' && explanation ? (
           <button

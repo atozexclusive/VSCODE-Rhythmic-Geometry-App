@@ -1,5 +1,11 @@
+import RiffLaneOptions from '../components/RiffLaneOptions';
+import DesktopHeader, { type DesktopMenuRequest } from '../components/DesktopHeader';
+import DesktopSidePanel from '../components/DesktopSidePanel';
+import OrbitDrawingModeOptions from '../components/OrbitDrawingModeOptions';
+import DesktopTransport from '../components/DesktopTransport';
+import DesktopInspectorTabs from '../components/DesktopInspectorTabs';
 import MobileOpeningLayout from '../components/MobileOpeningLayout';
-import { useCanvasEditorClose } from '../components/CanvasEditorDialog';
+import CanvasEditorDialog, { useCanvasEditorClose } from '../components/CanvasEditorDialog';
 import StepCountControl from '../components/StepCountControl';
 import PatternActionIcon from '../components/PatternActionIcon';
 import RiffShapeEditor from '../components/RiffShapeEditor';
@@ -3578,21 +3584,20 @@ function CanvasDisplayControls({
       {!innerClockLast ? timingControls : null}
 
       {!hideGuides || !hideGuideAutomation || showMeterNumberControl || showCellStripControl || showCountControl ? (
-      <div
-        className={canvasCardClass}
+      <details
+        className={`${canvasCardClass} canvas-guides group`}
         style={{
           background: 'rgba(114,241,184,0.032)',
           borderColor: 'rgba(114,241,184,0.12)',
           boxShadow: 'inset 0 1px 0 rgba(114,241,184,0.04)',
         }}
       >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+          <InlineInfoLabel infoId="canvas_display" label="Guides" labelClassName={canvasSubheaderClass} labelStyle={canvasSubheaderStyle} />
+          <ChevronDown size={14} className="text-white/50 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-2 pt-2">
         {!hideGuides ? (<>
-        <InlineInfoLabel
-          infoId="canvas_display"
-          label="Guides"
-          labelClassName={canvasSubheaderClass}
-          labelStyle={canvasSubheaderStyle}
-        />
         <div className="grid grid-cols-3 gap-1.5">
           <StudyShellButton
             size="compact"
@@ -3780,7 +3785,8 @@ function CanvasDisplayControls({
             </div>
           </>
         ) : null}
-      </div>
+        </div>
+      </details>
       ) : null}
 
       {innerClockLast ? timingControls : null}
@@ -4632,7 +4638,7 @@ function RiffCellSequenceEditor({
         <div className="min-w-0">
           <InlineInfoLabel
             infoId="riff_cell_sequencer"
-            label="Cell Sequencer"
+            label={closeCanvasEditor ? "Sequencer" : "Cell Sequencer"}
             labelClassName={compact ? 'text-[8px] font-mono uppercase tracking-[0.1em]' : 'text-[10px] font-mono uppercase tracking-[0.18em]'}
             labelStyle={{ color: study.riffSequenceEnabled ? selectedCellColor : 'rgba(255,255,255,0.52)' }}
           />
@@ -8009,6 +8015,7 @@ function OrbitalPolymeter() {
     x: number;
     y: number;
   } | null>(null);
+  const [desktopOrbitEditRequest, setDesktopOrbitEditRequest] = useState<{ orbitId: string; version: number } | null>(null);
   const [orbitSoundSelectedId, setOrbitSoundSelectedId] = useState<string | null>(null);
   const [orbitCanvasQuickPanel, setOrbitCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [mobileOrbitModeMenuOpen, setMobileOrbitModeMenuOpen] = useState(false);
@@ -8066,7 +8073,9 @@ function OrbitalPolymeter() {
   const [studySoundCategory, setStudySoundCategory] = useState(0);
   const [studyCanvasQuickPanel, setStudyCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [studyAudioPanelOpen, setStudyAudioPanelOpen] = useState(false);
-  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'audio' | 'sound' | 'overlay' | 'canvas'>(null);
+  const [studyDesktopPlaybackOpen, setStudyDesktopPlaybackOpen] = useState(false);
+  const [riffDesktopLaneOptionsOpen, setRiffDesktopLaneOptionsOpen] = useState(false);
+  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'audio' | 'sound' | 'overlay' | 'canvas'>('overlay');
   const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
     useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [polyrhythmMobileSceneTab, setPolyrhythmMobileSceneTab] =
@@ -8116,8 +8125,8 @@ function OrbitalPolymeter() {
     });
   }, [polyrhythmStudy.chainCells, polyrhythmStudy.chainEnabled, polyrhythmStudy.chainPhrases]);
   const [studyEditorReferenceLayersVisible, setStudyEditorReferenceLayersVisible] = useState(true);
-  const [polyrhythmDesktopQuickCollapsed, setPolyrhythmDesktopQuickCollapsed] = useState(true);
-  const [polyrhythmDesktopUtilityCollapsed, setPolyrhythmDesktopUtilityCollapsed] = useState(true);
+  const [polyrhythmDesktopQuickCollapsed, setPolyrhythmDesktopQuickCollapsed] = useState(false);
+  const [polyrhythmDesktopUtilityCollapsed, setPolyrhythmDesktopUtilityCollapsed] = useState(false);
   const [selectedRiffCycleStep, setSelectedRiffCycleStep] = useState<number | null>(null);
   const [selectedRiffSequenceCellLabel, setSelectedRiffSequenceCellLabel] =
     useState<RiffSequenceCellLabel>('A');
@@ -8126,13 +8135,13 @@ function OrbitalPolymeter() {
   const lastRiffCellBackbeatStepsRef = useRef<Record<string, number[]>>({});
   const [selectedRiffLandingSlot, setSelectedRiffLandingSlot] = useState<number | null>(null);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
-  const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
-  const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
+  const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(() => window.innerWidth >= 768 ? 'phrase' : null);
+  const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>('overlay');
   const [riffAudioPanelOpen, setRiffAudioPanelOpen] = useState(false);
   const [orbitAudioMixOpen, setOrbitAudioMixOpen] = useState(false);
   const [riffAudioMixMode, setRiffAudioMixMode] = useState<'volume' | 'reverb'>('volume');
-  const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(true);
-  const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(true);
+  const [riffDesktopQuickCollapsed, setRiffDesktopQuickCollapsed] = useState(false);
+  const [riffDesktopUtilityCollapsed, setRiffDesktopUtilityCollapsed] = useState(false);
   const [riffDesktopPatternEditorOpen, setRiffDesktopPatternEditorOpen] = useState(false);
   const [riffDesktopEditTab, setRiffDesktopEditTab] = useState<'bar' | 'phrase' | 'return'>('phrase');
   const [riffOverlayEditMode, setRiffOverlayEditMode] = useState(false);
@@ -9302,12 +9311,19 @@ function OrbitalPolymeter() {
   }, [handleSelectPolyrhythmLayer]);
 
   const handleCanvasPolyrhythmLayerMenu = useCallback((layerId: string) => {
+    if (!isMobile && !presentationMode && !helpOpen) {
+      handleSelectPolyrhythmLayer(layerId);
+      setSelectedPolyrhythmStep(null);
+      setPolyrhythmLayerMenuAnchor(null);
+      setPolyrhythmDesktopQuickCollapsed(false);
+      return;
+    }
     if (polyrhythmLayerMenuAnchor === 'canvas') {
       setPolyrhythmLayerMenuAnchor(null);
       return;
     }
     handleOpenPolyrhythmLayerMenu(layerId);
-  }, [polyrhythmLayerMenuAnchor, handleOpenPolyrhythmLayerMenu]);
+  }, [polyrhythmLayerMenuAnchor, handleOpenPolyrhythmLayerMenu, handleSelectPolyrhythmLayer, isMobile, presentationMode, helpOpen]);
 
   const handleSelectPolyrhythmStep = useCallback(
     (selection: PolyrhythmStepSelection | null) => {
@@ -11097,6 +11113,8 @@ function OrbitalPolymeter() {
       soundEnabled: !current.soundEnabled,
     }));
   }, [effectivePlan]);
+  const [desktopMenuRequest, setDesktopMenuRequest] = useState<DesktopMenuRequest>();
+  const [activeOrbitSceneId, setActiveOrbitSceneId] = useState<string | null>(null);
   const [activeSceneSource, setActiveSceneSource] = useState<ActiveSceneSource>('default');
   const [launchOrbitLockActive, setLaunchOrbitLockActive] = useState(true);
 
@@ -12367,7 +12385,8 @@ function OrbitalPolymeter() {
       setRiffCycleStudy((current) =>
         current.viewMode === 'unwrapped' ? current : { ...current, viewMode: 'unwrapped' },
       );
-      setRiffUtilityPanel('roll');
+      setRiffDesktopQuickCollapsed(false);
+      setRiffDesktopLaneOptionsOpen(true);
       return;
     }
 
@@ -12553,7 +12572,8 @@ function OrbitalPolymeter() {
       return;
     }
     if (currentGuideStep.target === 'riff-desktop-roll-size') {
-      setRiffUtilityPanel('roll');
+      setRiffDesktopQuickCollapsed(false);
+      setRiffDesktopLaneOptionsOpen(true);
       return;
     }
     if (currentGuideStep.target === 'riff-desktop-view') {
@@ -12675,7 +12695,8 @@ function OrbitalPolymeter() {
     }
 
     if (currentGuideStep.target === 'study-desktop-audio') {
-      setPolyrhythmUtilityPanel('audio');
+      setPolyrhythmDesktopQuickCollapsed(false);
+      setStudyDesktopPlaybackOpen(true);
       return;
     }
     if (currentGuideStep.target === 'study-desktop-sound') {
@@ -12866,7 +12887,8 @@ function OrbitalPolymeter() {
         previous.width === nextViewport.width && previous.height === nextViewport.height &&
         previous.left === nextViewport.left && previous.top === nextViewport.top ? previous : nextViewport,
       );
-      const element = document.querySelector<HTMLElement>(`[data-guide="${activeOverlayStep.target}"]`);
+      const candidates = Array.from(document.querySelectorAll<HTMLElement>(`[data-guide="${activeOverlayStep.target}"]`));
+      const element = candidates.find(node => node.closest('[role="dialog"]')) ?? candidates[0];
       setGuideRect(element?.getBoundingClientRect() ?? null);
     };
 
@@ -13094,7 +13116,7 @@ function OrbitalPolymeter() {
         setPolyrhythmMobileSection('edit');
         setPolyrhythmMobileEditTab('pattern');
       } else {
-        setPolyrhythmDesktopPatternEditorOpen(true);
+        setPolyrhythmDesktopQuickCollapsed(false);
       }
       setSelectedPolyrhythmStep(null);
       return;
@@ -13112,7 +13134,7 @@ function OrbitalPolymeter() {
         setRiffMobileEditTab('phrase');
         setRiffMobileLanePage(0);
       } else {
-        setRiffDesktopPatternEditorOpen(true);
+        setRiffDesktopQuickCollapsed(false);
       }
       setSelectedRiffCycleStep(null);
       setSelectedRiffLandingSlot(null);
@@ -13860,9 +13882,14 @@ function OrbitalPolymeter() {
         return;
       }
       setOrbitSoundSelectedId(orbitId);
-      setRadialMenu({ orbitId, x, y });
+      if (!isMobile && !presentationMode && !helpOpen) {
+      setDesktopOrbitEditRequest(current => ({ orbitId, version: (current?.version ?? 0) + 1 }));
+      setRadialMenu(null);
+      return;
+    }
+    setRadialMenu({ orbitId, x, y });
     },
-    [engineState, geometryMode, interferenceSettings, requireUnlockedLaunchOrbit],
+    [engineState, geometryMode, interferenceSettings, requireUnlockedLaunchOrbit, isMobile, presentationMode, helpOpen],
   );
 
   const handleOpenOrbitEditor = useCallback((orbitId: string) => {
@@ -13879,8 +13906,13 @@ function OrbitalPolymeter() {
     const x = typeof window !== 'undefined' ? window.innerWidth / 2 : 0;
     const y = typeof window !== 'undefined' ? window.innerHeight / 2 : 0;
     setOrbitSoundSelectedId(orbitId);
+    if (!isMobile && !presentationMode && !helpOpen) {
+      setDesktopOrbitEditRequest(current => ({ orbitId, version: (current?.version ?? 0) + 1 }));
+      setRadialMenu(null);
+      return;
+    }
     setRadialMenu({ orbitId, x, y });
-  }, [effectivePlan, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing]);
+  }, [effectivePlan, openProPrompt, requireUnlockedLaunchOrbit, requireUnlockedSceneEditing, isMobile, presentationMode, helpOpen]);
 
   const handleRadialColorChange = useCallback(
     (orbitId: string, color: string) => {
@@ -14391,6 +14423,7 @@ function OrbitalPolymeter() {
           });
           const mapped = mapStoredSceneRecord(stored) ?? newScene;
           setSavedScenes((current) => upsertSavedScene(current, mapped));
+          setActiveOrbitSceneId(mapped.id);
           toast.success('Scene saved to your account.');
         } catch (error) {
           console.error(error);
@@ -14404,6 +14437,7 @@ function OrbitalPolymeter() {
         setSavedScenes(next);
         return next;
       });
+      setActiveOrbitSceneId(newScene.id);
       toast.success('Scene saved on this device.');
     };
 
@@ -14536,6 +14570,7 @@ function OrbitalPolymeter() {
       if (!scene) {
         return;
       }
+      setActiveOrbitSceneId(scene.id);
       applySceneSnapshot(
         engineState,
         scene.snapshot,
@@ -14564,6 +14599,7 @@ function OrbitalPolymeter() {
         openProPrompt('pro-scenes');
         return;
       }
+      setActiveOrbitSceneId(scene.id);
       applySceneSnapshot(
         engineState,
         scene.snapshot,
@@ -15133,37 +15169,30 @@ function OrbitalPolymeter() {
       </div>
     </>
   ) : null;
+  const activeHeaderScene = appSurface === 'polyrhythm-study'
+    ? savedPolyrhythmScenes.find(scene => scene.id === activePolyrhythmSavedSceneId)
+      ?? POLYRHYTHM_PRESETS.find(scene => scene.id === activePolyrhythmPresetId)
+    : appSurface === 'riff-cycle-study'
+      ? savedRiffCycleScenes.find(scene => scene.id === activeRiffCycleSavedSceneId)
+        ?? RIFF_CYCLE_PRESETS.find(scene => scene.id === activeRiffCyclePresetId)
+      : [...savedScenes, ...BUILT_IN_SCENES, ...PREMIUM_SCENES].find(scene => scene.id === activeOrbitSceneId);
+  const headerSceneName = activeHeaderScene?.name
+    ?? (appSurface === 'polyrhythm-study' ? polyrhythmStudy.name || 'Untitled Study'
+      : appSurface === 'riff-cycle-study' ? riffCycleStudy.name || 'Untitled Riff' : 'Untitled Orbit');
+  const headerSceneSaved = appSurface === 'polyrhythm-study' ? Boolean(activePolyrhythmSavedSceneId)
+    : appSurface === 'riff-cycle-study' ? Boolean(activeRiffCycleSavedSceneId)
+      : savedScenes.some(scene => scene.id === activeOrbitSceneId);
+  const headerAccountName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || '';
+  const headerInitials = headerAccountName ? String(headerAccountName).split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() : undefined;
+  const openHeaderMenu = (tab: 'account' | 'scenes') => {
+    setDesktopMenuRequest(current => ({ tab, version: (current?.version ?? 0) + 1 }));
+    setSidebarOpen(true);
+  };
   const appSurfaceToggle = !captureMode && !isMobile ? (
-    <div
-      className="fixed z-20 left-1/2 top-3 -translate-x-1/2"
-    >
-      <div
-        className="inline-flex rounded-full border border-white/8 bg-[#111116]/70 p-[0.2rem] shadow-[0_8px_22px_rgba(0,0,0,0.22)] backdrop-blur-lg"
-      >
-        {([
-          ['orbital', 'Orbit'],
-          ['polyrhythm-study', 'Study'],
-          ['riff-cycle-study', 'Riff'],
-        ] as const).map(([surfaceId, label]) => {
-          const active = appSurface === surfaceId;
-          return (
-            <button
-              key={surfaceId}
-              type="button"
-              onClick={() => handleAppSurfaceChange(surfaceId)}
-              className="rounded-full px-2.5 py-1.5 text-[9px] font-mono uppercase tracking-[0.14em] transition-all"
-              style={{
-                background: active ? 'rgba(114,241,184,0.1)' : 'transparent',
-                color: active ? '#72F1B8' : 'rgba(255,255,255,0.44)',
-                border: active ? '1px solid rgba(114,241,184,0.18)' : '1px solid transparent',
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <DesktopHeader surface={appSurface} onSurfaceChange={handleAppSurfaceChange}
+      sceneName={headerSceneName} saved={headerSceneSaved} initials={headerInitials}
+      onScene={() => openHeaderMenu('scenes')} onAccount={() => openHeaderMenu('account')}
+      onSave={appSurface === 'polyrhythm-study' ? handleSavePolyrhythmScene : appSurface === 'riff-cycle-study' ? handleSaveRiffCycleScene : handleSaveScene} />
   ) : null;
   const polyrhythmLayerCount = polyrhythmStudy.layers.length;
   const canAddPolyrhythmLayer = polyrhythmLayerCount < MAX_POLYRHYTHM_LAYERS;
@@ -15858,6 +15887,74 @@ function OrbitalPolymeter() {
       </details>
     </div>
   ) : null;
+  const studyReadAids = (<div data-guide="study-mobile-visual-settings" data-quick-panel="read" className="rounded-xl border border-white/8 bg-white/[0.022] px-3 py-3">
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3>
+<StudyShellButton showStateDot
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={studyGridIsShared}
+                                    aria-disabled={studyGridLocked}
+                                    onClick={handleTogglePolyrhythmGrid}
+                                    icon={<Grid3X3 size={13} />}
+                                    title="Give every layer the same editable shared step grid"
+                                    aria-pressed={studyGridIsShared}
+                                  >
+                                    Shared Grid
+                                  </StudyShellButton>
+                                  <StudyShellButton showStateDot size="compact" tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.ensembleView)}
+                                    aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
+                                    icon={<Layers3 size={13} />}
+                                    onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
+                                    Split View
+                                  </StudyShellButton>
+                                  <StudyShellButton showStateDot
+                                    size="compact"
+                                    tone="blue"
+                                    highlighted={Boolean(polyrhythmStudy.showStepLabels)}
+                        aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
+                                    onClick={handleTogglePolyrhythmStepLabels}
+                                    icon={<Hash size={13} />}
+                                  >
+                                    Numbers
+                                  </StudyShellButton>
+
+                                  <StudyShellButton showStateDot size="compact" tone="blue"
+                        highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
+                        onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
+                        icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
+                        Contour
+                      </StudyShellButton>
+                                </div>
+                              </div>);
+  const riffReadAids = (<div data-guide="riff-mobile-lane-settings" data-quick-panel="read" className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { label: 'Fill', icon: <PaintBucket size={13} />, active: Boolean(riffCycleStudy.showPhraseFill), action: handleToggleRiffPhraseFill },
+                      { label: 'Contour', icon: <Zap size={13} />, active: Boolean(riffCycleStudy.showStructureView), action: handleToggleRiffStructureView },
+                      { label: 'Numbers', icon: <Hash size={13} />, active: Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels, action: handleToggleRiffStepLabels },
+                      { label: 'Grouping', icon: <CircleDot size={13} />, active: Boolean(riffCycleStudy.showPhraseGroupings), action: handleToggleRiffPhraseGroupings },
+                      { label: 'Subdivisions', icon: <Grid3X3 size={13} />, active: Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked, action: handleToggleRiffPulseLayer, locked: riffSubdivisionsLocked },
+                    ].map((item) => (
+                      <Fragment key={item.label}>{item.label === 'Fill' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3> : item.label === 'Numbers' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Timing</h3> : null}<button type="button" aria-pressed={item.active} aria-label={item.locked ? 'Unlock Subdivisions with Pro' : item.label}
+                        className={`flex items-center gap-2 border px-2.5 py-2 ${item.label === 'Subdivisions' ? 'col-span-2' : ''}`}
+                        style={{ color: item.active ? '#B5DCEF' : 'rgba(255,255,255,.55)', background: item.active ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)', borderColor: item.active ? 'rgba(127,215,255,.18)' : 'rgba(255,255,255,.045)' }}
+                        onClick={() => item.locked ? openProPrompt('riff-subdivisions') : item.action()}>
+                        <span className="opacity-65">{item.icon}</span><span>{item.label}</span>
+                        {item.locked ? <Lock size={10} className="ml-auto opacity-50" /> : <span className="ml-auto h-1 w-1 rounded-full" style={{ background: item.active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />}
+                      </button></Fragment>
+                    ))}
+                    {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
+                      <div className="col-span-2 grid grid-cols-2 gap-1.5 pt-1">
+                        {(['geometry', 'circle'] as const).map((placement) => (
+                          <button key={placement} type="button" className="border border-white/10 bg-white/[.03] px-2 text-white/60"
+                            aria-pressed={placement === 'circle' ? riffCycleStudy.pulseLayerEnabled : !riffCycleStudy.pulseLayerEnabled}
+                            onClick={() => handleSetRiffPulseLayerPlacement(placement)}>{placement === 'geometry' ? 'Geometry' : 'Circle'}</button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>);
   const riffEndingContentOpacity = riffCycleStudy.landingEditEnabled ? undefined : 0.48;
   const riffEndingToggle = (
     <button
@@ -15918,7 +16015,7 @@ function OrbitalPolymeter() {
       (riffQuickPanel === 'return' || riffEditMode === 'landing' ? 'landing' : 'phrase');
     handleSetRiffEditMode(nextFocus);
     setRiffDesktopEditTab(nextFocus === 'landing' ? 'return' : 'phrase');
-    setRiffDesktopPatternEditorOpen(true);
+    setRiffDesktopQuickCollapsed(false);
     recordTutorialEvent(nextFocus === 'landing' ? 'riff-open-ending-editor' : 'riff-open-pattern-editor');
   };
   const currentModeAccent =
@@ -15929,6 +16026,12 @@ function OrbitalPolymeter() {
         : appSurface === 'flow'
           ? flowExperience.palette[1] ?? '#7FD7FF'
           : '#72F1B8';
+  useEffect(() => {
+    if (soundEditingLocked) {
+      setPolyrhythmUtilityPanel(current => current === 'sound' ? 'overlay' : current);
+      setRiffUtilityPanel(current => current === 'sound' ? 'overlay' : current);
+    }
+  }, [soundEditingLocked]);
   const desktopSideMenuWidthClass = 'w-[min(340px,calc(100vw-1.5rem))]';
   const desktopToolPanelStyle = {
     background: `
@@ -16116,7 +16219,7 @@ function OrbitalPolymeter() {
           setPolyrhythmMobileSection('edit');
           setPolyrhythmMobileEditTab('pattern');
         } else {
-          setPolyrhythmDesktopPatternEditorOpen(true);
+          setPolyrhythmDesktopQuickCollapsed(false);
         }
         setSelectedPolyrhythmStep(null);
         recordTutorialEvent('study-open-pattern-editor');
@@ -17272,9 +17375,7 @@ function OrbitalPolymeter() {
       height: layoutViewportHeight < 720 ? 'clamp(350px, 54svh, 430px)' : 'min(68svh, 580px)',
       minHeight: layoutViewportHeight < 720 ? '350px' : '430px',
     } as const;
-    const renderPolyrhythmLayerQuickMenu = () =>
-      polyrhythmLayerMenuAnchor === 'canvas' && selectedPolyrhythmLayer ? createPortal(
-        <RadialMenu
+    const studyLayerEditor = (embedded = false) => selectedPolyrhythmLayer ? (<RadialMenu embedded={embedded}
           x={layoutViewportWidth / 2}
           y={isMobile ? 80 : layoutViewportHeight / 2}
           entityLabel="Layer"
@@ -17319,12 +17420,15 @@ function OrbitalPolymeter() {
           onLockedFeature={openProPrompt}
           onAdd={handleAddPolyrhythmLayer}
           addDisabled={!canAddPolyrhythmLayer}
-          onSelectOrbit={handleOpenPolyrhythmLayerMenu}
+          onSelectOrbit={embedded ? handleSelectPolyrhythmLayer : handleOpenPolyrhythmLayerMenu}
           onChangePulseCount={handleSetPolyrhythmLayerBeatCount}
           onChangeColor={handleSetPolyrhythmLayerColor}
           onDelete={handleRemovePolyrhythmLayer}
-          onClose={() => setPolyrhythmLayerMenuAnchor(null)}
-        />,
+          onClose={embedded ? () => setPolyrhythmDesktopQuickCollapsed(true) : () => setPolyrhythmLayerMenuAnchor(null)}
+        />) : null;
+    const renderPolyrhythmLayerQuickMenu = () =>
+      polyrhythmLayerMenuAnchor === 'canvas' && selectedPolyrhythmLayer ? createPortal(
+        studyLayerEditor(),
         document.body,
       ) : null;
 
@@ -17531,48 +17635,7 @@ function OrbitalPolymeter() {
                     />
                   </div>
                 ) : null}
-              </div>) : selectedPolyrhythmLayer ? (<div data-guide="study-mobile-visual-settings" data-quick-panel="read" className="rounded-xl border border-white/8 bg-white/[0.022] px-3 py-3">
-
-                                <div className="grid grid-cols-2 gap-2">
-                                  <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3>
-<StudyShellButton showStateDot
-                                    size="compact"
-                                    tone="blue"
-                                    highlighted={studyGridIsShared}
-                                    aria-disabled={studyGridLocked}
-                                    onClick={handleTogglePolyrhythmGrid}
-                                    icon={<Grid3X3 size={13} />}
-                                    title="Give every layer the same editable shared step grid"
-                                    aria-pressed={studyGridIsShared}
-                                  >
-                                    Shared Grid
-                                  </StudyShellButton>
-                                  <StudyShellButton showStateDot size="compact" tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.ensembleView)}
-                                    aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
-                                    icon={<Layers3 size={13} />}
-                                    onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
-                                    Split View
-                                  </StudyShellButton>
-                                  <StudyShellButton showStateDot
-                                    size="compact"
-                                    tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.showStepLabels)}
-                        aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
-                                    onClick={handleTogglePolyrhythmStepLabels}
-                                    icon={<Hash size={13} />}
-                                  >
-                                    Numbers
-                                  </StudyShellButton>
-
-                                  <StudyShellButton showStateDot size="compact" tone="blue"
-                        highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
-                        onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
-                        icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
-                        Contour
-                      </StudyShellButton>
-                                </div>
-                              </div>) : <p className="text-[10px] text-white/50">Select a layer to adjust read aids.</p>}
+              </div>) : selectedPolyrhythmLayer ? (studyReadAids) : <p className="text-[10px] text-white/50">Select a layer to adjust read aids.</p>}
               </QuickCanvasControls>
 </div>
 
@@ -18723,6 +18786,7 @@ function OrbitalPolymeter() {
           {tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
 
           <PolyrhythmSidebar
+          menuRequest={desktopMenuRequest}
             isOpen={sidebarOpen}
             study={polyrhythmStudy}
             currentSurface={appSurface}
@@ -18775,11 +18839,11 @@ function OrbitalPolymeter() {
         className={
           isMobile
             ? 'relative min-h-[100svh] overflow-hidden bg-[#111116] select-none'
-            : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
+            : `fixed inset-0 overflow-hidden bg-[#111116] select-none ${!presentationMode ? 'rg-desktop-workspace' : ''}`
         }
       >
         <div
-          className={isMobile ? 'absolute inset-0' : 'absolute inset-x-0 bottom-0 top-6'}
+          className={isMobile ? 'absolute inset-0' : `absolute inset-x-0 bottom-0 top-6 ${!presentationMode ? 'rg-desktop-stage' : ''}`}
           style={presentationMode && polyrhythmStudy.ensembleView ? { bottom: 'calc(104px + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
           <PolyrhythmCanvas
@@ -18856,746 +18920,39 @@ function OrbitalPolymeter() {
         {!presentationMode ? appSurfaceToggle : null}
         {!isMobile && !presentationMode && helpContext === 'surface' ? renderGuideOverlay(guideAccent, 30) : null}
         {!isMobile && !presentationMode && tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
-        {!presentationMode ? (
-          polyrhythmDesktopQuickCollapsed ? (
-            <div
-              data-guide="study-desktop-quick"
-              className={`fixed z-30 left-6 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-left`}
-              style={{ bottom: studyDesktopPanelBottom }}
-            >
-              <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="rg-side-menu-panel-tight">
-                <div className={desktopSideMenuHeaderClass}>
-                  <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
-                    <InlineInfoLabel
-                      infoId="panel_quick_edit"
-                      label="Quick Edit"
-                      labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
-                      labelStyle={{
-                        color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
-                        textShadow: `0 0 14px ${(selectedPolyrhythmLayer?.color ?? '#72F1B8')}33`,
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPolyrhythmDesktopQuickCollapsed(false)}
-                    className={desktopSideMenuToggleClass}
-                    aria-label="Expand quick edit"
-                    title="Expand quick edit"
-                    style={{
-                      background: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}12`,
-                      borderColor: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}28`,
-                      color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
-                    }}
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                </div>
-                <StudyShellButton
-                  data-guide="study-desktop-focus-pattern"
-                  size="compact"
-                  tone="green"
-                  highlighted
-                  icon={<Maximize2 size={13} />}
-                  className="w-full"
-                  onClick={() => {
-                    setPolyrhythmDesktopPatternEditorOpen(true);
-                    recordTutorialEvent('study-open-pattern-editor');
-                  }}
-                >
-                  Step Editor
-                </StudyShellButton>
-              </StudyShellPremiumPanel>
-            </div>
-          ) : (
-          <div
-            data-guide="study-desktop-quick"
-            className={`fixed z-20 left-6 top-20 ${desktopSideMenuWidthClass} rg-desktop-panel-left`}
-            style={{ maxHeight: studyDesktopQuickMaxHeight }}
-          >
-            <StudyShellPremiumPanel
-              accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'}
-              className="rg-side-menu-panel-tight max-h-full overflow-y-auto overscroll-contain pr-1 pb-2 [scrollbar-width:none]"
-              style={{ maxHeight: '100%' }}
-            >
-              <div className={desktopSideMenuHeaderClass}>
-                <div
-                  className={desktopSideMenuTitleClass}
-                  style={{
-                    color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
-                    textShadow: `0 0 14px ${(selectedPolyrhythmLayer?.color ?? '#72F1B8')}33`,
-                  }}
-                >
-                  Quick Edit
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmDesktopQuickCollapsed(true)}
-                  className={desktopSideMenuToggleClass}
-                  aria-label="Collapse quick edit"
-                  title="Collapse quick edit"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-              <div data-guide="study-quick-layer" className="border-t border-white/8 pt-2">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <InlineInfoLabel
-                    infoId="study_layers"
-                    label="Layers"
-                    labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/62"
-                    labelStyle={desktopMenuSubheaderStyle}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddPolyrhythmLayer}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border transition active:scale-[0.96]"
-                    style={{
-                      background: 'rgba(127,215,255,0.1)',
-                      borderColor: 'rgba(127,215,255,0.2)',
-                      color: '#7FD7FF',
-                    }}
-                    aria-label="Add layer"
-                    title="Add layer"
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
-                <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-white/8 bg-white/[0.03] px-2.5 py-1.5">
-                  <InlineInfoLabel
-                    infoId="study_shared_cycle"
-                    label="Shared Cycle"
-                    labelClassName="text-[9px] font-mono uppercase tracking-[0.16em] text-white/54"
-                    labelStyle={desktopMenuSubheaderStyle}
-                  />
-                  <div className="text-[9px] font-mono uppercase tracking-[0.14em] text-white/78">
-                    {polyrhythmSharedCycleSteps.toLocaleString()} Steps
-                  </div>
-                </div>
-                <div
-                  className="space-y-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:none]"
-                  style={{ maxHeight: studyDesktopQuickLayersMaxHeight }}
-                >
-                  {polyrhythmStudy.layers.map((layer, index) => {
-                    const active = layer.id === selectedPolyrhythmLayer?.id;
-                    return (
-                      <div
-                        key={layer.id}
-                        onClick={() => {
-                          handleSelectPolyrhythmLayer(layer.id);
-                          setSelectedPolyrhythmStep(null);
-                        }}
-                        className="cursor-pointer rounded-[1rem] border px-2.5 py-1"
-                        style={{
-                          background: active ? `${layer.color}12` : 'rgba(255,255,255,0.03)',
-                          borderColor: active ? `${layer.color}38` : 'rgba(255,255,255,0.08)',
-                          boxShadow: active ? `0 0 0 1px ${layer.color}16 inset` : 'inset 0 1px 0 rgba(255,255,255,0.03)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleSelectPolyrhythmLayer(layer.id);
-                                setSelectedPolyrhythmStep(null);
-                              }}
-                              className="min-w-0 text-left"
-                            >
-                              <div className="flex items-center gap-2">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ background: layer.color, boxShadow: `0 0 12px ${layer.color}88` }}
-                              />
-                              <span
-                                className="text-[10px] font-mono uppercase tracking-[0.16em]"
-                                style={{ color: active ? layer.color : 'rgba(255,255,255,0.82)' }}
-                              >
-                                Layer {index + 1}
-                              </span>
-                              </div>
-                            </button>
-                            <LimitedColorPickerButton
-                              colors={POLYRHYTHM_LAYER_COLORS.slice(0, 12)}
-                              value={layer.color}
-                              onChange={(color) => handleSetPolyrhythmLayerColor(layer.id, color)}
-                              label={`Pick Layer ${index + 1} color`}
-                              iconSize={12}
-                              className="h-7 w-7"
-                              locked={colorEditingLocked}
-                              onLockedClick={() => openProPrompt('color-editing')}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (polyrhythmStudy.layers.length > 1) {
-                                handleRemovePolyrhythmLayer(layer.id);
-                              }
-                            }}
-                            disabled={polyrhythmStudy.layers.length <= 1}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border transition active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-35"
-                            style={{
-                              background: 'rgba(255,51,102,0.08)',
-                              borderColor: active ? `${layer.color}22` : 'rgba(255,255,255,0.08)',
-                              color: '#FF668A',
-                            }}
-                            aria-label={`Remove layer ${index + 1}`}
-                            title={`Remove layer ${index + 1}`}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleSetPolyrhythmLayerBeatCount(layer.id, layer.beatCount - 1)}
-                            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                            aria-label={`Decrease layer ${index + 1} steps`}
-                          >
-                            <Minus size={12} />
-                          </button>
-                          <input
-                            type="number"
-                            min="3"
-                            max="64"
-                            step="1"
-                            value={layer.beatCount}
-                            onFocus={(event) => {
-                              event.currentTarget.select();
-                              handleSelectPolyrhythmLayer(layer.id);
-                              setSelectedPolyrhythmStep(null);
-                            }}
-                            onChange={(event) => {
-                              const next = parseInt(event.target.value, 10);
-                              if (Number.isNaN(next)) {
-                                return;
-                              }
-                              handleSetPolyrhythmLayerBeatCount(
-                                layer.id,
-                                Math.max(2, Math.min(64, next)),
-                              );
-                            }}
-                            className="min-w-0 flex-1 rounded-lg border px-2 py-1 text-center text-[12px] font-mono tracking-[0.1em] focus:outline-none"
-                            style={{
-                              background: active ? `${layer.color}12` : 'rgba(255,255,255,0.04)',
-                              borderColor: active ? `${layer.color}30` : 'rgba(255,255,255,0.08)',
-                              color: active ? layer.color : 'rgba(255,255,255,0.88)',
-                            }}
-                            aria-label={`Set layer ${index + 1} steps`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSetPolyrhythmLayerBeatCount(layer.id, layer.beatCount + 1)}
-                            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/64 transition active:scale-[0.96]"
-                            aria-label={`Increase layer ${index + 1} steps`}
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                        <div className="mt-1 px-0.5">
-                          <input
-                            type="range"
-                            min="3"
-                            max="64"
-                            step="1"
-                            value={layer.beatCount}
-                            onChange={(event) =>
-                              handleSetPolyrhythmLayerBeatCount(layer.id, parseInt(event.target.value, 10) || 3)
-                            }
-                            onMouseDown={() => {
-                              handleSelectPolyrhythmLayer(layer.id);
-                              setSelectedPolyrhythmStep(null);
-                            }}
-                            className="touch-slider h-2 w-full"
-                            style={{
-                              ['--slider-accent' as string]: layer.color,
-                              accentColor: layer.color,
-                            }}
-                            aria-label={`Layer ${index + 1} steps`}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {renderPolyrhythmChainPanel(true)}
-
-              {selectedPolyrhythmLayer ? (
-                <>
-                  <div data-guide="study-quick-stack" className="space-y-2 border-t border-white/8 pt-2">
-                    <div className="grid grid-cols-[5rem_1fr] items-center gap-2">
-                      <div className="min-w-0">
-                        <InlineInfoLabel
-                          infoId="study_offset_pattern"
-                          label="Offset"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/62"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, -1)}
-                          className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/62 transition active:scale-[0.97]"
-                        >
-                          &lt; Step
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRotatePolyrhythmLayer(selectedPolyrhythmLayer.id, 1)}
-                          className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[9px] font-mono uppercase tracking-[0.12em] text-white/62 transition active:scale-[0.97]"
-                        >
-                          &gt; Step
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-[5rem_1fr] items-center gap-2">
-                      <div className="min-w-0">
-                        <InlineInfoLabel
-                          infoId="study_radius"
-                          label="Radius"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/62"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                      </div>
-                      <input
-                        type="range"
-                        min="70"
-                        max="320"
-                        step="2"
-                        value={selectedPolyrhythmLayer.radius}
-                        onChange={(event) =>
-                          handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, {
-                            radius: parseInt(event.target.value, 10) || 70,
-                          })
-                        }
-                        className="touch-slider rg-compact-slider w-full"
-                        style={{
-                          ['--slider-accent' as string]: selectedPolyrhythmLayer.color,
-                          accentColor: selectedPolyrhythmLayer.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div data-guide="study-quick-shape" className="grid grid-cols-2 gap-1.5 border-t border-white/8 pt-2">
-                    <StudyShellButton
-                      size="compact"
-                      tone="amber"
-                      highlighted
-                      onClick={() => handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)}
-                     icon={<Contrast size={13} aria-hidden="true" />}>
-                      Invert
-                    </StudyShellButton>
-                    <StudyShellButton
-                      size="compact"
-                      tone="red"
-                      highlighted
-                      onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}
-                     icon={<Eraser size={13} aria-hidden="true" />}>
-                      Clear
-                    </StudyShellButton>
-                    <StudyShellButton
-                      data-guide="study-desktop-focus-pattern"
-                      size="compact"
-                      tone="green"
-                      highlighted
-                      icon={<Maximize2 size={13} />}
-                      className="col-span-2 min-w-0"
-                      onClick={() => {
-                        setPolyrhythmDesktopPatternEditorOpen(true);
-                        recordTutorialEvent('study-open-pattern-editor');
-                      }}
-                    >
-                      Step Editor
-                    </StudyShellButton>
-                  </div>
-                </>
-              ) : (
-                <div className="border-t border-white/8 pt-2 text-[10px] text-white/42">
-                  Add or select a layer to edit.
-                </div>
-              )}
-            </StudyShellPremiumPanel>
-          </div>
-          )
+        {!isMobile && !presentationMode ? (
+          <DesktopSidePanel side="left" open={!polyrhythmDesktopQuickCollapsed} onOpen={() => setPolyrhythmDesktopQuickCollapsed(false)}>
+            <StudyShellPremiumPanel accent={selectedPolyrhythmLayer?.color ?? '#72F1B8'} className="rg-side-menu-panel-tight desktop-composition max-h-full overflow-y-auto" style={{maxHeight:'100%'}}>{studyLayerEditor(true)}</StudyShellPremiumPanel>
+          </DesktopSidePanel>
         ) : null}
 
         {!isMobile && !presentationMode ? (
-          polyrhythmDesktopUtilityCollapsed ? (
-            <div
-              className={`fixed right-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-right`}
-              style={{ bottom: studyDesktopPanelBottom }}
-            >
-              <StudyShellPremiumPanel accent="#88CCFF" className="rg-side-menu-panel" style={desktopToolPanelStyle}>
-                <div className={desktopSideMenuHeaderClass}>
-                  <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
-                    <InlineInfoLabel
-                      infoId="panel_utility"
-                      label="Tools"
-                      labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]"
-                      labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPolyrhythmDesktopUtilityCollapsed(false)}
-                    className={desktopSideMenuToggleClass}
-                    aria-label="Expand study tools menu"
-                    title="Expand study tools menu"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                </div>
-                <StudyShellButton
-                  size="compact"
-                  tone={polyrhythmSoundFocus === 'layer' ? 'green' : 'blue'}
-                  highlighted
-                  className="w-full"
-                  onClick={() =>
-                    handleSetPolyrhythmSoundFocus(
-                      polyrhythmSoundFocus === 'layer' ? 'stack' : 'layer',
-                    )
-                  }
-                >
-                  {polyrhythmSoundFocus === 'layer'
-                    ? 'Stack'
-                    : `Solo ${selectedPolyrhythmLayerLabel}`}
-                </StudyShellButton>
-              </StudyShellPremiumPanel>
-            </div>
-          ) : (
-          <div
-            className={`fixed right-6 top-20 z-20 ${desktopSideMenuWidthClass} rg-desktop-panel-right`}
-            style={{ bottom: studyDesktopUtilityPanelBottom, maxHeight: studyDesktopUtilityMaxHeight }}
-          >
+          <DesktopSidePanel side="right" open={!polyrhythmDesktopUtilityCollapsed} onOpen={() => setPolyrhythmDesktopUtilityCollapsed(false)}>
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="rg-side-menu-panel max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
+              data-canvas-quick-settings className="rg-side-menu-panel desktop-inspector max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
               style={{ ...desktopToolPanelStyle, maxHeight: '100%' }}
             >
-              <div className={desktopSideMenuHeaderClass}>
-                <div className={desktopSideMenuTitleClass} style={desktopToolTitleStyle}>
-                  Tools
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmDesktopUtilityCollapsed(true)}
-                  className={desktopSideMenuToggleClass}
-                  aria-label="Collapse study tools menu"
-                  title="Collapse tools"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
+              <DesktopInspectorTabs soundLocked={soundEditingLocked} canvasLocked={canvasOptionsLocked} accessory={polyrhythmUtilityPanel === 'overlay' ? studySharedGridInfo : null} title={selectedPolyrhythmLayerLabel} value={polyrhythmUtilityPanel} onCollapse={() => setPolyrhythmDesktopUtilityCollapsed(true)} onChange={tab => {
+ if (tab === 'sound' && soundEditingLocked) { openProPrompt('sound-editing'); return; }
+ if (tab === 'canvas' && canvasOptionsLocked) { openProPrompt('canvas-options'); return; }
+ setPolyrhythmUtilityPanel(tab);
+ }} />
 
-              <div
-                data-guide="study-desktop-audio"
-                className="rounded-2xl border"
-                style={{
-                  order: 1,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'audio', '#72F1B8'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'audio' ? null : 'audio'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'audio', '#72F1B8')}
-                  >
-                    Playback
-                  </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'audio', '#72F1B8')}>
-                    {polyrhythmUtilityPanel === 'audio' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {polyrhythmUtilityPanel === 'audio' ? (
+
+
+              <section data-quick-panel="audio" data-guide="study-desktop-sound" className="desktop-inspector-content">{polyrhythmUtilityPanel === 'sound' && !soundEditingLocked ? (
                   <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Playback',
-                      'Focus your ear on one cycle, then return to the complete stack to hear how it locks together.',
-                      '#72F1B8',
-                      'Solo is useful when a layer gets lost. Stack is useful when you want to hear the full shared-cycle relationship.',
-                    )}
-                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                      <InlineInfoLabel
-                        infoId="study_playback_output"
-                        label="Sound"
-                        className="mb-2"
-                        labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <StudyShellButton
-                        size="compact"
-                        tone="green"
-                        highlighted={polyrhythmStudy.soundEnabled}
-                        onClick={handleTogglePolyrhythmSound}
-                        className="w-full"
-                      >
-                        {polyrhythmStudy.soundEnabled ? 'Sound On' : 'Sound Off'}
-                      </StudyShellButton>
-                    </div>
 
-                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="study_layer_focus"
-                          label="Focus"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="rounded-full border border-white/8 bg-white/[0.03] px-2 py-1 text-[9px] text-white/44">
-                          {polyrhythmSoundFocus === 'layer'
-                            ? 'Solo'
-                            : polyrhythmSoundFocus === 'stack'
-                              ? 'Stack'
-                              : 'Muted'}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="amber"
-                          highlighted={polyrhythmSoundFocus === 'layer'}
-                          onClick={() => handleSetPolyrhythmSoundFocus('layer')}
-                        >
-                          Solo
-                        </StudyShellButton>
-                        <StudyShellButton
-                          size="compact"
-                          tone="amber"
-                          highlighted={polyrhythmSoundFocus === 'stack'}
-                          onClick={() => handleSetPolyrhythmSoundFocus('stack')}
-                        >
-                          Stack
-                        </StudyShellButton>
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="study_target_layer"
-                          label="Active Layer"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div
-                          className="rounded-full border px-2 py-1 text-[8px] font-mono uppercase tracking-[0.14em]"
-                          style={{
-                            background: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}10`,
-                            borderColor: `${selectedPolyrhythmLayer?.color ?? '#72F1B8'}22`,
-                            color: selectedPolyrhythmLayer?.color ?? '#72F1B8',
-                          }}
-                        >
-                          {selectedPolyrhythmLayerLabel}
-                        </div>
-                      </div>
-                      <div className="-mx-0.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-                        <div className="flex gap-1.5 px-0.5">
-                          {polyrhythmStudy.layers.map((layer, index) => {
-                            const active = layer.id === selectedPolyrhythmLayer?.id;
-                            return (
-                              <StudyShellButton
-                                key={layer.id}
-                                size="compact"
-                                tone="neutral"
-                                highlighted={active}
-                                onClick={() => {
-                                  handleSelectPolyrhythmLayer(layer.id);
-                                  setSelectedPolyrhythmStep(null);
-                                }}
-                                style={
-                                  active
-                                    ? {
-                                        background: `${layer.color}16`,
-                                        borderColor: `${layer.color}44`,
-                                        color: layer.color,
-                                        boxShadow: `0 0 0 1px ${layer.color}22 inset`,
-                                      }
-                                    : undefined
-                                }
-                              >
-                                Layer {index + 1}
-                              </StudyShellButton>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                ) : null}
-              </div>
-
-              <div
-                data-guide="study-desktop-sound"
-                className="rounded-2xl border"
-                style={{
-                  order: 3,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (soundEditingLocked) {
-                      openProPrompt('sound-editing');
-                      return;
-                    }
-                    setPolyrhythmUtilityPanel((current) => (current === 'sound' ? null : 'sound'));
-                  }}
-                  className={utilityAccordionButtonClass}
-                >
-                  {soundEditingLocked ? utilitySectionLockBadge : null}
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
-                  >
-                    Sound
-                  </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}>
-                    {polyrhythmUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {polyrhythmUtilityPanel === 'sound' && !soundEditingLocked ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Sound',
-                      'Make dense alignments easier to hear by changing tone color and pitch behavior.',
-                      '#88CCFF',
-                      'Use Original for raw pulse identity, or In Key when you want the structure to feel more musical and less percussive.',
-                    )}
                     {studyLayerVoicePicker}
                   </div>
-                ) : null}
-              </div>
+                ) : null}</section>
 
-              <div
-                data-guide="study-desktop-view"
-                className="rounded-2xl border"
-                style={{
-                  order: 2,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'overlay', '#FFB86B'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'overlay' ? null : 'overlay'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'overlay', '#FFB86B')}
-                  >
-                    Read Aids
-                  </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'overlay', '#FFB86B')}>
-                    {polyrhythmUtilityPanel === 'overlay' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {polyrhythmUtilityPanel === 'overlay' ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Read Aids',
-                      'Reveal the hidden grid when your eye needs help finding where pulses agree.',
-                      '#FFB86B',
-                      'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Contour curves the shapes between hits.',
-                    )}
-                    <div className={utilityGroupCardClass}>
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64" style={desktopMenuSubheaderStyle}>Read Aids</span>
-                        {studySharedGridInfo}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                                  <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3>
-<StudyShellButton showStateDot
-                                    size="compact"
-                                    tone="blue"
-                                    highlighted={studyGridIsShared}
-                                    aria-disabled={studyGridLocked}
-                                    onClick={handleTogglePolyrhythmGrid}
-                                    icon={<Grid3X3 size={13} />}
-                                    title="Give every layer the same editable shared step grid"
-                                    aria-pressed={studyGridIsShared}
-                                  >
-                                    Shared Grid
-                                  </StudyShellButton>
-                                  <StudyShellButton showStateDot size="compact" tone="blue"
-                                    highlighted={Boolean(polyrhythmStudy.ensembleView)}
-                                    aria-pressed={Boolean(polyrhythmStudy.ensembleView)}
-                                    icon={<Layers3 size={13} />}
-                                    onClick={() => setPolyrhythmStudy((current) => ({ ...current, ensembleView: !current.ensembleView }))}>
-                                    Split View
-                                  </StudyShellButton>
-                      <StudyShellButton showStateDot
-                        size="compact"
-                        tone="amber"
-                        highlighted={Boolean(polyrhythmStudy.showStepLabels)}
-                        aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
-                        onClick={handleTogglePolyrhythmStepLabels}
-                        icon={<Hash size={13} />}
-                        className={utilityButtonClass}
-                      >
-                        Numbers
-                      </StudyShellButton>
-                      <StudyShellButton showStateDot size="compact" tone="blue"
-                        highlighted={Boolean(polyrhythmStudy.showContour)} aria-pressed={Boolean(polyrhythmStudy.showContour)}
-                        onClick={() => setPolyrhythmStudy(current => ({ ...current, showContour: !current.showContour }))}
-                        icon={<Zap size={13} />} title="Curve the shape inward between active hits, like Riff">
-                        Contour
-                      </StudyShellButton>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <section data-guide="study-desktop-view" className="desktop-inspector-content">{polyrhythmUtilityPanel === 'overlay' ? studyReadAids : null}</section>
 
-              <div
-                className="rounded-2xl border"
-                style={{
-                  order: 4,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (canvasOptionsLocked) {
-                      openProPrompt('canvas-options');
-                      return;
-                    }
-                    setPolyrhythmUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'));
-                  }}
-                  className={utilityAccordionButtonClass}
-                >
-                  {canvasOptionsLocked ? utilitySectionLockBadge : null}
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
-                  >
-                    Canvas
-                  </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}>
-                    {canvasOptionsLocked ? <Lock size={15} /> : polyrhythmUtilityPanel === 'canvas' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {polyrhythmUtilityPanel === 'canvas' && !canvasOptionsLocked ? (
+              <section data-quick-panel="canvas" className="desktop-inspector-content">{polyrhythmUtilityPanel === 'canvas' && !canvasOptionsLocked ? (
                   <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Canvas',
-                      'Adjust contrast and atmosphere so the shared structure stays readable.',
-                      '#88CCFF',
-                      'Use this when a dense study needs more separation, less glow, or a quieter background for recording.',
-                    )}
+
                     {studyCanvasColors}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.polyrhythm}
@@ -19603,11 +18960,9 @@ function OrbitalPolymeter() {
                       compact
                     />
                   </div>
-                ) : null}
-              </div>
+                ) : null}</section>
             </StudyShellPremiumPanel>
-          </div>
-          )
+          </DesktopSidePanel>
         ) : null}
 
         {!isMobile && !presentationMode && polyrhythmDesktopPatternEditorOpen ? (
@@ -20183,140 +19538,14 @@ function OrbitalPolymeter() {
           </FullscreenControls>
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
-            <StudyShellDock className={isMobile ? 'space-y-3' : 'rg-desktop-dock-scale grid grid-cols-[auto_minmax(20rem,1fr)_auto] items-center gap-3'}>
-              <div data-guide={isMobile ? 'study-mobile-playback' : 'study-desktop-transport'} className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}>
-                <StudyShellButton tone={polyrhythmStudy.playing ? 'red' : 'green'} highlighted icon={polyrhythmStudy.playing ? <Pause size={15} /> : <Play size={15} />} onClick={handleTutorialAwareStudyPlaybackToggle}>
-                  {polyrhythmStudy.playing ? 'Pause' : 'Play'}
-                </StudyShellButton>
-                <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartPolyrhythmTransport}>
-                  Restart
-                </StudyShellButton>
-                <StudyShellButton tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={() => {
-                  handleRandomPolyrhythmStudy();
-                  recordTutorialEvent('study-random');
-                }}>
-                  Random
-                </StudyShellButton>
-                <StudyShellButton tone="amber" highlighted icon={<PatternActionIcon action="random-plus" size={15} />} onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
-                  Random+
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="neutral"
-                  highlighted
-                  icon={<PatternActionIcon action="remix" size={15} />}
-                  onClick={handleRemixPolyrhythmStudy}
-                  locked={remixLocked}
-                  style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}
-                >
-                  Remix
-                </StudyShellButton>
-              </div>
-
-              <div data-guide={isMobile ? 'study-mobile-tempo' : 'study-desktop-tempo'} className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5">
-                <div className="rg-transport-tempo-row flex items-center gap-4">
-                  <div
-                    className="shrink-0 text-[10px] font-mono uppercase tracking-[0.16em] text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    Tempo
-                  </div>
-                  <input
-                    type="range"
-                    min="40"
-                    max="180"
-                    step="1"
-                    value={polyrhythmStudy.bpm}
-                    onChange={(event) => handlePolyrhythmBpmChange(parseInt(event.target.value, 10) || polyrhythmStudy.bpm)}
-                    onPointerDown={(event) =>
-                      handleMobileSliderPointerDown(event, 'study-desktop-tempo', (value) =>
-                        handlePolyrhythmBpmChange(Math.round(value)),
-                      )
-                    }
-                    onPointerMove={(event) =>
-                      handleMobileSliderPointerMove(event, 'study-desktop-tempo', (value) =>
-                        handlePolyrhythmBpmChange(Math.round(value)),
-                      )
-                    }
-                    onPointerUp={() => clearActiveMobileSlider('study-desktop-tempo')}
-                    onPointerCancel={() => clearActiveMobileSlider('study-desktop-tempo')}
-                    onBlur={() => clearActiveMobileSlider('study-desktop-tempo')}
-                    data-dragging={activeMobileSliderId === 'study-desktop-tempo'}
-                    className="touch-slider rg-transport-tempo-track"
-                    style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label="Set study tempo"
-                  />
-                  <div className="w-[52px] shrink-0 text-right">
-                    <EditableTempoValue
-                      value={polyrhythmStudy.bpm}
-                      min={40}
-                      max={180}
-                      onCommit={handlePolyrhythmBpmChange}
-                      className="text-[18px]"
-                      ariaLabel="Type exact study tempo"
-                    />
-                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-white/34">
-                      BPM
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : 'justify-end'}`}>
-                {isMobile ? (
-                  <StudyShellButton
-                    tone="blue"
-                    highlighted={canAddPolyrhythmLayer}
-                    icon={<Plus size={15} />}
-                    onClick={handleAddPolyrhythmLayer}
-                    disabled={!canAddPolyrhythmLayer}
-                  >
-                    Add Layer
-                  </StudyShellButton>
-                ) : null}
-                <StudyShellButton
-                  tone="blue"
-                  highlighted={polyrhythmStudy.soundEnabled}
-                  icon={polyrhythmStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                  onClick={handleTogglePolyrhythmSound}
-                  data-guide={isMobile ? 'study-mobile-mute' : undefined}
-                >
-                  {polyrhythmStudy.soundEnabled ? 'Mute' : 'Unmute'}
-                </StudyShellButton>
-	                <StudyShellButton
-	                  tone="green"
-	                  highlighted={presentationMode}
-	                  icon={presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-	                  onClick={handleTogglePresentation}
-	                  data-guide={isMobile ? 'study-mobile-present' : 'study-desktop-present'}
-	                >
-	                  {presentationMode ? 'Exit' : 'Fullscreen'}
-	                </StudyShellButton>
-	                {!presentationMode ? (
-	                  <>
-	                    <StudyShellButton
-	                      tone="neutral"
-	                      highlighted={helpOpen && helpContext === 'surface'}
-	                      icon={<CircleHelp size={15} />}
-	                      onClick={handleToggleHelpGuide}
-	                    >
-	                      {guideCtaLabel}
-	                    </StudyShellButton>
-	                  </>
-	                ) : null}
-	                <StudyShellButton
-	                  size="square"
-	                  icon={<Menu size={15} />}
-                    onClick={() => setSidebarOpen(true)}
-                    data-guide={isMobile ? 'study-mobile-menu' : 'study-desktop-menu'}
-                    aria-label="Open study menu"
-                    title="Open study menu"
-                  />
-              </div>
-            </StudyShellDock>
+            <DesktopTransport mode="study" tempo={polyrhythmStudy.bpm} min={40} max={180} onTempo={handlePolyrhythmBpmChange} playing={polyrhythmStudy.playing} muted={!polyrhythmStudy.soundEnabled}
+ onPlay={handleTutorialAwareStudyPlaybackToggle} onRestart={handleRestartPolyrhythmTransport} onRandom={handleRandomPolyrhythmStudy} onRandomPlus={handleRandomPlusPolyrhythmStudy} onRemix={handleRemixPolyrhythmStudy} randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
+ onAudio={handleTogglePolyrhythmSound} onFullscreen={handleTogglePresentation} onGuide={handleToggleHelpGuide} onMenu={() => setSidebarOpen(true)} />
           </div>
         )}
 
         <PolyrhythmSidebar
+          menuRequest={desktopMenuRequest}
           isOpen={sidebarOpen && !presentationMode}
           study={polyrhythmStudy}
           currentSurface={appSurface}
@@ -20571,6 +19800,9 @@ function OrbitalPolymeter() {
               <RiffCycleCanvas
                 study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                onRequestShapeEditor={!isMobile && !presentationMode && !helpOpen ? () => {
+                  setRiffDesktopQuickCollapsed(false);
+                } : undefined}
                 guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
                 onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
@@ -20841,32 +20073,7 @@ function OrbitalPolymeter() {
                     />
                   </div>
                 ) : null}
-              </div>) : (<div data-guide="riff-mobile-lane-settings" data-quick-panel="read" className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { label: 'Fill', icon: <PaintBucket size={13} />, active: Boolean(riffCycleStudy.showPhraseFill), action: handleToggleRiffPhraseFill },
-                      { label: 'Contour', icon: <Zap size={13} />, active: Boolean(riffCycleStudy.showStructureView), action: handleToggleRiffStructureView },
-                      { label: 'Numbers', icon: <Hash size={13} />, active: Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels, action: handleToggleRiffStepLabels },
-                      { label: 'Grouping', icon: <CircleDot size={13} />, active: Boolean(riffCycleStudy.showPhraseGroupings), action: handleToggleRiffPhraseGroupings },
-                      { label: 'Subdivisions', icon: <Grid3X3 size={13} />, active: Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked, action: handleToggleRiffPulseLayer, locked: riffSubdivisionsLocked },
-                    ].map((item) => (
-                      <Fragment key={item.label}>{item.label === 'Fill' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Visuals</h3> : item.label === 'Numbers' ? <h3 className="col-span-2 mb-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Timing</h3> : null}<button type="button" aria-pressed={item.active} aria-label={item.locked ? 'Unlock Subdivisions with Pro' : item.label}
-                        className={`flex items-center gap-2 border px-2.5 py-2 ${item.label === 'Subdivisions' ? 'col-span-2' : ''}`}
-                        style={{ color: item.active ? '#B5DCEF' : 'rgba(255,255,255,.55)', background: item.active ? 'rgba(127,215,255,.09)' : 'rgba(255,255,255,.025)', borderColor: item.active ? 'rgba(127,215,255,.18)' : 'rgba(255,255,255,.045)' }}
-                        onClick={() => item.locked ? openProPrompt('riff-subdivisions') : item.action()}>
-                        <span className="opacity-65">{item.icon}</span><span>{item.label}</span>
-                        {item.locked ? <Lock size={10} className="ml-auto opacity-50" /> : <span className="ml-auto h-1 w-1 rounded-full" style={{ background: item.active ? '#9ED9F0' : 'rgba(255,255,255,.15)' }} />}
-                      </button></Fragment>
-                    ))}
-                    {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
-                      <div className="col-span-2 grid grid-cols-2 gap-1.5 pt-1">
-                        {(['geometry', 'circle'] as const).map((placement) => (
-                          <button key={placement} type="button" className="border border-white/10 bg-white/[.03] px-2 text-white/60"
-                            aria-pressed={placement === 'circle' ? riffCycleStudy.pulseLayerEnabled : !riffCycleStudy.pulseLayerEnabled}
-                            onClick={() => handleSetRiffPulseLayerPlacement(placement)}>{placement === 'geometry' ? 'Geometry' : 'Circle'}</button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>)}</QuickCanvasControls>
+              </div>) : (riffReadAids)}</QuickCanvasControls>
 
             </div>
 
@@ -22424,6 +21631,9 @@ function OrbitalPolymeter() {
                           <RiffCycleCanvas
                             study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                onRequestShapeEditor={!isMobile && !presentationMode && !helpOpen ? () => {
+                  setRiffDesktopQuickCollapsed(false);
+                } : undefined}
                 guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
                 onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
@@ -22735,6 +21945,7 @@ function OrbitalPolymeter() {
           {tutorialContext === 'surface' ? renderTutorialOverlay(guideAccent, 30) : null}
 
         <RiffCycleSidebar
+          menuRequest={desktopMenuRequest}
           isOpen={sidebarOpen}
           study={riffCycleStudy}
           currentSurface={appSurface}
@@ -22925,13 +22136,16 @@ function OrbitalPolymeter() {
         className={
           isMobile
             ? 'relative min-h-[100svh] overflow-hidden bg-[#111116] select-none'
-            : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'
+            : `fixed inset-0 overflow-hidden bg-[#111116] select-none ${!presentationMode ? 'rg-desktop-workspace' : ''}`
         }
       >
-        <div className="absolute inset-0">
+        <div className={`absolute inset-0 ${!isMobile && !presentationMode ? 'rg-desktop-stage' : ''}`}>
           <RiffCycleCanvas
             study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                onRequestShapeEditor={!isMobile && !presentationMode && !helpOpen ? () => {
+                  setRiffDesktopQuickCollapsed(false);
+                } : undefined}
                 guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
                 onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
@@ -23037,1207 +22251,39 @@ function OrbitalPolymeter() {
         ) : null}
 
         {!presentationMode ? appSurfaceToggle : null}
-        {!presentationMode ? (
-          !isMobile && riffDesktopQuickCollapsed ? (
-            <div data-guide="riff-desktop-quick" className={`fixed left-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-left`} style={{ bottom: riffDesktopPanelBottom }}>
-              <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="rg-side-menu-panel-tight">
-                <div className={desktopSideMenuHeaderClass}>
-                  <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
-                    <InlineInfoLabel
-                      infoId="panel_quick_edit"
-                      label="Quick Edit"
-                      labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
-                      labelStyle={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSetRiffEditMode('phrase');
-                      setRiffQuickPanel('phrase');
-                      setRiffDesktopQuickCollapsed(false);
-                    }}
-                    className={desktopSideMenuToggleClass}
-                    aria-label="Expand riff edit menu"
-                    title="Expand riff edit menu"
-                    style={{
-                      background: `${riffCycleStudy.riff.color}12`,
-                      borderColor: `${riffCycleStudy.riff.color}28`,
-                      color: riffCycleStudy.riff.color,
-                    }}
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                </div>
-                <StudyShellButton
-                  size="compact"
-                  tone="amber"
-                  highlighted
-                  icon={<Maximize2 size={13} />}
-                  className="w-full"
-                  onClick={() => openRiffDesktopFocusEditor()}
-                >
-                  {riffDesktopFocusActionLabel}
-                </StudyShellButton>
-              </StudyShellPremiumPanel>
-            </div>
-          ) : (
-        <div
-          data-guide={isMobile ? 'riff-mobile-quick' : 'riff-desktop-quick'}
-          className={`fixed z-20 ${isMobile ? 'left-3 right-3 top-16' : `left-6 top-20 ${desktopSideMenuWidthClass} rg-desktop-panel-left`}`}
-          style={!isMobile ? { bottom: riffDesktopQuickPanelBottom, maxHeight: riffDesktopQuickMaxHeight } : undefined}
-        >
-          <StudyShellPremiumPanel
-            accent={riffCycleStudy.riff.color}
-            className={`${isMobile ? 'rg-side-menu-panel-tight max-h-[calc(100svh-22rem)]' : 'rg-side-menu-panel h-full min-h-0'} overflow-y-auto overscroll-contain pb-2 [scrollbar-width:none]`}
-          >
-            <div className={desktopSideMenuHeaderClass}>
-              <div className="absolute left-1/2 -translate-x-1/2">
-                <InlineInfoLabel
-                  infoId="panel_quick_edit"
-                  label="Quick Edit"
-                  labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
-                  labelStyle={{ color: riffCycleStudy.riff.color, textShadow: `${riffCycleStudy.riff.color}33 0 0 14px` }}
-                  infoBody="Quick controls for how the riff is written, how it sits in the bar, and where it resolves."
-                />
-              </div>
-              {!isMobile ? (
-                <button
-                  type="button"
-                  onClick={() => setRiffDesktopQuickCollapsed(true)}
-                  className={desktopSideMenuToggleClass}
-                  aria-label="Collapse riff edit menu"
-                  title="Collapse edit"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setRiffQuickPanel('bar')}
-                className="flex h-10 items-center justify-center rounded-xl border px-3 text-center transition-all"
-                style={{
-                  background:
-                    riffQuickPanel === 'bar'
-                      ? 'linear-gradient(180deg, rgba(255,136,194,0.18), rgba(255,136,194,0.08))'
-                      : 'rgba(255,255,255,0.03)',
-                  borderColor:
-                    riffQuickPanel === 'bar' ? 'rgba(255,136,194,0.28)' : 'rgba(255,255,255,0.08)',
-                  color: riffQuickPanel === 'bar' ? '#FF88C2' : 'rgba(255,255,255,0.68)',
-                  boxShadow:
-                    riffQuickPanel === 'bar'
-                      ? '0 0 0 1px rgba(255,136,194,0.18) inset, 0 12px 28px rgba(0,0,0,0.22)'
-                      : 'none',
-                }}
-              >
-                <span className="text-[11px] font-mono uppercase tracking-[0.1em]">Bar</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSetRiffEditMode('phrase');
-                  setRiffQuickPanel('phrase');
-                }}
-                className="flex h-10 items-center justify-center rounded-xl border px-3 text-center transition-all"
-                style={{
-                  background:
-                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
-                      ? 'rgba(255,170,0,0.13)'
-                      : 'rgba(255,255,255,0.03)',
-                  borderColor:
-                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
-                      ? 'rgba(255,170,0,0.34)'
-                      : 'rgba(255,255,255,0.08)',
-                  color:
-                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
-                      ? '#FFAA00'
-                      : 'rgba(255,255,255,0.68)',
-                  boxShadow:
-                    riffQuickPanel === 'phrase' || (riffQuickPanel == null && riffEditMode === 'phrase')
-                      ? '0 0 0 1px rgba(255,170,0,0.16) inset, 0 12px 28px rgba(0,0,0,0.22)'
-                      : 'none',
-                }}
-              >
-                <span className="text-[11px] font-mono uppercase tracking-[0.1em]">Pattern</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSetRiffEditMode('landing');
-                  setRiffQuickPanel('return');
-                }}
-                className="flex h-10 items-center justify-center rounded-xl border px-3 text-center transition-all"
-                style={{
-                  background:
-                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
-                      ? 'rgba(127,215,255,0.12)'
-                      : 'rgba(255,255,255,0.03)',
-                  borderColor:
-                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
-                      ? 'rgba(127,215,255,0.24)'
-                      : 'rgba(255,255,255,0.08)',
-                  color:
-                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
-                      ? '#7FD7FF'
-                      : 'rgba(255,255,255,0.68)',
-                  boxShadow:
-                    riffQuickPanel === 'return' || (riffQuickPanel == null && riffEditMode === 'landing')
-                      ? '0 0 0 1px rgba(127,215,255,0.18) inset, 0 12px 28px rgba(0,0,0,0.22)'
-                      : 'none',
-                }}
-              >
-                <span className="text-[11px] font-mono uppercase tracking-[0.1em]">Ending</span>
-              </button>
-            </div>
+        {!isMobile && !presentationMode ? (
+          <DesktopSidePanel side="left" open={!riffDesktopQuickCollapsed} onOpen={() => setRiffDesktopQuickCollapsed(false)}>
+            <StudyShellPremiumPanel accent={riffCycleStudy.riff.color} className="rg-side-menu-panel desktop-composition h-full min-h-0 overflow-y-auto">
+ <CanvasEditorDialog embedded title="Edit Riff" color={riffCycleStudy.riff.color} colorControl={riffShapeColorControl} onClose={() => setRiffDesktopQuickCollapsed(true)}>{riffShapeEditor}
 
-            {riffQuickPanel === 'bar' ? (
-              <div
-                data-guide="riff-layer-1"
-                className="rounded-2xl border p-2.5"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.026))',
-                  borderColor: 'rgba(255,255,255,0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.16)',
-                }}
-              >
-                <div className="mb-2 flex items-center justify-center gap-2 border-b border-white/8 pb-1.5">
-                  <div className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-[#FF88C2]" style={{ textShadow: '0 0 12px rgba(255,136,194,0.22)' }}>
-                    Bar Frame
-                  </div>
-                </div>
-                <div className="mb-2 px-0.5 text-center text-[9px] leading-snug text-white/42">
-                  The bar is the reference grid. Change it to hear and see how the same riff lands against a different frame.
-                </div>
-                <div className="space-y-1.5 pt-0.5">
-                  <div
-                    className="space-y-1.5 rounded-xl border px-2.5 py-2.5"
-                    style={{
-                      background: 'rgba(255,255,255,0.028)',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-                    }}
-                  >
-                    <div className="space-y-1">
-                      <InlineInfoLabel
-                        infoId="riff_meter"
-                        label="Meter"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="flex items-center gap-2">
-                        <StudyShellButton
-                          size="square"
-                          className={desktopRiffBarSquareButtonClass}
-                          onClick={() =>
-                            handleUpdateRiffReference({
-                              numerator: Math.max(2, riffEditableReference.numerator - 1),
-                            })
-                          }
-                          aria-label="Decrease bar numerator"
-                        >
-                          <Minus size={14} />
-                        </StudyShellButton>
-                        <div className="min-w-0 flex-1 rounded-lg border border-white/8 bg-white/[0.04] px-2.5 py-1.5 text-center text-[18px] font-light leading-none text-white">
-                          {riffEditableReference.numerator}/{riffEditableReference.denominator}
-                        </div>
-                        <StudyShellButton
-                          size="square"
-                          className={desktopRiffBarSquareButtonClass}
-                          onClick={() =>
-                            handleUpdateRiffReference({
-                              numerator: Math.min(RIFF_MAX_METER_NUMERATOR, riffEditableReference.numerator + 1),
-                            })
-                          }
-                          aria-label="Increase bar numerator"
-                        >
-                          <Plus size={14} />
-                        </StudyShellButton>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="space-y-1.5 rounded-xl border px-2.5 py-2.5"
-                    style={{
-                      background: 'rgba(127,215,255,0.045)',
-                      borderColor: 'rgba(127,215,255,0.14)',
-                      boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
-                    }}
-                  >
-                    <div className="space-y-1">
-                      <InlineInfoLabel
-                        infoId="riff_reference_grid"
-                        label="Grid"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        {[4, 8].map((value) => (
-                          <StudyShellButton
-                            key={value}
-                            size="compact"
-                            className={desktopRiffBarCompactButtonClass}
-                            highlighted={riffEditableReference.denominator === value}
-                            onClick={() => {
-                              handleUpdateRiffReference({
-                                denominator: value as ReferenceMeter['denominator'],
-                              });
-                            }}
-                          >
-                            1/{value}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="h-px bg-white/6" />
-                    <div className="space-y-1">
-                      <InlineInfoLabel
-                        infoId="riff_subdivision"
-                        label="Subdivision"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-5 gap-1 rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] p-1">
-                        {[8, 12, 16, 20, 32].map((value) => (
-                          <StudyShellButton
-                            key={value}
-                            size="compact"
-                            tone="blue"
-                            className="!h-7 min-w-0 flex-1 rounded-md px-1 text-[7.5px] tracking-[0.06em]"
-                            highlighted={riffEditableReference.subdivision === value && !(
-                              riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)
-                            )}
-                            locked={riffAdvancedTimingLocked && !canUseFreeRiffSubdivision(value)}
-                            onLockedClick={() => openProPrompt('riff-advanced-timing')}
-                            onClick={() =>
-                              handleUpdateRiffReference({
-                                subdivision: value as ReferenceMeter['subdivision'],
-                              })
-                            }
-                          >
-                            {getRiffSubdivisionButtonLabel(value)}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div data-guide="riff-mobile-riff-restart">
-                    <RiffRestartSliderControl
-                      study={riffCycleStudy}
-                      onUpdateRiff={handleUpdateRiffPhrase}
-	                      labelClassName={riffQuickControlLabelClass}
-	                      labelStyle={desktopMenuSubheaderStyle}
-	                      compact
-	                      onSetSequenceRestartBars={handleSetRiffSequenceBars}
-	                    />
-                  </div>
-
-                  <div
-                    data-guide="riff-mobile-secondary-cues"
-                    className="space-y-1.5 rounded-xl border px-2 py-2"
-                    style={{
-                      background: 'rgba(255,255,255,0.018)',
-                      borderColor: 'rgba(255,255,255,0.065)',
-                    }}
-                  >
-                  <InlineInfoLabel
-                    infoId="riff_secondary_cues"
-                    label="Secondary Cues"
-                    labelClassName="pt-0.5 text-[9px] font-mono font-semibold uppercase tracking-[0.18em]"
-                    labelStyle={{ color: '#FFAA00', textShadow: '0 0 12px rgba(255,170,0,0.22)' }}
-                  />
-                    <div>
-                      <BarCueSliderControl
-                        value={riffCycleStudy.barMarkerInterval}
-                        onChange={handleSetRiffBarMarkerInterval}
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                        compact
-                      />
-                      {(riffCycleStudy.barMarkerInterval ?? 'none') === 'pattern' ? (
-                        <div className="mt-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
-                          {riffPatternBarMarkerCopy}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="space-y-1 rounded-xl border border-white/8 bg-white/[0.018] px-2 py-1.5">
-                      <InlineInfoLabel
-                        infoId="riff_backbeat"
-                        label="Backbeat"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      {(() => {
-                        const activeBackbeatBeats = riffEditableBackbeatBeats;
-                        return (
-                          <div className="space-y-1.5">
-                            <div className={`${riffCellBackbeatEditingActive ? 'grid grid-cols-4' : 'flex items-center'} gap-1 rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] p-1`}>
-                              <button
-                                type="button"
-                                className="h-6 rounded-md px-2 text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
-                                style={{
-                                  background: !riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.18)' : 'rgba(255,255,255,0.025)',
-                                  border: `1px solid ${!riffEditableBackbeatEnabled ? 'rgba(255,136,194,0.42)' : 'rgba(255,255,255,0.07)'}`,
-                                  color: !riffEditableBackbeatEnabled ? '#FFD3E9' : 'rgba(255,255,255,0.46)',
-                                  boxShadow: !riffEditableBackbeatEnabled ? '0 0 14px rgba(255,136,194,0.14)' : 'none',
-                                }}
-                                onClick={handleSetRiffBackbeatOff}
-                              >
-                                Off
-                              </button>
-                              {Array.from(
-                                { length: riffBackbeatPickerCount },
-                                (_, index) => index + 1,
-                              ).map((beat) => (
-                                <button
-                                  key={beat}
-                                  type="button"
-                                  className="h-6 min-w-0 flex-1 rounded-md text-[8px] font-mono font-semibold transition"
-                                  style={{
-                                    background:
-                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
-                                        ? 'rgba(255,136,194,0.18)'
-                                        : 'rgba(255,255,255,0.025)',
-                                    border: `1px solid ${
-                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
-                                        ? 'rgba(255,136,194,0.42)'
-                                        : 'rgba(255,255,255,0.07)'
-                                    }`,
-                                    color:
-                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
-                                        ? '#FFD3E9'
-                                        : 'rgba(255,255,255,0.5)',
-                                    boxShadow:
-                                      riffEditableBackbeatEnabled && activeBackbeatBeats.includes(beat)
-                                        ? '0 0 14px rgba(255,136,194,0.14)'
-                                        : 'none',
-                                  }}
-                                  onClick={() => handleToggleRiffBackbeatBeat(beat)}
-                                >
-                                  {beat}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="grid grid-cols-2 gap-1">
-                              <button
-                                type="button"
-                                className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
-                                style={{
-                                  background: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
-                                  borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
-                                  color: (riffEditableReference.backbeatBarInterval ?? 1) === 1 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
-                                }}
-                                onClick={() => handleSetRiffBackbeatBarInterval(1)}
-                              >
-                                Every Bar
-                              </button>
-                              <button
-                                type="button"
-                                className="h-6 rounded-md border text-[7.5px] font-mono font-semibold uppercase tracking-[0.1em] transition"
-                                style={{
-                                  background: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.14)' : 'rgba(255,255,255,0.02)',
-                                  borderColor: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? 'rgba(255,136,194,0.34)' : 'rgba(255,255,255,0.08)',
-                                  color: (riffEditableReference.backbeatBarInterval ?? 1) === 2 ? '#FFD3E9' : 'rgba(255,255,255,0.42)',
-                                }}
-                                onClick={() => handleSetRiffBackbeatBarInterval(2)}
-                              >
-                                Every 2 Bars
-                              </button>
-                            </div>
-                            {(riffEditableReference.backbeatBarInterval ?? 1) > 1 ? (
-                              <div className="rounded-lg border border-[#FF88C2]/12 bg-[#FF88C2]/[0.035] px-2 py-1 text-[8px] leading-relaxed text-[#FFD3E9]/80">
-                                Superbackbeat: the selected beat only lands every other bar.
-                              </div>
-                            ) : null}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {riffQuickPanel === 'phrase' ? (
-              <div
-                data-guide="riff-layer-2"
-                className="rounded-2xl border px-3 py-2.5"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.026))',
-                  borderColor: 'rgba(255,255,255,0.1)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px rgba(0,0,0,0.16)',
-                }}
-              >
-                <div className="mb-2 flex items-center justify-center gap-2 border-b border-white/8 pb-2">
-                  <div className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-[#FFAA00]" style={{ textShadow: '0 0 12px rgba(255,170,0,0.22)' }}>
-                    Pattern
-                  </div>
-                </div>
-                <div className="mb-2 px-0.5 text-center text-[9px] leading-snug text-white/38">
-                  The riff is the phrase that rotates through the bar. Change its length, shift it, or invert hits to find new cycles.
-                </div>
-                <div className="space-y-2 pt-1">
-                  {RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (
-                  <RiffCellSequenceEditor
-                    stepEditor={inlineQuickCellSteps ? quickRiffStepEditor : null}
-                    onOpenGuide={() => openStartGuide('cell-sequencer')}
-                    study={riffCycleStudy}
-                    selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
-                    selectedPhraseIndex={selectedRiffSequencePhraseIndex}
-                    onSetEnabled={handleSetRiffCellSequenceEnabled}
-                    onSelectCell={handleSelectRiffSequenceCell}
-                    onSelectPhrase={handleSelectRiffSequencePhrase}
-                    onAddCell={handleAddRiffSequenceCell}
-                    onCopyCell={handleCopyRiffSequenceCell}
-                    onAppendCell={handleAppendRiffSequenceCell}
-                    onAddPhrase={handleAddRiffSequencePhrase}
-                    onDeletePhrase={handleDeleteRiffSequencePhrase}
-                    onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
-                    onRemoveLastCell={handleRemoveLastRiffSequenceCell}
-                    onDeleteCell={handleDeleteRiffSequenceCell}
-                    onResetSequence={handleResetRiffSequence}
-
-                    onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
-                    onSetChainEnabled={handleSetRiffSequenceChainEnabled}
-                    onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
-                    onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
-                    onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
-                    onSetCellColor={handleSetRiffSequenceCellColor}
-                    onSetCellName={handleSetRiffSequenceCellName}
-                    onRandomizeCells={handleRandomizeRiffSequenceCells}
-                    colorEditingLocked={colorEditingLocked}
-                    onLockedColorClick={() => openProPrompt('color-editing')}
-                    sequenceLocked={riffCellSequencerLocked}
-                    onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
-                    compact
-                  />
-                  ) : null}
-                  {!inlineQuickCellSteps ? quickRiffStepEditor : null}
-                  <RiffPatternToolbar
-                    patternToolsLocked={riffPatternToolsLocked}
-                    voicesLocked={riffVoicesLocked}
-                    voicesOpen={riffVoicesOpen}
-                    clearDisabled={riffGuitarPitchMode}
-                    onOffset={handleRotateRiffCycle}
-                    onInvert={handleInvertRiffCycle}
-                    onMirror={handleMirrorRiffCycle}
-                    onToggleVoices={() => {
-                      setRiffVoicesOpen((open) => {
-                        if (open) {
-                          setActiveRiffVoice('riff');
-                          setSelectedRiffCycleStep(null);
-                        }
-                        return !open;
-                      });
-                    }}
-                    onClear={activeRiffVoice === 'riff' ? handleClearRiffCycle : handleClearActiveRiffVoice}
-                    onLockedPatternTools={() => openProPrompt('riff-pattern-tools')}
-                    onLockedVoices={() => openProPrompt('riff-voices')}
-                  />
-                  {riffVoicesOpen && !riffVoicesLocked ? (
-                    <div className="space-y-1.5 rounded-lg border border-[#B6A0FF]/12 bg-[#B6A0FF]/[0.035] p-1.5">
-                      <>
-                        <div className="grid grid-cols-3 gap-1">
-                          {([
-                            ['riff', 'Riff'],
-                            ['drums', 'Drums'],
-                            ['guitar', 'Guitar'],
-                          ] as const).map(([voice, label]) => (
-                            <StudyShellButton
-                              key={`riff-quick-voice-${voice}`}
-                              size="compact"
-                              tone={voice === 'riff' ? 'amber' : voice === 'drums' ? 'blue' : 'green'}
-                              highlighted={activeRiffVoice === voice}
-                              onClick={() => {
-                                setActiveRiffVoice(voice);
-                                if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
-                                setSelectedRiffCycleStep(null);
-                              }}
-                              icon={<RiffVoiceLayerGlyph voice={voice} className="h-5 w-5" />}
-                              className="min-w-0 px-1 text-[7px]"
-                            >
-                              {label}
-                            </StudyShellButton>
-                          ))}
-                        </div>
-                        {activeRiffVoice === 'guitar' ? (
-                          <div className="space-y-1.5">
-                            <StudyShellButton
-                              size="compact"
-                              tone="green"
-                              highlighted={riffGuitarPitchMode}
-                              onClick={handleToggleGuitarPitchMode}
-                              className="w-full"
-                            >
-                              Pitch
-                            </StudyShellButton>
-                            {riffGuitarPitchMode ? (
-                              <>
-                                <div className="text-center font-mono text-[7px] uppercase tracking-[0.1em] text-[#9BFFD0]/55">
-                                  {guitarPitchArmed ? 'Tap steps to place note' : 'Choose a note'}
-                                </div>
-                                <GuitarPitchPicker
-                                  midiNote={selectedGuitarMidiNote}
-                                  onChange={handleSetSelectedGuitarPitch}
-                                  compact
-                                />
-                              </>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {activeRiffVoice === 'drums' ? (
-                          <div className="grid grid-cols-4 gap-1 border-t border-white/7 pt-1.5">
-                            {(['snare', 'tom', 'kick', 'cymbal'] as const).map((instrument) => (
-                              <button
-                                key={`riff-quick-instrument-${instrument}`}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedRiffVoiceInstrument(instrument);
-                                  setSelectedRiffCycleStep(null);
-                                }}
-                                className="flex h-7 items-center justify-center rounded-md border"
-                                style={{
-                                  borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.58)' : 'rgba(255,255,255,0.08)',
-                                  background: selectedRiffVoiceInstrument === instrument ? 'rgba(182,160,255,0.14)' : 'rgba(255,255,255,0.025)',
-                                }}
-                                aria-label={`Select ${instrument}`}
-                              >
-                                <RiffVoiceGlyph instrument={instrument} className="h-4 w-4" />
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </>
-                    </div>
-                  ) : null}
-                  <StudyShellButton
-                  size="compact"
-                  tone="amber"
-                  highlighted
-                  onClick={() => {
-                    openRiffDesktopFocusEditor('phrase');
-                  }}
-                  icon={<Maximize2 size={13} />}
-                  className="w-full"
-                >
-                  Step Editor
-                  </StudyShellButton>
-                </div>
-              </div>
-            ) : null}
-
-            {riffQuickPanel === 'return' ? (
-              <div
-                data-guide="riff-ending"
-                className="rounded-2xl border p-3"
-                style={{
-                  background:
-                    'radial-gradient(circle at 14% 0%, rgba(127,215,255,0.15), transparent 42%), linear-gradient(180deg, rgba(127,215,255,0.06), rgba(255,255,255,0.026))',
-                  borderColor: 'rgba(127,215,255,0.2)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 24px rgba(0,0,0,0.16), 0 0 30px rgba(127,215,255,0.07)',
-                }}
-              >
-                <div className="mb-3 flex items-center justify-center gap-2 border-b border-white/8 pb-2">
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-[#7FD7FF]"
-                    style={{ textShadow: '0 0 12px rgba(127,215,255,0.22)' }}
-                  >
-                    Ending
-                  </div>
-                </div>
-                <div className="space-y-2.5 pt-1">
-                  <div
-                    className="rounded-xl border px-2.5 py-2"
-                    style={{
-                      background: 'linear-gradient(90deg, rgba(127,215,255,0.12), rgba(255,255,255,0.026))',
-                      borderColor: 'rgba(127,215,255,0.18)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-3"><InlineInfoLabel
-                      infoId="riff_ending_pattern"
-                      label="Ending Pattern"
-                      labelClassName={riffQuickControlLabelClass}
-                      labelStyle={{
-                        color: '#7FD7FF',
-                        textShadow: '0 0 14px rgba(127,215,255,0.3)',
-                      }}
-                    />{riffEndingToggle}</div>
-                    <div className="mt-1 text-[10px] leading-relaxed text-white/46">
-                      Final slots only play right before the riff restarts.
-                    </div>
-                  </div>
-                  <div
-                    className="space-y-2 rounded-xl border px-2.5 py-2.5"
-                    style={{
-                      opacity: riffEndingContentOpacity,
-                      background: 'rgba(127,215,255,0.045)',
-                      borderColor: 'rgba(127,215,255,0.14)',
-                      boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
-                    }}
-                  >
-                    <div className="space-y-1">
-                      <InlineInfoLabel
-                        infoId="riff_final_slots"
-                        label="Final Slots"
-                        labelClassName={riffQuickControlLabelClass}
-                        labelStyle={mobileRiffWhiteTitleStyle}
-                      />
-                      <div className="text-[10px] leading-relaxed text-white/42">
-                        Lit slots come from the riff. Turn one off to silence that hit only in the ending.
-                      </div>
-                    </div>
-                    <RiffRollEditor
-                      activeSteps={riffLandingRollSteps}
-                      accents={riffLandingRollAccents}
-                      color="#7FD7FF"
-                      selectedStepIndex={selectedRiffLandingSlot}
-                      labelPrefix="ending-quick"
-                      compact
-                      onPressStep={(slotIndex) => {
-                        setSelectedRiffLandingSlot(slotIndex);
-                        handleSetRiffEditMode('landing');
-                        handleSetRiffLandingStepActive(
-                          slotIndex,
-                          !riffLandingRollSteps[slotIndex],
-                        );
-                      }}
-                      onLongPressStep={(slotIndex) => {
-                        setSelectedRiffLandingSlot(slotIndex);
-                        handleSetRiffEditMode('landing');
-                        handleToggleRiffLandingAccent(slotIndex);
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="space-y-2 rounded-xl border px-2.5 py-2.5"
-                    style={{
-                      opacity: riffEndingContentOpacity,
-                      background: 'rgba(127,215,255,0.045)',
-                      borderColor: 'rgba(127,215,255,0.14)',
-                      boxShadow: 'inset 0 1px 0 rgba(127,215,255,0.05)',
-                    }}
-                  >
-                    <InlineInfoLabel
-                      infoId="riff_ending_length"
-                      label="Ending Length"
-                      labelClassName={riffQuickControlLabelClass}
-                      labelStyle={mobileRiffWhiteTitleStyle}
-                    />
-                    <div className="flex items-center gap-2">
-                      <StudyShellButton
-                        size="square"
-                        tone="blue"
-                        onClick={() => handleSetRiffLandingLength(Math.max(1, riffCycleStudy.landingLength - 1))}
-                      >
-                        <Minus size={14} />
-                      </StudyShellButton>
-                      <div
-                        className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-center text-[14px] font-light text-white"
-                        style={{
-                          background: 'rgba(127,215,255,0.08)',
-                          borderColor: 'rgba(127,215,255,0.22)',
-                          boxShadow: '0 0 18px rgba(127,215,255,0.1), inset 0 0 0 1px rgba(127,215,255,0.08)',
-                        }}
-                      >
-                        {riffCycleStudy.landingLength} slots
-                      </div>
-                      <StudyShellButton
-                        size="square"
-                        tone="blue"
-                        locked={
-                          riffEndingLengthLocked &&
-                          riffCycleStudy.landingLength >= FREE_RIFF_ENDING_SLOT_LIMIT
-                        }
-                        onLockedClick={() => openProPrompt('riff-ending-length')}
-                        onClick={() =>
-                          handleSetRiffLandingLength(
-                            Math.min(getDisplayStepCount(riffCycleStudy), riffCycleStudy.landingLength + 1),
-                          )
-                        }
-                      >
-                        <Plus size={14} />
-                      </StudyShellButton>
-                    </div>
-                  </div>
-                  <div data-guide="riff-desktop-ending-lane" style={{ opacity: riffEndingContentOpacity }}>
-                    <RiffEndingReturnWindowPanel
-                      landingWindowBars={riffLandingWindowBars}
-                      landingEditableSlots={riffEndingEditableSlots}
-                      stepsPerBar={riffDesktopStepsPerBar}
-                      landingWindowSteps={riffLandingWindowSteps}
-                      landingOverrides={riffCycleStudy.landingOverrides}
-                      landingActiveSteps={riffLandingRollSteps}
-                      landingAccents={riffLandingRollAccents}
-                      freeRestartMode={riffCycleStudy.riff.resetMode === 'free'}
-                      playing={riffCycleStudy.playing}
-                      playbackStateRef={riffCyclePlaybackStateRef}
-                    />
-                  </div>
-                  <StudyShellButton
-                    size="compact"
-                    tone="amber"
-                    highlighted
-                    icon={<Maximize2 size={13} />}
-                    onClick={() => openRiffDesktopFocusEditor('landing')}
-                    className="w-full"
-                  >
-                    Edit Ending
-                  </StudyShellButton>
-                </div>
-              </div>
-            ) : null}
-          </StudyShellPremiumPanel>
-        </div>
-          )
+ </CanvasEditorDialog></StudyShellPremiumPanel>
+          </DesktopSidePanel>
         ) : null}
 
         {!isMobile && !presentationMode ? (
-          riffDesktopUtilityCollapsed ? (
-            <div className={`fixed right-6 z-30 ${desktopSideMenuWidthClass} rg-desktop-panel-bottom-right`} style={{ bottom: riffDesktopPanelBottom }}>
-              <StudyShellPremiumPanel accent="#88CCFF" className="rg-side-menu-panel" style={desktopToolPanelStyle}>
-                <div className={desktopSideMenuHeaderClass}>
-                  <div className="absolute left-1/2 min-w-0 -translate-x-1/2 text-center">
-                    <InlineInfoLabel
-                      infoId="panel_utility"
-                      label="Tools"
-                      labelClassName="text-[11px] font-mono font-semibold uppercase tracking-[0.22em] text-[#88CCFF]"
-                      labelStyle={{ textShadow: '0 0 14px rgba(136,204,255,0.22)' }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRiffDesktopUtilityCollapsed(false)}
-                    className={desktopSideMenuToggleClass}
-                    aria-label="Expand riff tools menu"
-                    title="Expand riff tools menu"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                </div>
-                <StudyShellButton
-                  size="compact"
-                  tone="blue"
-                  highlighted
-                  className="w-full"
-                  onClick={handleToggleRiffViewMode}
-                >
-                  {riffCycleStudy.viewMode === 'unwrapped' ? 'Hide Lane' : 'Show Lane'}
-                </StudyShellButton>
-              </StudyShellPremiumPanel>
-            </div>
-          ) : (
-          <div
-            className={`fixed right-6 top-20 z-20 ${desktopSideMenuWidthClass} rg-desktop-panel-right`}
-            style={{ bottom: riffDesktopUtilityPanelBottom, maxHeight: riffDesktopUtilityMaxHeight }}
-          >
+          <DesktopSidePanel side="right" open={!riffDesktopUtilityCollapsed} onOpen={() => setRiffDesktopUtilityCollapsed(false)}>
             <StudyShellPremiumPanel
               accent="#88CCFF"
-              className="rg-side-menu-panel max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
+              data-canvas-quick-settings className="rg-side-menu-panel desktop-inspector max-h-full overflow-y-auto overscroll-contain [scrollbar-width:none]"
               style={{ ...desktopToolPanelStyle, maxHeight: '100%' }}
             >
-              <div className={desktopSideMenuHeaderClass}>
-                <div className={desktopSideMenuTitleClass} style={desktopToolTitleStyle}>
-                  Tools
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRiffDesktopUtilityCollapsed(true)}
-                  className={desktopSideMenuToggleClass}
-                  aria-label="Collapse riff tools menu"
-                  title="Collapse tools"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-              <div
-                data-guide="riff-desktop-roll-size"
-                className="rounded-2xl border"
-                style={{
-                  order: 1,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'roll', '#7FD7FF'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setRiffUtilityPanel((current) => (current === 'roll' ? null : 'roll'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'roll', '#7FD7FF')}
-                  >
-                    Lane View
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'roll', '#7FD7FF')}
-                  >
-                    {riffUtilityPanel === 'roll' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'roll' ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Lane View',
-                      'Follow where the riff is now, not just where the first four bars started.',
-                      '#7FD7FF',
-                      'Use this for long phrases: show more bars, page through the current window, or hide the lane when the circular form is enough.',
-                    )}
-                    <div className={utilityGroupCardClass}>
-                      <InlineInfoLabel
-                        infoId="riff_lane_visibility"
-                        label="Visibility"
-                        className="mb-2"
-                        labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                        labelStyle={desktopMenuSubheaderStyle}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={riffCycleStudy.viewMode === 'unwrapped'}
-                          onClick={() =>
-                            setRiffCycleStudy((current) => ({
-                              ...current,
-                              viewMode: 'unwrapped',
-                            }))
-                          }
-                          className={utilityButtonClass}
-                        >
-                          Show Lane
-                        </StudyShellButton>
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={riffCycleStudy.viewMode === 'circular'}
-                          onClick={() =>
-                            setRiffCycleStudy((current) => ({
-                              ...current,
-                              viewMode: 'circular',
-                            }))
-                          }
-                          className={utilityButtonClass}
-                        >
-                          Hide Lane
-                        </StudyShellButton>
-                      </div>
-                    </div>
-                    <div className={utilityGroupCardClass}>
-                      <div className="mb-3 space-y-1">
-                        <InlineInfoLabel
-                          infoId="riff_bars"
-                          label="View Bars"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="flex items-center gap-2">
-                          <StudyShellButton
-                            size="square"
-                            tone="blue"
-                            onClick={() =>
-                              handleUpdateRiffReference({
-                                barCountForDisplay: Math.max(1, riffCycleStudy.reference.barCountForDisplay - 1),
-                              })
-                            }
-                            aria-label="Show fewer bars in lane"
-                          >
-                            <Minus size={14} />
-                          </StudyShellButton>
-                          <div className="min-w-0 flex-1 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-2 text-center text-[16px] font-light leading-none text-white">
-                            {riffCycleStudy.reference.barCountForDisplay}{' '}
-                            <span className="text-[10px] text-white/46">bars</span>
-                          </div>
-                          <StudyShellButton
-                            size="square"
-                            tone="blue"
-                            onClick={() =>
-                              handleUpdateRiffReference({
-                                barCountForDisplay: Math.min(16, riffCycleStudy.reference.barCountForDisplay + 1),
-                              })
-                            }
-                            aria-label="Show more bars in lane"
-                          >
-                            <Plus size={14} />
-                          </StudyShellButton>
-                        </div>
-                      </div>
-                      <div className="h-px bg-white/6 mb-2" />
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <InlineInfoLabel
-                          infoId="riff_lane_window"
-                          label="Window"
-                          labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                          labelStyle={desktopMenuSubheaderStyle}
-                        />
-                        <div className="text-[8px] font-mono uppercase tracking-[0.14em]" style={desktopMenuSubheaderSecondaryStyle}>
-                          Visible Phrase
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_1.18fr] gap-1.5">
-                        {[
-                          { value: 1 as const, label: '1 Bar' },
-                          { value: 2 as const, label: '2 Bars' },
-                          { value: 4 as const, label: '4 Bars' },
-                          { value: 'pattern' as const, label: 'Pattern' },
-                        ].map((option) => (
-                          <StudyShellButton
-                            key={option.label}
-                            size="compact"
-                            tone="blue"
-                            highlighted={riffDesktopLaneView === option.value}
-                            onClick={() => {
-                              setRiffDesktopLaneView(option.value);
-                              setRiffCycleStudy((current) => ({
-                                ...current,
-                                viewMode: 'unwrapped',
-                              }));
-                            }}
-                            className={`${utilityButtonClass} min-w-0 whitespace-nowrap px-1.5 text-[8px] tracking-[0.05em]`}
-                          >
-                            {option.label}
-                          </StudyShellButton>
-                        ))}
-                      </div>
-                      <div className="mt-2">
-                        <StudyShellButton
-                          size="compact"
-                          tone="blue"
-                          highlighted={Boolean(riffCycleStudy.showPhraseBounds)}
-                          onClick={handleToggleRiffPhraseBounds}
-                          icon={<CircleDot size={12} strokeWidth={2.2} />}
-                          className={`w-full ${utilityButtonClass} gap-1.5`}
-                        >
-                          Riff Bounds
-                        </StudyShellButton>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div
-                data-guide="riff-desktop-sound"
-                className="rounded-2xl border"
-                style={{
-                  order: 4,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (soundEditingLocked) {
-                      openProPrompt('sound-editing');
-                      return;
-                    }
-                    setRiffUtilityPanel((current) => (current === 'sound' ? null : 'sound'));
-                  }}
-                  className={utilityAccordionButtonClass}
-                >
-                  {soundEditingLocked ? utilitySectionLockBadge : null}
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
-                  >
-                    Sound
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'sound', '#88CCFF', soundEditingLocked)}
-                  >
-                    {riffUtilityPanel === 'sound' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'sound' && !soundEditingLocked ? <RiffSoundOptions settings={riffCycleStudy.soundSettings} onChange={handleUpdateRiffSoundSettings} /> : null}
-              </div>
+              <DesktopInspectorTabs soundLocked={soundEditingLocked} canvasLocked={canvasOptionsLocked} title={'Riff'} value={riffUtilityPanel} onCollapse={() => setRiffDesktopUtilityCollapsed(true)} onChange={tab => {
+ if (tab === 'sound' && soundEditingLocked) { openProPrompt('sound-editing'); return; }
+ if (tab === 'canvas' && canvasOptionsLocked) { openProPrompt('canvas-options'); return; }
+ setRiffUtilityPanel(tab);
+ }} />
 
-              <div
-                data-guide="riff-desktop-view"
-                className="rounded-2xl border"
-                style={{
-                  order: 3,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'overlay', '#FFB86B'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setRiffUtilityPanel((current) => (current === 'overlay' ? null : 'overlay'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'overlay', '#FFB86B')}
-                  >
-                    Read Aids
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'overlay', '#FFB86B')}
-                  >
-                    {riffUtilityPanel === 'overlay' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'overlay' ? (
-	                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Read Aids',
-                      'Add just enough reference to see how the phrase turns against the bar.',
-                      '#FFB86B',
-                      'Numbers, start lines, and shape weight help reveal displacement without changing any hits.',
-                    )}
-	                    <div className={utilityGroupCardClass}>
-	                      <div className="mb-2 flex items-center justify-between gap-2">
-                          <InlineInfoLabel
-                            infoId="riff_overlay_labels"
-                            label="Timing"
-                            labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                            labelStyle={desktopMenuSubheaderStyle}
-                          />
-	                      </div>
-	                      <div className="grid grid-cols-2 gap-2">
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="amber"
-	                          highlighted={Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels}
-	                          onClick={handleToggleRiffStepLabels}
-	                          icon={<Hash size={13} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Numbers
-	                        </StudyShellButton>
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="blue"
-	                          highlighted={Boolean(riffCycleStudy.pulseLayerVisible) && !riffSubdivisionsLocked}
-                            locked={riffSubdivisionsLocked}
-                            onLockedClick={() => openProPrompt('riff-subdivisions')}
-	                          onClick={handleToggleRiffPulseLayer}
-	                          icon={<Grid3X3 size={12} strokeWidth={2.2} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Subdivisions
-	                        </StudyShellButton>
-	                      </div>
-	                      {riffCycleStudy.pulseLayerVisible && !riffSubdivisionsLocked ? (
-	                        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-sky-300/15 bg-sky-300/[0.035] p-1">
-	                          <StudyShellButton
-	                            size="compact"
-	                            tone="blue"
-	                            highlighted={!riffCycleStudy.pulseLayerEnabled}
-	                            onClick={() => handleSetRiffPulseLayerPlacement('geometry')}
-	                            className={utilityButtonClass}
-	                          >
-	                            Geometry
-	                          </StudyShellButton>
-	                          <StudyShellButton
-	                            size="compact"
-	                            tone="blue"
-	                            highlighted={riffCycleStudy.pulseLayerEnabled}
-	                            onClick={() => handleSetRiffPulseLayerPlacement('circle')}
-	                            className={utilityButtonClass}
-	                          >
-	                            Circle
-	                          </StudyShellButton>
-	                        </div>
-	                      ) : null}
-	                    </div>
-	                    <div className={utilityGroupCardClass}>
-	                      <div className="mb-2 flex items-center justify-between gap-2">
-                          <InlineInfoLabel
-                            infoId="riff_pattern_shape"
-                            label="Visuals"
-                            labelClassName="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64"
-                            labelStyle={desktopMenuSubheaderStyle}
-                          />
-	                      </div>
-	                      <div className="grid grid-cols-2 gap-2">
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="green"
-	                          highlighted={Boolean(riffCycleStudy.showPhraseRing)}
-	                          onClick={handleToggleRiffPhraseBody}
-	                          icon={<CircleDot size={12} strokeWidth={2.2} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Riff Shape
-	                        </StudyShellButton>
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="green"
-	                          highlighted={Boolean(riffCycleStudy.showPhraseFill)}
-	                          onClick={handleToggleRiffPhraseFill}
-	                          icon={<PaintBucket size={12} strokeWidth={1.5} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Fill
-	                        </StudyShellButton>
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="green"
-	                          highlighted={Boolean(riffCycleStudy.showStructureView)}
-	                          onClick={handleToggleRiffStructureView}
-	                          icon={<Zap size={12} strokeWidth={2.2} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Contour
-	                        </StudyShellButton>
-	                        <StudyShellButton
-	                          size="compact"
-	                          tone="blue"
-	                          highlighted={Boolean(riffCycleStudy.showPhraseGroupings)}
-	                          onClick={handleToggleRiffPhraseGroupings}
-	                          icon={<CircleDot size={12} strokeWidth={2.2} />}
-	                          className={`${utilityButtonClass} gap-1.5`}
-	                        >
-	                          Grouping
-	                        </StudyShellButton>
-	                      </div>
-	                    </div>
-	                  </div>
-                ) : null}
-              </div>
-              <div
-                className="rounded-2xl border"
-                style={{
-                  order: 5,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (canvasOptionsLocked) {
-                      openProPrompt('canvas-options');
-                      return;
-                    }
-                    setRiffUtilityPanel((current) => (current === 'canvas' ? null : 'canvas'));
-                  }}
-                  className={utilityAccordionButtonClass}
-                >
-                  {canvasOptionsLocked ? utilitySectionLockBadge : null}
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
-                  >
-                    Canvas
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'canvas', '#88CCFF', canvasOptionsLocked)}
-                  >
-                    {riffUtilityPanel === 'canvas' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'canvas' && !canvasOptionsLocked ? (
+              <section data-quick-panel="audio" data-guide="riff-desktop-sound" className="desktop-inspector-content">{riffUtilityPanel === 'sound' && !soundEditingLocked ? <RiffSoundOptions settings={riffCycleStudy.soundSettings} onChange={handleUpdateRiffSoundSettings} /> : null}</section>
+
+              <section data-guide="riff-desktop-view" className="desktop-inspector-content">{riffUtilityPanel === 'overlay' ? <>{riffReadAids} <RiffLaneOptions visible={riffCycleStudy.viewMode === 'unwrapped'} bars={riffCycleStudy.reference.barCountForDisplay}
+                windowSize={riffDesktopLaneView} bounds={Boolean(riffCycleStudy.showPhraseBounds)}
+                onVisible={visible => setRiffCycleStudy(current => ({ ...current, viewMode: visible ? 'unwrapped' : 'circular' }))}
+                onBars={barCountForDisplay => handleUpdateRiffReference({ barCountForDisplay })}
+                onWindow={window => { setRiffDesktopLaneView(window); setRiffCycleStudy(current => ({ ...current, viewMode: 'unwrapped' })); }}
+                onBounds={handleToggleRiffPhraseBounds} /></> : null}</section>
+              <section data-quick-panel="canvas" className="desktop-inspector-content">{riffUtilityPanel === 'canvas' && !canvasOptionsLocked ? (
                   <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Canvas',
-                      'Tune the visual stage when the riff becomes too faint, too busy, or too bright.',
-                      '#88CCFF',
-                      'Use background and glow to keep the phrase readable for writing, watching, or recording.',
-                    )}
+
                     {riffCanvasColors}
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
@@ -24252,12 +22298,10 @@ function OrbitalPolymeter() {
                       compact
                     />
                   </div>
-                ) : null}
-              </div>
+                ) : null}</section>
 
             </StudyShellPremiumPanel>
-          </div>
-          )
+          </DesktopSidePanel>
         ) : null}
 
         {!isMobile && !presentationMode && riffDesktopPatternEditorOpen ? (
@@ -24467,6 +22511,9 @@ function OrbitalPolymeter() {
                 <RiffCycleCanvas
                   study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                onRequestShapeEditor={!isMobile && !presentationMode && !helpOpen ? () => {
+                  setRiffDesktopQuickCollapsed(false);
+                } : undefined}
                 guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
                 onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
@@ -25138,319 +23185,7 @@ function OrbitalPolymeter() {
           />
         ) : (
           <div className={`fixed z-20 ${isMobile ? 'left-3 right-3 bottom-6' : 'left-6 right-6 bottom-6'}`}>
-            <StudyShellDock
-              className={
-                isMobile
-                  ? 'space-y-3'
-                  : 'rg-desktop-dock-scale grid grid-cols-[auto_minmax(22rem,1fr)_auto] items-center gap-3'
-              }
-            >
-              <div
-                data-guide={isMobile ? 'riff-mobile-transport' : 'riff-desktop-transport'}
-                className={`flex items-center gap-2 ${isMobile ? 'flex-wrap justify-between' : 'flex-nowrap'}`}
-              >
-                <StudyShellButton
-                  tone={riffCycleStudy.playing ? 'red' : 'green'}
-                  highlighted
-                  icon={riffCycleStudy.playing ? <Pause size={15} /> : <Play size={15} />}
-                  onClick={handleTutorialAwareRiffPlaybackToggle}
-                >
-                  {riffCycleStudy.playing ? 'Pause' : 'Play'}
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="amber"
-                  highlighted
-                  icon={<RotateCcw size={15} />}
-                  onClick={handleResetRiffCycleStudy}
-                >
-                  Restart
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="blue"
-                  highlighted
-                  icon={<PatternActionIcon action="random" size={15} />}
-                  onClick={handleRandomRiffCycleStudy}
-                >
-                  Random
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="amber"
-                  highlighted
-                  icon={<PatternActionIcon action="random-plus" size={15} />}
-                  onClick={handleRandomPlusRiffCycleStudy}
-                  locked={randomPlusLocked}
-                >
-                  Random+
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="neutral"
-                  highlighted
-                  icon={<PatternActionIcon action="remix" size={15} />}
-                  onClick={handleRemixRiffCycleStudy}
-                  locked={remixLocked}
-                  style={{
-                    background: 'rgba(182,160,255,0.14)',
-                    borderColor: 'rgba(182,160,255,0.3)',
-                    color: '#B6A0FF',
-                    boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
-                  }}
-                >
-                  Remix
-                </StudyShellButton>
-              </div>
-
-              <div
-                data-guide={isMobile ? 'riff-mobile-tempo' : 'riff-desktop-tempo'}
-                className={`rounded-2xl border border-white/8 bg-white/[0.03] ${
-                  isMobile ? 'px-3 py-2.5' : 'w-[clamp(28rem,42vw,42rem)] max-w-full px-4 py-2.5'
-                }`}
-              >
-                <div className="rg-transport-tempo-row flex items-center gap-3">
-                  <div
-                    className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white"
-                    style={{ textShadow: '0 0 12px rgba(255,255,255,0.38)' }}
-                  >
-                    Tempo
-                  </div>
-                  <input
-                    type="range"
-                    min={RIFF_REFERENCE_TEMPO_MIN_BPM}
-                    max={RIFF_REFERENCE_TEMPO_MAX_BPM}
-                    step="1"
-                    value={riffCycleStudy.reference.bpm}
-                    onChange={(event) =>
-                      handleUpdateRiffReference({
-                        bpm: parseInt(event.target.value, 10) || riffCycleStudy.reference.bpm,
-                      })
-                    }
-                    onPointerDown={(event) =>
-                      handleMobileSliderPointerDown(event, 'riff-tempo', (value) =>
-                        handleUpdateRiffReference({ bpm: Math.round(value) }),
-                      )
-                    }
-                    onPointerMove={(event) =>
-                      handleMobileSliderPointerMove(event, 'riff-tempo', (value) =>
-                        handleUpdateRiffReference({ bpm: Math.round(value) }),
-                      )
-                    }
-                    onPointerUp={() => clearActiveMobileSlider('riff-tempo')}
-                    onPointerCancel={() => clearActiveMobileSlider('riff-tempo')}
-                    onBlur={() => clearActiveMobileSlider('riff-tempo')}
-                    data-dragging={activeMobileSliderId === 'riff-tempo'}
-                    className="touch-slider rg-transport-tempo-track"
-                    style={{ ['--slider-accent' as string]: '#ffffff' }}
-                    aria-label="Set riff cycle tempo"
-                  />
-                  <div className="w-[52px] shrink-0 text-right">
-                    <EditableTempoValue
-                      value={riffCycleStudy.reference.bpm}
-                      min={RIFF_REFERENCE_TEMPO_MIN_BPM}
-                      max={RIFF_REFERENCE_TEMPO_MAX_BPM}
-                      onCommit={(bpm) => handleUpdateRiffReference({ bpm })}
-                      className="text-[16px]"
-                      ariaLabel="Type exact riff tempo"
-                    />
-                    <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.16em] text-white/34">
-                      {riffTempoUnitLabel}
-                    </div>
-                  </div>
-                  {!isMobile ? (
-                    <div className="ml-1 flex items-center gap-2 border-l border-white/8 pl-3">
-                      <div className="shrink-0 text-[10px] font-mono uppercase tracking-[0.18em] text-white/42">
-                        Offset
-                      </div>
-                      <StudyShellButton
-                        size="square"
-                        icon={<ChevronLeft size={16} />}
-                        onClick={() => handleRotateRiffCycle(-1)}
-                        locked={riffPatternToolsLocked}
-                        onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                        aria-label="Move phrase back one step"
-                        title="Move phrase back one step"
-                      />
-                      <StudyShellButton
-                        size="square"
-                        icon={<ChevronRight size={16} />}
-                        onClick={() => handleRotateRiffCycle(1)}
-                        locked={riffPatternToolsLocked}
-                        onLockedClick={() => openProPrompt('riff-pattern-tools')}
-                        aria-label="Move phrase forward one step"
-                        title="Move phrase forward one step"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={`flex items-center gap-2 ${isMobile ? 'justify-between' : 'justify-end'}`}>
-                {isMobile ? (
-                  <>
-                    <StudyShellButton
-                      size="compact"
-                      tone="amber"
-                      highlighted={Boolean(riffCycleStudy.showStepLabels)}
-                      data-guide="riff-mobile-labels"
-                      onClick={handleToggleRiffStepLabels}
-                    >
-                      Labels
-                    </StudyShellButton>
-                  </>
-                ) : null}
-                <div className="hidden">
-                  {riffVoicesOpen ? (
-                    <StudyShellPanel
-                      className="absolute bottom-[calc(100%+0.65rem)] right-0 z-40 w-[min(22rem,calc(100vw-2rem))] space-y-3 p-3"
-                      style={{
-                        borderColor: 'rgba(182,160,255,0.24)',
-                        background: 'linear-gradient(180deg, rgba(18,19,28,0.98), rgba(8,9,15,0.97))',
-                        boxShadow: '0 24px 70px rgba(0,0,0,0.58), 0 0 34px rgba(182,160,255,0.12)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#B6A0FF]">
-                            Voices
-                          </div>
-                          <div className="mt-1 text-[9px] leading-snug text-white/38">
-                            Select a voice, then tap an outer beat or inner node.
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRiffVoicesOpen(false)}
-                          className="h-7 rounded-lg border border-white/10 px-2 text-[8px] font-mono uppercase tracking-[0.12em] text-white/48"
-                        >
-                          Done
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {([
-                          ['riff', 'Riff'],
-                          ['drums', 'Drums'],
-                          ['guitar', 'Guitar'],
-                        ] as const).map(([voice, label]) => (
-                          <button
-                            key={voice}
-                            type="button"
-                            onClick={() => {
-                              setActiveRiffVoice(voice);
-                              if (voice === 'guitar') setSelectedRiffVoiceInstrument('guitar');
-                            }}
-                            className="rounded-xl border px-2 py-2 text-center transition active:scale-[0.98]"
-                            style={{
-                              borderColor: activeRiffVoice === voice ? 'rgba(182,160,255,0.48)' : 'rgba(255,255,255,0.09)',
-                              background: activeRiffVoice === voice ? 'rgba(182,160,255,0.14)' : 'rgba(255,255,255,0.035)',
-                              color: activeRiffVoice === voice ? '#D1C5FF' : 'rgba(255,255,255,0.5)',
-                            }}
-                          >
-                            <span className="flex h-[17px] items-center justify-center">
-                              <RiffVoiceLayerGlyph voice={voice} className="h-6 w-6" />
-                            </span>
-                            <span className="mt-1 block text-[8px] font-mono uppercase tracking-[0.1em]">{label}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {activeRiffVoice === 'drums' ? (
-                        <div>
-                          <div className="mb-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-white/36">
-                            Drum sound
-                          </div>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {([
-                              ['snare', 'Snare', '🥁'],
-                              ['tom', 'Tom', '🪘'],
-                              ['kick', 'Kick', '🦶'],
-                              ['cymbal', 'Cymbal', ''],
-                            ] as const).map(([instrument, label]) => (
-                              <button
-                                key={instrument}
-                                type="button"
-                                onClick={() => setSelectedRiffVoiceInstrument(instrument)}
-                                className="rounded-lg border px-1 py-2 text-center transition"
-                                style={{
-                                  borderColor: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.46)' : 'rgba(255,255,255,0.08)',
-                                  background: selectedRiffVoiceInstrument === instrument ? 'rgba(255,209,102,0.12)' : 'rgba(255,255,255,0.025)',
-                                  color: selectedRiffVoiceInstrument === instrument ? '#FFD166' : 'rgba(255,255,255,0.48)',
-                                }}
-                              >
-                                <span className="flex h-4 items-center justify-center text-[16px] leading-none">
-                                  <RiffVoiceGlyph instrument={instrument} className="h-6 w-6" />
-                                </span>
-                                <span className="mt-1 block text-[7px] font-mono uppercase tracking-[0.08em]">{label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      {activeRiffVoice !== 'riff' ? (
-                        <div className="space-y-2 rounded-xl border border-white/8 bg-black/20 p-2">
-                          {([
-                            ['Beats', 'beat', riffCycleStudy.reference.numerator],
-                            ['Subdivisions', 'subdivision', riffEditableStepCount],
-                          ] as const).map(([label, surface, count]) => (
-                            <div key={surface}>
-                              <div className="mb-1 text-[7.5px] font-mono uppercase tracking-[0.13em] text-white/34">
-                                {label}
-                              </div>
-                              <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
-                                {Array.from({ length: count }, (_, index) => {
-                                  const events = riffEditableVoiceEvents.filter(
-                                    (event) =>
-                                      event.voice === activeRiffVoice &&
-                                      event.surface === surface &&
-                                      event.index === index,
-                                  );
-                                  return (
-                                    <button
-                                      key={`${surface}-${index}`}
-                                      type="button"
-                                      onClick={() => handleToggleRiffVoiceEvent(surface, index)}
-                                      className="flex h-9 min-w-9 shrink-0 flex-col items-center justify-center rounded-lg border transition active:scale-95"
-                                      style={{
-                                        borderColor: events.length > 0 ? 'rgba(182,160,255,0.42)' : 'rgba(255,255,255,0.08)',
-                                        background: events.length > 0 ? 'rgba(182,160,255,0.12)' : 'rgba(255,255,255,0.025)',
-                                      }}
-                                      aria-label={`${events.length > 0 ? 'Edit' : 'Add'} ${activeRiffVoice} on ${label.toLowerCase()} ${index + 1}`}
-                                    >
-                                      <span className="flex max-w-8 items-center justify-center gap-0.5 truncate text-[11px] leading-none">
-                                        {events.length > 0
-                                          ? events.map((event, eventIndex) => (
-                                              <RiffVoiceGlyph
-                                                key={`${event.instrument}-${eventIndex}`}
-                                                instrument={event.instrument}
-                                                className="h-3.5 w-3.5"
-                                              />
-                                            ))
-                                          : '·'}
-                                      </span>
-                                      <span className="mt-0.5 text-[6px] font-mono text-white/32">{index + 1}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {surface === 'beat' ? riffVoiceAccentControl : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {activeRiffVoice !== 'riff' ? (
-                        <div className="rounded-lg border border-[#7FD7FF]/14 bg-[#7FD7FF]/[0.04] px-2.5 py-2 text-[8px] font-mono uppercase tracking-[0.1em] text-[#9FDEFF]/70">
-                          Tap a quarter note, then use Accent to repeat that voice across bar lines.
-                        </div>
-                      ) : null}
-                    </StudyShellPanel>
-                  ) : null}
-                  <StudyShellButton
-                    tone="blue"
-                    highlighted={riffVoicesOpen || activeRiffVoice !== 'riff'}
-                    icon={<SlidersVertical size={15} aria-hidden="true" />}
-                    onClick={() => setRiffVoicesOpen((open) => !open)}
-                  >
-                    Voices
-                  </StudyShellButton>
-                </div>
-                <div className="relative">
-                  {riffAudioPanelOpen ? (
+            <div className="fixed right-5 bottom-24 z-40">{riffAudioPanelOpen ? (
                     <StudyShellPanel
                       className={`absolute bottom-[calc(100%+0.65rem)] z-40 w-[min(21rem,calc(100vw-2rem))] overflow-hidden px-0 py-0 ${isMobile ? 'right-0' : 'right-0'}`}
                       style={{
@@ -25683,51 +23418,10 @@ function OrbitalPolymeter() {
                         })}
                       </div>
                     </StudyShellPanel>
-                  ) : null}
-                  <StudyShellButton
-                    tone="blue"
-                    highlighted={riffCycleStudy.soundEnabled}
-                    icon={riffCycleStudy.soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                    onClick={() => setRiffAudioPanelOpen((open) => !open)}
-                    data-guide={isMobile ? 'riff-mobile-mute' : undefined}
-                  >
-                    Audio
-                  </StudyShellButton>
-                </div>
-	                <StudyShellButton
-	                  tone="green"
-	                  highlighted={presentationMode}
-	                  icon={presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-	                  onClick={handleTogglePresentation}
-	                  data-guide={isMobile ? 'riff-mobile-present' : 'riff-desktop-present'}
-	                >
-	                  {presentationMode ? 'Exit' : 'Fullscreen'}
-	                </StudyShellButton>
-	                {!presentationMode ? (
-	                  <>
-	                    <StudyShellButton
-	                      tone="neutral"
-	                      highlighted={helpOpen && helpContext === 'surface'}
-	                      icon={<CircleHelp size={15} />}
-	                      onClick={handleToggleHelpGuide}
-	                    >
-	                      {guideCtaLabel}
-	                    </StudyShellButton>
-	                  </>
-	                ) : null}
-	                <StudyShellButton
-	                  size="square"
-	                  icon={<Menu size={15} />}
-                    onClick={() => {
-                      setRiffQuickPanel(null);
-                      setSidebarOpen(true);
-                    }}
-                    data-guide={isMobile ? 'riff-mobile-menu' : 'riff-desktop-menu'}
-                    aria-label="Open riff cycle menu"
-                    title="Open riff cycle menu"
-                  />
-              </div>
-            </StudyShellDock>
+                  ) : null}</div>
+<DesktopTransport mode="riff" tempo={riffCycleStudy.reference.bpm} min={RIFF_REFERENCE_TEMPO_MIN_BPM} max={RIFF_REFERENCE_TEMPO_MAX_BPM} tempoLabel={riffTempoUnitLabel} onTempo={bpm => handleUpdateRiffReference({ bpm })} playing={riffCycleStudy.playing} muted={!riffCycleStudy.soundEnabled}
+ onPlay={handleToggleRiffCyclePlayback} onRestart={handleResetRiffCycleStudy} onRandom={handleRandomRiffCycleStudy} onRandomPlus={handleRandomPlusRiffCycleStudy} onRemix={handleRemixRiffCycleStudy} randomPlusLocked={randomPlusLocked} remixLocked={remixLocked}
+ onAudio={() => setRiffAudioPanelOpen(open => !open)} onFullscreen={handleTogglePresentation} onGuide={handleToggleHelpGuide} onMenu={() => setSidebarOpen(true)} />
           </div>
         )}
 
@@ -25735,6 +23429,7 @@ function OrbitalPolymeter() {
         {tutorialContext === 'surface' && !presentationMode ? renderTutorialOverlay(guideAccent, 30) : null}
 
         <RiffCycleSidebar
+          menuRequest={desktopMenuRequest}
           isOpen={sidebarOpen && !presentationMode}
           study={riffCycleStudy}
           currentSurface={appSurface}
@@ -25825,6 +23520,7 @@ function OrbitalPolymeter() {
           />
 
           <TransportBar
+            desktopEditRequest={desktopOrbitEditRequest}
             harmonySettings={harmonySettings}
             onHarmonyChange={handleHarmonyChange}
             orbitReverb={harmonySettings.reverbAmount ?? 0}
@@ -25891,6 +23587,8 @@ function OrbitalPolymeter() {
             onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
             onCanvasDisplayChange={handleUpdateOrbitDisplay}
             canvasColorControls={orbitCanvasColors}
+          onOrbitColorChange={handleRadialColorChange}
+          canvasDisplayControls={<CanvasDisplayControls settings={canvasDisplayState.orbit} onChange={handleUpdateOrbitDisplay} compact showSquareGridControl hideGlow hideGuides hideGuideAutomation innerClockLast />}
             lockedFeatures={{
               remix: remixLocked,
               randomPlus: randomPlusLocked,
@@ -25970,29 +23668,7 @@ function OrbitalPolymeter() {
            <InlineInfoLabel infoId="orbit_drawing_mode" label="Drawing Mode"
              labelClassName="text-[9px] font-mono uppercase tracking-[0.12em] text-white/90" />
          </div>
-         {ORBIT_DRAWING_MODES.map((mode) => {
-           const active = geometryMode === mode.key;
-           return (
-             <button
-               key={mode.key}
-               type="button"
-               onClick={() => {
-                 handleGeometryModeChange(mode.key);
-                 setMobileOrbitModeMenuOpen(false);
-               }}
-               className="flex h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-[8px] font-mono uppercase tracking-[0.12em] transition-colors"
-               style={{
-                 color: active ? mode.color : 'rgba(255,255,255,.56)',
-                 background: active ? `${mode.color}15` : 'transparent',
-                 border: `1px solid ${active ? `${mode.color}36` : 'transparent'}`,
-               }}
-               aria-pressed={active}
-             >
-               <OrbitModeGlyph mode={mode.key} size={14} />
-               <span>{mode.label}</span>
-             </button>
-           );
-         })}
+         <OrbitDrawingModeOptions value={geometryMode} onChange={mode => {handleGeometryModeChange(mode);setMobileOrbitModeMenuOpen(false);}} />
        </div>
      ) : null}
      <button
@@ -26460,6 +24136,7 @@ function OrbitalPolymeter() {
         {helpOpen && !presentationMode ? renderGuideOverlay('#00FFAA', 30) : null}
 
         <OrbitSidebar
+          menuRequest={desktopMenuRequest}
           orbits={engineState.orbits}
           isOpen={sidebarOpen}
           currentSurface={appSurface}
@@ -26568,11 +24245,11 @@ function OrbitalPolymeter() {
   }
 
   return (
-    <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : 'fixed inset-0 overflow-hidden bg-[#111116] select-none'}>
+    <div className={isMobile ? 'relative min-h-[100svh] overflow-y-auto bg-[#111116] select-none pb-8' : `fixed inset-0 overflow-hidden bg-[#111116] select-none ${!presentationMode ? 'rg-desktop-workspace' : ''}`}>
       {/* Canvas */}
       {isMobile && <div style={mobileCanvasFrameStyle} />}
       <div
-        className={isMobile ? 'absolute inset-x-0 top-0 overflow-hidden' : undefined}
+        className={isMobile ? 'absolute inset-x-0 top-0 overflow-hidden' : !presentationMode ? 'rg-desktop-stage absolute inset-0' : undefined}
         style={isMobile ? mobileCanvasFrameStyle : undefined}
       >
         <OrbitalCanvas
@@ -26873,6 +24550,7 @@ function OrbitalPolymeter() {
       {/* Transport Bar */}
       <div className={isMobile ? 'relative z-20 mt-0' : ''}>
         <TransportBar
+            desktopEditRequest={desktopOrbitEditRequest}
             harmonySettings={harmonySettings}
             onHarmonyChange={handleHarmonyChange}
             orbitReverb={harmonySettings.reverbAmount ?? 0}
@@ -26939,6 +24617,8 @@ function OrbitalPolymeter() {
           onScaleChange={(scaleName) => handleHarmonyChange({ scaleName })}
           onCanvasDisplayChange={handleUpdateOrbitDisplay}
             canvasColorControls={orbitCanvasColors}
+          onOrbitColorChange={handleRadialColorChange}
+          canvasDisplayControls={<CanvasDisplayControls settings={canvasDisplayState.orbit} onChange={handleUpdateOrbitDisplay} compact showSquareGridControl hideGlow hideGuides hideGuideAutomation innerClockLast />}
           activeGuideTarget={activeOverlayStep?.target ?? null}
           lockedFeatures={{
             remix: remixLocked,
@@ -26958,6 +24638,7 @@ function OrbitalPolymeter() {
 
       {/* Sidebar */}
       <OrbitSidebar
+          menuRequest={desktopMenuRequest}
         orbits={engineState.orbits}
         isOpen={sidebarOpen && !presentationMode}
         currentSurface={appSurface}

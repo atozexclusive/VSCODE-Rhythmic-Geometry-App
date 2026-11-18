@@ -134,6 +134,7 @@ interface RiffCycleCanvasProps {
   shapeEditor?: ReactNode;
   guideEditorOpen?: boolean;
   onShapeEditorOpen?: () => void;
+  onRequestShapeEditor?: () => void;
   shapeColorControl?: ReactNode;
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
@@ -547,6 +548,7 @@ export default function RiffCycleCanvas({
   shapeEditor,
   guideEditorOpen,
   onShapeEditorOpen,
+  onRequestShapeEditor,
   shapeColorControl,
   onSetStepActive,
   onToggleAccent,
@@ -561,6 +563,10 @@ export default function RiffCycleCanvas({
   className,
 }: RiffCycleCanvasProps) {
   const [shapeEditorOpen, setShapeEditorOpen] = useState(false);
+  const requestShapeEditor = useCallback(() => {
+    if (onRequestShapeEditor) onRequestShapeEditor();
+    else setShapeEditorOpen(true);
+  }, [onRequestShapeEditor]);
   useEffect(() => { if (shapeEditorOpen) onShapeEditorOpen?.(); }, [shapeEditorOpen, onShapeEditorOpen]);
   useEffect(() => { if (guideEditorOpen !== undefined) setShapeEditorOpen(false); }, [guideEditorOpen]);
   const shapePress = useRef<{ x: number; y: number; pointerId: number } | null>(null);
@@ -3786,7 +3792,7 @@ export default function RiffCycleCanvas({
       shapePress.current = null;
       if (bodyPress && bodyPress.pointerId === event.pointerId && event.type !== 'pointercancel' &&
           Math.hypot(event.clientX - bodyPress.x, event.clientY - bodyPress.y) <= 10) {
-        setShapeEditorOpen(true);
+        requestShapeEditor();
       }
       const pending = pendingLongPressRef.current;
       if (pending && pending.pointerId === event.pointerId && !pending.longPressed) {
@@ -3801,7 +3807,7 @@ export default function RiffCycleCanvas({
       }
       clearPointerPaint(event);
     },
-    [clearLongPressTimer, clearPointerPaint, onSelectStep, onSetLandingStepActive, onSetStepActive],
+    [clearLongPressTimer, clearPointerPaint, onSelectStep, onSetLandingStepActive, onSetStepActive, requestShapeEditor],
   );
 
   const handleContextMenu = useCallback(
@@ -3873,7 +3879,7 @@ export default function RiffCycleCanvas({
       tabIndex={shapeEditor ? 0 : undefined}
       title={shapeEditor ? 'Tap the shape to edit Riff, Bar, Ending and color' : undefined}
       aria-label={shapeEditor ? 'Riff canvas. Tap the shape to open the editor, or press Enter. Tap nodes to edit hits.' : undefined}
-      onKeyDown={event => { if (shapeEditor && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setShapeEditorOpen(true); } }}
+      onKeyDown={event => { if (shapeEditor && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); requestShapeEditor(); } }}
       style={{ touchAction: 'none' }}
     />
     {(guideEditorOpen ?? shapeEditorOpen) && shapeEditor && createPortal(

@@ -1,3 +1,10 @@
+import ReadAidOption from './ReadAidOption';
+import DesktopSidePanel from './DesktopSidePanel';
+import OrbitDrawingModeOptions from './OrbitDrawingModeOptions';
+import RadialMenu from './RadialMenu';
+import StepCountControl from './StepCountControl';
+import DesktopInspectorTabs from './DesktopInspectorTabs';
+import DesktopTransport from './DesktopTransport';
 import PatternActionIcon from './PatternActionIcon';
 import OrbitReadAids from './OrbitReadAids';
 import FullscreenControls from './FullscreenControls';
@@ -7,7 +14,7 @@ import FullscreenControls from './FullscreenControls';
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, ChevronDown, ChevronUp, RotateCw, ArrowLeftRight, Palette, Trash2, Lock } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import {
@@ -38,6 +45,7 @@ import OrbitSoundOptions from './OrbitSoundOptions';
 import type { HarmonySettings } from '../lib/audioEngine';
 
 interface TransportBarProps {
+  desktopEditRequest?: { orbitId: string; version: number } | null;
   harmonySettings: HarmonySettings;
   onHarmonyChange: (updates: Partial<HarmonySettings>) => void;
   orbitReverb: number;
@@ -110,6 +118,8 @@ interface TransportBarProps {
   onScaleChange: (scaleName: ScaleName) => void;
   onCanvasDisplayChange: (settings: Partial<CanvasDisplaySettings>) => void;
   canvasColorControls?: ReactNode;
+  canvasDisplayControls?: ReactNode;
+  onOrbitColorChange?: (id: string, color: string) => void;
   activeGuideTarget?: string | null;
   lockedFeatures?: {
     remix?: boolean;
@@ -197,6 +207,7 @@ function EditableTempoValue({
 }
 
 export default function TransportBar({
+  desktopEditRequest,
   harmonySettings,
   onHarmonyChange,
   orbitReverb,
@@ -257,6 +268,8 @@ export default function TransportBar({
   onRandomPatternPlus,
   onCanvasDisplayChange,
   canvasColorControls,
+  canvasDisplayControls,
+  onOrbitColorChange,
   activeGuideTarget = null,
   lockedFeatures = {},
   onLockedFeature,
@@ -267,14 +280,27 @@ export default function TransportBar({
 }: TransportBarProps) {
   const isMobile = useIsMobile();
   const desktopOrbitPanelRef = useRef<HTMLDivElement | null>(null);
-  const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(false);
-  const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(false);
+  const [selectedDesktopOrbitId, setSelectedDesktopOrbitId] = useState<string | null>(null);
+  const [desktopOrbitPanelOpen, setDesktopOrbitPanelOpen] = useState(true);
+  const [desktopSettingsPanelOpen, setDesktopSettingsPanelOpen] = useState(true);
+  useEffect(() => {
+    if (desktopEditRequest && !isMobile && !presentationMode) {
+      setSelectedDesktopOrbitId(desktopEditRequest.orbitId);
+      setDesktopOrbitPanelOpen(true);
+    }
+  }, [desktopEditRequest, isMobile, presentationMode]);
   const [desktopUtilityPlaybackOpen, setDesktopUtilityPlaybackOpen] = useState(false);
   const [desktopUtilityDirectionOpen, setDesktopUtilityDirectionOpen] = useState(false);
-  const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(false);
+  const [desktopUtilityOverlayOpen, setDesktopUtilityOverlayOpen] = useState(true);
   const [desktopUtilityCanvasOpen, setDesktopUtilityCanvasOpen] = useState(false);
   const [audioMixOpen, setAudioMixOpen] = useState(false);
   const [desktopUtilityAudioOpen, setDesktopUtilityAudioOpen] = useState(false);
+  useEffect(() => {
+    if (lockedFeatures.soundEditing) {
+      setDesktopUtilityAudioOpen(false);
+      setDesktopUtilityOverlayOpen(true);
+    }
+  }, [lockedFeatures.soundEditing]);
   const [desktopOrbitPanelTop, setDesktopOrbitPanelTop] = useState<number | null>(null);
   const closeDesktopUtilitySections = useCallback(() => {
     setDesktopUtilityPlaybackOpen(false);
@@ -558,7 +584,7 @@ export default function TransportBar({
     children: ReactNode;
     locked?: boolean;
     lockedFeature?: 'sound-editing' | 'canvas-options';
-  }) => (
+  }) => ['Sound', 'Read Aids', 'Canvas'].includes(label) ? (active && !locked ? <section data-quick-panel={label === 'Sound' ? 'audio' : label === 'Canvas' ? 'canvas' : 'read'} className="desktop-inspector-content">{children}</section> : null) : (
     <div className="rounded-2xl border" style={getStandardUtilitySectionStyle(active, color, locked)}>
       <button
         type="button"
@@ -677,23 +703,15 @@ export default function TransportBar({
       <div className={`pointer-events-auto ${isMobile ? 'px-3' : 'px-3 lg:px-6 pt-3'}`}>
         {!isMobile ? (
           <div className="pointer-events-none mb-2">
-            <div
-              ref={desktopOrbitPanelRef}
-              data-guide="desktop-geometry"
-              className="pointer-events-auto fixed left-6 bottom-[6.75rem] z-30 w-[min(420px,calc(100vw-1.5rem))] px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border"
-              style={{
-                ...desktopGeometryPanelStyle,
-                transform: 'translateY(-4px) scale(var(--rg-desktop-panel-scale, 0.96))',
-                transformOrigin: 'bottom left',
-              }}
-            >
+            <DesktopSidePanel side="left" open={desktopOrbitPanelOpen} onOpen={() => setDesktopOrbitPanelOpen(true)}>
+            <div ref={desktopOrbitPanelRef} data-guide="desktop-geometry" className="desktop-orbit-content flex flex-col gap-3">
               <div className="relative flex items-start justify-center gap-3">
                 <div className="min-w-0 flex-1 text-center">
                   <div
                     className="text-[10px] font-mono uppercase tracking-[0.2em]"
                     style={desktopGeometryGlowLabelStyle}
                   >
-                    Orbit Mode
+                    Drawing Mode
                   </div>
                   <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     Choose how Orbit draws the same orbits.
@@ -703,47 +721,7 @@ export default function TransportBar({
                   <InfoTip text="Choose how Orbit turns the same orbits into a shape: Standard connects all orbits, Interference shows how orbits push and pull, and Sweep draws a cleaner outline." />
                 </div>
               </div>
-              <div
-                className="flex flex-wrap items-center justify-center gap-2 rounded-xl px-2 py-2"
-                style={desktopSideSectionStyle}
-              >
-                <button
-                  onClick={() => onGeometryModeChange('standard-trace')}
-                  className={compactButtonStyle}
-                  style={{
-                    background: geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'standard-trace' ? 'rgba(0, 255, 170, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'standard-trace' ? '#00FFAA' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                  title="Use Standard orbit mode"
-                >
-                  Standard
-                </button>
-                <button
-                  onClick={() => onGeometryModeChange('interference-trace')}
-                  className={compactButtonStyle}
-                  style={{
-                    background: geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'interference-trace' ? 'rgba(51, 136, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'interference-trace' ? '#88CCFF' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                  title="Use Interference orbit mode"
-                >
-                  Interference
-                </button>
-                <button
-                  onClick={() => onGeometryModeChange('sweep')}
-                  className={compactButtonStyle}
-                  style={{
-                    background: geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${geometryMode === 'sweep' ? 'rgba(255, 170, 0, 0.28)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: geometryMode === 'sweep' ? '#FFAA00' : 'rgba(255, 255, 255, 0.72)',
-                  }}
-                  title="Use Sweep orbit mode"
-                >
-                  Sweep
-                </button>
-              </div>
+              <OrbitDrawingModeOptions horizontal value={geometryMode} onChange={onGeometryModeChange} />
               {ENABLE_STANDARD_TURNS_PER_CYCLE && geometryMode === 'standard-trace' ? (
                 <div className="rounded-xl px-2.5 py-2" style={desktopSideSectionStyle}>
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -778,7 +756,7 @@ export default function TransportBar({
                   </div>
                 </div>
               ) : null}
-              <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
+              <p className="desktop-orbit-description text-[10px] leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.42)' }}>
                 {modeDescription}
               </p>
               {quickOrbitControls.length > 0 && (
@@ -787,349 +765,45 @@ export default function TransportBar({
                   className="w-full rounded-2xl px-2.5 py-2.5"
                   style={desktopSideSectionStyle}
                 >
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setDesktopOrbitPanelOpen((open) => !open)}
-                      className="flex min-w-0 flex-1 items-center justify-between rounded-lg px-2 py-1.5 text-left transition-all duration-200 hover:bg-white/5"
-                      title="Open orbit controls"
-                    >
-                      <div className="flex min-w-0 flex-col">
-                        <span className="text-[10px] font-mono uppercase tracking-wider" style={desktopGlowLabelStyle}>
-                          Orbits
-                        </span>
-                        <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.36)' }}>
-                          {geometryMode === 'standard-trace'
-                            ? standardOrbitSummary
-                            : geometryMode === 'interference-trace' && quickOrbitControls.length > 3
-                              ? 'Shape the active orbit quartet from the main bar.'
-                              : geometryMode === 'interference-trace' && quickOrbitControls.length > 2
-                                ? 'Shape the active orbit triad from the main bar.'
-                                : geometryMode === 'interference-trace'
-                                  ? 'Add one more orbit to unlock the next orbit mode.'
-                              : geometryMode === 'sweep' && quickOrbitControls.length > 3
-                                ? 'Shape the active orbit quartet from the main bar.'
-                                : geometryMode === 'sweep' && quickOrbitControls.length > 2
-                                  ? 'Shape the active orbit triad from the main bar.'
-                                  : geometryMode === 'sweep'
-                                    ? 'Add one more orbit to unlock the next orbit mode.'
-                                    : 'Shape the active driver orbits from the main bar.'}
-                        </span>
-                      </div>
-                      <span
-                        className="flex h-7 w-7 items-center justify-center rounded-md"
-                        style={{ background: 'rgba(255, 255, 255, 0.06)', color: 'rgba(255, 255, 255, 0.7)' }}
-                      >
-                        {desktopOrbitPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </span>
-                    </button>
-                    <InfoTip
-                      text={
-                        geometryMode === 'standard-trace'
-                          ? standardOrbitInfo
-                          : 'Each number is beats per turn for the active orbits driving the current derived shape.'
-                      }
-                    />
-                  </div>
-                  {desktopOrbitPanelOpen ? (
-                    <div className="mt-2 border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  {!desktopOrbitPanelOpen ? <button type="button" className="w-full py-2 text-[10px] text-white/65" onClick={() => setDesktopOrbitPanelOpen(true)}>Edit Orbit</button> : null}
+                  {(
+                    <div className="mt-2">
                       <div
-                        className="space-y-2 overflow-y-auto pr-1"
-                        style={{ maxHeight: 'min(320px, calc(100vh - 18rem))' }}
+                        className="space-y-2"
                       >
-                        {quickOrbitControls.map((orbit) => (
-                          <div
-                            key={orbit.id}
-                            className="rounded-lg border px-2 py-2"
-                            style={{
-                              borderColor: 'rgba(255, 255, 255, 0.08)',
-                              background: 'rgba(255, 255, 255, 0.02)',
-                            }}
-                          >
-                            <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenOrbitEditor(orbit.id)}
-                                  className="text-[10px] font-mono uppercase tracking-wider"
-                                  style={{ color: orbit.color }}
-                                  title={`Edit ${orbit.label} color`}
-                                >
-                                  {orbit.label}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenOrbitEditor(orbit.id)}
-                                  className="flex h-6 w-6 items-center justify-center rounded-md"
-                                  style={{
-                                    color: orbit.color,
-                                    background: 'rgba(255, 255, 255, 0.06)',
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                                  }}
-                                  title={`Open ${orbit.label} color picker`}
-                                  aria-label={`Open ${orbit.label} color picker`}
-                                >
-                                  <Palette size={12} />
-                                </button>
-                              </div>
-                              <div className="flex min-w-[14.5rem] items-center justify-center gap-2.5">
-                                <button
-                                  onClick={() => onAdjustQuickOrbit(orbit.id, -1)}
-                                  className="h-8 w-10 rounded-md text-[12px] font-mono"
-                                  style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                                  title={`Lower ${orbit.label} pulse count`}
-                                >
-                                  −
-                                </button>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="1000"
-                                  value={orbit.pulseCount}
-                                  onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                                  onFocus={(e) => e.currentTarget.select()}
-                                  className="h-8 w-28 rounded-md border text-center text-[11px] font-mono focus:outline-none"
-                                  style={{
-                                    color: 'rgba(255, 255, 255, 0.82)',
-                                    background: 'rgba(255, 255, 255, 0.04)',
-                                    borderColor: 'rgba(255, 255, 255, 0.08)',
-                                  }}
-                                  aria-label={`${orbit.label} ${geometryMode === 'standard-trace' ? standardCountShortLabel : 'beats/turn'}`}
-                                />
-                                <span
-                                  className="-ml-1 text-[8px] font-mono uppercase tracking-[0.12em]"
-                                  style={{ color: 'rgba(255, 255, 255, 0.36)' }}
-                                >
-                                  {geometryMode === 'standard-trace' ? standardCountLabel : 'Beats / Turn'}
-                                </span>
-                                <button
-                                  onClick={() => onAdjustQuickOrbit(orbit.id, 1)}
-                                  className="h-8 w-10 rounded-md text-[12px] font-mono"
-                                  style={{ color: 'rgba(255, 255, 255, 0.75)', background: 'rgba(255, 255, 255, 0.06)' }}
-                                  title={`Raise ${orbit.label} pulse count`}
-                                >
-                                  +
-                                </button>
-                              </div>
-                              <div className="flex justify-end pr-1">
-                                {orbit.canDelete ?? geometryMode === 'standard-trace' ? (
-                                  <button
-                                    onClick={() => onDeleteOrbit(orbit.id)}
-                                    disabled={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit}
-                                    className="flex h-8 w-10 items-center justify-center rounded-md text-[11px] font-mono disabled:opacity-35 disabled:cursor-not-allowed"
-                                    style={{ color: 'rgba(255, 120, 150, 0.92)', background: 'rgba(255, 70, 110, 0.08)' }}
-                                    title={geometryMode === 'standard-trace' && !canDeleteDesktopOrbit ? 'Keep at least one orbit' : `Delete ${orbit.label}`}
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
-                            <input
-                              type="range"
-                              min="1"
-                              max={geometryMode === 'standard-trace' ? 32 : 100}
-                              value={orbit.pulseCount}
-                              onChange={(e) => onSetQuickOrbit(orbit.id, parseInt(e.target.value) || 1)}
-                              className="touch-slider w-full cursor-pointer"
-                              style={{
-                                ['--slider-accent' as string]: orbit.color,
-                              }}
-                              title={`${orbit.label} pulse slider`}
-                            />
-                          </div>
-                        ))}
+                        {(() => {
+ const orbit = quickOrbitControls.find(orbit => orbit.id === selectedDesktopOrbitId) ?? quickOrbitControls[0];
+ return orbit ? <RadialMenu embedded defaultAllOrbits={selectedDesktopOrbitId == null} selectionRequestVersion={desktopEditRequest?.version} x={0} y={0} orbitId={orbit.id} orbitColor={orbit.color} orbitPulseCount={orbit.pulseCount}
+ orbitPulseMax={1000} orbitOptions={quickOrbitControls} onSelectOrbit={setSelectedDesktopOrbitId} onAdd={onAddOrbit} addDisabled={!canAddDesktopOrbit}
+ colorEditingLocked={lockedFeatures.colorEditing} onLockedFeature={() => onLockedFeature?.('color-editing')}
+ onChangePulseCount={onSetQuickOrbit} onChangeColor={(id,color) => onOrbitColorChange?.(id,color)}
+ onDelete={id => { if (geometryMode !== 'standard-trace' || canDeleteDesktopOrbit) onDeleteOrbit(id); }} onClose={() => setDesktopOrbitPanelOpen(false)} /> : null;
+})()}
                       </div>
-                      {geometryMode === 'standard-trace' || geometryMode === 'sweep' || geometryMode === 'interference-trace' ? (
-                        <div className="mt-2 flex justify-end border-t pt-2" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                          <button
-                            onClick={onAddOrbit}
-                            disabled={!canAddDesktopOrbit}
-                            className="rounded-md px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider disabled:opacity-35 disabled:cursor-not-allowed"
-                            style={{
-                              color: '#00FFAA',
-                              background: 'rgba(0, 255, 170, 0.08)',
-                              border: '1px solid rgba(0, 255, 170, 0.18)',
-                            }}
-                            title={
-                              geometryMode === 'sweep'
-                                ? canAddDesktopOrbit
-                                  ? quickOrbitControls.length > 2
-                                    ? 'Add a fourth sweep orbit'
-                                    : 'Add a third sweep orbit'
-                                  : 'Orbit quartet is already active'
-                                : geometryMode === 'interference-trace'
-                                  ? canAddDesktopOrbit
-                                    ? quickOrbitControls.length > 2
-                                      ? 'Add a fourth orbit'
-                                      : 'Add a third orbit'
-                                    : 'Orbit quartet is already active'
-                                  : canAddDesktopOrbit
-                                    ? 'Add another orbit'
-                                    : 'Maximum of 6 orbits'
-                            }
-                          >
-                            {geometryMode === 'sweep'
-                              ? 'Add Orbit'
-                              : geometryMode === 'interference-trace'
-                                ? 'Add Orbit'
-                                : 'Add Orbit'}
-                          </button>
-                        </div>
-                      ) : null}
+
                     </div>
-                  ) : null}
+                  )}
                 </div>
               )}
-            </div>
+</div>
 
-            <div
-              data-guide="desktop-tools"
-              className={`pointer-events-auto fixed right-6 z-30 w-[min(340px,calc(100vw-1.5rem))] shrink-0 overflow-y-auto px-3.5 py-3.5 flex flex-col gap-3 rounded-[1.5rem] border rg-desktop-panel-right [scrollbar-width:none] ${desktopSettingsPanelOpen ? 'top-20' : ''}`}
-              style={{
-                ...desktopTopPanelStyle,
-                ...(desktopSettingsPanelOpen
-                  ? { maxHeight: 'calc(100vh - 7rem)' }
-                  : { top: desktopOrbitPanelTop != null ? `${desktopOrbitPanelTop}px` : 'calc(100vh - 22.25rem)' }),
-              }}
-            >
-              <div className="relative flex min-h-[32px] items-center justify-end gap-1.5 px-0.5">
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[11px] font-mono font-semibold uppercase tracking-[0.22em]"
-                  style={desktopGlowLabelStyle}
-                >
-                  Tools
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <InfoTip text="Open quick tools for orbit direction and the current sound mode." />
-                  <button
-                    type="button"
-                    onClick={() => setDesktopSettingsPanelOpen((open) => !open)}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-all duration-200 active:scale-[0.96]"
-                    style={{
-                      background: desktopSettingsPanelOpen ? 'rgba(136, 204, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)',
-                      borderColor: desktopSettingsPanelOpen ? 'rgba(136, 204, 255, 0.25)' : 'rgba(255, 255, 255, 0.1)',
-                      color: desktopSettingsPanelOpen ? '#88CCFF' : 'rgba(255, 255, 255, 0.58)',
-                      boxShadow: desktopSettingsPanelOpen
-                        ? '0 0 0 1px rgba(255,255,255,0.08) inset, 0 0 0 1px rgba(136,204,255,0.14), 0 0 18px rgba(255,255,255,0.08)'
-                        : 'none',
-                    }}
-                    title={desktopSettingsPanelOpen ? 'Close tools' : 'Open tools'}
-                  >
-                    {desktopSettingsPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                </div>
-              </div>
-              {!desktopSettingsPanelOpen ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={onAllClockwise}
-                    className={desktopUtilityButtonStyle}
-                    style={{
-                      background: allClockwise ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${allClockwise ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.1)'}`,
-                      color: allClockwise ? '#72F1B8' : 'rgba(255,255,255,0.72)',
-                      boxShadow: allClockwise ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
-                    }}
-                    title="Set every orbit to clockwise"
-                  >
-                    Clockwise
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onAlternateDirections}
-                    className={desktopUtilityButtonStyle}
-                    style={{
-                      background: !allClockwise ? 'rgba(127,215,255,0.14)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${!allClockwise ? 'rgba(127,215,255,0.24)' : 'rgba(255,255,255,0.1)'}`,
-                      color: !allClockwise ? '#7FD7FF' : 'rgba(255,255,255,0.72)',
-                      boxShadow: !allClockwise ? '0 0 0 1px rgba(127,215,255,0.16) inset' : 'none',
-                    }}
-                    title="Restore alternating clockwise and counterclockwise directions"
-                  >
-                    Alternate
-                  </button>
-                </div>
-              ) : null}
+            </DesktopSidePanel>
+            <DesktopSidePanel side="right" open={desktopSettingsPanelOpen} onOpen={() => setDesktopSettingsPanelOpen(true)}>
+            <div data-canvas-quick-settings data-guide="desktop-tools" className="desktop-inspector">
+              <div><DesktopInspectorTabs soundLocked={lockedFeatures.soundEditing} canvasLocked={lockedFeatures.canvasOptions} title="Orbit" value={desktopUtilityAudioOpen ? 'sound' : desktopUtilityOverlayOpen ? 'overlay' : desktopUtilityCanvasOpen ? 'canvas' : null}
+ onCollapse={() => setDesktopSettingsPanelOpen(false)} onChange={tab => {
+ if(tab === 'sound' && lockedFeatures.soundEditing) { onLockedFeature?.('sound-editing'); return; }
+ if(tab === 'canvas' && lockedFeatures.canvasOptions) { onLockedFeature?.('canvas-options'); return; }
+ closeDesktopUtilitySections();
+ setDesktopUtilityAudioOpen(tab === 'sound');setDesktopUtilityOverlayOpen(tab === 'overlay');setDesktopUtilityCanvasOpen(tab === 'canvas');
+ }} /></div>
 
-              {desktopSettingsPanelOpen ? (
+
+              {(
                 <div className="space-y-2 border-t border-white/8 pt-2">
-                  {renderStandardUtilitySection({
-                    label: 'Playback',
-                    descriptor: 'Nudge time forward or wipe the drawing while keeping the current ratio locked.',
-                    active: desktopUtilityPlaybackOpen,
-                    color: '#72F1B8',
-                    title: 'Open playback utilities',
-                    info: 'Use Step to inspect a paused pattern one movement at a time. Clear removes the accumulated trace but keeps the orbits, tempo, and sound unchanged.',
-                    onToggle: () => toggleDesktopUtilitySection('playback'),
-                    children: (
-                      <div className={standardUtilityGroupClass}>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={onStepForward}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(true, '#88CCFF', 'rgba(136,204,255,0.14)')}
-                            title="Advance the orbit motion by one small step while paused"
-                          >
-                            Step
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onClearTraces}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(false, '#FFFFFF')}
-                            title="Clear accumulated trace history"
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      </div>
-                    ),
-                  })}
 
-                  {renderStandardUtilitySection({
-                    label: 'Motion',
-                    descriptor: 'Change the symmetry of the path without changing any pulse counts.',
-                    active: desktopUtilityDirectionOpen,
-                    color: '#7FD7FF',
-                    title: 'Open motion controls',
-                    info: 'Direction changes can turn the same ratio into a completely different visual feel. Use it when the numbers are right but the motion needs another angle.',
-                    onToggle: () => toggleDesktopUtilitySection('direction'),
-                    children: (
-                      <div className={standardUtilityGroupClass}>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={onReverseDirections}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(false, '#FFFFFF')}
-                            title="Flip every orbit to the opposite direction"
-                          >
-                            Reverse
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onAllClockwise}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(allClockwise, '#72F1B8', 'rgba(114,241,184,0.16)')}
-                            title="Set every orbit to clockwise"
-                          >
-                            Clockwise
-                          </button>
-                          <button
-                            type="button"
-                            onClick={onAlternateDirections}
-                            className={standardUtilityButtonClass}
-                            style={getStandardUtilityPillStyle(!allClockwise, '#7FD7FF', 'rgba(127,215,255,0.14)')}
-                            title="Restore alternating clockwise and counterclockwise directions"
-                          >
-                            Alternate
-                          </button>
-                        </div>
-                      </div>
-                    ),
-                  })}
+
+
 
                   {renderStandardUtilitySection({
                     label: 'Read Aids',
@@ -1164,7 +838,14 @@ export default function TransportBar({
                           onToggleImpacts={onToggleImpactMarkers}
                           onToggleSun={onToggleCenterSun}
                           onToggleRatioLabels={onToggleRatioLabels}
-                        />
+                        /><section aria-label="Motion" className="mt-3">
+                          <h3 className="mb-1.5 text-[9px] font-mono font-medium uppercase tracking-[0.14em] text-white/40">Motion</h3>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <ReadAidOption icon={<RotateCcw size={13} />} onClick={onReverseDirections}>Reverse</ReadAidOption>
+                            <ReadAidOption indicator icon={<RotateCw size={13} />} active={allClockwise} onClick={onAllClockwise}>Clockwise</ReadAidOption>
+                            <ReadAidOption indicator icon={<ArrowLeftRight size={13} />} active={!allClockwise} onClick={onAlternateDirections}>Alternate</ReadAidOption>
+                          </div>
+                        </section>
                       </div>
                     ),
                   })}
@@ -1180,118 +861,7 @@ export default function TransportBar({
                     lockedFeature: 'canvas-options',
                     onToggle: () => toggleDesktopUtilitySection('canvas'),
                     children: (
-                      <>
-                        {canvasColorControls}
-                        <div className={standardUtilityGroupClass}>
-                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
-                            Background
-                          </div>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {CANVAS_DISPLAY_THEME_OPTIONS.map((option) => {
-                              const selected = canvasDisplaySettings.theme === option.id;
-                              return (
-                                <button
-                                  key={option.id}
-                                  type="button"
-                                  onClick={() => onCanvasDisplayChange({ theme: option.id as CanvasDisplayThemeId })}
-                                  className={standardUtilityButtonClass}
-                                  style={getStandardUtilityPillStyle(selected, '#88CCFF', 'rgba(136,204,255,0.16)')}
-                                  title={option.label}
-                                >
-                                  {option.shortLabel}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className={standardUtilityGroupClass}>
-                            <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
-                              Effects
-                            </div>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {CANVAS_ATMOSPHERE_OPTIONS.map((option) => {
-                                const selected = canvasDisplaySettings.atmosphere === option.id;
-                                return (
-                                  <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => onCanvasDisplayChange({ atmosphere: option.id as CanvasAtmosphereId })}
-                                    className={`${standardUtilityButtonClass} px-1.5 text-[8px]`}
-                                    style={getStandardUtilityPillStyle(selected, '#72F1B8', 'rgba(114,241,184,0.14)')}
-                                  >
-                                    {option.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className={standardUtilityGroupClass}>
-                            <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
-                              Glow
-                            </div>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {CANVAS_GLOW_OPTIONS.map((option) => {
-                                const selected = canvasDisplaySettings.glow === option.id;
-                                return (
-                                  <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => onCanvasDisplayChange({ glow: option.id as CanvasGlowLevel })}
-                                    className={`${standardUtilityButtonClass} px-1 text-[8px]`}
-                                    style={getStandardUtilityPillStyle(selected, '#FFFFFF', 'rgba(255,255,255,0.12)')}
-                                  >
-                                    {option.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div className={standardUtilityGroupClass}>
-                          <div className="mb-2 text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/64">
-                            Grid
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onCanvasDisplayChange({ squareGrid: true, centerAxes: true })}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
-                              title="Show the background grid and center cross lines"
-                            >
-                              Grid On
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onCanvasDisplayChange({ squareGrid: false, centerAxes: false })}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(canvasDisplaySettings.squareGrid === false, '#FFFFFF', 'rgba(255,255,255,0.12)')}
-                              title="Hide the background grid and center cross lines"
-                            >
-                              Grid Off
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onCanvasDisplayChange({ squareGrid: true, centerAxes: true })}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(canvasDisplaySettings.centerAxes !== false, '#88CCFF', 'rgba(136,204,255,0.16)')}
-                              title="Show the center X and Y axis lines"
-                            >
-                              Axes On
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onCanvasDisplayChange({ centerAxes: false })}
-                              className={standardUtilityButtonClass}
-                              style={getStandardUtilityPillStyle(canvasDisplaySettings.centerAxes === false, '#FFFFFF', 'rgba(255,255,255,0.12)')}
-                              title="Hide the center X and Y axis lines"
-                            >
-                              Axes Off
-                            </button>
-                          </div>
-                        </div>
-                      </>
+                      (<>{canvasColorControls}{canvasDisplayControls}</>)
                     ),
                   })}
 
@@ -1312,8 +882,9 @@ export default function TransportBar({
                     ),
                   })}
                 </div>
-              ) : null}
+              )}
             </div>
+            </DesktopSidePanel>
           </div>
         ) : null}
       </div>
@@ -1520,232 +1091,9 @@ export default function TransportBar({
           </div>
         </div>
       ) : (
-      <div
-        className="rg-desktop-dock-scale mx-3 lg:mx-6 mb-4 lg:mb-6 flex flex-nowrap items-center justify-between gap-3 rounded-[1.45rem] border px-3.5 py-2.5 pointer-events-auto"
-        style={{
-          background: 'linear-gradient(180deg, rgba(17,17,22,0.94), rgba(17,17,22,0.84))',
-          borderColor: 'rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(16px)',
-        }}
-      >
-        {/* Left: Playback + Reset + Generators */}
-        <div
-          data-guide="desktop-playback"
-          className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]"
-          style={desktopDockPanelStyle}
-        >
-          {/* Play/Pause */}
-          <button
-            onClick={onTogglePlay}
-            className={desktopDockButtonStyle}
-            style={{
-              background: playing
-                ? 'rgba(255,51,102,0.18)'
-                : 'rgba(114,241,184,0.16)',
-              border: `1px solid ${playing ? 'rgba(255,51,102,0.3)' : 'rgba(114,241,184,0.28)'}`,
-              color: playing ? '#FF3366' : '#72F1B8',
-              boxShadow: `0 0 0 1px ${playing ? 'rgba(255,51,102,0.16)' : 'rgba(114,241,184,0.16)'} inset`,
-            }}
-            title={playing ? 'Pause motion and freeze the current state' : 'Start playback and let the system run continuously'}
-          >
-            {playing ? <Pause size={15} /> : <Play size={15} />}
-            <span>
-              {playing ? 'Pause' : 'Play'}
-            </span>
-          </button>
-
-          {/* Reset */}
-          <button
-            onClick={onReset}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: 'rgba(255,170,0,0.12)',
-              border: '1px solid rgba(255,170,0,0.22)',
-              color: '#FFAA00',
-              boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
-            }}
-            title="Restart motion back to the beginning and clear all traces"
-          >
-            <span className="flex items-center gap-2">
-              <RotateCcw size={15} />
-              <span>Restart</span>
-            </span>
-          </button>
-
-          <button
-            onClick={onRandomPattern}
-            className={desktopDockButtonStyle}
-            style={{
-              background: 'rgba(127,215,255,0.14)',
-              border: '1px solid rgba(127,215,255,0.24)',
-              color: '#7FD7FF',
-              boxShadow: '0 0 0 1px rgba(127,215,255,0.16) inset',
-            }}
-            title="Generate a curated random pattern with fresh ratios, color, motion, and sound"
-          >
-            <PatternActionIcon action="random" size={15} />
-            <span>
-              Random
-            </span>
-          </button>
-
-          <button
-            onClick={onRandomPatternPlus}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({
-              background: 'rgba(255,170,0,0.12)',
-              border: '1px solid rgba(255,170,0,0.22)',
-              color: '#FFAA00',
-              boxShadow: '0 0 0 1px rgba(255,170,0,0.14) inset',
-            }, lockedFeatures.randomPlus)}
-            title="Generate an extended curated random pattern with values up to 100"
-          >
-            <PatternActionIcon action="random-plus" size={15} />
-            <span>
-              Random+
-            </span>
-            {lockedFeatures.randomPlus ? lockBadge : null}
-          </button>
-
-          <button
-            onClick={onRemixPattern}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({
-              background: 'rgba(182,160,255,0.14)',
-              border: '1px solid rgba(182,160,255,0.3)',
-              color: '#B6A0FF',
-              boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
-            }, lockedFeatures.remix)}
-            title="Refresh the current setup with new color, direction, sound, and speed"
-          >
-            <PatternActionIcon action="remix" size={15} />
-            <span>
-              Remix
-            </span>
-            {lockedFeatures.remix ? lockBadge : null}
-          </button>
-
-        </div>
-
-        {/* Center: Tempo */}
-        <div
-          data-guide="desktop-speed"
-          className="rg-transport-tempo-row mx-0 xl:mx-3 flex min-w-[260px] max-w-[min(860px,52vw)] flex-[1_1_auto] items-center gap-3 lg:gap-4 rounded-2xl px-3 lg:px-4 py-2.5"
-          style={desktopTempoPanelStyle}
-        >
-          <div className="shrink-0">
-            <div className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: 'rgba(244,250,255,0.82)', textShadow: '0 0 10px rgba(127,215,255,0.14)' }}>
-              Tempo
-            </div>
-            <div className="text-[9px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              {anchorLabel}
-            </div>
-          </div>
-          <input
-            type="range"
-            min={String(ORBIT_TEMPO_MIN_BPM)}
-            max={String(anchorTempoMaxBpm)}
-            step="1"
-            value={anchorTempoSliderValue}
-            onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-            className="touch-slider rg-transport-tempo-track cursor-pointer"
-            style={{
-              ['--slider-accent' as string]: '#ffffff',
-            }}
-            title={`Anchor tempo (${ORBIT_TEMPO_MIN_BPM} to ${anchorTempoMaxBpm} BPM)`}
-          />
-          <div className="w-[52px] shrink-0 text-right">
-            <EditableTempoValue
-              value={anchorTempoBpm}
-              min={ORBIT_TEMPO_MIN_BPM}
-              max={anchorTempoMaxBpm}
-              onCommit={onSpeedChange}
-              className="text-[18px]"
-              ariaLabel="Type exact orbit tempo"
-            />
-            <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.34)' }}>
-              BPM
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Sound + Fullscreen + Help + Menu */}
-        <div className="flex max-w-full shrink-0 flex-nowrap items-center justify-center gap-2 rounded-[1.45rem]" style={desktopDockPanelStyle}>
-          <button
-            data-guide="desktop-audio"
-            onClick={() => {
-              if (lockedFeatures.soundEditing) {
-                onLockedFeature?.('sound-editing');
-                return;
-              }
-              setAudioMixOpen((open) => !open);
-            }}
-            className={`${desktopUtilityButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({
-              background: muted ? 'rgba(255,255,255,0.04)' : 'rgba(127,215,255,0.14)',
-              border: `1px solid ${muted ? 'rgba(255,255,255,0.1)' : 'rgba(127,215,255,0.24)'}`,
-              color: muted ? 'rgba(255,255,255,0.72)' : '#7FD7FF',
-              boxShadow: muted ? 'none' : '0 0 0 1px rgba(127,215,255,0.16) inset',
-            }, lockedFeatures.soundEditing)}
-            title={lockedFeatures.soundEditing ? 'Upgrade for sound controls' : 'Open audio controls'}
-          >
-            <span className="flex items-center gap-2">
-              {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-              <span>Audio</span>
-            </span>
-            {lockedFeatures.soundEditing ? lockBadge : null}
-          </button>
-
-          <button
-            data-guide="desktop-present"
-            onClick={onTogglePresentation}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: presentationMode ? 'rgba(114,241,184,0.16)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${presentationMode ? 'rgba(114,241,184,0.28)' : 'rgba(255,255,255,0.1)'}`,
-              color: presentationMode ? '#72F1B8' : 'rgba(255,255,255,0.72)',
-              boxShadow: presentationMode ? '0 0 0 1px rgba(114,241,184,0.16) inset' : 'none',
-            }}
-            title={presentationMode ? 'Exit fullscreen mode' : 'Enter fullscreen mode'}
-          >
-            <span className="flex items-center gap-2">
-              {presentationMode ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              <span>{presentationMode ? 'Exit' : 'Fullscreen'}</span>
-            </span>
-          </button>
-
-          <button
-            onClick={onToggleHelp}
-            className={desktopUtilityButtonStyle}
-            style={{
-              background: showHelp ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${showHelp ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.1)'}`,
-              color: showHelp ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.72)',
-            }}
-            title="Open guide"
-          >
-            <span className="flex items-center gap-2">
-              <CircleHelp size={15} />
-              <span>{guideLabel}</span>
-            </span>
-          </button>
-
-          {/* Menu */}
-          <button
-            data-guide="desktop-menu"
-            onClick={onOpenSidebar}
-            className={desktopDockSquareButtonStyle}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.72)',
-            }}
-            title="Open menu"
-          >
-            <Menu size={17} />
-          </button>
-        </div>
-      </div>
+      <DesktopTransport mode="orbit" playing={playing} muted={muted} tempo={anchorTempoBpm} min={ORBIT_TEMPO_MIN_BPM} max={anchorTempoMaxBpm} tempoLabel="BPM" onTempo={onSpeedChange}
+ onPlay={onTogglePlay} onRestart={onReset} onRandom={onRandomPattern} onRandomPlus={onRandomPatternPlus} onRemix={onRemixPattern}
+ randomPlusLocked={lockedFeatures.randomPlus} remixLocked={lockedFeatures.remix} onAudio={() => setAudioMixOpen(open => !open)} onFullscreen={onTogglePresentation} onGuide={onToggleHelp} onMenu={onOpenSidebar} />
       )}
 
       {/* Custom range input styling */}

@@ -1,3 +1,4 @@
+import type { DesktopMenuRequest } from './DesktopHeader';
 import { getRiffSceneCategory } from '../lib/sceneCategories';
 import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu, { ExportImageOptions } from './SceneExportMenu';
@@ -106,6 +107,7 @@ function getSavedRiffCellNames(study: RiffCycleStudy): string {
 
 interface RiffCycleSidebarProps {
   isOpen: boolean;
+  menuRequest?: DesktopMenuRequest;
   study: RiffCycleStudy;
   currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   activePresetId: string | null;
@@ -360,6 +362,7 @@ export function RiffSceneThumbnail({
 
 export default function RiffCycleSidebar({
   isOpen,
+  menuRequest,
   study,
   currentSurface,
   activePresetId,
@@ -406,6 +409,9 @@ export default function RiffCycleSidebar({
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
+  useEffect(() => {
+    if (menuRequest) setActiveTab(menuRequest.tab);
+  }, [menuRequest]);
   const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);

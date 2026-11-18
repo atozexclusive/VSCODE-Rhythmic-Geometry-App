@@ -1,3 +1,4 @@
+import type { DesktopMenuRequest } from './DesktopHeader';
 import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu from './SceneExportMenu';
 // ============================================================
@@ -34,6 +35,7 @@ import { VIDEO_EXPORT_ASPECTS, VIDEO_EXPORT_DURATIONS, type VideoExportAspect, t
 interface OrbitSidebarProps {
   orbits: Orbit[];
   isOpen: boolean;
+  menuRequest?: DesktopMenuRequest;
   currentSurface: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study' | 'flow';
   harmonySettings: HarmonySettings;
   geometryMode: GeometryMode;
@@ -125,6 +127,7 @@ const REGISTER_OPTIONS: Array<{ label: string; value: -1 | 0 | 1 }> = [
 export default function OrbitSidebar({
   orbits,
   isOpen,
+  menuRequest,
   currentSurface,
   harmonySettings,
   geometryMode,
@@ -170,6 +173,9 @@ export default function OrbitSidebar({
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<'account' | 'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
+  useEffect(() => {
+    if (menuRequest) setActiveTab(menuRequest.tab);
+  }, [menuRequest]);
   const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [activeSceneTab, setActiveSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [activeSceneMode, setActiveSceneMode] = useState<GeometryMode>('standard-trace');
@@ -1203,70 +1209,7 @@ export default function OrbitSidebar({
                 )}>
 <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportScene(file); event.target.value = ''; }} />
 {exportNotice ? <div className="pt-4 text-center text-[12px] text-white/45">{exportNotice}</div> : null}
-<div
-                className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  borderColor: 'rgba(255,255,255,0.08)',
-                }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] font-mono uppercase tracking-[0.18em]" style={mobileSubTitleStyle}>
-                    Export History
-                  </div>
-                  <div
-                    className="rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-[0.14em]"
-                    style={{
-                      background: signedIn ? 'rgba(0,255,170,0.08)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${signedIn ? 'rgba(0,255,170,0.14)' : 'rgba(255,255,255,0.08)'}`,
-                      color: signedIn ? '#00FFAA' : 'rgba(255,255,255,0.5)',
-                    }}
-                  >
-                    {signedIn ? 'Account' : 'Local Only'}
-                  </div>
-                </div>
-                {!signedIn ? (
-                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                    Sign in to keep export history attached to your account.
-                  </div>
-                ) : accountPersistenceLoading ? (
-                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                    Loading export history…
-                  </div>
-                ) : exportRecords.length === 0 ? (
-                  <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.44)' }}>
-                    No account exports yet.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {exportRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="rounded-lg px-3 py-2"
-                        style={{
-                          background: 'rgba(255,255,255,0.025)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.78)' }}>
-                            {record.sceneName || 'Current Scene'}
-                          </div>
-                          <div className="text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.46)' }}>
-                            {record.type}
-                          </div>
-                        </div>
-                        <div className="mt-1 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                          {new Date(record.createdAt).toLocaleString()}
-                          {record.aspect ? ` · ${record.aspect}` : ''}
-                          {exportScaleLabel(record.scale) ? ` · ${exportScaleLabel(record.scale)}` : ''}
-                          {record.durationSeconds ? ` · ${record.durationSeconds}s` : ''}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+
 </SceneExportMenu>
           )}
 
