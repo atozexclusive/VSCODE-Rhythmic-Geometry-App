@@ -75,24 +75,26 @@ export function addAudioToCanvasStream(
 }
 
 /** Let the resized export canvas paint before the recording/audio clocks start. */
-export async function prepareCanvasRecordingFrames(): Promise<void> {
+export async function prepareCanvasRecordingFrames(minimumDurationMs = 250): Promise<void> {
   let firstTimestamp: number | null = null;
   let elapsed = 0;
   do {
     const timestamp = await new Promise<number>((resolve) => requestAnimationFrame(resolve));
     firstTimestamp ??= timestamp;
     elapsed = timestamp - firstTimestamp;
-  } while (elapsed < 250);
+  } while (elapsed < minimumDurationMs);
 }
 
 export function recordMediaRecorderForDuration(
   recorder: MediaRecorder,
   durationSeconds: number,
+  onStarted?: () => void,
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let settled = false;
     const stopDelayMs = durationSeconds * 1000;
     const failSafeDelayMs = stopDelayMs + 5000;
+    let stopTimer: number | undefined;
 
     const settle = (callback: () => void) => {
       if (settled) {
@@ -104,11 +106,19 @@ export function recordMediaRecorderForDuration(
       callback();
     };
 
-    const stopTimer = window.setTimeout(() => {
-      if (recorder.state !== 'inactive') {
-        recorder.stop();
+    // start() queues encoder startup. Begin clocks only when media is flowing.
+    recorder.onstart = () => {
+      if (settled) return;
+      stopTimer = window.setTimeout(() => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      }, stopDelayMs);
+      try {
+        onStarted?.();
+      } catch (error) {
+        settle(() => reject(error));
+        if (recorder.state !== 'inactive') recorder.stop();
       }
-    }, stopDelayMs);
+    };
     const failSafeTimer = window.setTimeout(() => {
       if (recorder.state !== 'inactive') {
         recorder.stop();
@@ -118,7 +128,11 @@ export function recordMediaRecorderForDuration(
 
     recorder.onerror = () => settle(() => reject(new Error('Recording failed.')));
     recorder.onstop = () => settle(() => resolve());
-    recorder.start(1000);
+    try {
+      recorder.start(1000);
+    } catch (error) {
+      settle(() => reject(error));
+    }
   });
 }
 

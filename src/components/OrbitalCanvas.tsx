@@ -18,10 +18,11 @@ import {
   getOrbitCyclePulseCount,
   resetEngine,
   tick,
+  stepEngineByBeats,
   resonancePosition,
   resonancePositionAtBeats,
 } from '../lib/orbitalEngine';
-import { createOrbitExportAudioStream, playResonanceBeep, warmOrbitAudio, type HarmonySettings } from '../lib/audioEngine';
+import { prepareOrbitExportAudioRecording, playResonanceBeep, warmOrbitAudio, type OrbitExportAudioRecording, type HarmonySettings } from '../lib/audioEngine';
 import {
   normalizeInterferenceSettings,
   type GeometryMode,
@@ -205,6 +206,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
     const presentationModeRef = useRef(presentationMode);
     const exportVideoSizeRef = useRef<{ width: number; height: number } | null>(null);
     const exportVideoActiveRef = useRef(false);
+    const exportPlaybackClockRef = useRef<(() => number) | null>(null);
     const exportStillActiveRef = useRef(false);
     const isMobileRef = useRef(isMobile);
     const hudVisibleRef = useRef(showHudStats);
@@ -683,12 +685,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const recordingFormat = getCanvasRecordingFormat();
 
           const previousHudVisible = hudVisibleRef.current;
+          const previousPlaying = engineRef.current.playing;
           hudVisibleRef.current = false;
           exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
           exportVideoActiveRef.current = true;
           forceUpdate((value) => value + 1);
           let stream: MediaStream | null = null;
-          let playbackStartTimer: number | null = null;
+          let audioRecording: OrbitExportAudioRecording | null = null;
           try {
             const state = engineRef.current;
             const activeCountMode =
@@ -700,18 +703,25 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             bloomsRef.current = [];
             clearTraces();
             forceUpdate((value) => value + 1);
+            audioRecording = await prepareOrbitExportAudioRecording(
+              state, harmonySettingsRef.current, durationSeconds,
+              CANVAS_EXPORT_PREROLL_SECONDS, activeCountMode,
+              { geometryMode: geometryModeRef.current, interferenceSettings: interferenceSettingsRef.current },
+            );
+            // A paused warm-up never exercises the first impacts or trace
+            // compositing. Run those at export size before capturing anything.
+            state.playing = true;
+            state.lastTimestamp = -1;
+            await prepareCanvasRecordingFrames(600);
+            state.playing = false;
+            resetEngine(state);
+            bloomsRef.current = [];
+            clearTraces();
             await prepareCanvasRecordingFrames();
 
             stream = addAudioToCanvasStream(
               canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-              createOrbitExportAudioStream(
-                state,
-                harmonySettingsRef.current,
-                durationSeconds,
-                CANVAS_EXPORT_PREROLL_SECONDS,
-                activeCountMode,
-                { geometryMode: geometryModeRef.current, interferenceSettings: interferenceSettingsRef.current },
-              ),
+              audioRecording?.stream,
             );
             const recorder = new MediaRecorder(stream, {
               mimeType: recordingFormat.mimeType,
@@ -725,13 +735,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
               }
             };
 
-            const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
-            playbackStartTimer = window.setTimeout(() => {
-              state.playing = true;
-              state.lastTimestamp = -1;
-              forceUpdate((value) => value + 1);
-            }, CANVAS_EXPORT_PREROLL_SECONDS * 1000);
-            await recordingPromise;
+            await recordMediaRecorderForDuration(recorder, durationSeconds, () => {
+              const fallbackStart = performance.now() / 1000 + CANVAS_EXPORT_PREROLL_SECONDS;
+              exportPlaybackClockRef.current = audioRecording?.start()
+                ?? (() => performance.now() / 1000 - fallbackStart);
+            });
+            exportPlaybackClockRef.current = null;
+            state.playing = false;
 
             const blob = new Blob(chunks, { type: recordingFormat.mimeType });
             const download = await prepareCanvasRecordingDownload(blob, recordingFormat);
@@ -745,7 +755,10 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
           } finally {
-            if (playbackStartTimer != null) window.clearTimeout(playbackStartTimer);
+            exportPlaybackClockRef.current = null;
+            audioRecording?.stop();
+            engineRef.current.lastTimestamp = -1;
+            engineRef.current.playing = previousPlaying;
             stream?.getTracks().forEach((track) => track.stop());
             exportVideoActiveRef.current = false;
             exportVideoSizeRef.current = null;
@@ -1106,7 +1119,11 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
         // Physics tick — returns triggers for every 12 o'clock crossing
         const audioReady = !state.playing || isExportRendering || warmOrbitAudio(state.orbits, harmonySettingsRef.current, state.speedMultiplier);
         if (!audioReady) state.lastTimestamp = timestamp;
-        const triggers = audioReady ? tick(state, timestamp, cx, cy, activeCountMode) : [];
+        const exportSeconds = exportPlaybackClockRef.current?.();
+        if (exportSeconds != null) state.playing = exportSeconds >= 0;
+        const triggers = exportSeconds != null
+          ? stepEngineByBeats(state, Math.max(0, exportSeconds) * (state.baseBPM / 60) * state.speedMultiplier - state.elapsedBeats, cx, cy, activeCountMode)
+          : audioReady ? tick(state, timestamp, cx, cy, activeCountMode) : [];
 
         // Process triggers — every single one gets audio + bloom
         for (const trig of triggers) {
@@ -1132,7 +1149,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const shouldPlayOrbitAudio =
             !isSweepMode &&
             ((!isInterferenceMode && !isSweepMode) || selectedInterferenceOrbitIds.has(trig.orbitId));
-          if (orbit && shouldPlayOrbitAudio) {
+          if (orbit && shouldPlayOrbitAudio && !exportVideoActiveRef.current) {
             playResonanceBeep(
               {
                 orbitIndex,
@@ -1175,6 +1192,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
           const previousSweepT = getSweepParameter(previousElapsedBeats);
           const currentSweepT = getSweepParameter(state.elapsedBeats);
           const playSweepOrbitBeep = (sweepOrbit: Orbit, hitIndex = 0) => {
+            if (exportVideoActiveRef.current) return;
             const orbitIndex = state.orbits.findIndex((orbit) => orbit.id === sweepOrbit.id);
             if (orbitIndex < 0) {
               return;

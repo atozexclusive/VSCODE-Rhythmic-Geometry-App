@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { renderStudyInstrument, getStudyInstrumentSample } from '../src/lib/studyInstruments';
 import { renderOrbitInstrument, renderOrbitInstrumentLayers, ORBIT_DESIGNED_INSTRUMENTS } from '../src/lib/orbitInstrumentSamples';
 import { prepareOrbitInstrument, scheduleDesignedOrbitInstrument, getOrbitInstrumentResources, releaseOrbitInstrumentContext, ORBIT_SAMPLE_CACHE_BYTES, ORBIT_MAX_VOICES } from '../src/lib/orbitInstruments';
-import { ORBIT_SOUND_PALETTES, DEFAULT_HARMONY_SETTINGS, createOrbitExportAudioStream, stopAllAudio } from '../src/lib/audioEngine';
+import { ORBIT_SOUND_PALETTES, DEFAULT_HARMONY_SETTINGS, prepareOrbitExportAudioRecording, stopAllAudio } from '../src/lib/audioEngine';
 import { createOrbit, DEFAULT_ORBITS } from '../src/lib/orbitalEngine';
 import { createPolyrhythmSoundSettings, cloneStudy, POLYRHYTHM_PRESETS } from '../src/lib/polyrhythmStudy';
 import { preparePolyrhythmAudioRecording, triggerPolyrhythmPulse, silencePolyrhythmAudio } from '../src/lib/polyrhythmAudio';
@@ -111,11 +111,12 @@ test('Chorus Keys export preparation is silent and its first impacts reuse prepa
   } finally { Context.latest.state='closed'; Object.assign(globalThis,{window:previousWindow}); }
 });
 
-test('Nebula export uses buffered voices and a controllable dry/wet mix', () => {
+test('Nebula export uses buffered voices and a controllable dry/wet mix', async () => {
   const previous = globalThis.AudioContext;
   Object.assign(globalThis,{AudioContext:Context});
   try {
-    createOrbitExportAudioStream({orbits:[createOrbit(DEFAULT_ORBITS[0])],playing:false,speedMultiplier:1,baseBPM:120,elapsedBeats:0,lastTimestamp:-1}, {...DEFAULT_HARMONY_SETTINGS,soundPalette:'orbit-keys',reverbAmount:0},0.5);
+    const recording = await prepareOrbitExportAudioRecording({orbits:[createOrbit(DEFAULT_ORBITS[0])],playing:false,speedMultiplier:1,baseBPM:120,elapsedBeats:0,lastTimestamp:-1}, {...DEFAULT_HARMONY_SETTINGS,soundPalette:'orbit-keys',reverbAmount:0},0.5);
+    recording!.start();
     assert.equal(Context.latest.sources.length,2);
     assert.equal(Context.latest.sources[0].buffer.numberOfChannels,4);
     assert.equal(Context.latest.oscillators.length,0);

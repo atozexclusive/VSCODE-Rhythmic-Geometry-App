@@ -616,17 +616,24 @@ function scheduleResonanceBeep(
   osc.stop(atTime + 0.1);
 }
 
-export function createOrbitExportAudioStream(
+export interface OrbitExportAudioRecording {
+  stream: MediaStream;
+  /** Returns signed playback seconds; negative during the still-frame preroll. */
+  start: () => () => number;
+  stop: () => void;
+}
+
+export async function prepareOrbitExportAudioRecording(
   state: EngineState,
   harmony: HarmonySettings,
   durationSeconds: number,
   prerollSeconds = 0,
   countMode?: OrbitCountMode,
   options: OrbitAudioExportOptions = {},
-): MediaStream | null {
+): Promise<OrbitExportAudioRecording | null> {
   const ctx = getAudioContext();
   if (typeof ctx.createMediaStreamDestination !== 'function') return null;
-  if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
+  if (ctx.state === 'suspended') await ctx.resume();
   const destination = ctx.createMediaStreamDestination();
   const soundPalette = normalizeOrbitSoundPalette(harmony.soundPalette);
   // New programs use the same gain and limiter for speakers and exports.
@@ -651,14 +658,19 @@ export function createOrbitExportAudioStream(
     const palette = soundPalette;
     plans.forEach(({ orbit, orbitIndex }) => prepareOrbitInstrument(ctx, palette, voiceToFrequency({ ...orbit, orbitIndex, hitIndex: 0 }, harmony), instrumentSpeed));
   }
-  const startTime = ctx.currentTime + 0.12 + Math.max(0, prerollSeconds);
+  let startTime: number | null = null;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let stopped = false;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
   // Match live audio's density ceiling without losing an entire orbit's voice.
   const minGap = totalRate >= EXTREME_TRIGGER_RATE ? 0.024
     : totalRate >= VERY_DENSE_TRIGGER_RATE ? 0.014 : totalRate >= DENSE_TRIGGER_RATE ? 0.007 : 0;
   const cursors = plans.map((plan) => ({ ...plan, nextHit: 0, stride: Math.max(1, Math.ceil(minGap / plan.secondsPerHit)) }));
-  const scheduleWindow = () => {
-    const until = Math.min(audibleDuration, ctx.currentTime + 1 - startTime);
+  const scheduleWindow = (initial = false) => {
+    if (startTime == null || stopped) return true;
+    // Allocate the first moving second during the still-frame preroll, rather
+    // than letting the first lookahead interval build it during playback.
+    const until = Math.min(audibleDuration, initial ? 1 : ctx.currentTime + 1 - startTime);
     for (const cursor of cursors) {
       const { orbit, orbitIndex, secondsPerHit } = cursor;
       while (cursor.nextHit * secondsPerHit <= until + 1e-9) {
@@ -676,16 +688,30 @@ export function createOrbitExportAudioStream(
     }
     return cursors.every((cursor) => cursor.nextHit * cursor.secondsPerHit > audibleDuration + 1e-9);
   };
-  // Schedule a rolling lookahead instead of allocating every oscillator in a
-  // long export up front (which can make the first notes late or inaudible).
-  if (plans.length && !scheduleWindow()) {
-    const deadline = performance.now() + Math.max(0, durationSeconds) * 1000 + 2000;
-    const timer = setInterval(() => {
-      if (ctx.state === 'closed' || performance.now() > deadline || scheduleWindow()) clearInterval(timer);
-    }, 100);
-    (timer as unknown as { unref?: () => void }).unref?.();
-  }
-  return destination.stream;
+  return {
+    stream: destination.stream,
+    start: () => {
+      if (startTime == null && !stopped) {
+        // Called by MediaRecorder.onstart, after encoder startup and preflight.
+        startTime = ctx.currentTime + Math.max(0, prerollSeconds);
+        if (plans.length && !scheduleWindow(true)) {
+          const deadline = performance.now() + Math.max(0, durationSeconds) * 1000 + 2000;
+          timer = setInterval(() => {
+            if (ctx.state === 'closed' || performance.now() > deadline || scheduleWindow()) clearInterval(timer);
+          }, 100);
+          (timer as unknown as { unref?: () => void }).unref?.();
+        }
+      }
+      const origin = startTime ?? ctx.currentTime;
+      return () => ctx.currentTime - origin;
+    },
+    stop: () => {
+      stopped = true;
+      clearInterval(timer);
+      destination.stream.getTracks().forEach(track => track.stop());
+      exportOutput.disconnect();
+    },
+  };
 }
 
 export function toggleAudioMute(): boolean {

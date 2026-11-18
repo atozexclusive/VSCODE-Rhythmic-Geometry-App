@@ -11,7 +11,7 @@ export default function DesktopHeader({ surface, onSurfaceChange, sceneName, sav
 }) {
   return <header className="desktop-workspace-header">
     <Link to="/" className="desktop-header-brand" aria-label="Rhythmic Geometry home">
-      <img src="/icons/glass-cathedral-192.png" alt="" width={34} height={34} />
+      <img src="/icons/glass-cathedral-192.png?v=2" alt="" width={34} height={34} />
       <span>Rhythmic Geometry</span>
     </Link>
     <nav className="desktop-header-modes" aria-label="App mode">

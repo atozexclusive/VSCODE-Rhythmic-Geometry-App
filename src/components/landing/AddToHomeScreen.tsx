@@ -89,7 +89,7 @@ export default function AddToHomeScreen() {
         if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) setOpen(false);
       }}>
       <button type="button" className="rg-install-close" aria-label="Close install guide" onClick={() => setOpen(false)} autoFocus><X size={20} /></button>
-      <div className="rg-install-preview"><img src="/icons/glass-cathedral-192.png" width="80" height="80" alt="Rhythmic Geometry app icon" /><span>Rhythmic Geometry</span></div>
+      <div className="rg-install-preview"><img src="/icons/glass-cathedral-192.png?v=2" width="80" height="80" alt="Rhythmic Geometry app icon" /><span>Rhythmic Geometry</span></div>
       <p className="rg-install-eyebrow">Your rhythm. One tap away.</p>
       <h2 id="rg-install-title">Keep rhythm<br />within reach.</h2>
       <p id="rg-install-description">Add Rhythmic Geometry for quick access to Orbit, Study, and Riff.</p>
