@@ -1,3 +1,4 @@
+import PatternActionIcon from './PatternActionIcon';
 import OrbitReadAids from './OrbitReadAids';
 import FullscreenControls from './FullscreenControls';
 // ============================================================
@@ -6,7 +7,7 @@ import FullscreenControls from './FullscreenControls';
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, Shuffle, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
+import { Play, Pause, RotateCcw, Menu, Zap, SkipForward, Volume2, VolumeX, CircleHelp, Maximize2, Minimize2, ChevronDown, ChevronUp, Palette, Trash2, Lock } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';
 import { type GeometryMode } from '../lib/geometry';
 import {
@@ -1131,11 +1132,11 @@ export default function TransportBar({
                   })}
 
                   {renderStandardUtilitySection({
-                    label: 'Overlays',
+                    label: 'Read Aids',
                     descriptor: 'Choose how much of the construction process stays visible on the canvas.',
                     active: desktopUtilityOverlayOpen,
                     color: '#FFB86B',
-                    title: 'Open overlay controls',
+                    title: 'Open read aids',
                     info: 'Trace shows the memory of movement. Orbits shows the moving bodies. Markers shows the starting ticks. Impacts shows the return flashes. Alignments highlights shared returns. Sun adds a glowing center to orbit around. Turn them down when you want the final form to read cleaner.',
                     onToggle: () => toggleDesktopUtilitySection('overlay'),
                     children: (
@@ -1582,28 +1583,10 @@ export default function TransportBar({
             }}
             title="Generate a curated random pattern with fresh ratios, color, motion, and sound"
           >
-            <Shuffle size={15} />
+            <PatternActionIcon action="random" size={15} />
             <span>
               Random
             </span>
-          </button>
-
-          <button
-            onClick={onRemixPattern}
-            className={`${desktopDockButtonStyle} relative overflow-hidden`}
-            style={getLockedStyle({
-              background: 'rgba(182,160,255,0.14)',
-              border: '1px solid rgba(182,160,255,0.3)',
-              color: '#B6A0FF',
-              boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
-            }, lockedFeatures.remix)}
-            title="Refresh the current setup with new color, direction, sound, and speed"
-          >
-            <Zap size={15} />
-            <span>
-              Remix
-            </span>
-            {lockedFeatures.remix ? lockBadge : null}
           </button>
 
           <button
@@ -1617,11 +1600,29 @@ export default function TransportBar({
             }, lockedFeatures.randomPlus)}
             title="Generate an extended curated random pattern with values up to 100"
           >
-            <Shuffle size={15} />
+            <PatternActionIcon action="random-plus" size={15} />
             <span>
               Random+
             </span>
             {lockedFeatures.randomPlus ? lockBadge : null}
+          </button>
+
+          <button
+            onClick={onRemixPattern}
+            className={`${desktopDockButtonStyle} relative overflow-hidden`}
+            style={getLockedStyle({
+              background: 'rgba(182,160,255,0.14)',
+              border: '1px solid rgba(182,160,255,0.3)',
+              color: '#B6A0FF',
+              boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset',
+            }, lockedFeatures.remix)}
+            title="Refresh the current setup with new color, direction, sound, and speed"
+          >
+            <PatternActionIcon action="remix" size={15} />
+            <span>
+              Remix
+            </span>
+            {lockedFeatures.remix ? lockBadge : null}
           </button>
 
         </div>

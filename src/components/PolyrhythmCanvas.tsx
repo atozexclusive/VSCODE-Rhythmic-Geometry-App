@@ -7,6 +7,9 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { useIsMobile } from '../hooks/use-mobile';
 import {
   preparePolyrhythmAudioRecording,
+  createPolyrhythmExportAudioStream,
+  getStudyExportPlaybackSeconds,
+  stopStudyExportAudio,
   silencePolyrhythmAudio,
   triggerPolyrhythmBarMarker,
   triggerPolyrhythmPulse,
@@ -217,6 +220,7 @@ export default function PolyrhythmCanvas({
   const showReferenceLayersRef = useRef(showReferenceLayers);
   const displaySettingsRef = useRef(displaySettings);
   const audioEnabledRef = useRef(audioEnabled);
+  const exportAudioStreamRef = useRef<MediaStream | null>(null);
   const onBarBoundaryRef = useRef(onBarBoundary);
   const presentationModeRef = useRef(presentationMode);
   const playbackStateHandleRef = useRef(playbackStateRef ?? localPlaybackStateRef);
@@ -962,8 +966,9 @@ export default function PolyrhythmCanvas({
             (timestamp - playbackState.lastTimestamp) / 1000,
           );
           const cyclesPerSecond = currentStudy.bpm / 60 / (currentStudy.cycleBeats ?? 4);
-          playbackState.progress =
-            (playbackState.progress + deltaSeconds * cyclesPerSecond) % 1;
+          playbackState.progress = exportAudioStreamRef.current
+            ? (getStudyExportPlaybackSeconds(exportAudioStreamRef.current) * cyclesPerSecond) % 1
+            : (playbackState.progress + deltaSeconds * cyclesPerSecond) % 1;
           playbackState.lastTimestamp = timestamp;
         }
 
@@ -974,7 +979,7 @@ export default function PolyrhythmCanvas({
           if (currentStudy.barMarkerVisualEnabled) {
             barMarkerFlashStartedAtRef.current = timestamp;
           }
-          if (audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
+          if (!exportVideoSizeRef.current && audioEnabledRef.current && currentStudy.soundEnabled && currentStudy.barMarkerSoundEnabled) {
             triggerPolyrhythmBarMarker();
           }
           incomingCellLayers = onBarBoundaryRef.current?.() ?? null;
@@ -1004,7 +1009,7 @@ export default function PolyrhythmCanvas({
             });
           }
 
-          if (audioEnabledRef.current && activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
+          if (!exportVideoSizeRef.current && audioEnabledRef.current && activeStepHit && currentStudy.soundEnabled && layer.soundEnabled) {
             triggerPolyrhythmPulse({
               voice: layer.voice,
               noteSequence: layer.noteSequence,
@@ -1165,9 +1170,13 @@ export default function PolyrhythmCanvas({
 
         const recordingFormat = getCanvasRecordingFormat();
 
+        await preparePolyrhythmAudioRecording(studyRef.current);
+        exportAudioStreamRef.current = createPolyrhythmExportAudioStream(
+          studyRef.current, durationSeconds, CANVAS_EXPORT_PREROLL_SECONDS, true,
+        );
         stream = addAudioToCanvasStream(
           canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
-          await preparePolyrhythmAudioRecording(studyRef.current),
+          exportAudioStreamRef.current,
         );
         const recorder = new MediaRecorder(stream, {
           mimeType: recordingFormat.mimeType,
@@ -1210,6 +1219,10 @@ export default function PolyrhythmCanvas({
           window.clearTimeout(playbackStartTimer);
         }
         exportPlaybackActiveRef.current = false;
+        if (exportAudioStreamRef.current) {
+          stopStudyExportAudio(exportAudioStreamRef.current);
+          exportAudioStreamRef.current = null;
+        }
         stream?.getTracks().forEach((track) => track.stop());
         exportVideoSizeRef.current = null;
         draw();

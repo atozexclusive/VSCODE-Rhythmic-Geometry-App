@@ -1,3 +1,4 @@
+import SceneExportMenu, { ExportImageOptions } from './SceneExportMenu';
 import { useEffect, useRef, useState } from 'react';
 import { Lock, RotateCcw, RotateCw, X } from 'lucide-react';
 import AccountPanel from './AccountPanel';
@@ -264,6 +265,7 @@ export default function PolyrhythmSidebar({
   onUpdateLayer,
   onSetLayerBeatCount,
   onToggleLayerStep,
+  onExportPng,
   onExportVideo,
   onExportMidi,
   onExportScene,
@@ -283,8 +285,6 @@ export default function PolyrhythmSidebar({
     advanced: false,
     grooves: false,
   });
-  const [exportAspect, setExportAspect] =
-    useState<'landscape' | 'square' | 'portrait' | 'story'>('square');
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
   const [exportMidiMode, setExportMidiMode] = useState<PolyrhythmMidiExportMode>('per-layer');
@@ -360,11 +360,6 @@ export default function PolyrhythmSidebar({
   const mobileSceneSubTabShellStyle = {
     background: 'rgba(255,255,255,0.022)',
     borderColor: 'rgba(255,255,255,0.065)',
-  } as const;
-  const exportCardStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
-    borderColor: 'rgba(255, 170, 0, 0.1)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
 
   const tabMeta: Array<{ id: PolyrhythmSidebarTab; label: string; color: string }> = isMobile
@@ -534,8 +529,7 @@ export default function PolyrhythmSidebar({
         ) : null}
 
         <div data-scene-menu-content className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'space-y-2 px-2.5 py-2 pb-6' : 'space-y-3 px-4 py-3'}`}>
-          {isMobile ? (
-            <div className="rounded-xl border p-0.5" style={mobilePrimaryTabShellStyle}>
+          <div className="rounded-xl border p-0.5" style={mobilePrimaryTabShellStyle}>
               <div className="grid grid-cols-3 gap-1">
                 {tabMeta.map((tab) => {
                   const active = tab.id === activeTab;
@@ -558,39 +552,6 @@ export default function PolyrhythmSidebar({
                 })}
               </div>
             </div>
-          ) : (
-            <section
-              className="-mx-4 sticky top-0 z-10 space-y-2 border-y border-white/8 px-4 py-2.5"
-              style={{
-                background: 'linear-gradient(180deg, rgba(18,18,24,0.94), rgba(18,18,24,0.82))',
-                backdropFilter: 'blur(18px)',
-              }}
-            >
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {tabMeta.map((tab) => {
-                  const active = tab.id === activeTab;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.15em]"
-                      style={{
-                        background: active
-                          ? `linear-gradient(180deg, ${tab.color}22, ${tab.color}10)`
-                          : 'rgba(255,255,255,0.03)',
-                        borderColor: active ? `${tab.color}3d` : 'rgba(255,255,255,0.08)',
-                        color: active ? tab.color : 'rgba(255,255,255,0.58)',
-                        boxShadow: active ? `0 0 0 1px ${tab.color}26 inset, 0 10px 24px rgba(0,0,0,0.24)` : 'none',
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
 
           {activeTab === 'scenes' ? (
             <section className={isMobile ? "space-y-2" : "space-y-3"}>
@@ -1514,103 +1475,9 @@ export default function PolyrhythmSidebar({
           ) : null}
 
           {activeTab === 'export' ? (
-            <section data-scene-menu-export className={isMobile ? "space-y-2" : "space-y-3"}>
-              <div className="space-y-1">
-                <div className="text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Export</div>
-                <p className="text-[11px] leading-relaxed text-white/48">
-                  Take the current study into video, MIDI, or another device.
-                </p>
-              </div>
-
-              <div
-                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    MIDI Export
-                  </div>
-                  <InfoTip text="MIDI exports the rhythm as note events for a DAW. It does not export the app's synth sound." />
-                </div>
-                <div className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
-                  Send the Study rhythm to a DAW as notes.
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    ['per-layer', 'Per Layer'],
-                    ['merged', 'Merged'],
-                    ['selected-layer', selectedLayer ? selectedLayerIndex >= 0 ? `Layer ${selectedLayerIndex + 1}` : 'Selected' : 'Selected'],
-                  ] as const).map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        if (exportLocked) {
-                          promptLockedExport();
-                          return;
-                        }
-                        setExportMidiMode(mode);
-                      }}
-                      className="rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                      style={{
-                        background: exportMidiMode === mode ? 'rgba(127, 215, 255, 0.12)' : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${exportMidiMode === mode ? 'rgba(127, 215, 255, 0.24)' : 'rgba(255,255,255,0.1)'}`,
-                        color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.68)',
-                        ...lockedExportStyle,
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="text-[11px] leading-relaxed text-white/46">
-                  {exportMidiMode === 'per-layer'
-                    ? 'Each layer gets its own MIDI track over one shared cycle.'
-                    : exportMidiMode === 'merged'
-                      ? 'All layers are merged into one MIDI track over one shared cycle.'
-                      : 'Only the current selected layer is exported.'}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (exportLocked) {
-                      promptLockedExport();
-                      return;
-                    }
-                    onExportMidi(exportMidiMode);
-                    setExportNotice(
-                      exportMidiMode === 'per-layer'
-                        ? 'Study per-layer MIDI exported.'
-                        : exportMidiMode === 'merged'
-                          ? 'Study merged MIDI exported.'
-                          : 'Study selected-layer MIDI exported.',
-                    );
-                  }}
-                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
-                  style={{
-                    background: 'rgba(127, 215, 255, 0.08)',
-                    border: '1px solid rgba(127, 215, 255, 0.2)',
-                    color: '#7FD7FF',
-                    ...lockedExportStyle,
-                  }}
-                >
-                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
-                </button>
-              </div>
-
-              <div
-                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Video
-                  </div>
-                  <InfoTip text="Exports the Study canvas as a short MP4 when supported. If the browser records WebM first, the app converts it before download." />
-                </div>
-                <div className={isMobile ? "grid grid-cols-2 gap-1.5" : "grid grid-cols-[1fr,1fr,auto] gap-2"}>
+            <SceneExportMenu video={<div className="space-y-3"><div className="grid grid-cols-2 gap-2">
                   <select
-                    aria-label="Motion duration"
+                    aria-label="Video duration"
                     value={String(videoDuration)}
                     onChange={(event) => {
                       if (exportLocked) {
@@ -1629,7 +1496,7 @@ export default function PolyrhythmSidebar({
                     ))}
                   </select>
                   <select
-                    aria-label="Motion format"
+                    aria-label="Video format"
                     value={videoAspect}
                     onChange={(event) => {
                       if (exportLocked) {
@@ -1663,7 +1530,7 @@ export default function PolyrhythmSidebar({
                     }}
                     data-riff-video-export
                     disabled={isRecordingVideo}
-                    className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
+                    className="col-span-2 min-h-11 px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5 disabled:opacity-60"
                     style={{
                       background: 'rgba(51, 136, 255, 0.08)',
                       border: '1px solid rgba(51, 136, 255, 0.2)',
@@ -1673,20 +1540,70 @@ export default function PolyrhythmSidebar({
                   >
                     {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro</span> : isRecordingVideo ? 'Recording...' : 'Export Video'}
                   </button>
+                </div></div>} image={<ExportImageOptions onExport={(options) => { onExportPng(options); setExportNotice('Image exported.'); }} locked={exportLocked} onLocked={promptLockedExport} />} midi={<div className="space-y-3"><div className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
+                  Send the Study rhythm to a DAW as notes.
                 </div>
-              </div>
-
-              <div
-                className={isMobile ? "rounded-[14px] border p-2.5 space-y-2" : "rounded-[1.25rem] border p-3.5 space-y-3"}
-                style={exportCardStyle}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-mono uppercase tracking-[0.18em]" style={mobilePrimaryTitleStyle}>
-                    Scene file
-                  </div>
-                  <InfoTip text="Scene files save the editable setup, not just a picture. Use them to move a scene between devices." />
+<div className="grid grid-cols-3 gap-2">
+                  {([
+                    ['per-layer', 'Per Layer'],
+                    ['merged', 'Merged'],
+                    ['selected-layer', selectedLayer ? selectedLayerIndex >= 0 ? `Layer ${selectedLayerIndex + 1}` : 'Selected' : 'Selected'],
+                  ] as const).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        if (exportLocked) {
+                          promptLockedExport();
+                          return;
+                        }
+                        setExportMidiMode(mode);
+                      }}
+                      className="rounded-lg px-3 py-2 text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                      style={{
+                        background: exportMidiMode === mode ? 'rgba(127, 215, 255, 0.12)' : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${exportMidiMode === mode ? 'rgba(127, 215, 255, 0.24)' : 'rgba(255,255,255,0.1)'}`,
+                        color: exportMidiMode === mode ? '#7FD7FF' : 'rgba(255,255,255,0.68)',
+                        ...lockedExportStyle,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <button
+<div className="text-[11px] leading-relaxed text-white/46">
+                  {exportMidiMode === 'per-layer'
+                    ? 'Each layer gets its own MIDI track over one shared cycle.'
+                    : exportMidiMode === 'merged'
+                      ? 'All layers are merged into one MIDI track over one shared cycle.'
+                      : 'Only the current selected layer is exported.'}
+                </div>
+<button
+                  type="button"
+                  onClick={() => {
+                    if (exportLocked) {
+                      promptLockedExport();
+                      return;
+                    }
+                    onExportMidi(exportMidiMode);
+                    setExportNotice(
+                      exportMidiMode === 'per-layer'
+                        ? 'Study per-layer MIDI exported.'
+                        : exportMidiMode === 'merged'
+                          ? 'Study merged MIDI exported.'
+                          : 'Study selected-layer MIDI exported.',
+                    );
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
+                  style={{
+                    background: 'rgba(127, 215, 255, 0.08)',
+                    border: '1px solid rgba(127, 215, 255, 0.2)',
+                    color: '#7FD7FF',
+                    ...lockedExportStyle,
+                  }}
+                >
+                  {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export MIDI'}
+                </button></div>} scene={<div className="space-y-3"><button
                   type="button"
                   onClick={() => {
                     if (exportLocked) {
@@ -1706,7 +1623,7 @@ export default function PolyrhythmSidebar({
                 >
                   {exportLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Export</span> : 'Export Scene'}
                 </button>
-                <button
+<button
                   type="button"
                   onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : importInputRef.current?.click())}
                   className="w-full px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
@@ -1726,7 +1643,7 @@ export default function PolyrhythmSidebar({
                 >
                   {saveScenesLocked ? <span className="inline-flex items-center justify-center gap-2"><Lock size={12} /> Pro Import</span> : 'Import Scene'}
                 </button>
-                <input
+<input
                   ref={importInputRef}
                   type="file"
                   accept="application/json,.json"
@@ -1738,10 +1655,7 @@ export default function PolyrhythmSidebar({
                     }
                     event.target.value = '';
                   }}
-                />
-              </div>
-
-              {exportNotice ? (
+                /></div>}>{exportNotice ? (
                 <div
                   className="rounded-lg px-3 py-2 text-[10px] leading-relaxed"
                   style={{
@@ -1752,8 +1666,7 @@ export default function PolyrhythmSidebar({
                 >
                   {exportNotice}
                 </div>
-              ) : null}
-            </section>
+              ) : null}</SceneExportMenu>
           ) : null}
 
           {activeTab === 'account' ? (

@@ -1,3 +1,4 @@
+import SceneExportMenu from './SceneExportMenu';
 // ============================================================
 // Orbital Polymeter — Glassmorphism Sidebar
 // Tabs: Geometry, Orbits, Sound, Scenes, Export
@@ -184,7 +185,6 @@ export default function OrbitSidebar({
   };
   const [imageAspect, setImageAspect] = useState<'landscape' | 'square' | 'portrait' | 'story'>('portrait');
   const [imageScale, setImageScale] = useState<1 | 2 | 4>(2);
-  const [expandedExport, setExpandedExport] = useState<'video' | 'image' | 'midi' | 'scene' | null>(null);
   const saveScenesLocked = Boolean(lockedFeatures.saveScenes);
   const promptLockedSaveScenes = () => {
     onLockedFeature?.('save-scenes');
@@ -295,11 +295,6 @@ export default function OrbitSidebar({
   const soundSummaryCardStyle = {
     background: 'linear-gradient(180deg, rgba(80,130,190,0.14), rgba(80,130,190,0.045))',
     borderColor: 'rgba(136, 204, 255, 0.16)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
-  } as const;
-  const exportCardStyle = {
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025))',
-    borderColor: 'rgba(255, 170, 0, 0.1)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 34px rgba(0,0,0,0.12)',
   } as const;
   const mobileSceneCardStyle = {
@@ -511,17 +506,14 @@ export default function OrbitSidebar({
         {/* Tabs */}
         <div className={`${isMobile ? 'px-2.5 pt-2 pb-1' : 'px-4 pt-4 pb-2'} border-b border-white/5`}>
           <div
-            className={`${isMobile ? 'grid grid-cols-3 gap-1 p-1' : 'flex flex-wrap gap-1.5 p-1.5'} rounded-[1.25rem] border`}
-            style={isMobile ? mobilePrimaryTabShellStyle : {
-              background: 'rgba(255,255,255,0.028)',
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
+            className="grid grid-cols-3 gap-1 rounded-xl border p-0.5"
+            style={mobilePrimaryTabShellStyle}
           >
           {tabMeta.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-xl border text-center font-mono font-light transition-all duration-200 ${isMobile ? 'h-8 min-w-0 px-1.5 py-1 text-[10px]' : 'shrink-0 px-3 py-2.5 text-xs'}`}
+              className="h-8 min-w-0 rounded-[9px] border px-1.5 text-center text-[10px] font-mono font-light transition-all duration-200"
               style={{
                 color: activeTab === tab.key ? tab.activeColor : 'rgba(255, 255, 255, 0.4)',
                 borderColor: activeTab === tab.key ? `${tab.activeColor}36` : 'transparent',
@@ -1179,17 +1171,8 @@ export default function OrbitSidebar({
 
           {/* EXPORT TAB */}
           {activeTab === 'export' && (
-            <div data-scene-menu-export className="space-y-0">
-              <div className="pb-4 text-[12px] font-mono uppercase tracking-[0.22em] text-[#FFD166]">Export</div>
-
-              <div className="border-y border-white/10">
-                <button type="button" onClick={() => setExpandedExport((value) => value === 'video' ? null : 'video')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#12303d] text-[#8fd8ff]"><Video size={22} /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Video</strong><span className="mt-1 block text-[11px] text-white/50">Landscape, square, portrait, or Shorts</span></span>
-                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'video' ? 'rotate-90' : ''}`} />
-                </button>
-                {expandedExport === 'video' ? (
-                  <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+            <SceneExportMenu video={(
+                  <div className="grid grid-cols-2 gap-2">
                     <select aria-label="Video duration" value={String(videoDuration)} onChange={(event) => setVideoDuration(Number(event.target.value) as VideoExportDuration)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
                       {VIDEO_EXPORT_DURATIONS.map((duration) => <option key={duration.value} value={duration.value} style={{ background: '#11151c' }}>{duration.label}</option>)}
                     </select>
@@ -1200,15 +1183,8 @@ export default function OrbitSidebar({
                       {exportLocked ? 'Unlock video export' : isRecordingVideo ? 'Recording…' : 'Export video'}
                     </button>
                   </div>
-                ) : null}
-
-                <button type="button" onClick={() => setExpandedExport((value) => value === 'image' ? null : 'image')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#351925] text-[#ff76a8]"><Image size={22} /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Image</strong><span className="mt-1 block text-[11px] text-white/50">Save a high-resolution still</span></span>
-                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'image' ? 'rotate-90' : ''}`} />
-                </button>
-                {expandedExport === 'image' ? (
-                  <div className="grid grid-cols-2 gap-2 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+                )} image={(
+                  <div className="grid grid-cols-2 gap-2">
                     <select aria-label="Image format" value={imageAspect} onChange={(event) => setImageAspect(event.target.value as typeof imageAspect)} className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-[12px] text-white/80">
                       <option value="landscape" style={{ background: '#11151c' }}>Landscape</option><option value="square" style={{ background: '#11151c' }}>Square</option><option value="portrait" style={{ background: '#11151c' }}>Portrait</option><option value="story" style={{ background: '#11151c' }}>Shorts / Story</option>
                     </select>
@@ -1219,35 +1195,20 @@ export default function OrbitSidebar({
                       {exportLocked ? 'Unlock image export' : 'Export image'}
                     </button>
                   </div>
-                ) : null}
-
-                <button type="button" onClick={() => setExpandedExport((value) => value === 'midi' ? null : 'midi')} className="flex min-h-[74px] w-full items-center gap-4 border-b border-white/10 py-3 text-left">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#322a10] text-[#f0c75a]"><Music2 size={22} /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">MIDI</strong><span className="mt-1 block text-[11px] text-white/50">Send the rhythm to music software</span></span>
-                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'midi' ? 'rotate-90' : ''}`} />
-                </button>
-                {expandedExport === 'midi' ? (
-                  <div className="space-y-3 border-b border-white/10 bg-white/[0.015] px-3 py-4">
+                )} midi={(
+                  <div className="space-y-3">
                     <div className="grid grid-cols-3 gap-2">{([4, 8, 16] as const).map((bars) => <button key={bars} type="button" onClick={() => setMidiBars(bars)} className="min-h-10 rounded-lg border text-[12px]" style={{ background: midiBars === bars ? 'rgba(240,199,90,0.12)' : 'rgba(255,255,255,0.03)', borderColor: midiBars === bars ? 'rgba(240,199,90,0.3)' : 'rgba(255,255,255,0.1)', color: midiBars === bars ? '#f0c75a' : 'rgba(255,255,255,0.6)' }}>{bars} bars</button>)}</div>
                     <button type="button" onClick={() => { if (exportLocked) { promptLockedExport(); return; } onExportMidi({ bars: midiBars }); setExportNotice(`MIDI exported for ${midiBars} bars.`); }} className="min-h-11 w-full rounded-lg border border-[#f0c75a]/25 bg-[#f0c75a]/10 text-[13px] font-medium text-[#f0d889]">{exportLocked ? 'Unlock MIDI export' : 'Export MIDI'}</button>
                   </div>
-                ) : null}
-
-                <button type="button" onClick={() => setExpandedExport((value) => value === 'scene' ? null : 'scene')} className="flex min-h-[74px] w-full items-center gap-4 py-3 text-left">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#123225] text-[#58e5b1]"><FileJson size={22} /></span>
-                  <span className="min-w-0 flex-1"><strong className="block text-[12px] font-mono uppercase tracking-[0.14em] text-white/85">Editable scene</strong><span className="mt-1 block text-[11px] text-white/50">Move this setup to another device</span></span>
-                  <ChevronRight size={20} className={`shrink-0 text-white/34 transition-transform ${expandedExport === 'scene' ? 'rotate-90' : ''}`} />
-                </button>
-                {expandedExport === 'scene' ? (
-                  <div className="grid grid-cols-2 gap-2 border-t border-white/10 bg-white/[0.015] px-3 py-4">
+                )} scene={(
+                  <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => { if (exportLocked) { promptLockedExport(); return; } onExportCurrentScene(); setExportNotice('Editable scene exported.'); }} className="min-h-11 rounded-lg border border-[#58e5b1]/25 bg-[#58e5b1]/10 text-[12px] font-medium text-[#b9f8dc]">Export scene</button>
                     <button type="button" onClick={() => importInputRef.current?.click()} className="min-h-11 rounded-lg border border-white/10 bg-white/[0.04] text-[12px] font-medium text-white/70">Import scene</button>
                   </div>
-                ) : null}
-              </div>
-              <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportScene(file); event.target.value = ''; }} />
-              {exportNotice ? <div className="pt-4 text-center text-[12px] text-white/45">{exportNotice}</div> : null}
-              <div
+                )}>
+<input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportScene(file); event.target.value = ''; }} />
+{exportNotice ? <div className="pt-4 text-center text-[12px] text-white/45">{exportNotice}</div> : null}
+<div
                 className={isMobile ? 'rounded-[14px] border p-2.5 space-y-2' : 'rounded-[1.25rem] border p-3.5 space-y-3'}
                 style={{
                   background: 'rgba(255,255,255,0.03)',
@@ -1311,7 +1272,7 @@ export default function OrbitSidebar({
                   </div>
                 )}
               </div>
-            </div>
+</SceneExportMenu>
           )}
 
           {/* SOUND TAB */}

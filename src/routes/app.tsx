@@ -1,3 +1,4 @@
+import PatternActionIcon from '../components/PatternActionIcon';
 import RiffShapeEditor from '../components/RiffShapeEditor';
 import RiffSoundOptions from '../components/RiffSoundOptions';
 import { Fragment } from 'react';
@@ -1041,9 +1042,9 @@ const DESKTOP_START_GUIDE: StartGuideStep[] = [
     target: 'desktop-tools',
     title: 'Tools',
     kicker: 'Orbit Guide',
-    text: 'Tools holds optional adjustments once the orbit is readable. The quick buttons switch between Clockwise and Alternate motion. Open the panel for Playback, Motion, Overlays, Canvas, and Sound.',
+    text: 'Tools holds optional adjustments once the orbit is readable. The quick buttons switch between Clockwise and Alternate motion. Open the panel for Playback, Motion, Read Aids, Canvas, and Sound.',
     doThis: 'Use Motion when the counts are good but the movement needs a different feel.',
-    notice: 'Overlays, Canvas, and Sound change presentation. They do not rewrite the orbit counts.',
+    notice: 'Read Aids, Canvas, and Sound change presentation. They do not rewrite the orbit counts.',
   },
   {
     target: 'desktop-audio',
@@ -1352,10 +1353,10 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
     actionId: 'riff-open-ending',
   },
   {
-    target: 'riff-desktop-scenes',
+    target: 'riff-desktop-menu',
     title: 'Scenes',
     kicker: 'Riff Guide',
-    text: 'Scenes are ready-made examples. Free loads built-in riffs, Saved holds your work, and Random creates a new starting point.',
+    text: 'Open the main menu for Scenes. Free loads built-in riffs, Saved holds your work, and Pro offers more examples.',
     doThis: 'Use Random when you want a fresh example quickly.',
     notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
     actionLabel: 'Try Random',
@@ -1382,7 +1383,7 @@ const DESKTOP_RIFF_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'riff-desktop-view',
-    title: 'Overlays',
+    title: 'Read Aids',
     kicker: 'Riff Guide',
     text: 'Overlays add numbers, start lines, and shape weight. They help you see starts, hits, and alignment points.',
     doThis: 'Turn Numbers or Start Lines on while learning, then hide them once the pattern feels familiar.',
@@ -1709,10 +1710,10 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
     success: 'Step editor ready.',
   },
   {
-    target: 'study-desktop-scenes',
+    target: 'study-desktop-menu',
     title: 'Scenes',
     kicker: 'Study Guide',
-    text: 'Scenes are ready-made studies. Free loads built-in examples, Saved holds your work, and Random creates a new starting point.',
+    text: 'Open the main menu for Scenes. Free loads built-in studies, Saved holds your work, and Pro offers more examples.',
     doThis: 'Use Random when you want a fresh example quickly.',
     notice: 'Random is the fast beginner move. Remix and Random+ are Pro options for branching later.',
   },
@@ -1734,7 +1735,7 @@ const DESKTOP_STUDY_GUIDE: StartGuideStep[] = [
   },
   {
     target: 'study-desktop-view',
-    title: 'Overlays',
+    title: 'Read Aids',
     kicker: 'Study Guide',
     text: 'Overlays add visual labels and ghost steps. They help you see hits, empty spaces, and alignment points.',
     doThis: 'Turn Numbers on while learning, then hide them when the pattern feels familiar.',
@@ -7950,7 +7951,7 @@ function OrbitalPolymeter() {
   const [studySoundCategory, setStudySoundCategory] = useState(0);
   const [studyCanvasQuickPanel, setStudyCanvasQuickPanel] = useState<null | 'audio' | 'canvas' | 'read'>(null);
   const [studyAudioPanelOpen, setStudyAudioPanelOpen] = useState(false);
-  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'overlay' | 'canvas'>(null);
+  const [polyrhythmUtilityPanel, setPolyrhythmUtilityPanel] = useState<null | 'audio' | 'sound' | 'overlay' | 'canvas'>(null);
   const [polyrhythmMobileSection, setPolyrhythmMobileSection] =
     useState<null | 'edit' | 'audio' | 'scenes' | 'canvas'>(null);
   const [polyrhythmMobileSceneTab, setPolyrhythmMobileSceneTab] =
@@ -8011,7 +8012,7 @@ function OrbitalPolymeter() {
   const [selectedRiffLandingSlot, setSelectedRiffLandingSlot] = useState<number | null>(null);
   const [riffCycleRestartToken, setRiffCycleRestartToken] = useState(0);
   const [riffQuickPanel, setRiffQuickPanel] = useState<null | 'bar' | 'phrase' | 'return'>(null);
-  const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'scenes' | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
+  const [riffUtilityPanel, setRiffUtilityPanel] = useState<null | 'audio' | 'sound' | 'roll' | 'overlay' | 'canvas'>(null);
   const [riffAudioPanelOpen, setRiffAudioPanelOpen] = useState(false);
   const [orbitAudioMixOpen, setOrbitAudioMixOpen] = useState(false);
   const [riffAudioMixMode, setRiffAudioMixMode] = useState<'volume' | 'reverb'>('volume');
@@ -12202,7 +12203,6 @@ function OrbitalPolymeter() {
         currentGuideStep.target === 'riff-desktop-audio' ||
         currentGuideStep.target === 'riff-desktop-sound' ||
         currentGuideStep.target === 'riff-desktop-view' ||
-        currentGuideStep.target === 'riff-desktop-scenes' ||
         currentGuideStep.target === 'riff-desktop-menu'
       )
     ) {
@@ -12406,9 +12406,7 @@ function OrbitalPolymeter() {
       setRiffUtilityPanel('overlay');
       return;
     }
-    if (currentGuideStep.target === 'riff-desktop-scenes') {
-      setRiffUtilityPanel('scenes');
-    }
+
   }, [appSurface, currentGuideStep, handleSetRiffEditMode, helpOpen, isMobile, riffDesktopPatternEditorOpen, riffMobileEditorOpen]);
 
   useEffect(() => {
@@ -12442,7 +12440,6 @@ function OrbitalPolymeter() {
     if (
       !isMobile &&
       (
-        currentGuideStep.target === 'study-desktop-scenes' ||
         currentGuideStep.target === 'study-desktop-audio' ||
         currentGuideStep.target === 'study-desktop-sound' ||
         currentGuideStep.target === 'study-desktop-view' ||
@@ -12522,10 +12519,7 @@ function OrbitalPolymeter() {
       }
       return;
     }
-    if (currentGuideStep.target === 'study-desktop-scenes') {
-      setPolyrhythmUtilityPanel('scenes');
-      return;
-    }
+
     if (currentGuideStep.target === 'study-desktop-audio') {
       setPolyrhythmUtilityPanel('audio');
       return;
@@ -15872,8 +15866,7 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setSidebarOpen(true);
         } else {
-          setPolyrhythmDesktopUtilityCollapsed(false);
-          setPolyrhythmUtilityPanel('scenes');
+          setSidebarOpen(true);
         }
         return;
       case 'study-toggle-play':
@@ -15913,8 +15906,7 @@ function OrbitalPolymeter() {
         if (isMobile) {
           setSidebarOpen(true);
         } else {
-          setRiffDesktopUtilityCollapsed(false);
-          setRiffUtilityPanel('scenes');
+          setSidebarOpen(true);
         }
         return;
       case 'riff-toggle-play':
@@ -16402,7 +16394,7 @@ function OrbitalPolymeter() {
                   <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartFlow}>
                     Restart
                   </StudyShellButton>
-                  <StudyShellButton tone="blue" highlighted icon={<Shuffle size={15} />} onClick={handleRandomFlow}>
+                  <StudyShellButton tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={handleRandomFlow}>
                     Random
                   </StudyShellButton>
                 </div>
@@ -16495,7 +16487,7 @@ function OrbitalPolymeter() {
                   <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartFlow}>
                     Restart
                   </StudyShellButton>
-                  <StudyShellButton tone="blue" highlighted icon={<Shuffle size={15} />} onClick={handleRandomFlow}>
+                  <StudyShellButton tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={handleRandomFlow}>
                     Random
                   </StudyShellButton>
                 </div>
@@ -16853,7 +16845,7 @@ function OrbitalPolymeter() {
                 <StudyShellButton size="compact" tone="amber" highlighted icon={<RotateCcw size={14} />} onClick={handleRestartFlow}>
                   Restart
                 </StudyShellButton>
-                <StudyShellButton size="compact" tone="blue" highlighted icon={<Shuffle size={14} />} onClick={handleRandomFlow}>
+                <StudyShellButton size="compact" tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={handleRandomFlow}>
                   Random
                 </StudyShellButton>
                 <StudyShellButton size="compact" tone="pink" highlighted={!soundEditingLocked} onClick={() => handleFlowSoundChange(flowNextSound.id)} locked={soundEditingLocked} onLockedClick={() => openProPrompt('sound-editing')}>
@@ -16875,10 +16867,10 @@ function OrbitalPolymeter() {
                 <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartFlow}>
                   Restart
                 </StudyShellButton>
-                <StudyShellButton tone="blue" highlighted icon={<Shuffle size={15} />} onClick={handleRandomFlow}>
+                <StudyShellButton tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={handleRandomFlow}>
                   Random
                 </StudyShellButton>
-                <StudyShellButton tone="neutral" highlighted icon={<Zap size={15} />} onClick={handleRemixFlow} style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}>
+                <StudyShellButton tone="neutral" highlighted icon={<PatternActionIcon action="remix" size={15} />} onClick={handleRemixFlow} style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}>
                   Remix
                 </StudyShellButton>
                 <StudyShellButton tone="amber" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPlusFlow}>
@@ -19036,7 +19028,7 @@ function OrbitalPolymeter() {
                       tone="amber"
                       highlighted
                       onClick={() => handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)}
-                    >
+                     icon={<Contrast size={13} aria-hidden="true" />}>
                       Invert
                     </StudyShellButton>
                     <StudyShellButton
@@ -19044,7 +19036,7 @@ function OrbitalPolymeter() {
                       tone="red"
                       highlighted
                       onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}
-                    >
+                     icon={<Eraser size={13} aria-hidden="true" />}>
                       Clear
                     </StudyShellButton>
                     <StudyShellButton
@@ -19140,201 +19132,7 @@ function OrbitalPolymeter() {
                   <ChevronDown size={14} />
                 </button>
               </div>
-              <div
-                data-guide="study-desktop-scenes"
-                className="rounded-2xl border"
-                style={{
-                  order: 5,
-                  ...getUtilitySectionStyle(polyrhythmUtilityPanel === 'scenes', '#B6A0FF'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setPolyrhythmUtilityPanel((current) => (current === 'scenes' ? null : 'scenes'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'scenes', '#B6A0FF')}
-                  >
-                    Scenes
-                  </div>
-                  <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'scenes', '#B6A0FF')}>
-                    {polyrhythmUtilityPanel === 'scenes' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {polyrhythmUtilityPanel === 'scenes' ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Scenes',
-                      'Load a clear relationship first, then adjust it once the alignment makes sense.',
-                      '#B6A0FF',
-                      'Use scenes as reference points: simple ratios, saved studies, or generated starts that reveal how different cycles line up.',
-                    )}
-                    <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.09)' }}>
-                      {([
-                        { key: 'standard', label: 'Free', color: '#88CCFF' },
-                        { key: 'saved', label: 'Saved', color: '#72F1B8' },
-                        { key: 'pro', label: 'Pro', color: '#FFAA00' },
-                      ] as const).map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          onClick={() => setPolyrhythmMobileSceneTab(tab.key)}
-                          className="flex-1 rounded-xl px-2 py-2 text-[10px] font-mono uppercase tracking-[0.13em]"
-                          style={{
-                            background: polyrhythmMobileSceneTab === tab.key ? `${tab.color}14` : 'transparent',
-                            border: `1px solid ${polyrhythmMobileSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                            color: polyrhythmMobileSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
-                          }}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                    {polyrhythmMobileSceneTab !== 'saved' ? (
-                      <>
-                        <div className="flex items-center gap-1.5 rounded-[1.15rem] border p-0.5" style={{ background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)' }}>
-                          {groupedPolyrhythmDesktopPresets.map(({ group }) => (
-                            <button
-                              key={group}
-                              type="button"
-                              onClick={() => {
-                                setPolyrhythmMobileSceneGroup(group);
-                              }}
-                              className="flex-1 rounded-[0.9rem] px-2 py-1.5 text-[8.5px] font-mono uppercase tracking-[0.11em]"
-                              style={{
-                                background: effectivePolyrhythmSceneGroup === group ? 'rgba(114,241,184,0.1)' : 'transparent',
-                                border: `1px solid ${effectivePolyrhythmSceneGroup === group ? 'rgba(114,241,184,0.2)' : 'transparent'}`,
-                                color: effectivePolyrhythmSceneGroup === group ? '#72F1B8' : 'rgba(255,255,255,0.42)',
-                              }}
-                            >
-                              {POLYRHYTHM_PRESET_GROUP_META[group].label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="space-y-1.5">
-                          {filteredPolyrhythmDesktopPresets.slice(0, effectivePolyrhythmSceneGroup === 'grooves' ? undefined : 5).map((preset) => {
-                            const active = preset.id === activePolyrhythmPresetId;
-                            const locked = Boolean(preset.pro && proScenesLocked);
-                            return (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                onClick={() => {
-                                  if (locked) {
-                                    openProPrompt('pro-scenes');
-                                    return;
-                                  }
-                                  handleLoadPolyrhythmPreset(preset.id);
-                                }}
-                                className={`${utilitySceneRowClass} relative`}
-                                style={{
-                                  background: active ? 'rgba(114,241,184,0.1)' : 'rgba(255,255,255,0.03)',
-                                  borderColor: active ? 'rgba(114,241,184,0.22)' : 'rgba(255,255,255,0.08)',
-                                  filter: locked ? 'grayscale(0.45)' : undefined,
-                                }}
-                              >
-                                {locked ? (
-                                  <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full border border-white/12 bg-black/45 px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-white/70">
-                                    <Lock size={8} strokeWidth={2.4} /> Pro
-                                  </span>
-                                ) : null}
-                                <div className="flex items-center gap-2.5">
-                                  <div className={utilitySceneThumbClass}>
-                                    <PolyrhythmSceneThumbnail preset={preset} className="h-full w-full" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.82)' }}>
-                                        {preset.name}
-                                      </div>
-                                      {active ? (
-                                        <span className="rounded-lg border border-[#72F1B8]/30 bg-[#72F1B8]/12 px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#72F1B8]">
-                                          Loaded
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-1 text-[9px] text-white/42">
-                                      {preset.group === 'grooves' ? `${preset.study.layers[0].beatCount} steps · ${preset.study.bpm} BPM` : `${preset.study.layers.map((layer) => layer.beatCount).join(':')} · ${preset.study.layers.length} layers`}
-                                    </div>
-                                    <div className="mt-1 text-[10px] leading-snug text-white/50">{preset.summary ?? preset.description}
-                                    </div>
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : null}
-                    {polyrhythmMobileSceneTab === 'saved' ? (
-                      savedPolyrhythmScenes.some((scene) => !scene.deletedAt) ? (
-                        <div className="space-y-1.5">
-                          {savedPolyrhythmScenes.filter((scene) => !scene.deletedAt).slice(0, 5).map((scene) => {
-                            const active = scene.id === activePolyrhythmSavedSceneId;
-                            const presetForThumbnail: PolyrhythmStudyPreset = {
-                              id: scene.id,
-                              name: scene.name,
-                              description: scene.description,
-                              group: 'two-layer',
-                              study: scene.study,
-                            };
-                            return (
-                              <button
-                                key={scene.id}
-                                type="button"
-                                onClick={() => handleLoadSavedPolyrhythmScene(scene.id)}
-                                className={utilitySceneRowClass}
-                                style={{
-                                  background: active ? 'rgba(0,255,170,0.09)' : 'rgba(255,255,255,0.03)',
-                                  borderColor: active ? 'rgba(0,255,170,0.22)' : 'rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <div className={utilitySceneThumbClass}>
-                                    <PolyrhythmSceneThumbnail preset={presetForThumbnail} className="h-full w-full" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.82)' }}>
-                                        {scene.name}
-                                      </div>
-                                      {active ? (
-                                        <span className="rounded-lg border border-[#00FFAA]/30 bg-[#00FFAA]/12 px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#00FFAA]">
-                                          Loaded
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-1 text-[9px] text-white/42">
-                                      Saved study
-                                    </div>
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3 text-[10px] leading-relaxed text-white/42">
-                          No saved scenes yet.
-                        </div>
-                      )
-                    ) : null}
-                    <div className="grid grid-cols-3 gap-2">
-                      <StudyShellButton size="compact" tone="blue" highlighted onClick={handleRandomPolyrhythmStudy}>
-                        Random
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" highlighted onClick={handleRemixPolyrhythmStudy} locked={remixLocked} style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}>
-                        Remix
-                      </StudyShellButton>
-                      <StudyShellButton size="compact" tone="amber" highlighted onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
-                        Random+
-                      </StudyShellButton>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+
               <div
                 data-guide="study-desktop-audio"
                 className="rounded-2xl border"
@@ -19537,7 +19335,7 @@ function OrbitalPolymeter() {
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
                     style={getUtilityTitleStyle(polyrhythmUtilityPanel === 'overlay', '#FFB86B')}
                   >
-                    Overlays
+                    Read Aids
                   </div>
                   <div className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border" style={getUtilityChevronStyle(polyrhythmUtilityPanel === 'overlay', '#FFB86B')}>
                     {polyrhythmUtilityPanel === 'overlay' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -19546,7 +19344,7 @@ function OrbitalPolymeter() {
                 {polyrhythmUtilityPanel === 'overlay' ? (
                   <div className={utilityAccordionBodyClass}>
                     {renderUtilityOpenIntro(
-                      'Overlays',
+                      'Read Aids',
                       'Reveal the hidden grid when your eye needs help finding where pulses agree.',
                       '#FFB86B',
                       'Shared Grid gives every layer the same editable step count. Numbers adds step counts. Split View separates layers, and Contour curves the shapes between hits.',
@@ -19583,6 +19381,7 @@ function OrbitalPolymeter() {
                         highlighted={Boolean(polyrhythmStudy.showStepLabels)}
                         aria-pressed={Boolean(polyrhythmStudy.showStepLabels)}
                         onClick={handleTogglePolyrhythmStepLabels}
+                        icon={<Hash size={13} />}
                         className={utilityButtonClass}
                       >
                         Numbers
@@ -20051,7 +19850,7 @@ function OrbitalPolymeter() {
 	                            highlighted
 	                            className="w-full"
 	                            onClick={() => handleInvertPolyrhythmLayerSteps(selectedPolyrhythmLayer.id)}
-	                          >
+	                           icon={<Contrast size={13} aria-hidden="true" />}>
 	                            Invert
 	                          </StudyShellButton>
 	                          <StudyShellButton
@@ -20061,7 +19860,7 @@ function OrbitalPolymeter() {
 	                            highlighted
 	                            className="w-full"
 	                            onClick={() => handleClearPolyrhythmLayer(selectedPolyrhythmLayer.id)}
-	                          >
+	                           icon={<Eraser size={13} aria-hidden="true" />}>
 	                            Clear
 	                          </StudyShellButton>
 	                        </div>
@@ -20231,24 +20030,24 @@ function OrbitalPolymeter() {
                 <StudyShellButton tone="amber" highlighted icon={<RotateCcw size={15} />} onClick={handleRestartPolyrhythmTransport}>
                   Restart
                 </StudyShellButton>
-                <StudyShellButton tone="blue" highlighted icon={<Shuffle size={15} />} onClick={() => {
+                <StudyShellButton tone="blue" highlighted icon={<PatternActionIcon action="random" size={15} />} onClick={() => {
                   handleRandomPolyrhythmStudy();
                   recordTutorialEvent('study-random');
                 }}>
                   Random
                 </StudyShellButton>
+                <StudyShellButton tone="amber" highlighted icon={<PatternActionIcon action="random-plus" size={15} />} onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
+                  Random+
+                </StudyShellButton>
                 <StudyShellButton
                   tone="neutral"
                   highlighted
-                  icon={<Zap size={15} />}
+                  icon={<PatternActionIcon action="remix" size={15} />}
                   onClick={handleRemixPolyrhythmStudy}
                   locked={remixLocked}
                   style={{ background: 'rgba(182,160,255,0.14)', borderColor: 'rgba(182,160,255,0.3)', color: '#B6A0FF', boxShadow: '0 0 0 1px rgba(182,160,255,0.16) inset' }}
                 >
                   Remix
-                </StudyShellButton>
-                <StudyShellButton tone="amber" highlighted icon={<Shuffle size={15} />} onClick={handleRandomPlusPolyrhythmStudy} locked={randomPlusLocked}>
-                  Random+
                 </StudyShellButton>
               </div>
 
@@ -24241,7 +24040,7 @@ function OrbitalPolymeter() {
                     className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
                     style={getUtilityTitleStyle(riffUtilityPanel === 'overlay', '#FFB86B')}
                   >
-                    Overlays
+                    Read Aids
                   </div>
                   <div
                     className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
@@ -24253,7 +24052,7 @@ function OrbitalPolymeter() {
                 {riffUtilityPanel === 'overlay' ? (
 	                  <div className={utilityAccordionBodyClass}>
                     {renderUtilityOpenIntro(
-                      'Overlays',
+                      'Read Aids',
                       'Add just enough reference to see how the phrase turns against the bar.',
                       '#FFB86B',
                       'Numbers, start lines, and shape weight help reveal displacement without changing any hits.',
@@ -24273,7 +24072,7 @@ function OrbitalPolymeter() {
 	                          tone="amber"
 	                          highlighted={Boolean(riffCycleStudy.showStepLabels) && !riffCycleStudy.showCountLabels}
 	                          onClick={handleToggleRiffStepLabels}
-	                          icon={<span className="text-[10px] leading-none">#</span>}
+	                          icon={<Hash size={13} />}
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Numbers
@@ -24339,7 +24138,7 @@ function OrbitalPolymeter() {
 	                          tone="green"
 	                          highlighted={Boolean(riffCycleStudy.showPhraseFill)}
 	                          onClick={handleToggleRiffPhraseFill}
-	                          icon={<Palette size={12} strokeWidth={2.2} />}
+	                          icon={<PaintBucket size={12} strokeWidth={1.5} />}
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
 	                          Fill
@@ -24362,7 +24161,7 @@ function OrbitalPolymeter() {
 	                          icon={<CircleDot size={12} strokeWidth={2.2} />}
 	                          className={`${utilityButtonClass} gap-1.5`}
 	                        >
-	                          Groupings
+	                          Grouping
 	                        </StudyShellButton>
 	                      </div>
 	                    </div>
@@ -24424,231 +24223,7 @@ function OrbitalPolymeter() {
                   </div>
                 ) : null}
               </div>
-              <div
-                data-guide="riff-desktop-scenes"
-                className="rounded-2xl border"
-                style={{
-                  order: 6,
-                  ...getUtilitySectionStyle(riffUtilityPanel === 'scenes', '#B6A0FF'),
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setRiffUtilityPanel((current) => (current === 'scenes' ? null : 'scenes'))}
-                  className={utilityAccordionButtonClass}
-                >
-                  <div
-                    className="text-[11px] font-mono font-semibold uppercase tracking-[0.2em]"
-                    style={getUtilityTitleStyle(riffUtilityPanel === 'scenes', '#B6A0FF')}
-                  >
-                    Scenes
-                  </div>
-                  <div
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border text-white/56"
-                    style={getUtilityChevronStyle(riffUtilityPanel === 'scenes', '#B6A0FF')}
-                  >
-                    {riffUtilityPanel === 'scenes' ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </button>
-                {riffUtilityPanel === 'scenes' ? (
-                  <div className={utilityAccordionBodyClass}>
-                    {renderUtilityOpenIntro(
-                      'Scenes',
-                      'Start from a groove shape, then edit the phrase once the motion feels right.',
-                      '#B6A0FF',
-                      'Scenes are shortcuts into displacement ideas: presets, saved riffs, and generators that already have a phrase/frame relationship.',
-                    )}
-                    <div className="flex items-center gap-2 rounded-2xl border p-1" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
-                      {([
-                        { key: 'standard', label: 'Free', color: '#88CCFF' },
-                        { key: 'saved', label: 'Saved', color: '#72F1B8' },
-                        { key: 'pro', label: 'Pro', color: '#FFAA00' },
-                      ] as const).map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          onClick={() => setRiffMobileSceneTab(tab.key)}
-                          className="flex-1 rounded-xl px-2 py-2 text-[10px] font-mono uppercase tracking-[0.13em]"
-                          style={{
-                            background: riffMobileSceneTab === tab.key ? `${tab.color}14` : 'transparent',
-                            border: `1px solid ${riffMobileSceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                            color: riffMobileSceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
-                          }}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-                    <StudyShellButton
-                      tone="green"
-                      highlighted
-                      onClick={handleSaveRiffCycleScene}
-                      locked={saveScenesLocked}
-                      onLockedClick={() => openProPrompt('save-scenes')}
-                      className={`w-full ${utilityButtonClass}`}
-                    >
-                      Save Scene
-                    </StudyShellButton>
-                    {riffMobileSceneTab === 'standard' ? (
-                      <div className="space-y-1.5">
-                        {RIFF_CYCLE_PRESETS.filter((preset) => !preset.pro).slice(0, 5).map((preset) => {
-                          const active = activeRiffCyclePresetId === preset.id;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => handleLoadRiffCyclePreset(preset.id)}
-                              className={utilitySceneRowClass}
-                              style={{
-                                background: active ? `${preset.study.riff.color}10` : 'rgba(255,255,255,0.03)',
-                                borderColor: active ? `${preset.study.riff.color}34` : 'rgba(255,255,255,0.08)',
-                              }}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <div className={utilitySceneThumbClass}>
-                                  <RiffSceneThumbnail preset={preset} className="h-full w-full" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? preset.study.riff.color : 'rgba(255,255,255,0.82)' }}>
-                                      {preset.name}
-                                    </div>
-                                    {active ? (
-                                      <span
-                                        className="rounded-lg border px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
-                                        style={{
-                                          borderColor: `${preset.study.riff.color}36`,
-                                          background: `${preset.study.riff.color}16`,
-                                          color: preset.study.riff.color,
-                                        }}
-                                      >
-                                        Loaded
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-1 text-[9px] leading-snug text-white/42">
-                                    {preset.description}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {riffMobileSceneTab === 'saved' ? (
-                      savedRiffCycleScenes.some((scene) => !scene.deletedAt) ? (
-                        <div className="space-y-1.5">
-                          {savedRiffCycleScenes.filter((scene) => !scene.deletedAt).slice(0, 5).map((scene) => {
-                            const active = scene.id === activeRiffCycleSavedSceneId;
-                            const presetForThumbnail: RiffCyclePreset = {
-                              id: scene.id,
-                              name: scene.name,
-                              description: scene.description,
-                              study: scene.study,
-                            };
-                            return (
-                              <button
-                                key={scene.id}
-                                type="button"
-                                onClick={() => handleLoadSavedRiffCycleScene(scene.id)}
-                                className={utilitySceneRowClass}
-                                style={{
-                                  background: active ? 'rgba(0,255,170,0.09)' : 'rgba(255,255,255,0.03)',
-                                  borderColor: active ? 'rgba(0,255,170,0.22)' : 'rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <div className={utilitySceneThumbClass}>
-                                    <RiffSceneThumbnail preset={presetForThumbnail} className="h-full w-full" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? '#72F1B8' : 'rgba(255,255,255,0.82)' }}>
-                                        {scene.name}
-                                      </div>
-                                      {active ? (
-                                        <span className="rounded-lg border border-[#00FFAA]/30 bg-[#00FFAA]/12 px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#00FFAA]">
-                                          Loaded
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-1 text-[9px] text-white/42">
-                                      {scene.study.riff.stepCount} steps
-                                    </div>
-                                    {getSavedRiffCellNames(scene.study) ? (
-                                      <div className="mt-1 truncate text-[9px] font-mono tracking-[0.08em] text-white/48">
-                                        {getSavedRiffCellNames(scene.study)}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3 text-[10px] leading-relaxed text-white/42">
-                          No saved scenes yet.
-                        </div>
-                      )
-                    ) : null}
-                    {riffMobileSceneTab === 'pro' ? (
-                      <div className="space-y-1.5">
-                        {RIFF_CYCLE_PRESETS.filter((preset) => preset.pro).slice(0, 5).map((preset) => {
-                          const active = activeRiffCyclePresetId === preset.id;
-                          const locked = preset.pro && proScenesLocked;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => handleLoadRiffCyclePreset(preset.id)}
-                              className={`${utilitySceneRowClass} relative`}
-                              style={{
-                                background: active ? `${preset.study.riff.color}12` : 'rgba(255,170,0,0.04)',
-                                borderColor: active ? `${preset.study.riff.color}36` : 'rgba(255,170,0,0.12)',
-                              }}
-                            >
-                              {locked ? (
-                                <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full border border-[#FFD166]/20 bg-black/45 px-2 py-1 text-[8px] font-mono uppercase tracking-[0.12em] text-[#FFD166]">
-                                  <Lock size={8} strokeWidth={2.4} /> Pro
-                                </span>
-                              ) : null}
-                              <div className="flex items-center gap-2.5">
-                                <div className={utilitySceneThumbClass}>
-                                  <RiffSceneThumbnail preset={preset} className="h-full w-full" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="min-w-0 truncate text-[10px] font-mono uppercase tracking-[0.14em]" style={{ color: active ? preset.study.riff.color : 'rgba(255,255,255,0.82)' }}>
-                                      {preset.name}
-                                    </div>
-                                    {active ? (
-                                      <span
-                                        className="rounded-lg border px-1.5 py-1 text-[8px] font-mono uppercase tracking-[0.12em]"
-                                        style={{
-                                          borderColor: `${preset.study.riff.color}36`,
-                                          background: `${preset.study.riff.color}16`,
-                                          color: preset.study.riff.color,
-                                        }}
-                                      >
-                                        Loaded
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-1 text-[9px] text-white/42">
-                                    {preset.study.riff.stepCount} steps
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+
             </StudyShellPremiumPanel>
           </div>
           )
@@ -25560,15 +25135,24 @@ function OrbitalPolymeter() {
                 <StudyShellButton
                   tone="blue"
                   highlighted
-                  icon={<Shuffle size={15} />}
+                  icon={<PatternActionIcon action="random" size={15} />}
                   onClick={handleRandomRiffCycleStudy}
                 >
                   Random
                 </StudyShellButton>
                 <StudyShellButton
+                  tone="amber"
+                  highlighted
+                  icon={<PatternActionIcon action="random-plus" size={15} />}
+                  onClick={handleRandomPlusRiffCycleStudy}
+                  locked={randomPlusLocked}
+                >
+                  Random+
+                </StudyShellButton>
+                <StudyShellButton
                   tone="neutral"
                   highlighted
-                  icon={<Zap size={15} />}
+                  icon={<PatternActionIcon action="remix" size={15} />}
                   onClick={handleRemixRiffCycleStudy}
                   locked={remixLocked}
                   style={{
@@ -25579,15 +25163,6 @@ function OrbitalPolymeter() {
                   }}
                 >
                   Remix
-                </StudyShellButton>
-                <StudyShellButton
-                  tone="amber"
-                  highlighted
-                  icon={<Shuffle size={15} />}
-                  onClick={handleRandomPlusRiffCycleStudy}
-                  locked={randomPlusLocked}
-                >
-                  Random+
                 </StudyShellButton>
               </div>
 

@@ -1,8 +1,9 @@
+import { createStudyExportScheduler } from './studyExportScheduler';
 import { getStudySectionLayers } from './polyrhythmStudy';
 import { SCALE_PRESETS } from './audioEngine';
 import { getStudyInstrumentSample, getStudyInstrumentLevel, isStudyInstrument, type StudyInstrument } from './studyInstruments';
 import { getStudyPitch, getStudySequencePitches } from './studyPitch';
-import { type StudyLayerVoice, getPlaybackStepIndex, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
+import { type StudyLayerVoice, type PolyrhythmSoundSettings, type PolyrhythmStudy } from './polyrhythmStudy';
 
 let audioContext: AudioContext | null = null;
 let masterBus: StudyOutputBus | null = null;
@@ -715,10 +716,24 @@ export function triggerPolyrhythmBarMarker(atTime?: number, target?: VoiceTarget
   source.start(Math.max(atTime ?? 0, context.currentTime + 0.008));
 }
 
+const exportSessions = new WeakMap<MediaStream, { startTime: number; context: AudioContext; stop: () => void }>();
+
+export function getStudyExportPlaybackSeconds(stream: MediaStream): number {
+  const session = exportSessions.get(stream);
+  return session ? Math.max(0, session.context.currentTime - session.startTime) : 0;
+}
+
+export function stopStudyExportAudio(stream: MediaStream): void {
+  exportSessions.get(stream)?.stop();
+  exportSessions.delete(stream);
+  stream.getTracks().forEach((track) => track.stop());
+}
+
 export function createPolyrhythmExportAudioStream(
   study: PolyrhythmStudy,
   durationSeconds: number,
   prerollSeconds = 0,
+  scheduleAhead = false,
 ): MediaStream | null {
   const context = getAudioContext();
   if (!context || typeof context.createMediaStreamDestination !== 'function') {
@@ -737,7 +752,8 @@ export function createPolyrhythmExportAudioStream(
   };
   getStudyOutputBus(context, destination);
   prepareStudyKeys(context, study);
-  const startTime = context.currentTime + 0.12 + Math.max(0, prerollSeconds);
+  const events: { seconds: number; play: (atTime: number) => void }[] = [];
+  const startTime = context.currentTime + Math.max(0, prerollSeconds);
   const cyclesPerSecond = study.bpm / 60 / (study.cycleBeats ?? 4);
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
 
@@ -747,7 +763,7 @@ export function createPolyrhythmExportAudioStream(
     for (let barIndex = 0; barIndex <= barCount; barIndex += 1) {
       const seconds = barIndex / barsPerSecond;
       if (seconds <= audibleDuration) {
-        triggerPolyrhythmBarMarker(startTime + seconds, target);
+        events.push({ seconds, play: (atTime) => triggerPolyrhythmBarMarker(atTime, target) });
       }
     }
   }
@@ -790,38 +806,59 @@ export function createPolyrhythmExportAudioStream(
           return;
         }
         const beatCount = Math.max(1, Math.round(layer.beatCount || 1));
-      for (let stepIndex = 0; stepIndex < beatCount; stepIndex += 1) {
-        const progress = stepIndex / beatCount;
-        const playbackStep = getPlaybackStepIndex(layer, progress);
-        if (!layer.activeSteps[playbackStep]) {
-          continue;
+        // Sort rotated boundaries before advancing melodic note order.
+        const boundaries = Array.from({ length: beatCount }, (_, stepIndex) => ({
+          playbackStep: stepIndex,
+          progress: ((stepIndex / beatCount + layer.rotationOffset / 360) % 1 + 1) % 1,
+        })).sort((a, b) => a.progress - b.progress);
+        for (const { playbackStep, progress } of boundaries) {
+          if (!layer.activeSteps[playbackStep]) continue;
+          const absoluteBars = (cycleIndex + progress) * barsPerCycle;
+          if (absoluteBars < barIndex || absoluteBars >= barIndex + 1) continue;
+          const seconds = (cycleIndex + progress) / cyclesPerSecond;
+          if (seconds > audibleDuration) continue;
+          const hitIndex = noteOrderHits.get(layer.id) ?? 0;
+          noteOrderHits.set(layer.id, hitIndex + 1);
+          events.push({ seconds, play: (atTime) => triggerPolyrhythmPulse({
+            hitIndex,
+            voice: layer.voice,
+            noteSequence: layer.noteSequence,
+            layerSound: layer.soundSettings,
+            drumTune: layer.drumTune,
+            frequency: layer.pitchHz,
+            gain: layer.gain,
+            sound: study.soundSettings,
+            layerIndex,
+            beatCount,
+            accented: Boolean(layer.accents?.[playbackStep]),
+            atTime,
+            target,
+          }) });
         }
-        const absoluteBars = (cycleIndex + progress) * barsPerCycle;
-        if (absoluteBars < barIndex || absoluteBars >= barIndex + 1) continue;
-        const seconds = (cycleIndex + progress) / cyclesPerSecond;
-        if (seconds > audibleDuration) {
-          continue;
-        }
-        const hitIndex = noteOrderHits.get(layer.id) ?? 0;
-        noteOrderHits.set(layer.id, hitIndex + 1);
-        triggerPolyrhythmPulse({
-          hitIndex,
-          voice: layer.voice,
-          noteSequence: layer.noteSequence,
-          layerSound: layer.soundSettings,
-          drumTune: layer.drumTune,
-          frequency: layer.pitchHz,
-          gain: layer.gain,
-          sound: study.soundSettings,
-          layerIndex,
-          beatCount,
-          accented: Boolean(layer.accents?.[playbackStep]),
-          atTime: startTime + seconds,
-          target,
-        });
-      }
       });
     }
+  }
+
+  if (scheduleAhead) {
+    // Monitor the same dedicated mix being recorded, without frame-triggered duplicates.
+    getStudyOutputBus(context, destination).output.connect(context.destination);
+    const scheduler = createStudyExportScheduler(events, startTime, () => context.currentTime);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    if (!scheduler.pump()) {
+      timer = setInterval(() => {
+        if (scheduler.pump()) clearInterval(timer);
+      }, 25);
+    }
+    exportSessions.set(destination.stream, {
+      startTime, context,
+      stop: () => {
+        clearInterval(timer);
+        const bus = getStudyOutputBus(context, destination);
+        bus.output.disconnect();
+      },
+    });
+  } else {
+    events.forEach((event) => event.play(startTime + event.seconds));
   }
 
   return destination.stream;

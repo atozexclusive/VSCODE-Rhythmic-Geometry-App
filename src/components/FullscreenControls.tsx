@@ -1,5 +1,6 @@
+import PatternActionIcon from './PatternActionIcon';
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { Dice5, Lock, Minimize2, MoreHorizontal, Pause, Play, Plus, RotateCcw, Shuffle, Volume2, VolumeX } from 'lucide-react';
+import { Lock, Minimize2, MoreHorizontal, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 
 interface Props {
   playing: boolean;
@@ -39,9 +40,9 @@ export default function FullscreenControls({ playing, muted, onTogglePlay, onRes
         {[
           { id: 'play', label: playing ? 'Pause' : 'Play', icon: playing ? <Pause size={14} strokeWidth={1.5} /> : <Play size={14} strokeWidth={1.5} />, action: onTogglePlay, pressed: playing },
           { id: 'restart', label: 'Restart', icon: <RotateCcw size={14} strokeWidth={1.5} />, action: onRestart },
-          { id: 'random', label: 'Random', icon: <Dice5 size={14} strokeWidth={1.5} />, action: onRandom, separator: true },
-          { id: 'random-plus', label: 'Random+', icon: <span className="relative flex h-4 w-4 items-center justify-center"><Dice5 size={14} strokeWidth={1.5} /><Plus size={9} strokeWidth={2} className="absolute -right-1 -top-0.5 rounded-full bg-[#17171e]" /></span>, action: onRandomPlus, locked: randomPlusLocked },
-          { id: 'remix', label: 'Remix', icon: <Shuffle size={14} strokeWidth={1.5} />, action: onRemix, locked: remixLocked },
+          { id: 'random', label: 'Random', icon: <PatternActionIcon action="random" />, action: onRandom, separator: true },
+          { id: 'random-plus', label: 'Random+', icon: <PatternActionIcon action="random-plus" />, action: onRandomPlus, locked: randomPlusLocked },
+          { id: 'remix', label: 'Remix', icon: <PatternActionIcon action="remix" />, action: onRemix, locked: remixLocked },
           { id: 'mute', label: muted ? 'Unmute' : 'Mute', icon: muted ? <VolumeX size={14} strokeWidth={1.5} /> : <Volume2 size={14} strokeWidth={1.5} />, action: onToggleMute, pressed: muted, separator: true, guide: muteGuide },
           ...(children ? [{ id: 'options', label: optionsLabel, icon: <MoreHorizontal size={14} strokeWidth={1.5} />, action: () => setOptionsOpen((current) => !current), pressed: optionsOpen }] : []),
           { id: 'exit', label: 'Exit Fullscreen', icon: <Minimize2 size={14} strokeWidth={1.5} />, action: onExit, guide: exitGuide },

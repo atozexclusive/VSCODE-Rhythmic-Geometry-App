@@ -1,5 +1,6 @@
+import PatternActionIcon from './PatternActionIcon';
 import type { ReactNode } from 'react';
-import { AudioLines, Dice5, Lock, Plus, ScanEye, Shuffle, Palette } from 'lucide-react';
+import { AudioLines, Lock, Plus, ScanEye, Palette } from 'lucide-react';
 import type { ProFeature } from '../lib/entitlements';
 
 export type CanvasQuickPanel = 'audio' | 'canvas' | 'read' | null;
@@ -24,9 +25,9 @@ export default function QuickCanvasControls({ prefix, panel, onPanelChange, soun
   return <>
     <div className="absolute left-3 bottom-2 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.05] bg-[#17171e]/40 p-0.5 backdrop-blur-md" role="toolbar" aria-label="Pattern quick actions">
       {[
-        { id: 'random', label: 'Random', icon: <Dice5 size={14} strokeWidth={1.5} />, locked: false, action: onRandom },
-        { id: 'random-plus', label: 'Random+', icon: <span className="relative flex h-4 w-4 items-center justify-center" aria-hidden="true"><Dice5 size={14} strokeWidth={1.5} /><Plus size={9} strokeWidth={2} className="absolute -right-1 -top-0.5 rounded-full bg-[#17171e]" /></span>, locked: randomPlusLocked, action: onRandomPlus },
-        { id: 'remix', label: 'Remix', icon: <Shuffle size={14} strokeWidth={1.5} />, locked: remixLocked, action: onRemix },
+        { id: 'random', label: 'Random', icon: <PatternActionIcon action="random" />, locked: false, action: onRandom },
+        { id: 'random-plus', label: 'Random+', icon: <PatternActionIcon action="random-plus" />, locked: randomPlusLocked, action: onRandomPlus },
+        { id: 'remix', label: 'Remix', icon: <PatternActionIcon action="remix" />, locked: remixLocked, action: onRemix },
       ].map(({ id, label, icon, locked, action }) => <button key={id} type="button" data-guide={`${prefix}-${id}`} aria-label={locked ? `${label} (Pro)` : label} title={label}
         className="relative flex h-9 w-9 items-center justify-center rounded-full text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white/75 active:bg-white/10"
         onClick={() => { onPanelChange(null); action(); }}>{icon}{locked ? <Lock size={7} aria-hidden="true" className="absolute right-1.5 bottom-1.5 text-white/30" /> : null}</button>)}

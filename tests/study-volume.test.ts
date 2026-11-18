@@ -14,14 +14,17 @@ class Node {
   connections: Node[] = [];
   gain = new Param(); frequency = new Param(); Q = new Param();
   threshold = new Param(); knee = new Param(); ratio = new Param(); attack = new Param(); release = new Param();
+  startedAt: number | undefined;
   connect(node: Node) { this.connections.push(node); }
-  start() {} stop() {} addEventListener() {}
+  start(at?: number) { this.startedAt = at; } stop() {} addEventListener() {}
 }
 class Context {
   static latest: Context;
   state = 'running'; currentTime = 1; sampleRate = 1000;
-  destination = new Node(); oscillators: Node[] = []; compressors: Node[] = []; recordings: Node[] = [];
+  destination = new Node(); buffers: Node[] = []; oscillators: Node[] = []; compressors: Node[] = []; recordings: Node[] = [];
   constructor() { Context.latest = this; }
+  createBuffer(_channels: number, length: number) { return { getChannelData: () => new Float32Array(length) }; }
+  createBufferSource() { const node = new Node(); this.buffers.push(node); return node; }
   createGain() { return new Node(); }
   createBiquadFilter() { return new Node(); }
   createOscillator() { const node = new Node(); this.oscillators.push(node); return node; }
@@ -85,5 +88,44 @@ test('Wood and Soft Synth fade from silence with gentler attacks, including acce
       const expectedPeak = index === 0 ? 0.13*1.18*(palette === 'wood' ? 0.96 : 0.92) : 0.13*1.18*0.46;
       assert.ok(Math.abs(peak.value-expectedPeak)<1e-12,'keeps the existing voice level');
     }
+  }
+});
+
+
+test('Study exports every percussion layer on triplet and sixteenth grids, including rotated notes', () => {
+  const originalWindow = globalThis.window;
+  Object.assign(globalThis, { window: { AudioContext: Context } });
+  try {
+    for (const steps of [12, 16, 32]) {
+      const study = cloneStudy(POLYRHYTHM_PRESETS.find(preset => preset.id === 'three-five')!.study);
+      study.bpm = 120;
+      study.cycleBeats = 4;
+      study.chainEnabled = false;
+      study.soundEnabled = true;
+      study.barMarkerSoundEnabled = false;
+      study.soundSettings = createPolyrhythmSoundSettings({ reverbAmount: 0 });
+      study.layers = (['hi-hat', 'snare', 'cymbal'] as const).map((voice, index) => ({
+        ...study.layers[0], id: `drum-${index}`, voice, soundEnabled: true,
+        soundSettings: { reverbAmount: 0 }, beatCount: steps, rotationOffset: index === 2 ? 45 : 0,
+        activeSteps: Array.from({ length: steps }, (_, i) => voice !== 'snare' || i % 3 === 2),
+        accents: Array(steps).fill(false),
+      }));
+      getPolyrhythmAudioRecordingStream();
+      const ctx = Context.latest;
+      const before = ctx.buffers.length;
+      createPolyrhythmExportAudioStream(study, 1.999);
+      const sources = ctx.buffers.slice(before);
+      const hats = sources.filter(source => source.connections[0].frequency.value === 6500);
+      const snares = sources.filter(source => source.connections[0].frequency.value === 1900);
+      assert.equal(hats.length, steps * 2, `${steps}: all hat and cymbal notes export`);
+      assert.equal(snares.length, Math.floor(steps / 3), `${steps}: every snare exports`);
+      const recorded = ctx.recordings.at(-1)!;
+      assert.ok(sources.every(source => source.connections[0].connections[0].connections[0]
+        .connections[0].connections[0].connections.includes(recorded)), 'every drum reaches the recording bus');
+      ctx.state = 'closed';
+    }
+  } finally {
+    Context.latest.state = 'closed';
+    Object.assign(globalThis, { window: originalWindow });
   }
 });
