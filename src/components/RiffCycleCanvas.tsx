@@ -132,6 +132,8 @@ interface RiffCycleCanvasProps {
   onReferenceStepChange?: (referenceStep: number) => void;
   externalCanvasRef?: MutableRefObject<HTMLCanvasElement | null>;
   shapeEditor?: ReactNode;
+  guideEditorOpen?: boolean;
+  onShapeEditorOpen?: () => void;
   shapeColorControl?: ReactNode;
   onSelectStep: (stepIndex: number | null) => void;
   onSetStepActive: (stepIndex: number, active: boolean) => void;
@@ -543,6 +545,8 @@ export default function RiffCycleCanvas({
   externalCanvasRef,
   onSelectStep,
   shapeEditor,
+  guideEditorOpen,
+  onShapeEditorOpen,
   shapeColorControl,
   onSetStepActive,
   onToggleAccent,
@@ -557,6 +561,8 @@ export default function RiffCycleCanvas({
   className,
 }: RiffCycleCanvasProps) {
   const [shapeEditorOpen, setShapeEditorOpen] = useState(false);
+  useEffect(() => { if (shapeEditorOpen) onShapeEditorOpen?.(); }, [shapeEditorOpen, onShapeEditorOpen]);
+  useEffect(() => { if (guideEditorOpen !== undefined) setShapeEditorOpen(false); }, [guideEditorOpen]);
   const shapePress = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   const [denseCenter, setDenseCenter] = useState<number | null>(null);
   const closeDenseEditor = useCallback(() => setDenseCenter(null), []);
@@ -3870,8 +3876,8 @@ export default function RiffCycleCanvas({
       onKeyDown={event => { if (shapeEditor && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setShapeEditorOpen(true); } }}
       style={{ touchAction: 'none' }}
     />
-    {shapeEditorOpen && shapeEditor && createPortal(
-      <CanvasEditorDialog title="Edit Riff" color={study.riff.color} colorControl={shapeColorControl} onClose={() => setShapeEditorOpen(false)}>
+    {(guideEditorOpen ?? shapeEditorOpen) && shapeEditor && createPortal(
+      <CanvasEditorDialog guideMode={guideEditorOpen === true} title="Edit Riff" color={study.riff.color} colorControl={shapeColorControl} onClose={() => setShapeEditorOpen(false)}>
         {shapeEditor}
       </CanvasEditorDialog>, document.body)}
     {denseCenter != null && isMobile && magnifiedRiff.stepCount > 60 && (

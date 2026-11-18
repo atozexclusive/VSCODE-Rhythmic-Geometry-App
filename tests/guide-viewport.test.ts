@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getGuideViewport, getGuideDockLayout } from '../src/lib/guideViewport';
+import { getGuideViewport, getGuideDockLayout, getGuideHighlightHorizontalBounds } from '../src/lib/guideViewport';
 
 test('guide card stays inside the visible viewport with browser chrome and shifted visual viewports', () => {
   for (const height of [160, 320, 568, 760, 844]) {
@@ -38,4 +38,15 @@ test('guide dock grows to show the complete step and follows shorter content', (
     assert.equal(card.top + card.height, 652);
   }
   assert.equal(getGuideDockLayout(viewport, true, 900).height, 640);
+});
+
+
+test('canvas guide highlight closes at both viewport edges even when the canvas is wider', () => {
+  for (const width of [320, 390, 768]) {
+    const viewport = getGuideViewport(width, 844, { width, height: 760, offsetLeft: 20, offsetTop: 40 });
+    const bounds = getGuideHighlightHorizontalBounds({ left: -50, right: 1600 }, viewport);
+    assert.equal(bounds.left, 32);
+    assert.equal(bounds.width, width - 24);
+    assert.equal(bounds.left + bounds.width, viewport.left + width - 12);
+  }
 });

@@ -1139,3 +1139,17 @@ body:has([data-canvas-editor-dialog]) [data-radix-popper-content-wrapper] {
 [data-mobile-opening] [data-opening-playback] + [data-guide="mobile-customize"] { margin-top: 12px; }
 
 [data-mobile-opening] { overflow-anchor: none; }
+
+/* Canvas tutorials keep the editor above the docked guide, with one scroll area. */
+body:has([data-guide-callout]) [data-canvas-editor-backdrop] {
+  bottom: var(--guide-editor-bottom, 0px);
+  padding: 12px;
+}
+body:has([data-guide-callout]) [data-canvas-editor-dialog] {
+  max-height: calc(100dvh - var(--guide-editor-bottom, 0px) - 24px);
+}
+
+body:has([data-guide-opening="true"]) [data-mobile-opening] [data-opening-stage] {
+  height: calc(100dvh - var(--guide-editor-bottom, 340px) - 24px) !important;
+  min-height: 120px !important;
+}

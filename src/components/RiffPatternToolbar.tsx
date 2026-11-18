@@ -15,6 +15,7 @@ import {
 } from './ui/dropdown-menu';
 
 type RiffPatternToolbarProps = {
+  guideTarget?: string;
   patternToolsLocked: boolean;
   voicesLocked?: boolean;
   showVoices?: boolean;
@@ -31,6 +32,7 @@ type RiffPatternToolbarProps = {
 };
 
 export default function RiffPatternToolbar({
+  guideTarget,
   patternToolsLocked,
   voicesLocked = false,
   voicesOpen = false,
@@ -63,6 +65,7 @@ export default function RiffPatternToolbar({
 
   return (
     <div
+      data-guide={guideTarget}
       data-pattern-tools
       role="toolbar"
       aria-label="Pattern tools"

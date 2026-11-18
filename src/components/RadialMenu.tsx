@@ -20,6 +20,7 @@ interface RadialMenuProps {
   orbitRegister?: -1 | 0 | 1;
   orbitOptions?: Array<{ id: string; label: string; color: string; pulseCount?: number }>;
   harmonySettings?: HarmonySettings;
+  guideMode?: boolean;
   entityLabel?: 'Orbit' | 'Layer';
   layerStepEditor?: ReactNode;
   layerSequencer?: ReactNode;
@@ -58,6 +59,7 @@ export default function RadialMenu({
   orbitPulseMax = 32,
   orbitOptions = [],
   entityLabel = 'Orbit',
+  guideMode = false,
   layerStepEditor,
   layerSequencer,
   colorControl,
@@ -74,7 +76,7 @@ export default function RadialMenu({
   onClose,
 }: RadialMenuProps) {
   const mobileViewport = useIsMobile();
-  const docked = entityLabel === 'Layer';
+  const docked = entityLabel === 'Layer' || guideMode;
   // Layer contents stay compact from the first frame; mounting the viewport
   // hook must not resize or reposition the shared dialog after it opens.
   const isMobile = docked || mobileViewport;
@@ -125,7 +127,7 @@ export default function RadialMenu({
       window.removeEventListener('keydown', handleKey);
       window.removeEventListener('touchstart', handleTouchOutside);
     };
-  }, [entityLabel, onClose]);
+  }, [entityLabel, onClose, docked]);
 
   const controls = <>{!docked ? <>      {isMobile && (
         <div className="flex justify-center mb-1.5">
@@ -191,7 +193,7 @@ export default function RadialMenu({
 
 </> : null}
       {orbitOptions.length > 1 || onAdd ? (
-        <div className={`${isMobile ? 'mt-2 px-1' : 'mt-3 rounded-xl border p-2'}`} style={isMobile ? undefined : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
+        <div data-guide="canvas-editor-switch" className={`${isMobile ? 'mt-2 px-1' : 'mt-3 rounded-xl border p-2'}`} style={isMobile ? undefined : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div
             className="mb-1.5 text-[8px] font-mono uppercase tracking-[0.16em]"
             style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.58)' }}
@@ -246,7 +248,7 @@ export default function RadialMenu({
           const selectedOrbitNumber = Math.max(1, Math.round(orbit.pulseCount ?? 1));
           const ratioSliderValue = Math.min(selectedOrbitNumber, ratioSliderMax);
           return (
-        <div key={orbitId} className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
+        <div key={orbitId} data-guide="canvas-editor-count" className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div className="mb-1 flex items-center justify-between gap-2">
             <div
               className={`${entityLabel === 'Layer' ? 'text-[10px] font-semibold' : 'text-[8px]'} font-mono uppercase tracking-[0.16em]`}
@@ -332,7 +334,7 @@ export default function RadialMenu({
         </div>
       ) : null}
 
-{!docked && !allOrbits ? (      <div className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
+{(!docked || (guideMode && entityLabel === 'Orbit')) && !allOrbits ? (      <div data-guide="canvas-editor-color" className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
         <div
           className="text-[10px] font-mono uppercase tracking-[0.2em]"
           style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
@@ -390,8 +392,8 @@ export default function RadialMenu({
         </div>
       </div>) : null}
 </>;
-  if (docked) return <CanvasEditorDialog title={`Edit ${selectedOrbitLabel}`} color={orbitColor} colorControl={colorControl} onClose={onClose}
-    headerActions={<button type="button" onClick={() => { onDelete(orbitId); onClose(); }} aria-label="Delete layer" className="rounded-lg p-2 text-red-400 hover:bg-red-400/10"><Trash2 size={16} /></button>}>
+  if (docked) return <CanvasEditorDialog guideMode={guideMode} title={`Edit ${selectedOrbitLabel}`} color={orbitColor} colorControl={colorControl} onClose={onClose}
+    headerActions={<button type="button" onClick={() => { onDelete(orbitId); onClose(); }} aria-label={`Delete ${entityLabel.toLowerCase()}`} className="rounded-lg p-2 text-red-400 hover:bg-red-400/10"><Trash2 size={16} /></button>}>
     {controls}
   </CanvasEditorDialog>;
   return <div ref={menuRef} data-orbit-quick-editor

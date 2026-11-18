@@ -29,3 +29,10 @@ export function getGuideDockLayout(viewport: GuideViewport, mobile: boolean, con
     top: viewport.top + viewport.height - height - 12,
   };
 }
+
+/** Close every side of a guide highlight inside the visible viewport. */
+export function getGuideHighlightHorizontalBounds(rect: { left: number; right: number }, viewport: GuideViewport) {
+  const left = Math.max(viewport.left + 12, rect.left - 8);
+  const right = Math.min(viewport.left + viewport.width - 12, rect.right + 8);
+  return { left, width: Math.max(0, right - left) };
+}

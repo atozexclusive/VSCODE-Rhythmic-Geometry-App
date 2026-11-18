@@ -12,7 +12,7 @@ import NoteOrderControl from '../components/NoteOrderControl';
 import OrbitReadAids from '../components/OrbitReadAids';
 import { CELL_SEQUENCER_GUIDE } from '../lib/cellSequencerGuide';
 import FullscreenControls from '../components/FullscreenControls';
-import { getGuideViewport, getGuideDockLayout } from '../lib/guideViewport';
+import { getGuideViewport, getGuideDockLayout, getGuideHighlightHorizontalBounds } from '../lib/guideViewport';
 // ============================================================
 // Rhythmic Geometry — Main Application Route
 // Orchestrates engine state, canvas, sidebar, transport bar
@@ -529,6 +529,7 @@ function createInitialRiffCycleStudy(): RiffCycleStudy {
 }
 
 type GuideActionId =
+  | 'canvas-open-editor'
   | 'orbit-toggle-play'
   | 'orbit-try-random'
   | 'orbit-open-scenes'
@@ -861,6 +862,37 @@ const FEATURE_INFO_COPY: Record<FeatureInfoId, { title: string; body: string }> 
     body: 'Original keeps the raw riff voice. In Key keeps notes inside one note family so the groove feels more melodic.',
   },
 };
+
+function canvasFirstGuide(base: StartGuideStep[], mode: 'orbital' | 'polyrhythm-study' | 'riff-cycle-study', mobile: boolean): StartGuideStep[] {
+  const riff = mode === 'riff-cycle-study', study = mode === 'polyrhythm-study';
+  const canvas = riff ? (mobile ? 'riff-mobile-main-canvas' : 'riff-desktop-pattern') : study ? (mobile ? 'study-mobile-main-canvas' : 'study-desktop-pattern') : (mobile ? 'mobile-colors' : 'desktop-colors');
+  const secondary = riff ? (mobile ? 'riff-mobile-edit' : 'riff-desktop-quick') : study ? (mobile ? 'study-mobile-edit' : 'study-desktop-quick') : (mobile ? 'mobile-customize' : 'desktop-orbits');
+  const step = (target: string, title: string, text: string, doThis: string): StartGuideStep => ({ target, title, text, doThis, kicker: riff ? 'Riff Guide' : study ? 'Study Guide' : 'Orbit Guide' });
+  const popupSteps = riff ? [
+    step('canvas-editor-riff', 'Write The Riff', 'Each tile is one step. Filled steps play; dim steps rest. Change the step count with minus, plus, or the number field.', 'Tap a step to add or remove a hit. Hold it to add an accent.'),
+    step('canvas-editor-sequencer', 'Cell Sequencer', 'Save short patterns as cells, then arrange them into phrases. The sequencer uses the same riff step editor.', 'Turn it on when you want to connect several patterns.'),
+    step('canvas-editor-bar', 'Bar And Restart', 'Meter and subdivision set the counting grid. Riff Restart sets how many bars pass before the riff starts again.', 'Compare the riff against the meter, then choose a restart length.'),
+    step('canvas-editor-ending', 'Ending', 'An ending changes the final slots before the riff restarts. Turn it on to shape the return without rewriting the main riff.', 'Choose the ending length, then edit its hits and accents.'),
+  ] : [
+    step('canvas-editor-switch', study ? 'Choose A Layer' : 'Choose An Orbit', 'The numbered buttons select which part you are editing. The plus button adds another part.', 'Choose one part at a time so you can see what changes.'),
+    step(study ? 'canvas-editor-steps' : 'canvas-editor-count', study ? 'Write The Layer' : 'Orbit Count', study ? 'The number sets the layer’s step count. Tap a tile to add or remove a hit; hold it for an accent.' : 'Change the selected orbit’s count with the number control. Small changes can create very different drawings.', study ? 'Try changing one hit, then compare it with the other layers.' : 'Change one count and watch the relationship redraw.'),
+    ...(study ? [step('canvas-editor-sequencer', 'Build An Ensemble', 'The sequencer chooses which layers play in each section and how many bars each section lasts. Split View keeps all parts visible.', 'Turn it on to introduce layers one at a time or build up an ensemble.')] : []),
+  ];
+  const removed = new Set([
+    canvas, secondary, 'mobile-customize', 'mobile-layers', 'mobile-direction', 'mobile-interference', 'mobile-sweep', 'desktop-geometry',
+    'riff-mobile-focus-pattern', 'riff-mobile-pattern-tools', 'riff-mobile-bar-timing', 'riff-mobile-meter', 'riff-mobile-subdivision', 'riff-mobile-riff-restart', 'riff-mobile-secondary-cues', 'riff-mobile-ending-pattern', 'riff-mobile-ending-lane',
+    'riff-desktop-sequencer', 'riff-desktop-roll-size', 'riff-layer-1', 'riff-layer-2', 'riff-ending',
+    'study-mobile-layers', 'study-mobile-layer-steps', 'study-mobile-pattern-roll', 'study-mobile-pattern-tools', 'study-quick-layer', 'study-quick-stack', 'study-quick-shape',
+  ]);
+  const welcome = riff ? MOBILE_RIFF_GUIDE[0] : study ? MOBILE_STUDY_GUIDE[0] : MOBILE_START_GUIDE[0];
+  return [{ ...welcome, target: canvas }, { ...step(canvas, 'Edit The Canvas', riff ? 'Tap inside the riff shape to open its editor. You can still tap individual nodes directly to edit hits.' : study ? 'Tap a shape or ring to open that layer’s editor. You can still edit nodes directly on the canvas.' : 'Tap an orbit or its moving point to open its editor.', 'Tap the canvas, or use Open Editor below. Next opens the same popup.'), actionId: 'canvas-open-editor', actionLabel: 'Open Editor' },
+    ...popupSteps,
+    ...(riff || study ? [step('canvas-editor-tools', 'Pattern Tools', 'Clear removes the hits. Invert swaps hits and rests. Mirror reverses their order, and the arrows shift the pattern one step. These tools work on the selected pattern.', 'Open Pattern tools for quick ways to reshape the rhythm.')] : []),
+    step('canvas-editor-color', 'Color And Appearance', study ? 'The palette button changes this layer’s color and size. Size has presets and a Custom option.' : 'Use the color controls to change the selected part’s appearance.', 'Use color to make each part easy to follow.'),
+    step(secondary, 'Secondary Edit', 'You can edit here as well. This lower panel provides another way to reach the same editing controls.', 'Scroll below Playback whenever you prefer the full editor.'),
+    ...base.slice(1).filter(item => !removed.has(item.target)),
+  ];
+}
 
 const MOBILE_START_GUIDE: StartGuideStep[] = [
   {
@@ -4586,6 +4618,7 @@ function RiffCellSequenceEditor({
   return (
     <div
       data-cell-sequencer
+      data-guide={closeCanvasEditor ? 'canvas-editor-sequencer' : undefined}
       data-cell-sequencer-expanded={study.riffSequenceEnabled && !sequenceLocked && !contentCollapsed}
       className={`cell-sequencer rounded-xl border ${compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${study.riffSequenceEnabled ? 'space-y-1.5' : 'space-y-0'}`}
       style={{
@@ -8134,6 +8167,8 @@ function OrbitalPolymeter() {
   const [tutorialEvent, setTutorialEvent] = useState<{ id: TutorialEventId; tick: number } | null>(null);
   const [guideRect, setGuideRect] = useState<DOMRect | null>(null);
   const [guideMeasuredHeight, setGuideMeasuredHeight] = useState(230);
+  const [guideOpeningHeight, setGuideOpeningHeight] = useState(230);
+  const previousCanvasGuideStep = useRef<StartGuideStep | null>(null);
   const [guideViewport, setGuideViewport] = useState(() =>
     typeof window === 'undefined'
       ? getGuideViewport(1280, 800)
@@ -11084,7 +11119,7 @@ function OrbitalPolymeter() {
     wasPlaying: false,
   });
   const cellSequencerGuideSteps = useMemo<StartGuideStep[]>(() => CELL_SEQUENCER_GUIDE.map((step) => ({ ...step, target: !isMobile && step.target === 'riff-cell-steps' ? riffDesktopPatternEditorOpen ? 'riff-editor-steps' : 'riff-cell-steps-quick' : !isMobile && step.target === 'riff-cell-roll' ? riffDesktopPatternEditorOpen ? 'riff-editor-roll' : 'riff-cell-roll-quick' : step.target })), [isMobile, riffDesktopPatternEditorOpen]);
-  const guideSteps: StartGuideStep[] =
+  const baseGuideSteps: StartGuideStep[] =
     isMobile && !MOBILE_GUIDES_AVAILABLE
       ? []
       : helpContext === 'cell-sequencer'
@@ -11110,6 +11145,8 @@ function OrbitalPolymeter() {
             : isMobile
               ? MOBILE_START_GUIDE
               : DESKTOP_START_GUIDE;
+  const guideSteps = useMemo(() => helpContext === 'surface' && appSurface !== 'flow' && baseGuideSteps.length
+    ? canvasFirstGuide(baseGuideSteps, appSurface, isMobile) : baseGuideSteps, [baseGuideSteps, appSurface, isMobile, helpContext]);
   const tutorialSteps =
     tutorialContext === 'study-editor'
       ? STUDY_EDITOR_TUTORIAL
@@ -11741,13 +11778,15 @@ function OrbitalPolymeter() {
     ? Math.max(0, viewportWidth - 24)
     : guideSideSpace >= 310 ? Math.min(360, guideSideSpace - 30) : 360;
   const guideDocked = isMobile || Boolean(guideRect && guideSideSpace < 310 && guideRect.height > viewportHeight * 0.45);
-  const guideDockLayout = getGuideDockLayout(guideViewport, isMobile, guideMeasuredHeight);
+  const openingGuideStep = helpOpen && helpContext === 'surface' && helpStepIndex < 2 && appSurface !== 'flow';
+  const guideDockLayout = getGuideDockLayout(guideViewport, isMobile, openingGuideStep ? Math.max(guideOpeningHeight, guideMeasuredHeight) : guideMeasuredHeight);
   const dockedGuidePanelHeight = guideDockLayout.height;
   const guideContentBottom = guideDockLayout.top - 16;
   const guideHighlightBottom = guideRect
     ? guideDocked ? Math.min(guideRect.bottom, guideContentBottom - 8) : guideRect.bottom
     : 0;
-  const guideHighlightTop = guideRect ? Math.max(8, guideRect.top - 8) : 0;
+  const guideHighlightBounds = guideRect ? getGuideHighlightHorizontalBounds(guideRect, guideViewport) : { left: 0, width: 0 };
+  const guideHighlightTop = guideRect ? Math.max(guideViewport.top + 12, guideRect.top - 8) : 0;
   const guideHighlightHeight = guideRect ? Math.max(0, guideHighlightBottom + 8 - guideHighlightTop) : 0;
   const mobileChevronButtonBaseStyle = {
     background: 'rgba(255,255,255,0.08)',
@@ -11832,6 +11871,7 @@ function OrbitalPolymeter() {
         top: guideDockLayout.top,
         bottom: 'auto',
         maxHeight: dockedGuidePanelHeight,
+        minHeight: openingGuideStep ? dockedGuidePanelHeight : undefined,
         overflowY: 'auto' as const,
         overscrollBehavior: 'contain' as const,
       };
@@ -12216,6 +12256,39 @@ function OrbitalPolymeter() {
   }, [appSurface, isMobile, presentationMode]);
 
   useEffect(() => {
+    if (!helpOpen || helpContext !== 'surface' || !currentGuideStep) return;
+    const popup = currentGuideStep.target.startsWith('canvas-editor-');
+    const opening = currentGuideStep.actionId === 'canvas-open-editor';
+    const entering = previousCanvasGuideStep.current !== currentGuideStep;
+    previousCanvasGuideStep.current = currentGuideStep;
+    if (opening && entering) {
+      setRadialMenu(null);
+      setPolyrhythmLayerMenuAnchor(null);
+      return;
+    }
+    if (appSurface === 'orbital') {
+      if (popup) {
+        const orbitId = engineState.orbits[0]?.id;
+        if (orbitId) setRadialMenu(current => current ?? { orbitId, x: 180, y: 80 });
+      } else if (opening && radialMenu) setHelpStepIndex(index => index + 1);
+      else if (!opening) setRadialMenu(null);
+    }
+    if (appSurface === 'polyrhythm-study') {
+      if (popup) {
+        if (!selectedPolyrhythmLayerId && polyrhythmStudy.layers[0]) setSelectedPolyrhythmLayerId(polyrhythmStudy.layers[0].id);
+        setPolyrhythmLayerMenuAnchor('canvas');
+      } else if (opening && polyrhythmLayerMenuAnchor === 'canvas') setHelpStepIndex(index => index + 1);
+      else if (!opening) setPolyrhythmLayerMenuAnchor(null);
+    }
+  }, [helpOpen, helpContext, currentGuideStep, appSurface, radialMenu, polyrhythmLayerMenuAnchor, selectedPolyrhythmLayerId, engineState, polyrhythmStudy.layers]);
+
+  useEffect(() => {
+    if (!helpOpen || !guideDocked) return;
+    document.documentElement.style.setProperty('--guide-editor-bottom', `${Math.max(12, viewportHeight - guideDockLayout.top + 12)}px`);
+    return () => { document.documentElement.style.removeProperty('--guide-editor-bottom'); };
+  }, [helpOpen, guideDocked, viewportHeight, guideDockLayout.top]);
+
+  useEffect(() => {
     if (!helpOpen || !isMobile || appSurface !== 'orbital' || !currentGuideStep) {
       return;
     }
@@ -12232,7 +12305,6 @@ function OrbitalPolymeter() {
     }
     if (
       currentGuideStep.target === 'mobile-customize' ||
-      currentGuideStep.target === 'mobile-orbit-mode' ||
       currentGuideStep.target === 'mobile-layers' ||
       currentGuideStep.target === 'mobile-direction' ||
       currentGuideStep.target === 'mobile-interference' ||
@@ -12840,15 +12912,24 @@ function OrbitalPolymeter() {
 
     const updateGuideHeight = () => {
       const card = guideCalloutRef.current;
-      const nextHeight = card ? Math.max(card.scrollHeight + 2, card.getBoundingClientRect().height) : 0;
+      const content = card?.querySelector<HTMLElement>('[data-guide-content]');
+      if (!card || !content) return;
+      const style = window.getComputedStyle(card);
+      // Measure natural content, never the dock's min-height: feeding that
+      // imposed height back into the dock creates a ResizeObserver growth loop.
+      const nextHeight = Math.ceil(content.getBoundingClientRect().height +
+        Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom) +
+        Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth));
       if (nextHeight) {
         setGuideMeasuredHeight(nextHeight);
+        if (helpOpen && helpContext === 'surface' && helpStepIndex === 0) setGuideOpeningHeight(nextHeight);
       }
     };
 
     updateGuideHeight();
     const observer = new ResizeObserver(updateGuideHeight);
-    if (guideCalloutRef.current) observer.observe(guideCalloutRef.current);
+    const content = guideCalloutRef.current?.querySelector<HTMLElement>('[data-guide-content]');
+    if (content) observer.observe(content);
     if (helpOpen) {
       window.addEventListener('resize', updateGuideHeight);
       window.visualViewport?.addEventListener('resize', updateGuideHeight);
@@ -15524,9 +15605,10 @@ function OrbitalPolymeter() {
     value={riffEditableColor} onChange={handleSetRiffEditableColor}
     label="Edit riff color" popoverZIndex={180} locked={colorEditingLocked} onLockedClick={() => openProPrompt('color-editing')} />;
   const riffShapeEditor = <RiffShapeEditor
+    guideTab={helpOpen && helpContext === 'surface' ? currentGuideStep?.target === 'canvas-editor-bar' ? 'bar' : currentGuideStep?.target === 'canvas-editor-ending' ? 'ending' : currentGuideStep?.target.startsWith('canvas-editor-') ? 'riff' : undefined : undefined}
     study={riffSelectedSequenceCell ? { ...riffCycleStudy, reference: riffEditableReference, riff: { ...riffCycleStudy.riff, ...riffSelectedSequenceCell } } : riffCycleStudy}
     patternTools={<div className="space-y-2">
-      <RiffPatternToolbar
+      <RiffPatternToolbar guideTarget="canvas-editor-tools"
         patternToolsLocked={riffPatternToolsLocked}
         voicesLocked={riffVoicesLocked}
         voicesOpen={riffVoicesOpen}
@@ -15958,6 +16040,9 @@ function OrbitalPolymeter() {
   const utilitySceneThumbClass = 'h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-white/8 bg-black/20';
   const handleGuideAction = (actionId: GuideActionId) => {
     switch (actionId) {
+      case 'canvas-open-editor':
+        setHelpStepIndex(index => index + 1);
+        return;
       case 'orbit-toggle-play':
         handleTogglePlay();
         return;
@@ -16139,22 +16224,22 @@ function OrbitalPolymeter() {
         : `Next move: ${currentModeCopy.firstSteps}`;
   const renderGuideOverlay = (
     accentColor: string,
-    zIndexBase = 30,
+    zIndexBase = 170,
   ) =>
     helpOpen && currentGuideStep ? createPortal(
       <>
         <div
           className="pointer-events-none fixed inset-0 bg-black/18"
-          style={{ zIndex: zIndexBase }}
+          style={{ zIndex: Math.max(zIndexBase, 170) }}
         />
         {guideRect && guideHighlightHeight > 0 ? (
           <div
             className="pointer-events-none fixed rounded-[22px] border shadow-[0_0_0_9999px_rgba(0,0,0,0.08)] transition-all duration-200"
             style={{
-              zIndex: zIndexBase + 10,
-              left: Math.max(8, guideRect.left - 8),
+              zIndex: Math.max(zIndexBase, 170) + 10,
+              left: guideHighlightBounds.left,
               top: guideHighlightTop,
-              width: guideRect.width + 16,
+              width: guideHighlightBounds.width,
               height: guideHighlightHeight,
               borderColor: `${accentColor}6b`,
               boxShadow: `0 0 0 2px rgba(255,255,255,0.06), 0 0 28px ${accentColor}26`,
@@ -16163,10 +16248,10 @@ function OrbitalPolymeter() {
         ) : null}
         <div
           ref={guideCalloutRef}
-          data-guide-callout="true"
+          data-guide-callout="true" data-guide-opening={openingGuideStep}
           className={`rg-guide-card fixed rounded-2xl border p-3.5 pointer-events-auto ${isMobile ? 'left-3 right-3' : 'w-[360px]'}`}
-          style={{ ...guideCalloutStyle, zIndex: zIndexBase + 10 }}
-        >
+          style={{ ...guideCalloutStyle, zIndex: Math.max(zIndexBase, 170) + 10 }}
+        ><div data-guide-content className="flow-root">
           <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: accentColor }}>
             {`Step ${helpStepIndex + 1} of ${guideSteps.length}`}
           </div>
@@ -16268,13 +16353,13 @@ function OrbitalPolymeter() {
               {guideNextMoveText}
             </div>
           ) : null}
-        </div>
+        </div></div>
       </>,
       document.body,
     ) : null;
   const renderTutorialOverlay = (
     accentColor: string,
-    zIndexBase = 30,
+    zIndexBase = 170,
   ) =>
     tutorialOpen && currentTutorialStep ? createPortal(
       <>
@@ -16282,10 +16367,10 @@ function OrbitalPolymeter() {
           <div
             className="pointer-events-none fixed rounded-[22px] border transition-all duration-200"
             style={{
-              zIndex: zIndexBase + 10,
-              left: Math.max(8, guideRect.left - 8),
+              zIndex: Math.max(zIndexBase, 170) + 10,
+              left: guideHighlightBounds.left,
               top: guideHighlightTop,
-              width: guideRect.width + 16,
+              width: guideHighlightBounds.width,
               height: guideHighlightHeight,
               borderColor: `${accentColor}8f`,
               boxShadow: `0 0 0 2px rgba(255,255,255,0.08), 0 0 0 9999px rgba(3,4,8,0.12), 0 0 38px ${accentColor}40`,
@@ -16302,12 +16387,12 @@ function OrbitalPolymeter() {
               className={`rg-guide-card fixed rounded-[24px] border px-4 py-4 pointer-events-auto ${isMobile ? '' : 'w-[360px]'}`}
               style={{
                 ...tutorialPanelStyle,
-                zIndex: zIndexBase + 10,
+                zIndex: Math.max(zIndexBase, 170) + 10,
                 background: `linear-gradient(180deg, rgba(12, 13, 18, 0.96), rgba(12, 13, 18, 0.9))`,
                 borderColor: `${accentColor}30`,
                 boxShadow: `0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08), 0 0 34px ${accentColor}1e`,
               }}
-            >
+            ><div data-guide-content className="flow-root">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: accentColor }}>
@@ -16415,7 +16500,7 @@ function OrbitalPolymeter() {
                   {tutorialStepIndex >= tutorialSteps.length - 1 ? 'Finish' : 'Skip Mission'}
                 </button>
               </div>
-            </div>
+            </div></div>
           );
         })()}
       </>,
@@ -17193,6 +17278,7 @@ function OrbitalPolymeter() {
           x={layoutViewportWidth / 2}
           y={isMobile ? 80 : layoutViewportHeight / 2}
           entityLabel="Layer"
+          guideMode={helpOpen && helpContext === 'surface' && Boolean(currentGuideStep?.target.startsWith('canvas-editor-'))}
           orbitId={selectedPolyrhythmLayer.id}
           orbitColor={selectedPolyrhythmLayer.color}
           orbitPulseCount={selectedPolyrhythmLayer.beatCount}
@@ -17203,8 +17289,8 @@ function OrbitalPolymeter() {
             <LayerSizeControl radius={selectedPolyrhythmLayer.radius}
               onChange={radius => handleUpdatePolyrhythmLayer(selectedPolyrhythmLayer.id, { radius })} />
           </LimitedColorPickerButton>}
-          layerSequencer={renderPolyrhythmChainPanel(true)}
-          layerStepEditor={<><section className="riff-shape-editor mt-3 space-y-3 rounded-xl border p-3" style={{ borderColor: `${selectedPolyrhythmLayer.color}26`, background: `linear-gradient(145deg, ${selectedPolyrhythmLayer.color}0d, rgba(17,17,22,.65))` }}>
+          layerSequencer={<div data-guide="canvas-editor-sequencer">{renderPolyrhythmChainPanel(true)}</div>}
+          layerStepEditor={<><section data-guide="canvas-editor-steps" className="riff-shape-editor mt-3 space-y-3 rounded-xl border p-3" style={{ borderColor: `${selectedPolyrhythmLayer.color}26`, background: `linear-gradient(145deg, ${selectedPolyrhythmLayer.color}0d, rgba(17,17,22,.65))` }}>
             <div className="text-[10px] text-white">Layer Steps</div>
             <StepCountControl value={selectedPolyrhythmLayer.beatCount} color={selectedPolyrhythmLayer.color}
               label="Layer steps" max={64} onChange={count => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, count)} />
@@ -17213,7 +17299,7 @@ function OrbitalPolymeter() {
               labelPrefix="layer" onPressStep={index => handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, index)}
               onLongPressStep={index => handleTogglePolyrhythmLayerAccent(selectedPolyrhythmLayer.id, index)} />
           </section>
-            <RiffPatternToolbar
+            <RiffPatternToolbar guideTarget="canvas-editor-tools"
               patternToolsLocked={studyPatternToolsLocked}
               showVoices={false}
               clearLabel="Clear layer"
@@ -20485,6 +20571,8 @@ function OrbitalPolymeter() {
               <RiffCycleCanvas
                 study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
+                onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
                 dockCellStripAboveControls
                 viewModeOverride={riffMobileLanePanelActive ? 'unwrapped' : 'circular'}
@@ -22336,6 +22424,8 @@ function OrbitalPolymeter() {
                           <RiffCycleCanvas
                             study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
+                onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
                             viewModeOverride="unwrapped"
                             laneWindowStartStep={
@@ -22842,6 +22932,8 @@ function OrbitalPolymeter() {
           <RiffCycleCanvas
             study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
+                onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
             selectedSequencePhraseIndex={selectedRiffSequencePhraseIndex}
             selectedSequenceCellLabel={selectedRiffSequenceCellLabel}
@@ -24375,6 +24467,8 @@ function OrbitalPolymeter() {
                 <RiffCycleCanvas
                   study={riffCanvasStudy}
                 shapeEditor={riffShapeEditor}
+                guideEditorOpen={helpOpen && helpContext === 'surface' ? currentGuideStep?.actionId === 'canvas-open-editor' ? undefined : currentGuideStep?.target.startsWith('canvas-editor-') : undefined}
+                onShapeEditorOpen={() => { if (helpOpen && currentGuideStep?.actionId === 'canvas-open-editor') setHelpStepIndex(index => index + 1); }}
                 shapeColorControl={riffShapeColorControl}
                   viewModeOverride="circular"
                   landingReferenceOverlayMode="auto"
@@ -26413,6 +26507,7 @@ function OrbitalPolymeter() {
 
         {radialMenu && (
           <RadialMenu
+            guideMode={helpOpen && helpContext === 'surface' && Boolean(currentGuideStep?.target.startsWith('canvas-editor-'))}
             x={radialMenu.x}
             y={radialMenu.y}
             orbitId={radialMenu.orbitId}
@@ -26911,6 +27006,7 @@ function OrbitalPolymeter() {
       {/* Radial Menu */}
       {radialMenu && !presentationMode && (
         <RadialMenu
+          guideMode={helpOpen && helpContext === 'surface' && Boolean(currentGuideStep?.target.startsWith('canvas-editor-'))}
           x={radialMenu.x}
           y={radialMenu.y}
           orbitId={radialMenu.orbitId}
