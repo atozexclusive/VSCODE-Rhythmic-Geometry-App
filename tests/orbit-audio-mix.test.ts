@@ -108,8 +108,10 @@ test('high-ratio Sweep export schedules selected voices through the full clip in
 });
 
 
-test('Orbit export waits for encoder readiness and shares its audio clock with motion', async (t) => {
+test('Orbit export anchors audio and smooth motion together after encoder readiness', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval'] });
+  let now = 1000;
+  t.mock.method(performance, 'now', () => now);
   const originalContext = globalThis.AudioContext;
   Object.assign(globalThis, { AudioContext: Context });
   try {
@@ -122,8 +124,10 @@ test('Orbit export waits for encoder readiness and shares its audio clock with m
     assert.equal(elapsed(), -1);
     assert.ok(ctx.oscillators.length >= 3, 'the first moving second is already scheduled during preroll');
     assert.equal(Math.min(...ctx.oscillators.map(node => node.startedAt)), 11);
+    now += 1350;
+    assert.ok(Math.abs(elapsed() - 0.35) < 1e-10, 'motion keeps moving even while audio currentTime is unchanged');
     ctx.currentTime = 11.35;
-    assert.ok(Math.abs(elapsed() - 0.35) < 1e-10, 'motion follows audio time, not an independent wall timer');
+    assert.ok(Math.abs(elapsed() - 0.35) < 1e-10, 'an audio-clock update cannot jump motion forward again');
     const count = ctx.oscillators.length;
     recording!.stop();
     ctx.currentTime = 20;

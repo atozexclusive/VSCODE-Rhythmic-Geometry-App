@@ -9,6 +9,7 @@ import { drawOrbitTraceAura, invalidateOrbitTraceAura } from '../lib/orbitTraceA
 
 import { useRef, useEffect, useCallback, useState, forwardRef } from 'react';
 import { getOrbitVideoFraming } from '../lib/orbitVideoFraming';
+import { createOrbitExportClock } from '../lib/orbitVideoRecording';
 import {
   type Orbit,
   type EngineState,
@@ -736,9 +737,8 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             };
 
             await recordMediaRecorderForDuration(recorder, durationSeconds, () => {
-              const fallbackStart = performance.now() / 1000 + CANVAS_EXPORT_PREROLL_SECONDS;
               exportPlaybackClockRef.current = audioRecording?.start()
-                ?? (() => performance.now() / 1000 - fallbackStart);
+                ?? createOrbitExportClock(CANVAS_EXPORT_PREROLL_SECONDS);
             });
             exportPlaybackClockRef.current = null;
             state.playing = false;

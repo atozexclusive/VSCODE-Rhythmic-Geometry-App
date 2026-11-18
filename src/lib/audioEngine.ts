@@ -8,6 +8,7 @@ import { ORBIT_DESIGNED_INSTRUMENTS, isOrbitDesignedInstrument, isOrbitInstrumen
 
 import { type EngineState, type OrbitCountMode } from './orbitalEngine';
 import { getOrbitAudioExportPlan, type OrbitAudioExportOptions } from './orbitAudioTimeline';
+import { createOrbitExportClock } from './orbitVideoRecording';
 
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -659,6 +660,7 @@ export async function prepareOrbitExportAudioRecording(
     plans.forEach(({ orbit, orbitIndex }) => prepareOrbitInstrument(ctx, palette, voiceToFrequency({ ...orbit, orbitIndex, hitIndex: 0 }, harmony), instrumentSpeed));
   }
   let startTime: number | null = null;
+  let playbackClock: (() => number) | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
   let stopped = false;
   const audibleDuration = Math.max(0, durationSeconds - Math.max(0, prerollSeconds));
@@ -693,7 +695,9 @@ export async function prepareOrbitExportAudioRecording(
     start: () => {
       if (startTime == null && !stopped) {
         // Called by MediaRecorder.onstart, after encoder startup and preflight.
+        const startedAtMs = performance.now();
         startTime = ctx.currentTime + Math.max(0, prerollSeconds);
+        playbackClock = createOrbitExportClock(prerollSeconds, startedAtMs);
         if (plans.length && !scheduleWindow(true)) {
           const deadline = performance.now() + Math.max(0, durationSeconds) * 1000 + 2000;
           timer = setInterval(() => {
@@ -702,8 +706,7 @@ export async function prepareOrbitExportAudioRecording(
           (timer as unknown as { unref?: () => void }).unref?.();
         }
       }
-      const origin = startTime ?? ctx.currentTime;
-      return () => ctx.currentTime - origin;
+      return playbackClock ?? (() => -Math.max(0, prerollSeconds));
     },
     stop: () => {
       stopped = true;
