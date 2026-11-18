@@ -1,3 +1,4 @@
+import { SYMMETRY_SCENES, createSymmetryPreview } from '../lib/symmetryScenes';
 import { PLANETARY_SCENES } from '../lib/planetaryScenes';
 import RiffLaneOptions from '../components/RiffLaneOptions';
 import DesktopHeader, { type DesktopMenuRequest } from '../components/DesktopHeader';
@@ -5517,7 +5518,7 @@ const FREE_DEFAULT_SCENE_SNAPSHOT: SceneSnapshot = {
 };
 
 export interface BuiltInScene {
-  category?: 'planetary';
+  category?: 'planetary' | 'symmetry';
   id: string;
   name: string;
   description: string;
@@ -6785,7 +6786,31 @@ const PLANETARY_BUILT_IN_SCENES: BuiltInScene[] = PLANETARY_SCENES.map(scene => 
   },
 }));
 
+const SYMMETRY_BUILT_IN_SCENES: BuiltInScene[] = SYMMETRY_SCENES.map(scene => ({
+  id: scene.id,
+  category: 'symmetry',
+  name: scene.name,
+  description: scene.description,
+  thumbnailDataUrl: createSymmetryPreview(scene),
+  snapshot: {
+    orbits: scene.counts.map((pulseCount, index) => ({
+      pulseCount, radius: scene.radii[index], direction: scene.directions[index], color: scene.colors[index],
+      harmonyDegree: [0, 2, 4, 1][index], harmonyRegister: 0,
+    })),
+    speedMultiplier: orbitTempoBpmToSpeedMultiplier(24, DEFAULT_BASE_BPM, scene.counts[scene.counts.length - 1]),
+    traceMode: true,
+    harmonySettings: {
+      tonePreset: 'scale-quantized', rootNote: scene.root, scaleName: 'majorPentatonic',
+      mappingMode: 'orbit-index', manualOrbitRoles: true,
+    },
+    geometryMode: scene.geometryMode,
+    standardTimingMode: DEFAULT_ORBIT_COUNT_MODE,
+    interferenceSettings: { sourceOrbitAIndex: 0, sourceOrbitBIndex: 1, showConnectors: false },
+  },
+}));
+
 export const BUILT_IN_SCENES: BuiltInScene[] = [
+  ...SYMMETRY_BUILT_IN_SCENES,
   ...PLANETARY_BUILT_IN_SCENES,
   {
     id: 'glass_cathedral',
@@ -7403,7 +7428,7 @@ export const PREMIUM_SCENES: BuiltInScene[] = [
 ];
 
 for (const scene of [...BUILT_IN_SCENES, ...PREMIUM_SCENES]) {
-  scene.thumbnailDataUrl = BUILT_IN_SCENE_ASSET_MAP[scene.id] ?? createScenePreviewDataUrl(scene.snapshot);
+  scene.thumbnailDataUrl ||= BUILT_IN_SCENE_ASSET_MAP[scene.id] ?? createScenePreviewDataUrl(scene.snapshot);
 }
 
 function normalizeSceneInterferenceSettings(
