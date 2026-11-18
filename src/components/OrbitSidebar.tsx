@@ -1,3 +1,4 @@
+import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu from './SceneExportMenu';
 // ============================================================
 // Orbital Polymeter — Glassmorphism Sidebar
@@ -169,6 +170,7 @@ export default function OrbitSidebar({
   const isMobile = useIsMobile();
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<'account' | 'geometry' | 'orbits' | 'sound' | 'scenes' | 'export'>('scenes');
+  const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [activeSceneTab, setActiveSceneTab] = useState<'built-in' | 'saved' | 'premium'>('built-in');
   const [activeSceneMode, setActiveSceneMode] = useState<GeometryMode>('standard-trace');
   const [expandedOrbit, setExpandedOrbit] = useState<string | null>(null);
@@ -342,6 +344,16 @@ export default function OrbitSidebar({
         { key: 'export', label: 'Export', activeColor: '#FFAA00' },
         { key: 'account', label: 'Account', activeColor: '#C9D4E5' },
       ];
+  const openSceneCategory = (id: string) => {
+    setSceneCategory(id);
+    setActiveSceneTab(id === 'saved' ? 'saved' : 'built-in');
+  };
+  const savedPreview = savedScenes.find(scene => scene.thumbnailDataUrl);
+  const experimentPreview = builtInScenes.find(scene => scene.thumbnailDataUrl) ?? premiumScenes.find(scene => scene.thumbnailDataUrl);
+  const sceneCategories: SceneCategory[] = [
+    { id: 'saved', title: 'Saved Scenes', description: 'Your ideas, ready to revisit.', color: '#72F1B8', preview: savedPreview?.thumbnailDataUrl ? <img src={savedPreview.thumbnailDataUrl} alt="" className="h-full w-full object-cover" /> : undefined },
+    { id: 'experiments', title: 'Experiments', description: 'Explore moving geometry and new relationships.', color: '#B6A0FF', preview: experimentPreview?.thumbnailDataUrl ? <img src={experimentPreview.thumbnailDataUrl} alt="" className="h-full w-full object-cover" /> : undefined },
+  ];
   const sceneModeTabs: Array<{ key: GeometryMode; label: string; color: string }> = [
     { key: 'standard-trace', label: 'Standard', color: '#00FFAA' },
     { key: 'interference-trace', label: 'Interference', color: '#88CCFF' },
@@ -823,20 +835,21 @@ export default function OrbitSidebar({
 
           {/* SCENES TAB */}
           {activeTab === 'scenes' && (
-            <div data-orbit-scene-menu className={isMobile ? 'space-y-3' : 'space-y-4'}>
-              <div className="space-y-1">
-                <div className={isMobile ? mobileSectionTitleClass : 'text-[11px] font-mono uppercase tracking-[0.2em]'} style={isMobile ? mobilePrimaryTitleStyle : sectionTitleStyle}>
-                  Scenes
-                </div>
-                <p className={isMobile ? 'text-[10px] leading-snug' : 'text-[11px] leading-relaxed'} style={sectionCopyStyle}>
-                  Load a starting point, save your own, or preview Pro scenes.
-                </p>
-              </div>
-
-              <div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
+            <SceneCategoryBrowser saveAction={<button
+                type="button"
+                onClick={onSaveScene}
+                className="flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(0,255,170,0.18), rgba(0,255,170,0.09))',
+                  borderColor: 'rgba(0,255,170,0.28)',
+                  color: '#72F1B8',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px rgba(0,255,170,0.1)',
+                }}
+              >
+                Save Scene
+              </button>} categories={sceneCategories} active={sceneCategory} onSelect={openSceneCategory} onBack={() => setSceneCategory(null)}><>{sceneCategory !== 'saved' ? (<div className="rounded-[1.15rem] border p-1 flex gap-1" style={isMobile ? mobileSceneSubTabShellStyle : { background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}>
                 {[
                   { key: 'built-in' as const, label: 'Free', color: '#FFD166' },
-                  { key: 'saved' as const, label: 'Saved', color: '#7FD7FF' },
                   { key: 'premium' as const, label: 'Pro', color: '#FF88C2' },
                 ].map((tab) => (
                   <button
@@ -853,23 +866,9 @@ export default function OrbitSidebar({
                     {tab.label}
                   </button>
                 ))}
-              </div>
+              </div>) : null}
 
-              <button
-                type="button"
-                onClick={onSaveScene}
-                className="flex w-full items-center justify-center rounded-2xl border px-4 py-3 text-[11px] font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(0,255,170,0.18), rgba(0,255,170,0.09))',
-                  borderColor: 'rgba(0,255,170,0.28)',
-                  color: '#72F1B8',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px rgba(0,255,170,0.1)',
-                }}
-              >
-                Save Scene
-              </button>
-
-              <div className="rounded-[1rem] border px-1 py-1 flex gap-1" style={isMobile ? mobileSceneFilterShellStyle : { background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
+<div className="rounded-[1rem] border px-1 py-1 flex gap-1" style={isMobile ? mobileSceneFilterShellStyle : { background: 'rgba(255,255,255,0.022)', borderColor: 'rgba(255,255,255,0.065)' }}>
                 {sceneModeTabs.map((mode) => (
                   <button
                     key={mode.key}
@@ -887,8 +886,7 @@ export default function OrbitSidebar({
                   </button>
                 ))}
               </div>
-
-              {activeSceneTab === 'built-in' && (
+{activeSceneTab === 'built-in' && (
                 <div className="space-y-2.5">
                   {filteredBuiltInScenes.length === 0 ? (
                     <p className="text-[10px] py-4" style={{ color: 'rgba(255, 255, 255, 0.35)' }}>
@@ -933,8 +931,7 @@ export default function OrbitSidebar({
                   ))}
                 </div>
               )}
-
-              {activeSceneTab === 'saved' && (
+{activeSceneTab === 'saved' && (
                 <div className="space-y-2.5">
                   <div className="space-y-3 rounded-2xl border p-3.5" style={isMobile ? mobileSceneCardStyle : sceneCardStyle}>
                     <div
@@ -958,7 +955,7 @@ export default function OrbitSidebar({
                       style={{ color: 'rgba(255, 255, 255, 0.8)' }}
                     />
                     <div className="flex gap-2">
-                      <button
+                      {sceneCategory === 'saved' ? (<button
                         onClick={() => {
                           onSaveSceneAs(sceneName);
                           setSceneName('');
@@ -971,7 +968,7 @@ export default function OrbitSidebar({
                         }}
                       >
                         Save Scene
-                      </button>
+                      </button>) : null}
                       <button
                         onClick={onSaveScene}
                         className="px-3 py-2 rounded-lg text-xs font-mono transition-all duration-200 hover:bg-white/5"
@@ -1090,8 +1087,7 @@ export default function OrbitSidebar({
                   )}
                 </div>
               )}
-
-              {activeSceneTab === 'premium' && (
+{activeSceneTab === 'premium' && (
                 <div className="space-y-2.5">
                   <div
                     className="rounded-2xl border p-3.5"
@@ -1165,8 +1161,7 @@ export default function OrbitSidebar({
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              )}</></SceneCategoryBrowser>
           )}
 
           {/* EXPORT TAB */}

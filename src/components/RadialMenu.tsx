@@ -1,9 +1,10 @@
+import CanvasEditorDialog from './CanvasEditorDialog';
 // ============================================================
 // Orbital Polymeter — Radial Context Menu
 // Appears on long-press of an orbit for quick actions
 // ============================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronUp, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 import { type HarmonySettings } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
@@ -20,6 +21,8 @@ interface RadialMenuProps {
   orbitOptions?: Array<{ id: string; label: string; color: string }>;
   harmonySettings?: HarmonySettings;
   entityLabel?: 'Orbit' | 'Layer';
+  layerStepEditor?: ReactNode;
+  colorControl?: ReactNode;
   radius?: number;
   onChangeRadius?: (id: string, radius: number) => void;
   colorEditingLocked?: boolean;
@@ -54,6 +57,8 @@ export default function RadialMenu({
   orbitPulseMax = 32,
   orbitOptions = [],
   entityLabel = 'Orbit',
+  layerStepEditor,
+  colorControl,
   radius,
   onChangeRadius,
   colorEditingLocked = false,
@@ -66,8 +71,11 @@ export default function RadialMenu({
   onDelete,
   onClose,
 }: RadialMenuProps) {
-  const isMobile = useIsMobile();
+  const mobileViewport = useIsMobile();
   const docked = entityLabel === 'Layer';
+  // Layer contents stay compact from the first frame; mounting the viewport
+  // hook must not resize or reposition the shared dialog after it opens.
+  const isMobile = docked || mobileViewport;
   const menuRef = useRef<HTMLDivElement>(null);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const selectedOrbitLabel =
@@ -92,8 +100,8 @@ export default function RadialMenu({
   };
 
   useEffect(() => {
+    if (docked) return;
     const handleClick = (e: MouseEvent) => {
-      if (entityLabel === 'Layer' && e.target instanceof HTMLCanvasElement) return;
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -102,7 +110,6 @@ export default function RadialMenu({
       if (e.key === 'Escape') onClose();
     };
     const handleTouchOutside = (e: TouchEvent) => {
-      if (entityLabel === 'Layer' && e.target instanceof HTMLCanvasElement) return;
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -117,40 +124,7 @@ export default function RadialMenu({
     };
   }, [entityLabel, onClose]);
 
-  return (
-    <div
-      ref={menuRef}
-      data-orbit-quick-editor
-      className={`fixed z-[100] border ${
-        isMobile
-          ? 'overflow-y-auto rounded-2xl p-2 pb-4 [scrollbar-width:none]'
-          : 'w-72 overflow-y-auto rounded-2xl p-3 pb-5'
-      }`}
-      style={{
-        left: docked ? (isMobile ? (mobileViewportWidth - mobileMenuWidth) / 2 : undefined) : isMobile ? mobileMenuLeft : x,
-        width: isMobile ? mobileMenuWidth : undefined,
-        maxHeight: docked ? Math.min(430, mobileViewportHeight - 32) : isMobile ? Math.min(430, mobileViewportHeight - mobileMenuTop - 16) : undefined,
-        right: docked && !isMobile ? 16 : undefined,
-        top: docked ? undefined : isMobile ? mobileMenuTop : y,
-        bottom: docked ? 'max(12px, env(safe-area-inset-bottom))' : undefined,
-        transform: isMobile || docked ? 'none' : 'translate(-50%, -50%)',
-        background: isMobile
-          ? `
-            radial-gradient(circle at 12% 0%, ${orbitColor}14, transparent 30%),
-            linear-gradient(180deg, rgba(18,20,30,0.56), rgba(9,10,16,0.46))
-          `
-          : `
-            radial-gradient(circle at 12% 0%, ${orbitColor}18, transparent 34%),
-            linear-gradient(180deg, rgba(17,17,22,0.88), rgba(12,12,18,0.84))
-          `,
-        backdropFilter: isMobile ? 'blur(24px) saturate(1.2)' : 'blur(18px) saturate(1.08)',
-        borderColor: isMobile ? `${orbitColor}22` : 'rgba(255,255,255,0.1)',
-        boxShadow: isMobile
-          ? `0 16px 42px rgba(0,0,0,0.32), 0 0 28px ${orbitColor}0d, inset 0 1px 0 rgba(255,255,255,0.07)`
-          : '0 18px 40px rgba(0,0,0,0.35)',
-      }}
-    >
-      {isMobile && (
+  const controls = <>{!docked ? <>      {isMobile && (
         <div className="flex justify-center mb-1.5">
           <div
             className="h-1.5 w-8 rounded-full"
@@ -212,6 +186,7 @@ export default function RadialMenu({
         </div>
       </div>
 
+</> : null}
       {orbitOptions.length > 1 || onAdd ? (
         <div className={`${isMobile ? 'mt-2 px-1' : 'mt-3 rounded-xl border p-2'}`} style={isMobile ? undefined : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div
@@ -257,7 +232,7 @@ export default function RadialMenu({
         </div>
       ) : null}
 
-      {onChangePulseCount ? (
+      {docked && layerStepEditor ? layerStepEditor : onChangePulseCount ? (
         <div className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div className="mb-1 flex items-center justify-between gap-2">
             <div
@@ -342,7 +317,7 @@ export default function RadialMenu({
         </div>
       ) : null}
 
-      <div className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
+{!docked ? (      <div className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
         <div
           className="text-[10px] font-mono uppercase tracking-[0.2em]"
           style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
@@ -398,9 +373,21 @@ export default function RadialMenu({
             );
           })}
         </div>
-      </div>
-
-
-    </div>
-  );
+      </div>) : null}
+</>;
+  if (docked) return <CanvasEditorDialog title={`Edit ${selectedOrbitLabel}`} color={orbitColor} colorControl={colorControl} onClose={onClose}
+    headerActions={<button type="button" onClick={() => { onDelete(orbitId); onClose(); }} aria-label="Delete layer" className="rounded-lg p-2 text-red-400 hover:bg-red-400/10"><Trash2 size={16} /></button>}>
+    {controls}
+  </CanvasEditorDialog>;
+  return <div ref={menuRef} data-orbit-quick-editor
+    className={`fixed z-[100] border ${isMobile ? 'overflow-y-auto rounded-2xl p-2 pb-4 [scrollbar-width:none]' : 'w-72 overflow-y-auto rounded-2xl p-3 pb-5'}`}
+    style={{
+      left: isMobile ? mobileMenuLeft : x, width: isMobile ? mobileMenuWidth : undefined,
+      maxHeight: isMobile ? Math.min(430, mobileViewportHeight - mobileMenuTop - 16) : undefined,
+      top: isMobile ? mobileMenuTop : y, transform: isMobile ? 'none' : 'translate(-50%, -50%)',
+      background: isMobile ? `radial-gradient(circle at 12% 0%, ${orbitColor}14, transparent 30%), linear-gradient(180deg, rgba(18,20,30,0.56), rgba(9,10,16,0.46))` : `radial-gradient(circle at 12% 0%, ${orbitColor}18, transparent 34%), linear-gradient(180deg, rgba(17,17,22,0.88), rgba(12,12,18,0.84))`,
+      backdropFilter: isMobile ? 'blur(24px) saturate(1.2)' : 'blur(18px) saturate(1.08)',
+      borderColor: isMobile ? `${orbitColor}22` : 'rgba(255,255,255,0.1)',
+      boxShadow: isMobile ? `0 16px 42px rgba(0,0,0,0.32), 0 0 28px ${orbitColor}0d, inset 0 1px 0 rgba(255,255,255,0.07)` : '0 18px 40px rgba(0,0,0,0.35)',
+    }}>{controls}</div>;
 }

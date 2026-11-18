@@ -1,5 +1,5 @@
+import CanvasEditorDialog from './CanvasEditorDialog';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import { drawRhythmContour } from '../lib/rhythmContour';
 import { advanceRiffPlaybackClock } from '../lib/riffPlaybackClock';
 import DenseRiffStepEditor from './DenseRiffStepEditor';
@@ -558,13 +558,6 @@ export default function RiffCycleCanvas({
 }: RiffCycleCanvasProps) {
   const [shapeEditorOpen, setShapeEditorOpen] = useState(false);
   const shapePress = useRef<{ x: number; y: number; pointerId: number } | null>(null);
-  const editorDialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!shapeEditorOpen) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    editorDialogRef.current?.focus();
-    return () => previous?.focus();
-  }, [shapeEditorOpen]);
   const [denseCenter, setDenseCenter] = useState<number | null>(null);
   const closeDenseEditor = useCallback(() => setDenseCenter(null), []);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -3878,21 +3871,9 @@ export default function RiffCycleCanvas({
       style={{ touchAction: 'none' }}
     />
     {shapeEditorOpen && shapeEditor && createPortal(
-      <div className="fixed inset-0 z-[150] flex items-end justify-end bg-black/10 p-3 pb-24 sm:p-6" onPointerDown={event => { if (event.target === event.currentTarget) setShapeEditorOpen(false); }}>
-        <div ref={editorDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Edit Riff" style={{ borderColor: `${study.riff.color}30`, boxShadow: `0 0 0 1px ${study.riff.color}0b inset, 0 20px 60px #0007` }} className="w-full max-w-[420px] max-h-[70dvh] overflow-y-auto rounded-[24px] border bg-[#111116]/95 p-4 shadow-2xl outline-none backdrop-blur-xl"
-          onKeyDown={event => {
-            if (event.key === 'Escape') { event.stopPropagation(); setShapeEditorOpen(false); }
-            if (event.key === 'Tab') {
-              const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, [tabindex="0"]')).filter(node => !node.closest('[inert]') && node.getClientRects().length);
-              const first = controls[0], last = controls[controls.length - 1];
-              if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
-              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-            }
-          }}>
-          <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3"><span className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[.18em] text-white/65"><span className="h-2 w-2 rounded-full" style={{ background: study.riff.color, boxShadow: `0 0 10px ${study.riff.color}66` }} />Edit Riff</span><div className="flex items-center gap-2">{shapeColorControl}<button type="button" aria-label="Close riff editor" className="rounded-lg p-2 text-white/50 hover:bg-white/5" onClick={() => setShapeEditorOpen(false)}><X size={16} /></button></div></div>
-          {shapeEditor}
-        </div>
-      </div>, document.body)}
+      <CanvasEditorDialog title="Edit Riff" color={study.riff.color} colorControl={shapeColorControl} onClose={() => setShapeEditorOpen(false)}>
+        {shapeEditor}
+      </CanvasEditorDialog>, document.body)}
     {denseCenter != null && isMobile && magnifiedRiff.stepCount > 60 && (
       <DenseRiffStepEditor riff={magnifiedRiff} center={denseCenter % magnifiedRiff.stepCount}
         selected={selectedStep} onCenter={setDenseCenter} onSelect={onSelectStep}

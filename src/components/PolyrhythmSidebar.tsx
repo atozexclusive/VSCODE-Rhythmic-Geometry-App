@@ -1,3 +1,5 @@
+import { getStudySceneCategory } from '../lib/sceneCategories';
+import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu, { ExportImageOptions } from './SceneExportMenu';
 import { useEffect, useRef, useState } from 'react';
 import { Lock, RotateCcw, RotateCw, X } from 'lucide-react';
@@ -278,6 +280,7 @@ export default function PolyrhythmSidebar({
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<PolyrhythmSidebarTab>('scenes');
+  const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [sceneTab, setSceneTab] = useState<PolyrhythmSidebarSceneTab>('standard');
   const [expandedSceneGroups, setExpandedSceneGroups] = useState<Record<PolyrhythmPresetGroup, boolean>>({
     'one-layer': false,
@@ -373,9 +376,24 @@ export default function PolyrhythmSidebar({
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
+  const openSceneCategory = (id: string) => {
+    setSceneCategory(id);
+    setSceneTab(id === 'saved' ? 'saved' : 'standard');
+  };
+  const categoryPreview = (id: string) => {
+    const preset = POLYRHYTHM_PRESETS.find(item => getStudySceneCategory(item) === id);
+    return preset ? <PolyrhythmSceneThumbnail preset={preset} className="h-full w-full" /> : undefined;
+  };
+  const firstSavedScene = savedScenes.find(scene => !scene.deletedAt);
+  const sceneCategories: SceneCategory[] = [
+    { id: 'saved', title: 'Saved Scenes', description: 'Your ideas, ready to revisit.', color: '#72F1B8', preview: firstSavedScene ? <PolyrhythmSceneThumbnail preset={{ ...firstSavedScene, group: 'advanced' }} className="h-full w-full" /> : undefined },
+    { id: 'grooves', title: 'Grooves', description: 'Layered beats and percussion ensembles.', color: '#FF88C2', preview: categoryPreview('grooves') },
+    { id: 'exercises', title: 'Exercises', description: 'Build your rhythm skills.', color: '#7FD7FF', preview: categoryPreview('exercises') },
+    { id: 'experiments', title: 'Experiments', description: 'Explore unusual rhythms and shapes.', color: '#B6A0FF', preview: categoryPreview('experiments') },
+  ];
   const groupedPresets = (['grooves', 'one-layer', 'two-layer', 'advanced'] as const).map((group) => ({
     group,
-    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && Boolean(preset.pro) === (sceneTab === 'pro')),
+    presets: POLYRHYTHM_PRESETS.filter((preset) => preset.group === group && getStudySceneCategory(preset) === sceneCategory && Boolean(preset.pro) === (sceneTab === 'pro')),
   })).filter(({ presets }) => presets.length > 0);
 
   useEffect(() => {
@@ -554,39 +572,7 @@ export default function PolyrhythmSidebar({
             </div>
 
           {activeTab === 'scenes' ? (
-            <section className={isMobile ? "space-y-2" : "space-y-3"}>
-              <div className="space-y-1">
-                <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobilePrimaryTitleStyle}>
-                  Scenes
-                </div>
-                <div className={`${isMobile ? "text-[9px]" : "text-[11px]"} text-white/52`}>
-                  Start with one rhythm, then move into shared-cycle studies.
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>
-                {([
-                  { key: 'standard' as const, label: 'Free', color: '#88CCFF' },
-                  { key: 'saved' as const, label: 'Saved', color: '#72F1B8' },
-                  { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
-                ]).map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setSceneTab(tab.key)}
-                    className={`${isMobile ? "h-7 px-2 text-[9px]" : "px-3 py-2 text-[10px]"} flex-1 rounded-lg font-mono uppercase tracking-[0.14em]`}
-                    style={{
-                      background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
-                      border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                      color: sceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <button
+            <SceneCategoryBrowser saveAction={<button
                 type="button"
                 onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : onSaveScene())}
                 className={`${isMobile ? "h-8 px-3 text-[9px] rounded-xl" : "px-4 py-3 text-[11px] rounded-2xl"} relative flex w-full items-center justify-center border font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]`}
@@ -604,8 +590,28 @@ export default function PolyrhythmSidebar({
               >
                 Save Scene
                 {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
-              </button>
+              </button>} categories={sceneCategories} active={sceneCategory} onSelect={openSceneCategory} onBack={() => setSceneCategory(null)}><>{sceneCategory !== 'saved' ? (<div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>
+                {([
+                  { key: 'standard' as const, label: 'Free', color: '#88CCFF' },
+                  { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
+                ]).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setSceneTab(tab.key)}
+                    className={`${isMobile ? "h-7 px-2 text-[9px]" : "px-3 py-2 text-[10px]"} flex-1 rounded-lg font-mono uppercase tracking-[0.14em]`}
+                    style={{
+                      background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
+                      border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
+                      color: sceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>) : null}
 
+{sceneCategory !== 'saved' && groupedPresets.length === 0 ? <p className="py-4 text-[11px] text-white/45">No {sceneTab === 'pro' ? 'Pro' : 'free'} scenes in this category yet.</p> : null}
               {sceneTab !== 'saved' ? groupedPresets.map(({ group, presets }) => {
                 const expanded = expandedSceneGroups[group];
                 const visiblePresets = expanded ? presets : presets.slice(0, group === 'advanced' ? 1 : 2);
@@ -613,7 +619,7 @@ export default function PolyrhythmSidebar({
 
                 return (
                 <div key={group} className={isMobile ? "space-y-2" : "space-y-3"}>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
+                  {sceneCategory === 'exercises' ? (<div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2.5">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-[11px] font-mono uppercase tracking-[0.2em]" style={mobileSubTitleStyle}>
@@ -633,7 +639,7 @@ export default function PolyrhythmSidebar({
                         {presets.length} Scenes
                       </div>
                     </div>
-                  </div>
+                  </div>) : null}
                   {visiblePresets.map((preset) => {
                     const active = preset.id === activePresetId;
                     return (
@@ -720,16 +726,12 @@ export default function PolyrhythmSidebar({
                 </div>
                 );
               }) : null}
-
-              {sceneTab === 'saved' ? (
+{sceneTab === 'saved' ? (
                 <SavedSceneLibrary scenes={savedScenes} folders={sceneFolders} activeSceneId={activeSavedSceneId}
                   onLoadScene={(id) => onLoadSavedScene?.(id)}
                   renderThumbnail={(scene) => <PolyrhythmSceneThumbnail preset={{ ...scene, group: 'two-layer', study: scene.study }} className="h-16 w-16 shrink-0" />}
                   {...sceneLibraryActions} />
-              ) : null}
-
-
-            </section>
+              ) : null}</></SceneCategoryBrowser>
           ) : null}
 
           {activeTab === 'layers' ? (

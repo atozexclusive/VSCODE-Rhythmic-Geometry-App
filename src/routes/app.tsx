@@ -1,3 +1,5 @@
+import { useCanvasEditorClose } from '../components/CanvasEditorDialog';
+import StepCountControl from '../components/StepCountControl';
 import PatternActionIcon from '../components/PatternActionIcon';
 import RiffShapeEditor from '../components/RiffShapeEditor';
 import RiffSoundOptions from '../components/RiffSoundOptions';
@@ -3222,6 +3224,7 @@ function CanvasDisplayControls({
   hideGuideAutomation = false,
   hideGuides = false,
   innerClockLast = false,
+  beforePickup,
   showSquareGridControl = false,
   showInnerClockControls = false,
   showCellStripControl = false,
@@ -3237,6 +3240,7 @@ function CanvasDisplayControls({
   hideGuideAutomation?: boolean;
   hideGuides?: boolean;
   innerClockLast?: boolean;
+  beforePickup?: ReactNode;
   showSquareGridControl?: boolean;
   showInnerClockControls?: boolean;
   showCellStripControl?: boolean;
@@ -3332,6 +3336,15 @@ function CanvasDisplayControls({
       ) : null}
     </div>
   ) : null;
+
+  const timingControls = beforePickup ? (
+    <details className={`${canvasCardClass} group`} style={{ background: 'rgba(255,136,194,0.025)', borderColor: 'rgba(255,136,194,0.12)' }}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[11px] text-white/70 [&::-webkit-details-marker]:hidden">
+        Timing <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="space-y-2 pt-2">{beforePickup}{innerClockControl}</div>
+    </details>
+  ) : innerClockControl;
 
   return (
     <div data-canvas-controls="true" className={compact ? 'space-y-2' : 'space-y-2.5'}>
@@ -3493,7 +3506,7 @@ function CanvasDisplayControls({
       </div>
       ) : null}
 
-      {!innerClockLast ? innerClockControl : null}
+      {!innerClockLast ? timingControls : null}
 
       {!hideGuides || !hideGuideAutomation || showMeterNumberControl || showCellStripControl || showCountControl ? (
       <div
@@ -3701,7 +3714,7 @@ function CanvasDisplayControls({
       </div>
       ) : null}
 
-      {innerClockLast ? innerClockControl : null}
+      {innerClockLast ? timingControls : null}
 
       {!compact ? (
         <div className="text-[10px] leading-relaxed text-white/38">
@@ -3731,6 +3744,7 @@ function InlineInfoLabel({
   infoTitle?: string;
   infoBody?: string;
 }) {
+  const canvasEditorClose = useCanvasEditorClose();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -3830,7 +3844,7 @@ function InlineInfoLabel({
             <div
               ref={popoverRef}
               className="z-[90] max-h-[18rem] overflow-y-auto rounded-2xl border border-[#88CCFF]/18 bg-[#0f121a]/96 p-3 shadow-[0_22px_60px_rgba(0,0,0,0.4)] backdrop-blur-xl"
-              style={popoverStyle}
+              style={{ ...popoverStyle, zIndex: canvasEditorClose ? 190 : 90 }}
             >
               <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[#DCEEFF]">
                 {copy.title}
@@ -3975,6 +3989,7 @@ function BarCueSliderControl({
   accentColor = '#FF88C2',
   compact = false,
   subtle = false,
+  slim = false,
 }: {
   value: RiffBarMarkerInterval | undefined;
   onChange: (value: RiffBarMarkerInterval) => void;
@@ -3984,9 +3999,35 @@ function BarCueSliderControl({
   accentColor?: string;
   compact?: boolean;
   subtle?: boolean;
+  slim?: boolean;
 }) {
   const cueBars = getBarCueBarValue(value);
   const applyCueBars = (nextValue: number) => onChange(getBarCueValueForBars(nextValue));
+  const [customCue, setCustomCue] = useState(false);
+  const presetBars = [0, 1, 2, 4, 8, 16];
+  const showCustomCue = customCue || !presetBars.includes(cueBars);
+
+  if (slim) return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: `${accentColor}18`, background: `${accentColor}05` }}>
+      <InlineInfoLabel infoId="riff_bar_markers" label={label} labelClassName={labelClassName} labelStyle={labelStyle} />
+      <div className="flex items-center gap-2">
+        <select aria-label={label} value={showCustomCue ? 'custom' : String(cueBars)}
+          className="h-8 rounded-lg border border-white/10 bg-[#20212a] px-2 text-[11px] text-white/80"
+          onChange={event => {
+            const custom = event.target.value === 'custom';
+            setCustomCue(custom);
+            if (!custom) applyCueBars(Number(event.target.value));
+          }}>
+          {presetBars.map(bars => <option key={bars} value={bars}>{bars === 0 ? 'Off' : bars === 1 ? 'Every bar' : `Every ${bars} bars`}</option>)}
+          <option value="custom">Custom</option>
+        </select>
+        {showCustomCue ? <input type="number" min={0} max={RIFF_BAR_CUE_SLIDER_MAX_BARS} inputMode="numeric"
+          aria-label={`${label} bars`} value={cueBars}
+          className="h-8 w-14 rounded-lg border border-white/10 bg-white/5 px-2 text-center text-[11px] text-white/80"
+          onChange={event => applyCueBars(Number.parseInt(event.target.value, 10) || 0)} /> : null}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -4415,6 +4456,7 @@ function RiffCellSequenceEditor({
   contentCollapsed?: boolean;
   onToggleContent?: () => void;
 }) {
+  const closeCanvasEditor = useCanvasEditorClose();
   const resetStepCount = getResetStepCount(study);
   const sequenceResetBars = Math.max(1, Math.min(RIFF_MAX_RESET_BARS, Math.round(study.riffSequenceBars || 4)));
   const cells = study.riffCells ?? [];
@@ -4541,7 +4583,7 @@ function RiffCellSequenceEditor({
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
-          {study.riffSequenceEnabled && !sequenceLocked ? <button type="button" className="cell-guide-trigger" onClick={() => { if (contentCollapsed) onToggleContent?.(); onOpenGuide(); }}><CircleHelp size={13} />Guide</button> : null}
+          {study.riffSequenceEnabled && !sequenceLocked ? <button type="button" className="cell-guide-trigger" onClick={() => { if (contentCollapsed) onToggleContent?.(); closeCanvasEditor?.(); onOpenGuide(); }}><CircleHelp size={13} />Guide</button> : null}
           {study.riffSequenceEnabled && !sequenceLocked && onToggleContent ? (
             <StudyShellButton
               size="compact"
@@ -15441,6 +15483,40 @@ function OrbitalPolymeter() {
     label="Edit riff color" popoverZIndex={180} locked={colorEditingLocked} onLockedClick={() => openProPrompt('color-editing')} />;
   const riffShapeEditor = <RiffShapeEditor
     study={riffSelectedSequenceCell ? { ...riffCycleStudy, reference: riffEditableReference, riff: { ...riffCycleStudy.riff, ...riffSelectedSequenceCell } } : riffCycleStudy}
+    riffStepLabel={riffSelectedSequenceCell ? `Cell ${riffSelectedSequenceCell.label} Steps` : 'Riff Steps'}
+    sequencer={RIFF_CELL_SEQUENCE_FEATURE_ENABLED ? (stepEditor) => <div className="space-y-3"><RiffCellSequenceEditor
+                              stepEditor={riffCycleStudy.riffSequenceEnabled ? stepEditor : null}
+                    onOpenGuide={() => openStartGuide('cell-sequencer')}
+                              study={riffCycleStudy}
+                              selectedCellLabel={riffSelectedSequenceCell?.label ?? selectedRiffSequenceCellLabel}
+                              selectedPhraseIndex={selectedRiffSequencePhraseIndex}
+                              onSetEnabled={handleSetRiffCellSequenceEnabled}
+                              onSelectCell={handleSelectRiffSequenceCell}
+                              onSelectPhrase={handleSelectRiffSequencePhrase}
+                              onAddCell={handleAddRiffSequenceCell}
+                              onCopyCell={handleCopyRiffSequenceCell}
+                              onAppendCell={handleAppendRiffSequenceCell}
+                              onAddPhrase={handleAddRiffSequencePhrase}
+                              onDeletePhrase={handleDeleteRiffSequencePhrase}
+                              onSetPhraseRepeats={handleSetRiffSequencePhraseRepeats}
+                              onRemoveLastCell={handleRemoveLastRiffSequenceCell}
+                              onDeleteCell={handleDeleteRiffSequenceCell}
+                              onResetSequence={handleResetRiffSequence}
+
+                              onSetSequenceBarsMode={handleSetRiffSequenceBarsMode}
+                              onSetChainEnabled={handleSetRiffSequenceChainEnabled}
+                              onSetSequenceEntryBars={handleSetRiffSequenceEntryBars}
+                              onSetSequenceEntryRepeats={handleSetRiffSequenceEntryRepeats}
+                              onSetSequenceEntryDurationMode={handleSetRiffSequenceEntryDurationMode}
+                              onSetCellColor={handleSetRiffSequenceCellColor}
+                              onSetCellName={handleSetRiffSequenceCellName}
+                              onRandomizeCells={handleRandomizeRiffSequenceCells}
+                              colorEditingLocked={colorEditingLocked}
+                              onLockedColorClick={() => openProPrompt('color-editing')}
+                              sequenceLocked={riffCellSequencerLocked}
+                              onLockedSequenceClick={() => openProPrompt('riff-cell-sequencer')}
+                              compact
+                            />{!riffCycleStudy.riffSequenceEnabled ? stepEditor : null}</div> : undefined}
     onStepCount={handleSetRiffPhraseStepCount} onEndingLength={handleSetRiffLandingLength} onToggleEnding={handleToggleRiffLandingEdit}
     endingSteps={<RiffRollEditor compact activeSteps={riffLandingRollSteps} accents={riffLandingRollAccents}
       color="#7FD7FF" selectedStepIndex={null} labelPrefix="ending" onPressStep={index => handleSetRiffLandingStepActive(index, !riffLandingRollSteps[index])} onLongPressStep={handleToggleRiffLandingAccent} />}
@@ -17060,6 +17136,18 @@ function OrbitalPolymeter() {
           orbitColor={selectedPolyrhythmLayer.color}
           orbitPulseCount={selectedPolyrhythmLayer.beatCount}
           orbitPulseMax={64}
+          colorControl={<LimitedColorPickerButton colors={POLYRHYTHM_LAYER_COLORS} value={selectedPolyrhythmLayer.color}
+            onChange={color => handleSetPolyrhythmLayerColor(selectedPolyrhythmLayer.id, color)} label="Edit layer color"
+            popoverZIndex={180} locked={colorEditingLocked} onLockedClick={() => openProPrompt('color-editing')} />}
+          layerStepEditor={<section className="riff-shape-editor mt-3 space-y-3 rounded-xl border p-3" style={{ borderColor: `${selectedPolyrhythmLayer.color}26`, background: `linear-gradient(145deg, ${selectedPolyrhythmLayer.color}0d, rgba(17,17,22,.65))` }}>
+            <div className="text-[10px] text-white/55">Layer Steps</div>
+            <StepCountControl value={selectedPolyrhythmLayer.beatCount} color={selectedPolyrhythmLayer.color}
+              label="Layer steps" max={64} onChange={count => handleSetPolyrhythmLayerBeatCount(selectedPolyrhythmLayer.id, count)} />
+            <RiffRollEditor compact activeSteps={selectedPolyrhythmLayer.activeSteps} accents={selectedPolyrhythmLayer.accents ?? []}
+              color={selectedPolyrhythmLayer.color} selectedStepIndex={selectedPolyrhythmStep?.layerId === selectedPolyrhythmLayer.id ? selectedPolyrhythmStep.stepIndex : null}
+              labelPrefix="layer" onPressStep={index => handleTogglePolyrhythmLayerStep(selectedPolyrhythmLayer.id, index)}
+              onLongPressStep={index => handleTogglePolyrhythmLayerAccent(selectedPolyrhythmLayer.id, index)} />
+          </section>}
           radius={selectedPolyrhythmLayer.radius}
           orbitOptions={polyrhythmStudy.layers.map((layer, index) => ({
             id: layer.id, label: `Layer ${index + 1}`, color: layer.color,
@@ -20666,6 +20754,7 @@ function OrbitalPolymeter() {
                       hideGuideAutomation
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
+                      beforePickup={<BarCueSliderControl value={riffCycleStudy.barMarkerInterval} onChange={handleSetRiffBarMarkerInterval} compact slim accentColor="#FF88C2" />}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showMeterNumberControl
@@ -24212,6 +24301,7 @@ function OrbitalPolymeter() {
                     <CanvasDisplayControls
                       settings={canvasDisplayState.riff}
                       onChange={handleUpdateRiffDisplay}
+                      beforePickup={<BarCueSliderControl value={riffCycleStudy.barMarkerInterval} onChange={handleSetRiffBarMarkerInterval} compact slim accentColor="#FF88C2" />}
                       showInnerClockControls={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showCellStripControl={RIFF_CELL_SEQUENCE_FEATURE_ENABLED}
                       showMeterNumberControl

@@ -914,3 +914,23 @@
 .riff-shape-editor [data-mobile-editor-index] { min-width: 38px; min-height: 54px; padding: 5px; }
 .riff-shape-editor select option { background: #202630; }
 .riff-shape-editor svg[viewBox="0 0 64 42"] { width: 30px; height: 23px; }
+
+/* Menus from the sequencer stay above the shared canvas-editor dialog. */
+body:has([data-canvas-editor-dialog]) [data-radix-popper-content-wrapper] {
+  z-index: 180 !important;
+}
+
+/* Keep the sequencer's entry banner light and subordinate to the step editor. */
+.cell-sequencer[data-cell-sequencer-expanded="false"] {
+  padding: 3px 8px !important;
+  border-radius: 9px;
+}
+.cell-sequencer > [data-guide="riff-cell-overview"] {
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-height: 26px;
+}
+.cell-sequencer > [data-guide="riff-cell-overview"] > div:first-child { flex: 1 1 auto; }
+.cell-sequencer > [data-guide="riff-cell-overview"] button { min-height: 24px; }
+.cell-sequencer > [data-guide="riff-cell-overview"] > div:first-child button { height: 22px; min-height: 22px; }
+[data-canvas-editor-dialog] .cell-sequencer { max-height: none; overflow: visible; }

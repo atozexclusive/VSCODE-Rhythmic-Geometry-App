@@ -1,3 +1,5 @@
+import { getRiffSceneCategory } from '../lib/sceneCategories';
+import SceneCategoryBrowser, { type SceneCategory } from './SceneCategoryBrowser';
 import SceneExportMenu, { ExportImageOptions } from './SceneExportMenu';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight, Folder, Lock, RotateCcw, RotateCw, X } from 'lucide-react';
@@ -404,9 +406,8 @@ export default function RiffCycleSidebar({
   const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/i.test(navigator.userAgent);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<RiffCycleSidebarTab>('scenes');
+  const [sceneCategory, setSceneCategory] = useState<string | null>(null);
   const [sceneTab, setSceneTab] = useState<RiffCycleSidebarSceneTab>('standard');
-  const [standardCollection, setStandardCollection] = useState<'polyrhythm-breakdowns' | null>(null);
-  const [proCollection, setProCollection] = useState<'polyrhythm-breakdowns' | null>(null);
   const [videoDuration, setVideoDuration] = useState<VideoExportDuration>(8);
   const [videoAspect, setVideoAspect] = useState<VideoExportAspect>('landscape');
   const [exportMidiMode, setExportMidiMode] = useState<RiffMidiExportMode>('cycle');
@@ -482,14 +483,24 @@ export default function RiffCycleSidebar({
         { id: 'export', label: 'Export', color: '#FFAA00' },
         { id: 'account', label: 'Account', color: '#C9D4E5' },
       ];
-  const standardPresets = RIFF_CYCLE_PRESETS.filter((preset) => !preset.pro && (preset.collection ?? null) === standardCollection);
-  const proPresets = RIFF_CYCLE_PRESETS.filter((preset) => proCollection
-    ? preset.collection === proCollection
-    : preset.pro && !preset.collection);
-  const sceneCollection = sceneTab === 'standard' ? standardCollection : proCollection;
-  const setSceneCollection = sceneTab === 'standard' ? setStandardCollection : setProCollection;
-  const breakdownPresets = sceneTab === 'standard' ? RIFF_STANDARD_POLYRHYTHM_BREAKDOWNS : RIFF_POLYRHYTHM_BREAKDOWNS;
-  const collectionParentLabel = sceneTab === 'standard' ? 'Free' : 'Pro';
+  const standardPresets = RIFF_CYCLE_PRESETS.filter(preset => !preset.pro && getRiffSceneCategory(preset) === sceneCategory);
+  const proPresets = RIFF_CYCLE_PRESETS.filter(preset => preset.pro && getRiffSceneCategory(preset) === sceneCategory);
+  const openSceneCategory = (id: string) => {
+    setSceneCategory(id);
+    setSceneTab(id === 'saved' ? 'saved' : 'standard');
+  };
+  const categoryPreview = (id: string) => {
+    const preset = RIFF_CYCLE_PRESETS.find(item => getRiffSceneCategory(item) === id);
+    const color = id === 'songs' ? '#FF88C2' : id === 'exercises' ? '#7FD7FF' : '#B6A0FF';
+    return preset ? <RiffSceneThumbnail preset={{ ...preset, id: `${preset.id}-category-${id}`, study: { ...preset.study, riff: { ...preset.study.riff, color } } }} className="h-full w-full" /> : undefined;
+  };
+  const firstSavedScene = savedScenes.find(scene => !scene.deletedAt);
+  const sceneCategories: SceneCategory[] = [
+    { id: 'saved', title: 'Saved Scenes', description: 'Your ideas, ready to revisit.', color: '#72F1B8', preview: firstSavedScene ? <RiffSceneThumbnail preset={{ ...firstSavedScene, id: `${firstSavedScene.id}-category-saved`, study: { ...firstSavedScene.study, riff: { ...firstSavedScene.study.riff, color: '#72F1B8' } } }} className="h-full w-full" /> : undefined },
+    { id: 'songs', title: 'Songs', description: 'Explore rhythms from real music.', color: '#FF88C2', preview: categoryPreview('songs') },
+    { id: 'exercises', title: 'Exercises', description: 'Build your rhythm skills.', color: '#7FD7FF', preview: categoryPreview('exercises') },
+    { id: 'experiments', title: 'Experiments', description: 'Explore unusual rhythms and shapes.', color: '#B6A0FF', preview: categoryPreview('experiments') },
+  ];
 
   useEffect(() => {
     if (isMobile && isOpen) {
@@ -665,39 +676,7 @@ export default function RiffCycleSidebar({
             </div>
 
           {activeTab === 'scenes' ? (
-          <section data-riff-menu-scenes className={isMobile ? "space-y-2" : "space-y-3"}>
-            <div className="space-y-1">
-              <div className={`${isMobile ? "text-[10px]" : "text-[11px]"} font-mono uppercase tracking-[0.2em]`} style={mobilePrimaryTitleStyle}>
-                Scenes
-              </div>
-              <div className={`${isMobile ? "text-[9px] leading-snug" : "text-[11px] leading-relaxed"} text-white/52`}>
-                Load a starting riff, then edit the pattern and ending from the main controls.
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>
-              {([
-                { key: 'standard' as const, label: 'Free', color: '#88CCFF' },
-                { key: 'saved' as const, label: 'Saved', color: '#72F1B8' },
-                { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
-              ]).map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setSceneTab(tab.key)}
-                  className={`${isMobile ? "h-7 px-2 text-[9px]" : "px-3 py-2 text-[10px]"} flex-1 rounded-lg font-mono uppercase tracking-[0.14em]`}
-                  style={{
-                    background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
-                    border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
-                    color: sceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <button
+          <SceneCategoryBrowser saveAction={<button
               type="button"
               onClick={() => (saveScenesLocked ? promptLockedSaveScenes() : onSaveScene())}
               className={`${isMobile ? "h-8 px-3 text-[9px] rounded-xl" : "px-4 py-3 text-[11px] rounded-2xl"} relative flex w-full items-center justify-center border font-mono uppercase tracking-[0.18em] transition-transform active:scale-[0.985]`}
@@ -715,31 +694,29 @@ export default function RiffCycleSidebar({
             >
               Save Scene
               {saveScenesLocked ? <Lock className="absolute right-3 top-1/2 -translate-y-1/2 text-white/42" size={13} strokeWidth={2.4} /> : null}
-            </button>
+            </button>} categories={sceneCategories} active={sceneCategory} onSelect={openSceneCategory} onBack={() => setSceneCategory(null)}><>{sceneCategory !== 'saved' ? (<div className="flex items-center gap-2 rounded-2xl border p-1" style={mobilePrimaryTabShellStyle}>
+              {([
+                { key: 'standard' as const, label: 'Free', color: '#88CCFF' },
+                { key: 'pro' as const, label: 'Pro', color: '#FFAA00' },
+              ]).map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setSceneTab(tab.key)}
+                  className={`${isMobile ? "h-7 px-2 text-[9px]" : "px-3 py-2 text-[10px]"} flex-1 rounded-lg font-mono uppercase tracking-[0.14em]`}
+                  style={{
+                    background: sceneTab === tab.key ? `${tab.color}14` : 'transparent',
+                    border: `1px solid ${sceneTab === tab.key ? `${tab.color}45` : 'transparent'}`,
+                    color: sceneTab === tab.key ? tab.color : 'rgba(255,255,255,0.48)',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>) : null}
 
-            {sceneTab === 'standard' || sceneTab === 'pro' ? (
-              <div>
-                {sceneCollection ? (
-                  <div className="space-y-2">
-                    <button type="button" onClick={() => setSceneCollection(null)} className="flex items-center gap-1 text-[10px] text-white/60">
-                      <ChevronLeft size={13} /> Back to {collectionParentLabel}
-                    </button>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#FFD166]">Polyrhythm Breakdowns</div>
-                    <p className="text-[10px] leading-relaxed text-white/50">Cell Sequencer opens ready to play. A: full grid with the first accent, B: accented grid, C: full polyrhythm. Each stage plays twice.</p>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setSceneCollection('polyrhythm-breakdowns')}
-                    className="flex w-full items-center gap-3 rounded-xl border border-[#FFD166]/20 bg-[#FFD166]/[0.045] p-3 text-left"
-                    aria-label="Open Polyrhythm Breakdowns folder">
-                    <Folder size={22} className="shrink-0 text-[#FFD166]" />
-                    <span className="min-w-0 flex-1"><span className="block font-mono text-[10px] uppercase tracking-[0.1em] text-[#FFD166]">Polyrhythm Breakdowns</span>
-                      <span className="mt-1 block text-[10px] text-white/50">{breakdownPresets.length} scenes · Full grid → accents → polyrhythm</span></span>
-                    <ChevronRight size={14} className="shrink-0 text-white/50" />
-                  </button>
-                )}
-              </div>
-            ) : null}
 
+{sceneCategory !== 'saved' && (sceneTab === 'pro' ? proPresets : standardPresets).length === 0 ? <p className="py-4 text-[11px] text-white/45">No {sceneTab === 'pro' ? 'Pro' : 'free'} scenes in this category yet.</p> : null}
             {sceneTab === 'standard' ? standardPresets.map((preset) => {
               const active = preset.id === activePresetId;
               return (
@@ -787,8 +764,7 @@ export default function RiffCycleSidebar({
                 </div>
               );
             }) : null}
-
-            {sceneTab === 'saved' ? (
+{sceneTab === 'saved' ? (
               <SavedSceneLibrary
                 scenes={savedScenes}
                 folders={sceneFolders}
@@ -798,8 +774,7 @@ export default function RiffCycleSidebar({
                 {...sceneLibraryActions}
               />
             ) : null}
-
-            {sceneTab === 'pro' ? (
+{sceneTab === 'pro' ? (
               <div className={isMobile ? "space-y-2" : "space-y-3"}>
                 {proPresets.map((preset) => {
                   const active = preset.id === activePresetId;
@@ -850,8 +825,7 @@ export default function RiffCycleSidebar({
                   );
                 })}
               </div>
-            ) : null}
-          </section>
+            ) : null}</></SceneCategoryBrowser>
           ) : null}
 
           {activeTab === 'bar' ? (
