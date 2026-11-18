@@ -45,6 +45,7 @@ import {
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
+  prepareCanvasRecordingFrames,
   recordMediaRecorderForDuration,
   VIDEO_EXPORT_SIZES,
   type VideoExportAspect,
@@ -1166,7 +1167,7 @@ export default function PolyrhythmCanvas({
           playing: false,
         };
         draw();
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await prepareCanvasRecordingFrames();
 
         const recordingFormat = getCanvasRecordingFormat();
 

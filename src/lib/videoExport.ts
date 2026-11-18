@@ -74,6 +74,17 @@ export function addAudioToCanvasStream(
   return canvasStream;
 }
 
+/** Let the resized export canvas paint before the recording/audio clocks start. */
+export async function prepareCanvasRecordingFrames(): Promise<void> {
+  let firstTimestamp: number | null = null;
+  let elapsed = 0;
+  do {
+    const timestamp = await new Promise<number>((resolve) => requestAnimationFrame(resolve));
+    firstTimestamp ??= timestamp;
+    elapsed = timestamp - firstTimestamp;
+  } while (elapsed < 250);
+}
+
 export function recordMediaRecorderForDuration(
   recorder: MediaRecorder,
   durationSeconds: number,

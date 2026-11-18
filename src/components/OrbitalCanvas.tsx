@@ -42,6 +42,7 @@ import {
   CANVAS_RECORDING_VIDEO_BITS_PER_SECOND,
   getCanvasRecordingFormat,
   prepareCanvasRecordingDownload,
+  prepareCanvasRecordingFrames,
   recordMediaRecorderForDuration,
   SHORTS_EXPORT_POINT_SCALE,
   VIDEO_EXPORT_SIZES,
@@ -681,15 +682,13 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
 
           const recordingFormat = getCanvasRecordingFormat();
 
-          const waitForFrame = () =>
-            new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
           const previousHudVisible = hudVisibleRef.current;
           hudVisibleRef.current = false;
           exportVideoSizeRef.current = VIDEO_EXPORT_SIZES[aspect];
           exportVideoActiveRef.current = true;
           forceUpdate((value) => value + 1);
           let stream: MediaStream | null = null;
+          let playbackStartTimer: number | null = null;
           try {
             const state = engineRef.current;
             const activeCountMode =
@@ -701,8 +700,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             bloomsRef.current = [];
             clearTraces();
             forceUpdate((value) => value + 1);
-            await waitForFrame();
-            await waitForFrame();
+            await prepareCanvasRecordingFrames();
 
             stream = addAudioToCanvasStream(
               canvas.captureStream(CANVAS_RECORDING_FRAME_RATE),
@@ -728,7 +726,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             };
 
             const recordingPromise = recordMediaRecorderForDuration(recorder, durationSeconds);
-            window.setTimeout(() => {
+            playbackStartTimer = window.setTimeout(() => {
               state.playing = true;
               state.lastTimestamp = -1;
               forceUpdate((value) => value + 1);
@@ -747,6 +745,7 @@ const OrbitalCanvas = forwardRef<HTMLCanvasElement, OrbitalCanvasProps>(
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
           } finally {
+            if (playbackStartTimer != null) window.clearTimeout(playbackStartTimer);
             stream?.getTracks().forEach((track) => track.stop());
             exportVideoActiveRef.current = false;
             exportVideoSizeRef.current = null;
