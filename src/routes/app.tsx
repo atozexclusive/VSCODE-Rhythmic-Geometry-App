@@ -14900,7 +14900,7 @@ function OrbitalPolymeter() {
           };
         });
   const orbitQuickMenuOptions = getGeometryModeOrbits(engineState.orbits, geometryMode, interferenceSettings)
-    .map((orbit, index) => ({ id: orbit.id, label: `Orbit ${index + 1}`, color: orbit.color }));
+    .map((orbit, index) => ({ id: orbit.id, label: `Orbit ${index + 1}`, color: orbit.color, pulseCount: orbit.pulseCount }));
   const mobileQuickOrbitSliderMax = Math.min(
     getMaxEditableRatio(effectivePlan),
     geometryMode === 'standard-trace' ? 32 : 100,

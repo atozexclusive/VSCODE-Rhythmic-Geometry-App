@@ -5,7 +5,7 @@ import CanvasEditorDialog from './CanvasEditorDialog';
 // ============================================================
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronUp, Lock, Minus, Plus, Trash2 } from 'lucide-react';
+import { X, Lock, Minus, Plus, Trash2 } from 'lucide-react';
 import { type HarmonySettings } from '../lib/audioEngine';
 import { useIsMobile } from '../hooks/use-mobile';
 
@@ -18,7 +18,7 @@ interface RadialMenuProps {
   orbitPulseMax?: number;
   orbitDegree?: number;
   orbitRegister?: -1 | 0 | 1;
-  orbitOptions?: Array<{ id: string; label: string; color: string }>;
+  orbitOptions?: Array<{ id: string; label: string; color: string; pulseCount?: number }>;
   harmonySettings?: HarmonySettings;
   entityLabel?: 'Orbit' | 'Layer';
   layerStepEditor?: ReactNode;
@@ -79,12 +79,13 @@ export default function RadialMenu({
   // hook must not resize or reposition the shared dialog after it opens.
   const isMobile = docked || mobileViewport;
   const menuRef = useRef<HTMLDivElement>(null);
+  const [allOrbits, setAllOrbits] = useState(false);
+  const supportsAll = entityLabel === 'Orbit' && orbitOptions.some(orbit => orbit.pulseCount != null);
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
   const selectedOrbitLabel =
     orbitOptions.find((orbit) => orbit.id === orbitId)?.label ?? entityLabel;
   const selectedOrbitNumber = Math.max(1, Math.round(orbitPulseCount ?? 1));
   const ratioSliderMax = Math.max(1, orbitPulseMax);
-  const ratioSliderValue = Math.min(selectedOrbitNumber, ratioSliderMax);
   const mobileViewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
   const mobileViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 760;
   const mobileMenuWidth = Math.min(350, mobileViewportWidth - 24);
@@ -147,28 +148,13 @@ export default function RadialMenu({
             </div>
             {isMobile ? (
               <div className="mt-0.5 text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: orbitColor }}>
-                {selectedOrbitLabel}
+                {allOrbits ? 'All orbits' : selectedOrbitLabel}
               </div>
             ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isMobile && (
-            <button
-              onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-mono uppercase tracking-[0.18em]"
-              style={{
-                color: 'rgba(255,255,255,0.65)',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}
-              aria-label={`Close ${entityLabel.toLowerCase()} menu`}
-              title={`Close ${entityLabel.toLowerCase()} menu`}
-            >
-              <ChevronUp size={13} />
-            </button>
-          )}
-          <button
+          {!allOrbits ? <button
             onClick={() => {
               onDelete(orbitId);
               onClose();
@@ -184,7 +170,22 @@ export default function RadialMenu({
             title={`Delete ${entityLabel.toLowerCase()}`}
           >
             <Trash2 size={isMobile ? 14 : 15} />
-          </button>
+          </button> : null}
+          {isMobile && (
+            <button
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-mono uppercase tracking-[0.18em]"
+              style={{
+                color: 'rgba(255,255,255,0.65)',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+              aria-label={`Close ${entityLabel.toLowerCase()} menu`}
+              title={`Close ${entityLabel.toLowerCase()} menu`}
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -198,14 +199,16 @@ export default function RadialMenu({
             Quick Swap {entityLabel}
           </div>
           <div className={`flex ${isMobile ? 'gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]' : 'grid grid-cols-2 gap-2'}`}>
+            {supportsAll ? <button type="button" onClick={() => setAllOrbits(true)} aria-pressed={allOrbits}
+              className="flex min-h-6 min-w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] px-2 text-[9px] font-mono uppercase tracking-[0.13em] text-white/60 aria-pressed:border-white/40 aria-pressed:bg-white/10 aria-pressed:text-white">All</button> : null}
             {orbitOptions.map((orbit) => {
-              const active = orbit.id === orbitId;
+              const active = !allOrbits && orbit.id === orbitId;
               const orbitIndex = orbitOptions.findIndex((option) => option.id === orbit.id);
               return (
                 <button
                   key={orbit.id}
                   type="button"
-                  onClick={() => onSelectOrbit?.(orbit.id)}
+                  onClick={() => { setAllOrbits(false); onSelectOrbit?.(orbit.id); }}
                   className={`${isMobile ? 'flex h-6 min-w-8 shrink-0 items-center justify-center rounded-lg px-2 text-[9px]' : 'rounded-xl px-3 py-2 text-[10px]'} border font-mono uppercase tracking-[0.13em] transition-all active:scale-[0.98]`}
                   style={{
                     background: active ? `${orbit.color}18` : 'rgba(255,255,255,0.035)',
@@ -236,13 +239,20 @@ export default function RadialMenu({
 
       {docked && layerSequencer ? <div className="mt-3">{layerSequencer}</div> : null}
       {docked && layerStepEditor ? layerStepEditor : onChangePulseCount ? (
-        <div className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
+        (allOrbits ? orbitOptions : [{ id: orbitId, label: selectedOrbitLabel, color: orbitColor, pulseCount: selectedOrbitNumber }]).map((orbit) => {
+          const orbitId = orbit.id;
+          const orbitColor = orbit.color;
+          const selectedOrbitLabel = orbit.label;
+          const selectedOrbitNumber = Math.max(1, Math.round(orbit.pulseCount ?? 1));
+          const ratioSliderValue = Math.min(selectedOrbitNumber, ratioSliderMax);
+          return (
+        <div key={orbitId} className={`${isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3 rounded-xl border p-2'}`} style={entityLabel === 'Layer' ? { ...mobileSectionStyle, borderColor: `${orbitColor}45`, background: `linear-gradient(145deg, ${orbitColor}14, rgba(255,255,255,0.025))` } : isMobile ? mobileSectionStyle : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)' }}>
           <div className="mb-1 flex items-center justify-between gap-2">
             <div
               className={`${entityLabel === 'Layer' ? 'text-[10px] font-semibold' : 'text-[8px]'} font-mono uppercase tracking-[0.16em]`}
               style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.58)' }}
             >
-              {entityLabel === 'Layer' ? 'Steps' : 'Orbits'}
+              {allOrbits ? selectedOrbitLabel : entityLabel === 'Layer' ? 'Steps' : 'Orbits'}
             </div>
             <div
               className={`rounded-lg border px-2 py-0.5 ${entityLabel === 'Layer' ? 'text-[12px] font-semibold' : 'text-[10px]'} font-mono`}
@@ -297,6 +307,8 @@ export default function RadialMenu({
             </button>
           </div>
         </div>
+          );
+        })
       ) : null}
 
       {onChangeRadius && radius != null ? (
@@ -320,7 +332,7 @@ export default function RadialMenu({
         </div>
       ) : null}
 
-{!docked ? (      <div className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
+{!docked && !allOrbits ? (      <div className={isMobile ? 'mt-1.5 rounded-lg border p-1.5' : 'mt-3'} style={isMobile ? mobileSectionStyle : undefined}>
         <div
           className="text-[10px] font-mono uppercase tracking-[0.2em]"
           style={isMobile ? mobileSectionTitleStyle : { color: 'rgba(255,255,255,0.45)' }}
