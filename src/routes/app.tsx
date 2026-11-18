@@ -1,3 +1,4 @@
+import MobileOpeningLayout from '../components/MobileOpeningLayout';
 import { useCanvasEditorClose } from '../components/CanvasEditorDialog';
 import StepCountControl from '../components/StepCountControl';
 import PatternActionIcon from '../components/PatternActionIcon';
@@ -17366,9 +17367,10 @@ function OrbitalPolymeter() {
       const activePolyrhythmSceneName =
         activePolyrhythmSavedScene?.name ?? activePolyrhythmPreset?.name ?? 'Custom Study';
       return (
-        <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+        <MobileOpeningLayout key="study">
           <div className="space-y-2">
             <div
+              data-opening-stage
               data-guide="study-mobile-main-canvas"
               className="relative overflow-hidden"
               style={polyrhythmMobileCanvasStyle}
@@ -17491,7 +17493,7 @@ function OrbitalPolymeter() {
             <div className="px-4 flex flex-col gap-3">
               {mobileBeginnerIntroCard}
 
-              <div data-guide="study-mobile-playback" className={`relative ${studyAudioPanelOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`}
+              <div data-opening-playback data-guide="study-mobile-playback" className={`relative ${studyAudioPanelOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`}
                 style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}>
 <div className="flex items-center justify-between gap-3">
                   <div className="text-[9px] font-mono uppercase tracking-[0.15em]" style={mobileRiffAmberTitleStyle}>
@@ -18678,7 +18680,7 @@ function OrbitalPolymeter() {
             onLockedFeature={openProPrompt}
           />
           {proPromptOverlay}
-        </div>
+        </MobileOpeningLayout>
       );
     }
 
@@ -20472,9 +20474,10 @@ function OrbitalPolymeter() {
       );
 
       return (
-        <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+        <MobileOpeningLayout key="riff">
           <div className="flex min-h-[calc(100svh-2.25rem)] flex-col gap-2">
             <div
+              data-opening-stage
               data-guide="riff-mobile-main-canvas"
               className="relative overflow-hidden"
               style={riffMobileCanvasStyle}
@@ -20783,7 +20786,7 @@ function OrbitalPolymeter() {
               {mobileBeginnerIntroCard}
 
               <div
-                data-guide="riff-mobile-transport"
+                data-opening-playback data-guide="riff-mobile-transport"
                 className={`relative ${riffAudioPanelOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`}
                 style={{ background: 'rgba(17,17,22,0.9)', borderColor: 'rgba(255,255,255,0.08)' }}
               >
@@ -22701,7 +22704,7 @@ function OrbitalPolymeter() {
             onLockedFeature={openProPrompt}
           />
           {proPromptOverlay}
-        </div>
+        </MobileOpeningLayout>
       );
     }
 
@@ -25814,7 +25817,7 @@ function OrbitalPolymeter() {
     }
 
     return (
-      <div className="min-h-[100svh] overflow-y-auto bg-[#111116] pt-2 pb-7 select-none">
+      <MobileOpeningLayout key="orbit">
         <div className="fixed left-5 top-4 z-40">
           <Link to="/" className="group inline-block">
             <div>
@@ -25832,7 +25835,8 @@ function OrbitalPolymeter() {
         </div>
         <div className="space-y-2">
           <div
-            data-guide="mobile-colors"
+            data-opening-stage
+              data-guide="mobile-colors"
             className="relative overflow-hidden"
             style={mobileCanvasFrameStyle}
           >
@@ -25964,7 +25968,7 @@ function OrbitalPolymeter() {
           <div className="px-4 flex flex-col gap-3">
             {mobileBeginnerIntroCard}
 
-            <div data-guide="mobile-playback" className={`relative ${orbitAudioMixOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`} style={{ background:'rgba(17,17,22,0.9)',borderColor:'rgba(255,255,255,0.08)' }}><div className="flex items-center justify-between gap-3">
+            <div data-opening-playback data-guide="mobile-playback" className={`relative ${orbitAudioMixOpen ? 'z-40' : 'z-10'} rounded-[20px] border px-2.5 py-2.5 space-y-2`} style={{ background:'rgba(17,17,22,0.9)',borderColor:'rgba(255,255,255,0.08)' }}><div className="flex items-center justify-between gap-3">
                   <div className="text-[9px] font-mono uppercase tracking-[0.15em]" style={mobileRiffAmberTitleStyle}>
                     Playback
                   </div>
@@ -26435,7 +26439,7 @@ function OrbitalPolymeter() {
             onClose={() => setRadialMenu(null)}
           />
         )}
-      </div>
+      </MobileOpeningLayout>
     );
   }
 

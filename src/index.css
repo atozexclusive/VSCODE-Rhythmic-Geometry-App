@@ -1125,3 +1125,17 @@ body:has([data-canvas-editor-dialog]) [data-radix-popper-content-wrapper] {
 @media (max-width: 767px) {
   [data-canvas-editor-dialog] .riff-step-heading-with-sequencer { padding-left: 5px; }
 }
+/* Playback closes the opening screen; the legacy Edit panel follows below it. */
+[data-mobile-opening] [data-opening-stage] {
+  height: calc(100svh - var(--opening-controls-height, 160px)) !important;
+  min-height: 240px !important;
+}
+[data-mobile-opening] [data-opening-playback] { flex-shrink: 0; }
+@media (orientation: landscape) and (max-height: 500px) {
+  [data-mobile-opening] [data-opening-stage] { min-height: 180px !important; }
+}
+[data-mobile-opening] [data-opening-playback] + [data-guide="riff-mobile-edit"],
+[data-mobile-opening] [data-opening-playback] + [data-guide="study-mobile-edit"],
+[data-mobile-opening] [data-opening-playback] + [data-guide="mobile-customize"] { margin-top: 12px; }
+
+[data-mobile-opening] { overflow-anchor: none; }
